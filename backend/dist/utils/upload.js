@@ -1,0 +1,90 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.uploadLeaveAttachment = exports.uploadDocument = exports.uploadLogo = void 0;
+const multer_1 = __importDefault(require("multer"));
+const path_1 = __importDefault(require("path"));
+const fs_1 = __importDefault(require("fs"));
+// Ensure uploads directory exists
+const uploadDir = path_1.default.join(__dirname, '../../uploads/logos');
+if (!fs_1.default.existsSync(uploadDir)) {
+    fs_1.default.mkdirSync(uploadDir, { recursive: true });
+}
+const storage = multer_1.default.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, uploadDir);
+    },
+    filename: (req, file, cb) => {
+        // Naming collision prevention: timestamp + random + ext
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, file.fieldname + '-' + uniqueSuffix + path_1.default.extname(file.originalname));
+    }
+});
+const fileFilter = (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif/;
+    const extname = allowedTypes.test(path_1.default.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    if (extname && mimetype) {
+        return cb(null, true);
+    }
+    else {
+        cb(new Error('Only images are allowed (jpeg, jpg, png, gif)'));
+    }
+};
+exports.uploadLogo = (0, multer_1.default)({
+    storage: storage,
+    limits: { fileSize: 2 * 1024 * 1024 }, // 2MB limit
+    fileFilter: fileFilter
+});
+// Document Upload Configuration
+const docStorage = multer_1.default.diskStorage({
+    destination: (req, file, cb) => {
+        const docDir = path_1.default.join(__dirname, '../../uploads/documents');
+        if (!fs_1.default.existsSync(docDir)) {
+            fs_1.default.mkdirSync(docDir, { recursive: true });
+        }
+        cb(null, docDir);
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, file.fieldname + '-' + uniqueSuffix + path_1.default.extname(file.originalname));
+    }
+});
+const docFileFilter = (req, file, cb) => {
+    const allowedTypes = /pdf|doc|docx|image|jpeg|jpg|png/;
+    const extname = allowedTypes.test(path_1.default.extname(file.originalname).toLowerCase());
+    // Mime type check can be tricky for some docs, so we rely mainly on ext for now or generic check
+    if (extname) {
+        return cb(null, true);
+    }
+    else {
+        cb(new Error('Only PDF, DOC, DOCX and Images are allowed'));
+    }
+};
+exports.uploadDocument = (0, multer_1.default)({
+    storage: docStorage,
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+    fileFilter: docFileFilter
+});
+// Leave Attachment Upload Configuration
+const leaveStorage = multer_1.default.diskStorage({
+    destination: (req, file, cb) => {
+        const leaveDir = path_1.default.join(__dirname, '../../uploads/leaves');
+        if (!fs_1.default.existsSync(leaveDir)) {
+            fs_1.default.mkdirSync(leaveDir, { recursive: true });
+        }
+        cb(null, leaveDir);
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, 'leave-' + uniqueSuffix + path_1.default.extname(file.originalname));
+    }
+});
+exports.uploadLeaveAttachment = (0, multer_1.default)({
+    storage: leaveStorage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+    fileFilter: docFileFilter
+});
+//# sourceMappingURL=upload.js.map

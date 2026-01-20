@@ -1,0 +1,295 @@
+import { Request, Response } from 'express';
+import prisma from '../prisma/client';
+import { AuthRequest } from '../middleware/auth';
+import { PermissionService } from '../services/permission.service';
+import { v4 as uuidv4 } from 'uuid';
+
+// Generate Public Link for Quotation
+export const generatePublicLink = async (req: AuthRequest, res: Response) => {
+    try {
+        const { id } = req.params;
+        const user = req.user;
+        const { expiresInDays = 30 } = req.body;
+
+        if (!user) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        // Check permission
+        if (!PermissionService.hasBasicPermission(user, 'Quotation', 'update')) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        // Verify access to quotation
+        const scopeFilter = await PermissionService.getScopedWhereClause(
+            user, 'Quotation', 'update', 'Quotation', 'createdBy', 'assignedTo'
+        );
+
+        const quotation = await prisma.quotation.findFirst({
+            where: { AND: [{ id }, scopeFilter] }
+        });
+
+        if (!quotation) {
+            return res.status(404).json({ error: 'Quotation not found or access denied' });
+        }
+
+        // Generate unique token
+        const publicToken = uuidv4();
+        const publicExpiresAt = new Date();
+        publicExpiresAt.setDate(publicExpiresAt.getDate() + expiresInDays);
+
+        // Update quotation
+        const updated = await prisma.quotation.update({
+            where: { id },
+            data: {
+                publicToken,
+                publicExpiresAt,
+                isPublicEnabled: true,
+                status: 'sent'  // Mark as sent when public link is generated
+            }
+        });
+
+        // Generate public URL
+        const publicUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/public/quotations/${publicToken}`;
+
+        res.json({
+            message: 'Public link generated successfully',
+            publicToken,
+            publicUrl,
+            expiresAt: publicExpiresAt
+        });
+    } catch (error: any) {
+        console.error('Generate public link error:', error);
+        res.status(500).json({ error: 'Failed to generate public link', details: error.message });
+    }
+};
+
+// Revoke Public Link
+export const revokePublicLink = async (req: AuthRequest, res: Response) => {
+    try {
+        const { id } = req.params;
+        const user = req.user;
+
+        if (!user) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        // Check permission
+        if (!PermissionService.hasBasicPermission(user, 'Quotation', 'update')) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        // Verify access
+        const scopeFilter = await PermissionService.getScopedWhereClause(
+            user, 'Quotation', 'update', 'Quotation', 'createdBy', 'assignedTo'
+        );
+
+        const quotation = await prisma.quotation.findFirst({
+            where: { AND: [{ id }, scopeFilter] }
+        });
+
+        if (!quotation) {
+            return res.status(404).json({ error: 'Quotation not found or access denied' });
+        }
+
+        // Revoke link
+        await prisma.quotation.update({
+            where: { id },
+            data: {
+                isPublicEnabled: false,
+                publicToken: null,
+                publicExpiresAt: null
+            }
+        });
+
+        res.json({ message: 'Public link revoked successfully' });
+    } catch (error: any) {
+        console.error('Revoke public link error:', error);
+        res.status(500).json({ error: 'Failed to revoke public link', details: error.message });
+    }
+};
+
+// Get Quotation by Public Token (No Auth Required)
+export const getQuotationByToken = async (req: Request, res: Response) => {
+    try {
+        const { token } = req.params;
+
+        const quotation = await prisma.quotation.findFirst({
+            where: {
+                publicToken: token,
+                isPublicEnabled: true
+            },
+            include: {
+                items: true,
+                lead: true,
+                company: {
+                    select: {
+                        id: true,
+                        name: true,
+                        legalName: true,
+                        email: true,
+                        phone: true,
+                        address: true,
+                        city: true,
+                        state: true,
+                        country: true,
+                        pincode: true,
+                        gstin: true,
+                        logo: true
+                    }
+                }
+            }
+        });
+
+        if (!quotation) {
+            return res.status(404).json({ error: 'Quotation not found or link expired' });
+        }
+
+        // Check expiration
+        if (quotation.publicExpiresAt && new Date() > quotation.publicExpiresAt) {
+            // Mark as expired
+            await prisma.quotation.update({
+                where: { id: quotation.id },
+                data: { status: 'expired', isPublicEnabled: false }
+            });
+            return res.status(410).json({ error: 'This quotation link has expired' });
+        }
+
+        // Mark as viewed (first time only)
+        if (!quotation.clientViewedAt) {
+            await prisma.quotation.update({
+                where: { id: quotation.id },
+                data: {
+                    clientViewedAt: new Date(),
+                    status: 'viewed'
+                }
+            });
+        }
+
+        res.json({ quotation });
+    } catch (error: any) {
+        console.error('Get quotation by token error:', error);
+        res.status(500).json({ error: 'Failed to fetch quotation', details: error.message });
+    }
+};
+
+// Client Accept Quotation
+export const acceptQuotation = async (req: Request, res: Response) => {
+    try {
+        const { token } = req.params;
+        const { signature, email, name, comments } = req.body;
+
+        // Validate required fields
+        if (!signature || !email || !name) {
+            return res.status(400).json({ error: 'Signature, email, and name are required' });
+        }
+
+        const quotation = await prisma.quotation.findFirst({
+            where: {
+                publicToken: token,
+                isPublicEnabled: true
+            }
+        });
+
+        if (!quotation) {
+            return res.status(404).json({ error: 'Quotation not found or link expired' });
+        }
+
+        // Check expiration
+        if (quotation.publicExpiresAt && new Date() > quotation.publicExpiresAt) {
+            return res.status(410).json({ error: 'This quotation link has expired' });
+        }
+
+        // Check if already accepted/rejected
+        if (quotation.clientAcceptedAt) {
+            return res.status(400).json({ error: 'This quotation has already been accepted' });
+        }
+        if (quotation.clientRejectedAt) {
+            return res.status(400).json({ error: 'This quotation has already been rejected' });
+        }
+
+        // Update quotation
+        const updated = await prisma.quotation.update({
+            where: { id: quotation.id },
+            data: {
+                clientAcceptedAt: new Date(),
+                clientSignature: signature,
+                clientEmail: email,
+                clientName: name,
+                clientComments: comments || null,
+                status: 'accepted'
+            }
+        });
+
+        // TODO: Generate signed PDF
+        // TODO: Send acceptance notification email to company
+        // TODO: Send confirmation email to client
+
+        res.json({
+            message: 'Quotation accepted successfully',
+            quotation: updated
+        });
+    } catch (error: any) {
+        console.error('Accept quotation error:', error);
+        res.status(500).json({ error: 'Failed to accept quotation', details: error.message });
+    }
+};
+
+// Client Reject Quotation
+export const rejectQuotation = async (req: Request, res: Response) => {
+    try {
+        const { token } = req.params;
+        const { email, name, comments } = req.body;
+
+        // Validate required fields
+        if (!email || !name) {
+            return res.status(400).json({ error: 'Email and name are required' });
+        }
+
+        const quotation = await prisma.quotation.findFirst({
+            where: {
+                publicToken: token,
+                isPublicEnabled: true
+            }
+        });
+
+        if (!quotation) {
+            return res.status(404).json({ error: 'Quotation not found or link expired' });
+        }
+
+        // Check expiration
+        if (quotation.publicExpiresAt && new Date() > quotation.publicExpiresAt) {
+            return res.status(410).json({ error: 'This quotation link has expired' });
+        }
+
+        // Check if already accepted/rejected
+        if (quotation.clientAcceptedAt) {
+            return res.status(400).json({ error: 'This quotation has already been accepted' });
+        }
+        if (quotation.clientRejectedAt) {
+            return res.status(400).json({ error: 'This quotation has already been rejected' });
+        }
+
+        // Update quotation
+        const updated = await prisma.quotation.update({
+            where: { id: quotation.id },
+            data: {
+                clientRejectedAt: new Date(),
+                clientEmail: email,
+                clientName: name,
+                clientComments: comments || null,
+                status: 'rejected'
+            }
+        });
+
+        // TODO: Send rejection notification email to company
+
+        res.json({
+            message: 'Quotation rejected',
+            quotation: updated
+        });
+    } catch (error: any) {
+        console.error('Reject quotation error:', error);
+        res.status(500).json({ error: 'Failed to reject quotation', details: error.message });
+    }
+};

@@ -1,0 +1,54 @@
+
+// ============================================
+// ACCOUNTING
+// ============================================
+
+model Account {
+  id          String   @id @default(uuid())
+  companyId   String
+  code        String   // e.g., "1001", "2000"
+  name        String   // "Cash", "Accounts Receivable"
+  type        String   // asset, liability, equity, income, expense, combined
+  balance     Decimal  @default(0) @db.Decimal(15, 2)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  journalLines JournalEntryLine[]
+  
+  @@unique([companyId, code])
+  @@index([companyId])
+}
+
+model JournalEntry {
+  id          String   @id @default(uuid())
+  companyId   String
+  date        DateTime @db.Date
+  reference   String?  // Invoice #, Payroll Month
+  description String?
+  status      String   @default("draft") // draft, posted
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  lines       JournalEntryLine[]
+  
+  @@index([companyId])
+  @@index([date])
+}
+
+model JournalEntryLine {
+  id              String   @id @default(uuid())
+  journalEntryId  String
+  accountId       String
+  debit           Decimal  @default(0) @db.Decimal(15, 2)
+  credit          Decimal  @default(0) @db.Decimal(15, 2)
+  description     String?
+  
+  journalEntry    JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  account         Account      @relation(fields: [accountId], references: [id])
+  
+  @@index([journalEntryId])
+  @@index([accountId])
+}

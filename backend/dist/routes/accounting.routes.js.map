@@ -1,0 +1,1 @@
+{"version":3,"file":"accounting.routes.js","sourceRoot":"","sources":["../../src/routes/accounting.routes.ts"],"names":[],"mappings":";;;;;AACA,sDAA8B;AAC9B,6CAAkD;AAClD,gFAA6F;AAE7F,MAAM,MAAM,GAAG,iBAAO,CAAC,MAAM,EAAE,CAAC;AAEhC,MAAM,CAAC,GAAG,CAAC,WAAW,EAAE,mBAAY,EAAE,0CAAkB,CAAC,CAAC;AAC1D,MAAM,CAAC,IAAI,CAAC,UAAU,EAAE,mBAAY,EAAE,yCAAiB,CAAC,CAAC;AAEzD,kBAAe,MAAM,CAAC"}
