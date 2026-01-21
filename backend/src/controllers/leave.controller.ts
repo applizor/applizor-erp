@@ -1139,6 +1139,7 @@ export const getAllBalances = async (req: AuthRequest, res: Response) => {
                         lastName: true,
                         employeeId: true,
                         dateOfJoining: true, // Needed for pro-rata
+                        probationEndDate: true, // Needed for probation display
                         department: { select: { name: true } }
                     }
                 }
@@ -1155,21 +1156,28 @@ export const getAllBalances = async (req: AuthRequest, res: Response) => {
             const annualQuota = b.leaveType.days;
             let displayTotal = 0;
 
-            if (isMonthly) {
-                if (b.employee?.dateOfJoining) {
-                    const joinDate = new Date(b.employee.dateOfJoining);
-                    const joinYear = joinDate.getFullYear();
+            const empJoiningDate = b.employee?.dateOfJoining ? new Date(b.employee.dateOfJoining) : null;
+            const empJoinYear = empJoiningDate?.getFullYear();
+            const isProbation = b.employee?.probationEndDate && new Date() < new Date(b.employee.probationEndDate);
 
-                    if (joinYear === currentYear) {
-                        const joinMonth = joinDate.getMonth();
-                        const remainingMonths = 12 - joinMonth;
-                        const proRata = (annualQuota / 12) * remainingMonths;
-                        displayTotal = Math.round(proRata * 2) / 2;
-                    } else if (joinYear < currentYear) {
-                        displayTotal = annualQuota;
-                    }
+            let effectiveMonths = 12;
+            if (empJoinYear === currentYear && empJoiningDate) {
+                effectiveMonths = 12 - empJoiningDate.getMonth();
+            } else if (empJoinYear && empJoinYear > currentYear) {
+                effectiveMonths = 0;
+            }
+
+            // Sync with getMyBalances priority logic
+            if (isProbation && b.leaveType.probationQuota > 0) {
+                displayTotal = b.leaveType.probationQuota;
+            } else if (isMonthly) {
+                if (empJoinYear === currentYear) {
+                    const proRata = (annualQuota / 12) * effectiveMonths;
+                    displayTotal = Math.round(proRata * 2) / 2;
+                } else if (empJoinYear && empJoinYear < currentYear) {
+                    displayTotal = annualQuota;
                 } else {
-                    displayTotal = annualQuota; // Fallback
+                    displayTotal = annualQuota;
                 }
             } else {
                 displayTotal = b.allocated + b.carriedOver;

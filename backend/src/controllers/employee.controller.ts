@@ -180,8 +180,8 @@ export const createEmployee = async (req: AuthRequest, res: Response) => {
                 const balanceData = applicableLeaveTypes.map(leaveType => {
                     let allocated = 0;
 
-                    // Priority 1: Use probation quota if employee is in probation
-                    if (isProbation && leaveType.probationQuota !== null && leaveType.probationQuota !== undefined) {
+                    // Priority 1: Use probation quota if employee is in probation AND quota > 0
+                    if (isProbation && leaveType.probationQuota > 0) {
                         allocated = leaveType.probationQuota;
                     }
                     // Priority 2: Monthly accrual types start at 0
