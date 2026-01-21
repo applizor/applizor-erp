@@ -24,10 +24,12 @@ import {
     Banknote,
     Copy,
     Building2,
-    Receipt
+    Receipt,
+    ChevronDown,
+    ChevronRight
 } from 'lucide-react';
 import { auth, useAuth } from '@/lib/auth';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { usePermission } from '@/hooks/usePermission';
 
 export default function Sidebar() {
@@ -35,22 +37,29 @@ export default function Sidebar() {
     const { user } = useAuth();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+    // State for expanded categories
+    const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
+        'Main': true // Main always open by default
+    });
+
+    const activeLinkRef = useRef<HTMLAnchorElement>(null);
+
     const navigation = [
         { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, category: 'Main' },
 
         // HRMS (People)
         { name: 'Employees', href: '/hrms/employees', icon: Users, category: 'HRMS', module: 'Employee' },
-        { name: 'Departments', href: '/hrms/departments', icon: Layers, category: 'HRMS', module: 'Department', action: 'update' }, // Hide for read-only
-        { name: 'Positions', href: '/hrms/positions', icon: Briefcase, category: 'HRMS', module: 'Position', action: 'update' }, // Hide for read-only
+        { name: 'Departments', href: '/hrms/departments', icon: Layers, category: 'HRMS', module: 'Department', action: 'update' },
+        { name: 'Positions', href: '/hrms/positions', icon: Briefcase, category: 'HRMS', module: 'Position', action: 'update' },
         { name: 'Assets', href: '/hrms/assets', icon: CreditCard, category: 'HRMS', module: 'Asset' },
-        { name: 'Attendance', href: '/attendance/my-attendance', icon: CalendarCheck, category: 'HRMS', module: 'Attendance' }, // Universal access usually
-        { name: 'Holidays', href: '/attendance/holidays', icon: CalendarCheck, category: 'HRMS', module: 'Holiday' }, // Universal usually or restricted?
-        { name: 'My Leaves', href: '/attendance/leaves', icon: Briefcase, category: 'HRMS', module: 'Leave' }, // Universal
-        { name: 'Leave Approvals', href: '/attendance/leaves/approvals', icon: CalendarCheck, category: 'HRMS', module: 'Leave', action: 'update' }, // Requires update permission
-        { name: 'Leave Balances', href: '/attendance/leaves/balances', icon: PieChart, category: 'HRMS', module: 'LeaveBalance' }, // Added Leave Balances
-        { name: 'Shifts', href: '/attendance/shifts', icon: Activity, category: 'HRMS', module: 'Shift', action: 'update' }, // Master config - hide for read-only users
+        { name: 'Attendance', href: '/attendance/my-attendance', icon: CalendarCheck, category: 'HRMS', module: 'Attendance' },
+        { name: 'Holidays', href: '/attendance/holidays', icon: CalendarCheck, category: 'HRMS', module: 'Holiday' },
+        { name: 'My Leaves', href: '/attendance/leaves', icon: Briefcase, category: 'HRMS', module: 'Leave' },
+        { name: 'Leave Approvals', href: '/attendance/leaves/approvals', icon: CalendarCheck, category: 'HRMS', module: 'Leave', action: 'update' },
+        { name: 'Leave Balances', href: '/attendance/leaves/balances', icon: PieChart, category: 'HRMS', module: 'LeaveBalance' },
+        { name: 'Shifts', href: '/attendance/shifts', icon: Activity, category: 'HRMS', module: 'Shift', action: 'update' },
         { name: 'Shift Roster', href: '/attendance/roster', icon: CalendarCheck, category: 'HRMS', module: 'ShiftRoster' },
-        { name: 'All Attendance', href: '/attendance/admin', icon: Users, category: 'HRMS', module: 'Attendance' }, // Separated module
+        { name: 'All Attendance', href: '/attendance/admin', icon: Users, category: 'HRMS', module: 'Attendance' },
         { name: 'Leave Types', href: '/hrms/leaves/types', icon: Layers, category: 'HRMS', module: 'LeaveType', action: 'update' },
         { name: 'Roles & Permissions', href: '/settings/roles', icon: ShieldCheck, category: 'Settings', module: 'Role' },
 
@@ -68,8 +77,8 @@ export default function Sidebar() {
         // Finance
         { name: 'Invoices', href: '/invoices', icon: FileText, category: 'Finance', module: 'Invoice' },
         { name: 'Run Payroll', href: '/payroll/run', icon: Banknote, category: 'Finance', module: 'Payroll' },
-        { name: 'Salary Components', href: '/payroll/components', icon: Layers, category: 'Finance', module: 'Payroll' }, // New
-        { name: 'Payslips', href: '/payroll/payslips', icon: FileSpreadsheet, category: 'Finance', module: 'Payroll' }, // Usually universal for own, but this link implies admin view?
+        { name: 'Salary Components', href: '/payroll/components', icon: Layers, category: 'Finance', module: 'Payroll' },
+        { name: 'Payslips', href: '/payroll/payslips', icon: FileSpreadsheet, category: 'Finance', module: 'Payroll' },
         { name: 'Accounting', href: '/accounting', icon: Activity, category: 'Finance', module: 'Invoice' },
 
         // Ops & Docs
@@ -86,62 +95,71 @@ export default function Sidebar() {
     // Filter navigation based on permissions
     const filteredNavigation = navigation.filter(item => {
         if (!user) return false;
-
-        // Always show Dashboard
         if (item.name === 'Dashboard') return true;
-
-        // Items without module/role are considered universal for now (or explicit checks needed)
         if (!item.module && !(item as any).role) return true;
 
-        // Check explicit role requirement (e.g. manager) - keep existing logic or move to can?
-        // Let's rely on 'can' for modules, but role check remains for specific UI things not mapped to permissions
         const isAdmin = user.roles?.some(r => r.toLowerCase() === 'admin' || r.toLowerCase() === 'administrator');
 
         if ((item as any).role && !user.roles?.includes((item as any).role) && !isAdmin) {
-            // If implicit role check fails, we might still check module permissions? 
-            // But usually role restriction is stricter.
-            // However, let's prioritize Module Permission if it exists.
-            // Role check mismatch
-            return false; // If role is required and not met, hide it.
+            return false;
         }
 
-        // Check Module Permissions
         if (item.module) {
-            const moduleName = item.module; // Capture for TS narrowing
-            // Use implicit 'read' unless 'action' is specified
-            // e.g. Shifts sidebar needs 'update' permission, but user might have 'read' for dropdowns
+            const moduleName = item.module;
             const requiredAction = (item as any).action || 'read';
 
             if (!can(moduleName, requiredAction)) {
                 return false;
             }
 
-            // Special Case: "All Attendance" implies seeing everyone
             if (item.name === 'All Attendance') {
-                // Return false if read scope is 'owned'
                 const perm = user?.permissions?.[moduleName];
                 if (perm?.readLevel === 'owned') return false;
             }
 
-            // Special Case: "Leave Approvals"
-            // This special case is now partially covered by the `requiredAction` logic if `action: 'update'` is added to it.
-            // However, the `updateLevel` check is still specific.
             if (item.name === 'Leave Approvals') {
                 const perm = user?.permissions?.[moduleName];
                 if (perm?.updateLevel === 'owned' || perm?.updateLevel === 'none') return false;
             }
-
         }
-
         return true;
     });
 
-    // Group navigation by category
     const groupedNav = filteredNavigation.reduce((acc, item: any) => {
         if (!acc[item.category]) acc[item.category] = [];
         acc[item.category].push(item);
         return acc;
     }, {} as Record<string, typeof navigation>);
+
+    // Initialize expanded state based on active route and scroll to active item
+    useEffect(() => {
+        const foundCategory = Object.entries(groupedNav).find(([_, items]) =>
+            items.some(item =>
+                pathname === item.href || (item.href !== '/dashboard' && pathname?.startsWith(item.href + '/'))
+            )
+        )?.[0];
+
+        if (foundCategory) {
+            setExpandedCategories(prev => ({
+                ...prev,
+                [foundCategory]: true
+            }));
+        }
+
+        // Auto-scroll to active link after a short delay to ensure rendering
+        setTimeout(() => {
+            if (activeLinkRef.current) {
+                activeLinkRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }, 300);
+    }, [pathname, user]); // Re-run when pathname changes or user loads (permissions update)
+
+    const toggleCategory = (category: string) => {
+        setExpandedCategories(prev => ({
+            ...prev,
+            [category]: !prev[category]
+        }));
+    };
 
     const handleLogout = () => {
         auth.logout();
@@ -163,9 +181,9 @@ export default function Sidebar() {
                 </button>
             </div>
 
-            {/* Sidebar Container */}
+            {/* Sidebar Container - Reduced width from w-72 to w-64 */}
             <div className={`
-                fixed inset-y-0 left-0 z-40 w-72 bg-slate-900 text-white transform transition-all duration-300 ease-in-out border-r border-slate-800/50 shadow-2xl
+                fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white transform transition-all duration-300 ease-in-out border-r border-slate-800/50 shadow-2xl
                 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
                 md:translate-x-0 md:sticky md:top-0 md:h-screen
             `}>
@@ -184,36 +202,52 @@ export default function Sidebar() {
                     {/* Navigation Section */}
                     <div className="flex-1 overflow-y-auto py-4 no-scrollbar">
                         {Object.entries(groupedNav).map(([category, items]) => (
-                            <div key={category} className="mb-4 px-3">
-                                <h3 className="px-4 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2">
-                                    {category}
-                                </h3>
-                                <nav className="space-y-1">
-                                    {items.map((item) => {
-                                        const isActive = pathname === item.href ||
-                                            (item.href !== '/dashboard' && pathname?.startsWith(item.href + '/'));
+                            <div key={category} className="mb-2 px-3">
+                                {category !== 'Main' ? (
+                                    <button
+                                        onClick={() => toggleCategory(category)}
+                                        className="w-full flex items-center justify-between px-3 py-2 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1 hover:text-slate-300 transition-colors"
+                                    >
+                                        <span>{category}</span>
+                                        {expandedCategories[category] ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                                    </button>
+                                ) : (
+                                    <h3 className="px-3 py-2 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">
+                                        {category}
+                                    </h3>
+                                )}
 
-                                        return (
-                                            <Link
-                                                key={item.name}
-                                                href={item.href}
-                                                className={`
-                                                    group flex items-center px-4 py-2 text-[11px] font-bold rounded-xl transition-all duration-200 relative
-                                                    ${isActive
-                                                        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20 translate-x-1'
-                                                        : 'text-slate-400 hover:text-white hover:bg-slate-800/50 hover:translate-x-1'}
-                                                `}
-                                                onClick={() => setIsMobileMenuOpen(false)}
-                                            >
-                                                <item.icon className={`mr-3 h-4 w-4 flex-shrink-0 transition-transform group-hover:scale-110 ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-white'}`} />
-                                                {item.name}
-                                                {isActive && (
-                                                    <div className="absolute right-4 w-1 h-1 rounded-full bg-indigo-300 animate-pulse" />
-                                                )}
-                                            </Link>
-                                        );
-                                    })}
-                                </nav>
+                                {/* Collapsible Content */}
+                                <div className={`space-y-1 transition-all duration-300 ease-in-out overflow-hidden ${category === 'Main' || expandedCategories[category] ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'
+                                    }`}>
+                                    <nav className="space-y-1">
+                                        {items.map((item) => {
+                                            const isActive = pathname === item.href ||
+                                                (item.href !== '/dashboard' && pathname?.startsWith(item.href + '/'));
+
+                                            return (
+                                                <Link
+                                                    key={item.name}
+                                                    href={item.href}
+                                                    ref={isActive ? activeLinkRef : null}
+                                                    className={`
+                                                        group flex items-center px-4 py-2 text-[11px] font-bold rounded-xl transition-all duration-200 relative
+                                                        ${isActive
+                                                            ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20 translate-x-1'
+                                                            : 'text-slate-400 hover:text-white hover:bg-slate-800/50 hover:translate-x-1'}
+                                                    `}
+                                                    onClick={() => setIsMobileMenuOpen(false)}
+                                                >
+                                                    <item.icon className={`mr-3 h-4 w-4 flex-shrink-0 transition-transform group-hover:scale-110 ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-white'}`} />
+                                                    {item.name}
+                                                    {isActive && (
+                                                        <div className="absolute right-4 w-1 h-1 rounded-full bg-indigo-300 animate-pulse" />
+                                                    )}
+                                                </Link>
+                                            );
+                                        })}
+                                    </nav>
+                                </div>
                             </div>
                         ))}
                     </div>
