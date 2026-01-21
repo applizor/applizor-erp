@@ -473,6 +473,7 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
                                 )}
                             </div>
                         </div>
+                    )}
                 </div>
             )}
         </div>
