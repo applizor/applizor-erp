@@ -3,10 +3,13 @@ import FormData from 'form-data';
 
 const GOTENBERG_URL = process.env.GOTENBERG_URL || 'http://gotenberg:3000';
 
-interface QuotationData {
-    quotationNumber: string;
-    quotationDate: Date;
+interface PDFData {
+    quotationNumber?: string;
+    invoiceNumber?: string;
+    quotationDate?: Date;
+    invoiceDate?: Date;
     validUntil?: Date;
+    dueDate?: Date;
     title?: string;
     description?: string;
     company: {
@@ -21,6 +24,12 @@ interface QuotationData {
         phone?: string;
         gstin?: string;
     };
+    client?: {
+        name: string;
+        company?: string;
+        email?: string;
+        phone?: string;
+    };
     lead?: {
         name: string;
         company?: string;
@@ -30,7 +39,8 @@ interface QuotationData {
     items: Array<{
         description: string;
         quantity: number;
-        unitPrice: number;
+        unitPrice?: number;
+        rate?: number;
     }>;
     subtotal: number;
     tax: number;
@@ -46,11 +56,10 @@ interface QuotationData {
 
 export class PDFService {
     /**
-     * Generate quotation HTML template
+     * Generate HTML template for Quotations/Invoices
      */
-    private static generateQuotationHTML(data: QuotationData, isSigned: boolean = false): string {
+    private static generateHTML(data: PDFData, type: 'QUOTATION' | 'INVOICE', isSigned: boolean = false): string {
         const formatCurrency = (amount: number) => {
-            const symbol = data.currency === 'INR' ? '₹' : '$';
             return new Intl.NumberFormat(data.currency === 'INR' ? 'en-IN' : 'en-US', {
                 style: 'currency',
                 currency: data.currency,
@@ -65,6 +74,12 @@ export class PDFService {
                 day: 'numeric'
             });
         };
+
+        const number = type === 'QUOTATION' ? data.quotationNumber : data.invoiceNumber;
+        const mainDate = type === 'QUOTATION' ? data.quotationDate : data.invoiceDate;
+        const subDate = type === 'QUOTATION' ? data.validUntil : data.dueDate;
+        const subDateLabel = type === 'QUOTATION' ? 'Valid Till' : 'Due Date';
+        const recipient = data.client || data.lead;
 
         return `
 <!DOCTYPE html>
@@ -85,7 +100,7 @@ export class PDFService {
             align-items: start;
             margin-bottom: 40px;
             padding-bottom: 20px;
-            border-bottom: 3px solid #2563eb;
+            border-bottom: 3px solid ${type === 'QUOTATION' ? '#2563eb' : '#059669'};
         }
         .company-info {
             flex: 1;
@@ -100,21 +115,21 @@ export class PDFService {
             color: #666;
             line-height: 1.8;
         }
-        .quotation-info {
+        .document-info {
             text-align: right;
         }
-        .quotation-title {
+        .document-title {
             font-size: 32px;
             font-weight: bold;
-            color: #1e40af;
+            color: ${type === 'QUOTATION' ? '#1e40af' : '#065f46'};
             margin-bottom: 10px;
         }
-        .quotation-meta {
+        .document-meta {
             font-size: 13px;
             color: #666;
             line-height: 1.8;
         }
-        .quotation-meta strong {
+        .document-meta strong {
             color: #333;
         }
         .billed-to {
@@ -140,7 +155,7 @@ export class PDFService {
             margin-bottom: 30px;
         }
         thead {
-            background: #1e40af;
+            background: ${type === 'QUOTATION' ? '#1e40af' : '#065f46'};
             color: white;
         }
         th {
@@ -178,12 +193,12 @@ export class PDFService {
             padding-top: 12px;
         }
         .totals-row.total {
-            border-top: 2px solid #1e40af;
+            border-top: 2px solid ${type === 'QUOTATION' ? '#1e40af' : '#065f46'};
             padding-top: 12px;
             margin-top: 8px;
             font-size: 18px;
             font-weight: bold;
-            color: #059669;
+            color: ${type === 'QUOTATION' ? '#1e40af' : '#065f46'};
         }
         .notes {
             background: #f9fafb;
@@ -194,7 +209,7 @@ export class PDFService {
         .notes h3 {
             font-size: 14px;
             margin-bottom: 10px;
-            color: #1e40af;
+            color: ${type === 'QUOTATION' ? '#1e40af' : '#065f46'};
         }
         .notes p {
             font-size: 12px;
@@ -207,26 +222,6 @@ export class PDFService {
             border: 2px solid #10b981;
             border-radius: 8px;
             background: #f0fdf4;
-        }
-        .signature-section h3 {
-            color: #065f46;
-            margin-bottom: 20px;
-            font-size: 16px;
-        }
-        .signature-box {
-            border: 2px solid #d1d5db;
-            border-radius: 4px;
-            padding: 15px;
-            background: white;
-            margin-bottom: 10px;
-        }
-        .signature-box img {
-            max-width: 300px;
-            max-height: 100px;
-        }
-        .signature-details {
-            font-size: 12px;
-            color: #666;
         }
         .footer {
             margin-top: 50px;
@@ -249,31 +244,24 @@ export class PDFService {
                 ${data.company.gstin ? `GSTIN: ${data.company.gstin}` : ''}
             </div>
         </div>
-        <div class="quotation-info">
-            <div class="quotation-title">QUOTATION</div>
-            <div class="quotation-meta">
-                <strong>Number:</strong> ${data.quotationNumber}<br>
-                <strong>Date:</strong> ${formatDate(data.quotationDate)}<br>
-                ${data.validUntil ? `<strong>Valid Till:</strong> ${formatDate(data.validUntil)}<br>` : ''}
+        <div class="document-info">
+            <div class="document-title">${type}</div>
+            <div class="document-meta">
+                <strong>Number:</strong> ${number}<br>
+                <strong>Date:</strong> ${mainDate ? formatDate(mainDate) : '-'}<br>
+                ${subDate ? `<strong>${subDateLabel}:</strong> ${formatDate(subDate)}<br>` : ''}
             </div>
         </div>
     </div>
 
-    ${data.title || data.description ? `
-    <div class="quotation-details" style="margin-bottom: 30px; padding: 20px; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 4px;">
-        ${data.title ? `<h2 style="font-size: 18px; font-weight: bold; color: #92400e; margin-bottom: 10px;">${data.title}</h2>` : ''}
-        ${data.description ? `<div style="font-size: 13px; color: #78350f; line-height: 1.8;">${data.description}</div>` : ''}
-    </div>
-    ` : ''}
-
-    ${data.lead ? `
+    ${recipient ? `
     <div class="billed-to">
         <h3>Billed To</h3>
         <div class="billed-to-details">
-            <strong>${data.lead.name}</strong><br>
-            ${data.lead.company ? `${data.lead.company}<br>` : ''}
-            ${data.lead.email ? `${data.lead.email}<br>` : ''}
-            ${data.lead.phone ? `${data.lead.phone}` : ''}
+            <strong>${recipient.name}</strong><br>
+            ${recipient.company ? `${recipient.company}<br>` : ''}
+            ${recipient.email ? `${recipient.email}<br>` : ''}
+            ${recipient.phone ? `${recipient.phone}` : ''}
         </div>
     </div>
     ` : ''}
@@ -292,8 +280,8 @@ export class PDFService {
                 <tr>
                     <td>${item.description}</td>
                     <td style="text-align: center;">${item.quantity}</td>
-                    <td style="text-align: right;">${formatCurrency(item.unitPrice)}</td>
-                    <td style="text-align: right;">${formatCurrency(item.quantity * item.unitPrice)}</td>
+                    <td style="text-align: right;">${formatCurrency(item.unitPrice || item.rate || 0)}</td>
+                    <td style="text-align: right;">${formatCurrency(item.quantity * (item.unitPrice || item.rate || 0))}</td>
                 </tr>
             `).join('')}
         </tbody>
@@ -302,56 +290,53 @@ export class PDFService {
     <div class="totals">
         <div class="totals-row subtotal">
             <span>Subtotal:</span>
-            <span>${formatCurrency(data.subtotal)}</span>
+            <span>${formatCurrency(Number(data.subtotal))}</span>
         </div>
-        ${data.tax > 0 ? `
+        ${Number(data.tax) > 0 ? `
         <div class="totals-row">
             <span>Tax:</span>
-            <span>${formatCurrency(data.tax)}</span>
+            <span>${formatCurrency(Number(data.tax))}</span>
         </div>
         ` : ''}
-        ${data.discount > 0 ? `
+        ${Number(data.discount) > 0 ? `
         <div class="totals-row">
             <span>Discount:</span>
-            <span>-${formatCurrency(data.discount)}</span>
+            <span>-${formatCurrency(Number(data.discount))}</span>
         </div>
         ` : ''}
         <div class="totals-row total">
             <span>Total:</span>
-            <span>${formatCurrency(data.total)}</span>
+            <span>${formatCurrency(Number(data.total))}</span>
         </div>
     </div>
 
     ${data.notes ? `
     <div class="notes">
-        <h3>Terms and Conditions</h3>
+        <h3>Notes & Terms</h3>
         <p>${data.notes}</p>
     </div>
     ` : ''}
 
     ${isSigned && data.clientSignature ? `
     <div class="signature-section">
-        <h3>✓ Client Acceptance</h3>
-        <div class="signature-box">
-            <img src="${data.clientSignature}" alt="Client Signature">
+        <h3 style="color: #065f46; margin-bottom: 15px;">✓ Client Acceptance</h3>
+        <div style="border: 2px solid #d1d5db; padding: 15px; background: white; border-radius: 4px; display: inline-block;">
+            <img src="${data.clientSignature}" style="max-height: 80px;" alt="Signature">
         </div>
-        <div class="signature-details">
-            Signed by <strong>${data.clientName}</strong> on ${formatDate(data.clientAcceptedAt!)}
+        <div style="font-size: 12px; color: #666; margin-top: 10px;">
+            Signed by <strong>${data.clientName}</strong> on ${data.clientAcceptedAt ? formatDate(data.clientAcceptedAt) : ''}
         </div>
     </div>
     ` : ''}
 
     <div class="footer">
-        This is a computer-generated quotation and does not require a physical signature.
+        This is a computer-generated document and does not require a physical signature.
     </div>
 </body>
 </html>
         `;
     }
 
-    /**
-     * Convert HTML to PDF using Gotenberg
-     */
     private static async convertHTMLToPDF(html: string): Promise<Buffer> {
         try {
             const formData = new FormData();
@@ -377,22 +362,18 @@ export class PDFService {
         }
     }
 
-    /**
-     * Generate regular quotation PDF
-     */
-    static async generateQuotationPDF(data: QuotationData): Promise<Buffer> {
-        const html = this.generateQuotationHTML(data, false);
+    static async generateQuotationPDF(data: any): Promise<Buffer> {
+        const html = this.generateHTML(data, 'QUOTATION', false);
         return this.convertHTMLToPDF(html);
     }
 
-    /**
-     * Generate signed quotation PDF (with client signature)
-     */
-    static async generateSignedQuotationPDF(data: QuotationData): Promise<Buffer> {
-        if (!data.clientSignature || !data.clientAcceptedAt) {
-            throw new Error('Quotation has not been accepted by client');
-        }
-        const html = this.generateQuotationHTML(data, true);
+    static async generateInvoicePDF(data: any): Promise<Buffer> {
+        const html = this.generateHTML(data, 'INVOICE', false);
+        return this.convertHTMLToPDF(html);
+    }
+
+    static async generateSignedQuotationPDF(data: any): Promise<Buffer> {
+        const html = this.generateHTML(data, 'QUOTATION', true);
         return this.convertHTMLToPDF(html);
     }
 }

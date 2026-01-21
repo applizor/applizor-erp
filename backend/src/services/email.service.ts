@@ -29,12 +29,16 @@ export const sendEmail = async (to: string, subject: string, html: string, attac
     }
 };
 
-export const sendInvoiceEmail = async (to: string, invoiceData: any, pdfBuffer?: Buffer) => {
-    const subject = `${invoiceData.type === 'quotation' ? 'Quotation' : 'Invoice'} #${invoiceData.invoiceNumber} from ${process.env.COMPANY_NAME || 'Us'}`;
+export const sendInvoiceEmail = async (to: string, invoiceData: any, pdfBuffer?: Buffer, isReminder?: boolean) => {
+    const typeLabel = invoiceData.type === 'quotation' ? 'Quotation' : 'Invoice';
+    const subject = isReminder
+        ? `Reminder: ${typeLabel} #${invoiceData.invoiceNumber} is due`
+        : `${typeLabel} #${invoiceData.invoiceNumber} from ${process.env.COMPANY_NAME || 'Us'}`;
+
     const html = `
         <div style="font-family: Arial, sans-serif;">
-            <h2>Hello,</h2>
-            <p>Please find attached the ${invoiceData.type} <strong>${invoiceData.invoiceNumber}</strong>.</p>
+            <h2>${isReminder ? 'Payment Reminder' : 'Hello'},</h2>
+            <p>${isReminder ? 'This is a friendly reminder that' : 'Please find attached'} the ${invoiceData.type} <strong>${invoiceData.invoiceNumber}</strong> ${isReminder ? 'is now due for payment.' : '.'}</p>
             <p><strong>Total Amount:</strong> ${invoiceData.currency} ${invoiceData.total}</p>
             <p><strong>Due Date:</strong> ${new Date(invoiceData.dueDate).toLocaleDateString()}</p>
             <br/>

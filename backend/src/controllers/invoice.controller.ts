@@ -1,9 +1,14 @@
 import { Response } from 'express';
 import prisma from '../prisma/client';
 import { AuthRequest } from '../middleware/auth';
+import { InvoiceService } from '../services/invoice.service';
 import documentService, { LetterheadMode } from '../services/document.service';
 import * as emailService from '../services/email.service';
+import { PDFService } from '../services/pdf.service';
 
+/**
+ * Create a new invoice
+ */
 export const createInvoice = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId;
@@ -13,97 +18,21 @@ export const createInvoice = async (req: AuthRequest, res: Response) => {
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      include: { company: true },
     });
 
     if (!user || !user.companyId) {
       return res.status(400).json({ error: 'User must belong to a company' });
     }
 
-    const {
-      clientId,
-      invoiceDate,
-      dueDate,
-      items,
-      tax = 0,
-      discount = 0,
-      notes,
-      type = 'invoice', // invoice, quotation, proforma
-      terms,
-      currency = 'USD',
-      letterheadMode = LetterheadMode.EVERY_PAGE,
-    } = req.body;
-
-    // Validation
-    if (!clientId || !invoiceDate || !dueDate || !items || items.length === 0) {
-      return res.status(400).json({ error: 'Missing required fields' });
-    }
-
-    // Calculate totals
-    const subtotal = items.reduce((sum: number, item: any) => {
-      const itemAmount = Number(item.quantity) * Number(item.rate);
-      return sum + itemAmount;
-    }, 0);
-
-    const total = subtotal + Number(tax) - Number(discount);
-
-    // Generate number based on type
-    const prefix = type === 'quotation' ? 'QTN' : 'INV';
-    const count = await prisma.invoice.count({
-      where: {
-        companyId: user.companyId,
-        type: type
-      },
+    const invoice = await InvoiceService.createInvoice({
+      ...req.body,
+      companyId: user.companyId,
+      createdBy: userId,
     });
-    const invoiceNumber = `${prefix}-${new Date().getFullYear()}-${String(count + 1).padStart(5, '0')}`;
-
-    // Create invoice
-    const invoice = await prisma.invoice.create({
-      data: {
-        companyId: user.companyId,
-        clientId,
-        invoiceNumber,
-        type,
-        currency,
-        terms,
-        invoiceDate: new Date(invoiceDate),
-        dueDate: new Date(dueDate),
-        subtotal,
-        tax,
-        discount,
-        total,
-        notes,
-        status: type === 'quotation' ? 'sent' : 'draft',
-      },
-      include: {
-        client: true,
-        items: true,
-      },
-    });
-
-    // Create invoice items
-    const invoiceItems = await Promise.all(
-      items.map((item: any) =>
-        prisma.invoiceItem.create({
-          data: {
-            invoiceId: invoice.id,
-            description: item.description,
-            quantity: item.quantity,
-            rate: item.rate,
-            hsnCode: item.hsnCode,
-            taxRate: item.taxRate || 0,
-            amount: item.quantity * item.rate,
-          },
-        })
-      )
-    );
 
     res.status(201).json({
       message: 'Invoice created successfully',
-      invoice: {
-        ...invoice,
-        items: invoiceItems,
-      },
+      invoice,
     });
   } catch (error: any) {
     console.error('Create invoice error:', error);
@@ -111,6 +40,9 @@ export const createInvoice = async (req: AuthRequest, res: Response) => {
   }
 };
 
+/**
+ * Get list of invoices with pagination and filters
+ */
 export const getInvoices = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId;
@@ -126,18 +58,19 @@ export const getInvoices = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'User must belong to a company' });
     }
 
-    const { status, clientId, page = 1, limit = 10 } = req.query;
+    const { status, clientId, page = 1, limit = 10, search } = req.query;
 
     const where: any = {
       companyId: user.companyId,
     };
 
-    if (status) {
-      where.status = status;
-    }
-
-    if (clientId) {
-      where.clientId = clientId;
+    if (status) where.status = status;
+    if (clientId) where.clientId = clientId;
+    if (search) {
+      where.OR = [
+        { invoiceNumber: { contains: String(search), mode: 'insensitive' } },
+        { client: { name: { contains: String(search), mode: 'insensitive' } } },
+      ];
     }
 
     const [invoices, total] = await Promise.all([
@@ -171,21 +104,21 @@ export const getInvoices = async (req: AuthRequest, res: Response) => {
   }
 };
 
+/**
+ * Get a single invoice by ID
+ */
 export const getInvoice = async (req: AuthRequest, res: Response) => {
   try {
-    const userId = req.userId;
-    if (!userId) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
     const { id } = req.params;
-
     const invoice = await prisma.invoice.findUnique({
       where: { id },
       include: {
         client: true,
         company: true,
         items: true,
+        payments: {
+          orderBy: { createdAt: 'desc' }
+        }
       },
     });
 
@@ -200,16 +133,12 @@ export const getInvoice = async (req: AuthRequest, res: Response) => {
   }
 };
 
+/**
+ * Generate Invoice PDF
+ */
 export const generateInvoicePDF = async (req: AuthRequest, res: Response) => {
   try {
-    const userId = req.userId;
-    if (!userId) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
     const { id } = req.params;
-    const { letterheadMode = LetterheadMode.EVERY_PAGE } = req.query;
-
     const invoice = await prisma.invoice.findUnique({
       where: { id },
       include: {
@@ -219,54 +148,96 @@ export const generateInvoicePDF = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    if (!invoice) {
-      return res.status(404).json({ error: 'Invoice not found' });
-    }
+    if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
 
-    // Generate document
-    const docBuffer = await documentService.generateInvoice(
-      {
-        invoiceNumber: invoice.invoiceNumber,
-        invoiceDate: invoice.invoiceDate.toISOString().split('T')[0],
-        dueDate: invoice.dueDate.toISOString().split('T')[0],
-        clientName: invoice.client.name,
-        items: invoice.items,
-        subtotal: invoice.subtotal,
-        tax: invoice.tax,
-        discount: invoice.discount,
-        total: invoice.total,
-        notes: invoice.notes,
-      },
-      invoice.company,
-      letterheadMode as LetterheadMode
-    );
+    // Use PDFService (HTML-to-PDF) for cleaner output
+    const pdfBuffer = await PDFService.generateInvoicePDF(invoice as any);
 
-    // Save document
-    const filename = `invoice-${invoice.invoiceNumber}-${Date.now()}.docx`;
-    const filePath = await documentService.saveDocument(docBuffer, filename);
-
-    // Update invoice with PDF path
-    await prisma.invoice.update({
-      where: { id },
-      data: { pdfPath: filePath },
-    });
-
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.send(docBuffer);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="Invoice-${invoice.invoiceNumber}.pdf"`);
+    res.send(pdfBuffer);
   } catch (error: any) {
-    console.error('Generate invoice PDF error:', error);
-    res.status(500).json({ error: 'Failed to generate invoice PDF', details: error.message });
+    console.error('Generate PDF error:', error);
+    res.status(500).json({ error: 'Failed to generate PDF' });
   }
 };
 
-export const updateInvoiceStatus = async (req: AuthRequest, res: Response) => {
+/**
+ * Record a payment for an invoice
+ */
+export const recordPayment = async (req: AuthRequest, res: Response) => {
   try {
-    const userId = req.userId;
-    if (!userId) {
-      return res.status(401).json({ error: 'Unauthorized' });
+    const { id } = req.params;
+    const { amount, paymentMethod, transactionId } = req.body;
+
+    if (!amount || !paymentMethod) {
+      return res.status(400).json({ error: 'Amount and payment method are required' });
     }
 
+    const updatedInvoice = await InvoiceService.recordPayment(id, Number(amount), paymentMethod, transactionId);
+
+    res.json({
+      message: 'Payment recorded successfully',
+      invoice: updatedInvoice
+    });
+  } catch (error: any) {
+    console.error('Record payment error:', error);
+    res.status(500).json({ error: error.message || 'Failed to record payment' });
+  }
+};
+
+/**
+ * Get invoice statistics for dashboard
+ */
+export const getInvoiceStats = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId;
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user?.companyId) return res.status(400).json({ error: 'Company not found' });
+
+    const stats = await InvoiceService.getDashboardStats(user.companyId);
+    res.json(stats);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to fetch stats' });
+  }
+};
+
+/**
+ * Send invoice via email
+ */
+export const sendInvoice = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const invoice = await prisma.invoice.findUnique({
+      where: { id },
+      include: { client: true, company: true, items: true }
+    });
+
+    if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
+    if (!invoice.client.email) return res.status(400).json({ error: 'Client has no email' });
+
+    const pdfBuffer = await PDFService.generateInvoicePDF(invoice as any);
+    await emailService.sendInvoiceEmail(invoice.client.email, invoice, pdfBuffer);
+
+    if (invoice.status === 'draft') {
+      await prisma.invoice.update({
+        where: { id },
+        data: { status: 'sent' }
+      });
+    }
+
+    res.json({ message: 'Invoice sent successfully' });
+  } catch (error: any) {
+    console.error('Send email error:', error);
+    res.status(500).json({ error: 'Failed to send email' });
+  }
+};
+
+/**
+ * Update invoice status manually
+ */
+export const updateInvoiceStatus = async (req: AuthRequest, res: Response) => {
+  try {
     const { id } = req.params;
     const { status } = req.body;
 
@@ -277,50 +248,78 @@ export const updateInvoiceStatus = async (req: AuthRequest, res: Response) => {
 
     res.json({ message: 'Invoice status updated', invoice });
   } catch (error: any) {
-    console.error('Update invoice status error:', error);
-    res.status(500).json({ error: 'Failed to update invoice status', details: error.message });
+    res.status(500).json({ error: 'Failed to update status' });
   }
 };
 
-// Email sending endpoint
-export const sendInvoice = async (req: AuthRequest, res: Response) => {
+/**
+ * Batch update invoice status
+ */
+export const batchUpdateStatus = async (req: AuthRequest, res: Response) => {
   try {
-    const { id } = req.params;
-    const { email } = req.body; // Optional override email
+    const { ids, status } = req.body;
+    if (!ids || !Array.isArray(ids) || !status) {
+      return res.status(400).json({ error: 'Invalid request' });
+    }
 
-    const invoice = await prisma.invoice.findUnique({
-      where: { id },
+    await prisma.invoice.updateMany({
+      where: { id: { in: ids } },
+      data: { status }
+    });
+
+    res.json({ message: `Successfully updated ${ids.length} invoices` });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Batch update failed' });
+  }
+};
+
+/**
+ * Batch send invoices via email
+ */
+export const batchSendInvoices = async (req: AuthRequest, res: Response) => {
+  try {
+    const { ids } = req.body;
+    if (!ids || !Array.isArray(ids)) {
+      return res.status(400).json({ error: 'Invalid request' });
+    }
+
+    const invoices = await prisma.invoice.findMany({
+      where: { id: { in: ids } },
       include: { client: true, company: true, items: true }
     });
 
-    if (!invoice) {
-      return res.status(404).json({ error: 'Invoice not found' });
+    // Send emails in background
+    for (const invoice of invoices) {
+      if (invoice.client?.email) {
+        const pdfBuffer = await PDFService.generateInvoicePDF(invoice as any);
+        emailService.sendInvoiceEmail(invoice.client.email, invoice, pdfBuffer).catch(err => {
+          console.error(`Failed to send batch email for ${invoice.invoiceNumber}`, err);
+        });
+
+        if (invoice.status === 'draft') {
+          await prisma.invoice.update({
+            where: { id: invoice.id },
+            data: { status: 'sent' }
+          });
+        }
+      }
     }
 
-    const recipientEmail = email || invoice.client.email;
-    if (!recipientEmail) {
-      return res.status(400).json({ error: 'Client has no email address' });
-    }
-
-    // Generate PDF (Mock buffer for now, real implementation would use documentService.generateInvoice)
-    // const pdfBuffer = await documentService.generateInvoice(invoice, invoice.company, 'every');
-    // Using mock buffer until PDF generation is robust
-    const pdfBuffer = Buffer.from('Mock PDF Content');
-
-    await emailService.sendInvoiceEmail(recipientEmail, invoice, pdfBuffer);
-
-    // Update status if it was draft
-    if (invoice.status === 'draft') {
-      await prisma.invoice.update({
-        where: { id },
-        data: { status: 'sent' }
-      });
-    }
-
-    res.json({ message: 'Email sent successfully' });
-
+    res.json({ message: `Initiated sending for ${invoices.length} invoices` });
   } catch (error: any) {
-    console.error('Send email error:', error);
-    res.status(500).json({ error: 'Failed to send email' });
+    res.status(500).json({ error: 'Batch send failed' });
+  }
+};
+
+/**
+ * Convert quotation to invoice
+ */
+export const convertQuotation = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const invoice = await InvoiceService.convertQuotationToInvoice(id);
+    res.json({ message: 'Quotation converted successfully', invoice });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Conversion failed' });
   }
 };

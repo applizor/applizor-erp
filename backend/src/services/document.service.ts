@@ -6,7 +6,13 @@ import fs from 'fs';
 import path from 'path';
 
 // Config - in production use env vars
-const GOTENBERG_URL = process.env.GOTENBERG_URL || 'http://localhost:8000'; // If running from host. If inside docker, use http://gotenberg:3000
+const GOTENBERG_URL = process.env.GOTENBERG_URL || 'http://localhost:8000';
+
+export enum LetterheadMode {
+  NONE = 'NONE',
+  FIRST_PAGE = 'FIRST_PAGE',
+  EVERY_PAGE = 'EVERY_PAGE',
+}
 
 export class DocumentGenerationService {
 
@@ -83,14 +89,6 @@ export class DocumentGenerationService {
           y: 0,
           width,
           height,
-          blendMode: 'Normal', // Overlay? or Behind? 
-          // Usually letterhead is background, so we should draw Content on top of Letterhead?
-          // PDF-Lib draws on top. So if we draw letterhead now, it might cover text if letterhead has white background.
-          // Ideally, we should Draw Letterhead -> Then Content. But our Content is already a PDF.
-          // Solution: Letterhead should be a transparent PNG? Or Vector PDF with transparent bg?
-          // Or we copy content page onto letterhead page?
-          // "Merge" usually implies one under another.
-          // Better approach: If letterhead is PDF, create new page, draw letterhead, draw content page on top?
         });
       }
 
@@ -135,10 +133,12 @@ export class DocumentGenerationService {
 
       // So: Draw embeddedLetterhead ON TOP of existing page.
 
-      return await pdfDoc.saveAsBuffer(); // save() returns Uint8Array, wrap in Buffer
+      return Buffer.from(await pdfDoc.save()); // save() returns Uint8Array, wrap in Buffer
     } catch (e) {
       console.error('Letterhead overlay failed', e);
       return pdfBuffer; // fallback to plain PDF
     }
   }
 }
+
+export default DocumentGenerationService;

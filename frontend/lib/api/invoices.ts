@@ -56,21 +56,45 @@ export const invoicesApi = {
     return response.data;
   },
 
-  generatePDF: async (id: string, letterheadMode?: string) => {
-    const response = await api.get(`/invoices/${id}/pdf`, {
-      params: { letterheadMode },
+  generatePDF: async (id: string) => {
+    const response = await api.post(`/invoices/${id}/generate-pdf`, {}, {
       responseType: 'blob',
     });
     return response.data;
   },
 
   updateStatus: async (id: string, status: string) => {
-    const response = await api.patch(`/invoices/${id}/status`, { status });
+    const response = await api.put(`/invoices/${id}/status`, { status });
     return response.data;
   },
 
   sendEmail: async (id: string) => {
     const response = await api.post(`/invoices/${id}/send`);
+    return response.data;
+  },
+
+  getStats: async () => {
+    const response = await api.get('/invoices/stats/summary');
+    return response.data;
+  },
+
+  recordPayment: async (id: string, data: { amount: number; paymentMethod: string; transactionId?: string }) => {
+    const response = await api.post(`/invoices/${id}/payments`, data);
+    return response.data;
+  },
+
+  batchUpdateStatus: async (ids: string[], status: string) => {
+    const response = await api.post('/invoices/batch/status', { ids, status });
+    return response.data;
+  },
+
+  batchSend: async (ids: string[]) => {
+    const response = await api.post('/invoices/batch/send', { ids });
+    return response.data;
+  },
+
+  convertQuotation: async (id: string) => {
+    const response = await api.post(`/invoices/${id}/convert`);
     return response.data;
   }
 };

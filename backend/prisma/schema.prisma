@@ -1063,9 +1063,11 @@ model Invoice {
   discount        Decimal  @default(0) @db.Decimal(12, 2)
   total           Decimal  @db.Decimal(12, 2)
   paidAmount      Decimal  @default(0) @db.Decimal(12, 2)
-  isRecurring     Boolean  @default(false)
-  recurringId     String?
-  notes           String?  @db.Text
+  isRecurring       Boolean  @default(false)
+  recurringInterval String?   // daily, weekly, monthly, yearly
+  nextOccurrence    DateTime?
+  recurringId       String?
+  notes             String?  @db.Text
   pdfPath         String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
