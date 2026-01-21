@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-    console.log('🌱 Starting database seeding (Production Backup Mode)...');
+    console.log('🌱 Starting database seeding (Fresh Production Backup)...');
 
     // 1. Company Setup
     const companyId = "b81a0e3f-9301-43f7-a633-6db7e5fa54b0";
@@ -17,17 +17,20 @@ async function main() {
             legalName: "Applizor Softech LLP",
             email: "connect@applizor.com",
             phone: "9130309480",
-            address: "209, WARD NO 7, VISHWAKARMA MUHALLA, GARROLI, Madhya Pradesh, 471201",
-            city: "Garroli",
+            address: "209, WARD NO 7, VISHWAKARMA MUHALLA, GARROLI",
+            city: "Chhatarpur",
             state: "Madhya Pradesh",
             country: "India",
             pincode: "471201",
-            isActive: true
+            isActive: true,
+            currency: "INR",
+            gstin: "27AAAAA0000A1Z5",
+            radius: 100
         }
     });
     console.log(`✅ Company: ${company.name}`);
 
-    // 2. Roles & Permissions (From DB Export)
+    // 2. Roles & Permissions
     const adminRoleId = "fbd2165d-3336-49b8-9b1f-188fbcd27b25";
     const hrRoleId = "2efe4dac-9b40-4436-b299-badda6396405";
     const empRoleId = "2af33051-91e2-49b0-be8e-e879b80dc41c";
@@ -107,7 +110,6 @@ async function main() {
             });
         }
     }
-    console.log('✅ Roles and permissions set');
 
     // 3. Departments & Positions
     const engineeringId = "a9e50298-d5db-4b87-8ab6-a8e12194321d";
@@ -136,19 +138,14 @@ async function main() {
         update: {},
         create: { id: "72eac940-3040-462e-8736-cf9f43547af2", departmentId: hrDeptId, title: "HR Manager" }
     });
-    console.log('✅ Departments and positions created');
 
-    // 4. Leave Types (Production Data)
+    // 4. Leave Types
     const leaveTypes = [
         {
             id: "c01b69ee-83c0-482d-af93-ad1690bc371d",
             name: "Sick Leave",
             days: 4,
             isPaid: true,
-            frequency: "yearly",
-            carryForward: true,
-            maxCarryForward: 2,
-            monthlyLimit: 2,
             accrualType: "yearly",
             quarterlyLimit: 1,
             probationQuota: 1,
@@ -160,10 +157,6 @@ async function main() {
             name: "Casual Leave",
             days: 4,
             isPaid: true,
-            frequency: "yearly",
-            carryForward: true,
-            maxCarryForward: 2,
-            monthlyLimit: 2,
             accrualType: "yearly",
             quarterlyLimit: 1,
             probationQuota: 1,
@@ -175,13 +168,9 @@ async function main() {
             name: "Earned Leaves",
             days: 18,
             isPaid: true,
-            frequency: "yearly",
-            carryForward: true,
-            maxCarryForward: 5,
-            monthlyLimit: 2,
             accrualType: "monthly",
             accrualRate: 1.5,
-            maxAccrual: 0, // Reset to 0 (Unlimited) as discussed
+            maxAccrual: 0, // Reset to 0 (Unlimited)
             quarterlyLimit: 2,
             probationQuota: 1,
             confirmationBonus: 1.5,
@@ -193,30 +182,29 @@ async function main() {
         await prisma.leaveType.upsert({
             where: { id: lt.id },
             update: {
-                name: lt.name, days: lt.days, isPaid: lt.isPaid, frequency: lt.frequency,
-                carryForward: lt.carryForward, maxCarryForward: lt.maxCarryForward,
-                monthlyLimit: lt.monthlyLimit, accrualType: lt.accrualType,
+                name: lt.name, days: lt.days, isPaid: lt.isPaid,
+                accrualType: lt.accrualType,
                 accrualRate: (lt as any).accrualRate || 0,
                 maxAccrual: (lt as any).maxAccrual !== undefined ? lt.maxAccrual : 0,
                 quarterlyLimit: lt.quarterlyLimit,
                 probationQuota: lt.probationQuota,
                 confirmationBonus: lt.confirmationBonus,
-                policySettings: lt.policySettings
+                policySettings: lt.policySettings,
+                frequency: "yearly", carryForward: true, maxCarryForward: 5, monthlyLimit: 2, maxConsecutiveDays: 10
             },
             create: {
-                id: lt.id, name: lt.name, days: lt.days, isPaid: lt.isPaid, frequency: lt.frequency,
-                carryForward: lt.carryForward, maxCarryForward: lt.maxCarryForward,
-                monthlyLimit: lt.monthlyLimit, accrualType: lt.accrualType,
+                id: lt.id, name: lt.name, days: lt.days, isPaid: lt.isPaid,
+                accrualType: lt.accrualType,
                 accrualRate: (lt as any).accrualRate || 0,
                 maxAccrual: (lt as any).maxAccrual !== undefined ? lt.maxAccrual : 0,
                 quarterlyLimit: lt.quarterlyLimit,
                 probationQuota: lt.probationQuota,
                 confirmationBonus: lt.confirmationBonus,
-                policySettings: lt.policySettings
+                policySettings: lt.policySettings,
+                frequency: "yearly", carryForward: true, maxCarryForward: 5, monthlyLimit: 2, maxConsecutiveDays: 10
             }
         });
     }
-    console.log('✅ Leave types created');
 
     // 5. Admin User
     const hashedAdminPassword = await bcrypt.hash('admin123', 10);
@@ -238,9 +226,8 @@ async function main() {
         update: {},
         create: { userId: adminUser.id, roleId: adminRoleId }
     });
-    console.log('✅ Admin user: admin@applizor.com / admin123');
 
-    console.log('\n🎉 Seeding completed!');
+    console.log('\n🎉 Fresh Seeding completed!');
 }
 
 main()

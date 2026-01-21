@@ -96,7 +96,7 @@ export const createLeaveType = async (req: AuthRequest, res: Response) => {
             maxCarryForward, monthlyLimit, maxConsecutiveDays, minServiceDays,
             sandwichRule, encashable, proofRequired, color,
             // Accrual & Probation
-            accrualType, accrualRate, maxAccrual,
+            accrualType, accrualRate, accrualStartMonth, maxAccrual,
             quarterlyLimit, probationQuota, confirmationBonus,
             // Relations
             departmentIds, positionIds, employmentStatus
@@ -121,11 +121,12 @@ export const createLeaveType = async (req: AuthRequest, res: Response) => {
                 color: color || '#3B82F6',
                 // Accrual & Probation
                 accrualType: accrualType || 'yearly',
-                accrualRate: accrualRate ? parseFloat(accrualRate) : 0,
-                maxAccrual: maxAccrual ? parseFloat(maxAccrual) : 0,
-                quarterlyLimit: quarterlyLimit ? parseInt(quarterlyLimit) : 0,
-                probationQuota: probationQuota ? parseFloat(probationQuota) : 0,
-                confirmationBonus: confirmationBonus ? parseFloat(confirmationBonus) : 0,
+                accrualRate: (accrualRate !== undefined && accrualRate !== null) ? parseFloat(accrualRate) : 0,
+                accrualStartMonth: (accrualStartMonth !== undefined && accrualStartMonth !== null) ? parseInt(accrualStartMonth) : 1,
+                maxAccrual: (maxAccrual !== undefined && maxAccrual !== null) ? parseFloat(maxAccrual) : 0,
+                quarterlyLimit: (quarterlyLimit !== undefined && quarterlyLimit !== null) ? parseInt(quarterlyLimit) : 0,
+                probationQuota: (probationQuota !== undefined && probationQuota !== null) ? parseFloat(probationQuota) : 0,
+                confirmationBonus: (confirmationBonus !== undefined && confirmationBonus !== null) ? parseFloat(confirmationBonus) : 0,
                 // Relations
                 departmentIds: departmentIds || [],
                 positionIds: positionIds || [],
@@ -217,7 +218,7 @@ export const updateLeaveType = async (req: AuthRequest, res: Response) => {
             maxCarryForward, monthlyLimit, maxConsecutiveDays, minServiceDays,
             sandwichRule, encashable, proofRequired, color,
             // New Fields
-            accrualType, accrualRate, maxAccrual,
+            accrualType, accrualRate, accrualStartMonth, maxAccrual,
             quarterlyLimit, probationQuota, confirmationBonus,
             // Relations
             departmentIds, positionIds, employmentStatus
@@ -247,11 +248,12 @@ export const updateLeaveType = async (req: AuthRequest, res: Response) => {
                 employmentStatus: employmentStatus || [],
                 // Accrual & Probation
                 accrualType,
-                accrualRate: accrualRate ? parseFloat(accrualRate) : undefined,
-                maxAccrual: maxAccrual ? parseFloat(maxAccrual) : undefined,
-                quarterlyLimit: quarterlyLimit ? parseInt(quarterlyLimit) : undefined,
-                probationQuota: probationQuota ? parseFloat(probationQuota) : undefined,
-                confirmationBonus: confirmationBonus ? parseFloat(confirmationBonus) : undefined,
+                accrualRate: (accrualRate !== undefined && accrualRate !== null) ? parseFloat(accrualRate) : undefined,
+                accrualStartMonth: (accrualStartMonth !== undefined && accrualStartMonth !== null) ? parseInt(accrualStartMonth) : undefined,
+                maxAccrual: (maxAccrual !== undefined && maxAccrual !== null) ? parseFloat(maxAccrual) : undefined,
+                quarterlyLimit: (quarterlyLimit !== undefined && quarterlyLimit !== null) ? parseInt(quarterlyLimit) : undefined,
+                probationQuota: (probationQuota !== undefined && probationQuota !== null) ? parseFloat(probationQuota) : undefined,
+                confirmationBonus: (confirmationBonus !== undefined && confirmationBonus !== null) ? parseFloat(confirmationBonus) : undefined,
                 // Dynamic Policy
                 policySettings: req.body.policySettings || undefined
             }
@@ -409,11 +411,12 @@ export const createLeaveRequest = async (req: AuthRequest, res: Response) => {
         }
 
         // 1. Check Probation Period (Min Service Days)
-        if (leaveType.minServiceDays > 0) {
-            const joiningDate = new Date(employee.dateOfJoining);
-            const serviceTime = new Date().getTime() - joiningDate.getTime();
-            const serviceDays = Math.floor(serviceTime / (1000 * 60 * 60 * 24));
+        const joiningDate = new Date(employee.dateOfJoining);
+        const serviceTime = new Date().getTime() - joiningDate.getTime();
+        const serviceDays = Math.floor(serviceTime / (1000 * 60 * 60 * 24));
+        const isProbation = employee.probationEndDate && new Date() < new Date(employee.probationEndDate);
 
+        if (leaveType.minServiceDays > 0) {
             if (serviceDays < leaveType.minServiceDays) {
                 return res.status(400).json({
                     error: `You are in probation/active service period (Served: ${serviceDays} days). Minimum ${leaveType.minServiceDays} days required for this leave type.`
@@ -438,27 +441,21 @@ export const createLeaveRequest = async (req: AuthRequest, res: Response) => {
         if (employee.shiftId) {
             const shift = await prisma.shift.findUnique({ where: { id: employee.shiftId } });
             if (shift && shift.workDays) {
-                // shift.workDays is Json, assuming string[]
-                shiftWorkDays = shift.workDays as string[];
-                // Normalize to lowercase
-                shiftWorkDays = shiftWorkDays.map(d => d.toLowerCase());
+                shiftWorkDays = (shift.workDays as string[]).map(d => d.toLowerCase());
             }
         }
 
         const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-        const includeNonWorkingDays = policySettings.includeNonWorkingDays === true;
+        const includeNonWorkingDays = (policySettings as any).includeNonWorkingDays === true;
 
-        // Loop through dates
         while (currentDate <= end) {
             const dayName = dayNames[currentDate.getDay()];
             const isWeekend = !shiftWorkDays.includes(dayName);
             const isHoliday = holidayDates.includes(currentDate.toDateString());
 
             if (leaveType.sandwichRule || includeNonWorkingDays) {
-                // If Sandwich Rule OR "Calendar Days" policy (Bereavement) is ON, we count everything.
                 calculatedDays++;
             } else {
-                // Standard: Exclude Holidays and Weekends
                 if (!isWeekend && !isHoliday) {
                     calculatedDays++;
                 }
@@ -473,6 +470,29 @@ export const createLeaveRequest = async (req: AuthRequest, res: Response) => {
         if (calculatedDays === 0) {
             return res.status(400).json({ error: 'Selected range contains only holidays or non-working days.' });
         }
+
+        // 1b. Check Probation Quota (If > 0, enforce it. If 0, consider no limit as per user request)
+        if (isProbation && leaveType.probationQuota > 0) {
+            const existingRequestsInProbation = await prisma.leaveRequest.findMany({
+                where: {
+                    employeeId: targetEmployee.id,
+                    leaveTypeId,
+                    status: { not: 'rejected' },
+                    startDate: {
+                        gte: joiningDate,
+                        lte: new Date(employee.probationEndDate!)
+                    }
+                }
+            });
+
+            const totalUsedInProbation = existingRequestsInProbation.reduce((acc, req) => acc + req.days, 0);
+            if (totalUsedInProbation + calculatedDays > leaveType.probationQuota) {
+                return res.status(400).json({
+                    error: `Probation quota exceeded for ${leaveType.name}. Max allowed during probation: ${leaveType.probationQuota}, Used: ${totalUsedInProbation}, Requesting: ${calculatedDays}.`
+                });
+            }
+        }
+
 
         // --- Deferred Check: Advance Notice ---
         if (noticePeriod > 0) {
@@ -1021,8 +1041,9 @@ export const getMyBalances = async (req: AuthRequest, res: Response) => {
             // Robust check: handle 'Monthly', 'monthly', 'Monthly Accrual'
             const isMonthly = b.leaveType.accrualType && b.leaveType.accrualType.toLowerCase().includes('monthly');
 
-            // If in probation and leave type has probation quota, use that
-            if (isProbation && b.leaveType.probationQuota !== undefined && b.leaveType.probationQuota !== null) {
+            // If in probation and leave type has probation quota > 0, use it.
+            // If quota is 0, user requested to treat it as "no limit" (show full balance).
+            if (isProbation && b.leaveType.probationQuota > 0) {
                 displayTotal = b.leaveType.probationQuota;
             } else if (isMonthly) {
                 // Calculate projected total for this user

@@ -1,6 +1,6 @@
-# Default Data Seeder Backup
+# Default Data Seeder Backup (Fresh)
 
-This file contains the master data required to reset the database to a functional state.
+This file contains the final master data frozen from the database after all recent fixes.
 
 ## Master Data JSON
 
@@ -9,8 +9,10 @@ This file contains the master data required to reset the database to a functiona
   "company": {
     "name": "Applizor Softech LLP",
     "email": "connect@applizor.com",
-    "phone": "9130309480",
-    "address": "209, WARD NO 7, VISHWAKARMA MUHALLA, GARROLI, Madhya Pradesh, 471201"
+    "city": "Chhatarpur",
+    "state": "Madhya Pradesh",
+    "address": "209, WARD NO 7, VISHWAKARMA MUHALLA, GARROLI",
+    "pincode": "471201"
   },
   "roles": [
     { "name": "Admin", "id": "fbd2165d-3336-49b8-9b1f-188fbcd27b25", "isSystem": true },
@@ -24,18 +26,9 @@ This file contains the master data required to reset the database to a functiona
 }
 ```
 
-## Detailed Data (Exported from DB)
+## Detailed Data
 
-The following data can be used to recreate the environment:
-
-### Roles & Permissions
-(See seed.ts for exact permission mapping)
-
-### Departments
-1. Engineering
-2. HR
-
-### Leave Types
-1. Sick Leave (4 days, Yearly)
-2. Casual Leave (4 days, Yearly)
-3. Earned Leaves (18 days, Monthly Accrual - 1.5/month)
+### Leave Types (Final Config)
+1. **Earned Leaves**: 18 days (Monthly, 1.5/mo), maxAccrual: 0 (Unlimited)
+2. **Sick Leave**: 4 days (Yearly), quarterlyLimit: 1
+3. **Casual Leave**: 4 days (Yearly), quarterlyLimit: 1
