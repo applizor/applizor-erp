@@ -6,6 +6,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
 import { documentTemplatesApi, DocumentTemplate } from '@/lib/api/documents';
+import { useConfirm } from '@/context/ConfirmationContext';
 
 export default function DocumentTemplatesPage() {
     const toast = useToast();
@@ -62,8 +63,10 @@ export default function DocumentTemplatesPage() {
         }
     };
 
+    const { confirm } = useConfirm();
+
     const handleDelete = async (id: string) => {
-        if (!confirm('Delete this template?')) return;
+        if (!await confirm({ message: 'Delete this template?', type: 'danger' })) return;
         try {
             await documentTemplatesApi.delete(id);
             loadData();

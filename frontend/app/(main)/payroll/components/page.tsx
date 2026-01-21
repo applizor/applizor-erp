@@ -2,6 +2,7 @@
 
 import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { useConfirm } from '@/context/ConfirmationContext';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -73,8 +74,10 @@ export default function SalaryComponentsPage() {
         }
     };
 
+    const { confirm } = useConfirm();
+
     const handleDelete = async (id: string) => {
-        if (!confirm('Are you sure you want to delete this component?')) return;
+        if (!await confirm({ message: 'Are you sure you want to delete this component?', type: 'danger' })) return;
         try {
             await payrollApi.deleteComponent(id);
             fetchComponents();
@@ -128,8 +131,8 @@ export default function SalaryComponentsPage() {
                                     <td className="p-4 font-medium text-gray-800">{comp.name}</td>
                                     <td className="p-4">
                                         <span className={`px-2 py-1 rounded-full text-xs font-semibold ${comp.type === 'earning'
-                                                ? 'bg-green-100 text-green-700'
-                                                : 'bg-red-100 text-red-700'
+                                            ? 'bg-green-100 text-green-700'
+                                            : 'bg-red-100 text-red-700'
                                             }`}>
                                             {comp.type.toUpperCase()}
                                         </span>

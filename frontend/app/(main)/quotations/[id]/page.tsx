@@ -12,6 +12,7 @@ import Link from 'next/link';
 import { quotationsApi } from '@/lib/api/quotations';
 import { AnalyticsDashboard } from '@/components/quotations/AnalyticsDashboard';
 import { Button } from '@/components/ui/Button';
+import { useConfirm } from '@/context/ConfirmationContext';
 
 export default function QuotationDetailPage({ params }: { params: { id: string } }) {
     const router = useRouter();
@@ -68,8 +69,10 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
         }
     };
 
+    const { confirm } = useConfirm();
+
     const handleRevokeLink = async () => {
-        if (!confirm('Are you sure you want to revoke this public link? Clients will no longer be able to access it.')) {
+        if (!await confirm({ message: 'Are you sure you want to revoke this public link? Clients will no longer be able to access it.', type: 'danger' })) {
             return;
         }
         try {
@@ -212,7 +215,7 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
                         <Button
                             className="bg-emerald-600 hover:bg-emerald-700 border-emerald-600"
                             onClick={async () => {
-                                if (!confirm('Convert to Invoice?')) return;
+                                if (!await confirm({ message: 'Convert to Invoice?', type: 'info' })) return;
                                 try {
                                     await quotationsApi.convertToInvoice(quotation.id);
                                     toast.success('Converted successfully');

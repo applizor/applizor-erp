@@ -2,6 +2,7 @@
 
 import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { useConfirm } from '@/context/ConfirmationContext';
 
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
@@ -81,8 +82,10 @@ export default function AssetsPage() {
         }
     };
 
+    const { confirm } = useConfirm();
+
     const handleDelete = async (id: string) => {
-        if (!confirm('Are you sure? This cannot be undone.')) return;
+        if (!await confirm({ message: 'Are you sure? This cannot be undone.', type: 'danger' })) return;
         try {
             await api.delete(`/assets/${id}`);
             loadData();
@@ -157,9 +160,9 @@ export default function AssetsPage() {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <span className={`px-2 py-1 text-xs rounded-full ${asset.status === 'Available' ? 'bg-green-100 text-green-800' :
-                                                    asset.status === 'Assigned' ? 'bg-blue-100 text-blue-800' :
-                                                        asset.status === 'Retired' ? 'bg-red-100 text-red-800' :
-                                                            'bg-yellow-100 text-yellow-800'
+                                                asset.status === 'Assigned' ? 'bg-blue-100 text-blue-800' :
+                                                    asset.status === 'Retired' ? 'bg-red-100 text-red-800' :
+                                                        'bg-yellow-100 text-yellow-800'
                                                 }`}>
                                                 {asset.status}
                                             </span>

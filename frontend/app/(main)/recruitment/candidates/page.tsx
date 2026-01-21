@@ -2,6 +2,7 @@
 
 import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { useConfirm } from '@/context/ConfirmationContext';
 import { useEffect, useState } from 'react';
 import { candidatesApi, jobOpeningsApi, Candidate, JobOpening } from '@/lib/api/recruitment';
 import { Users, Plus, Filter, Search, ChevronRight, X, Trash2, Mail, Phone, Briefcase, ChevronDown } from 'lucide-react';
@@ -10,6 +11,7 @@ import { TableRowSkeleton } from '@/components/ui/Skeleton';
 
 export default function CandidatesPage() {
     const toast = useToast();
+    const { confirm } = useConfirm();
     const [candidates, setCandidates] = useState<Candidate[]>([]);
     const [jobs, setJobs] = useState<JobOpening[]>([]);
     const [loading, setLoading] = useState(true);
@@ -64,7 +66,7 @@ export default function CandidatesPage() {
     };
 
     const handleDelete = async (id: string) => {
-        if (confirm('Are you sure you want to delete this candidate?')) {
+        if (await confirm({ message: 'Are you sure you want to delete this candidate?', type: 'danger' })) {
             try {
                 await candidatesApi.delete(id);
                 loadData();

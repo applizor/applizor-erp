@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
 import { Calendar as CalendarIcon, Plus, Trash2, Edit2 } from 'lucide-react';
+import { useConfirm } from '@/context/ConfirmationContext';
 
 interface Holiday {
     id: string;
@@ -13,6 +14,7 @@ interface Holiday {
 
 export default function HolidaysPage() {
     const [holidays, setHolidays] = useState<Holiday[]>([]);
+    const { confirm } = useConfirm();
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingHoliday, setEditingHoliday] = useState<Holiday | null>(null);
@@ -109,7 +111,7 @@ export default function HolidaysPage() {
                                     </button>
                                     <button
                                         onClick={async () => {
-                                            if (confirm('Delete holiday?')) {
+                                            if (await confirm({ message: 'Delete holiday?', type: 'danger' })) {
                                                 await api.delete(`/attendance/holidays/${holiday.id}`);
                                                 loadHolidays();
                                             }

@@ -5,6 +5,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
 import { usePermission } from '@/hooks/usePermission';
+import { useConfirm } from '@/context/ConfirmationContext';
 import { PermissionGuard } from '@/components/PermissionGuard';
 import AccessDenied from '@/components/AccessDenied';
 import { Plus, Trash2, Clock, Calendar, Users, Settings2, Activity, X, Edit2 } from 'lucide-react';
@@ -90,8 +91,10 @@ export default function ShiftsPage() {
         }
     };
 
+    const { confirm } = useConfirm();
+
     const handleDelete = async (id: string) => {
-        if (!confirm('Are you sure you want to delete this shift? This action cannot be undone.')) return;
+        if (!await confirm({ message: 'Are you sure you want to delete this shift? This action cannot be undone.', type: 'danger' })) return;
         try {
             await api.delete(`/shifts/${id}`);
             loadShifts();

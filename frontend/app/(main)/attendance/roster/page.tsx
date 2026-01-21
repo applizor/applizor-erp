@@ -22,6 +22,8 @@ import {
     X
 } from 'lucide-react';
 import { usePermission } from '@/hooks/usePermission';
+import { RosterGrid } from './components/RosterGrid';
+import { useConfirm } from '@/context/ConfirmationContext';
 import { PermissionGuard } from '@/components/PermissionGuard';
 import AccessDenied from '@/components/AccessDenied';
 
@@ -174,8 +176,10 @@ export default function RosterPage() {
         }
     };
 
-    const handleCopyPreviousWeek = () => {
-        if (!confirm('Override current selections with previous week configuration?')) return;
+    const { confirm } = useConfirm();
+
+    const handleCopyPreviousWeek = async () => {
+        if (!await confirm({ message: 'Override current selections with previous week configuration?', type: 'warning' })) return;
         toast.info('Template synchronization pending backend update');
     };
 

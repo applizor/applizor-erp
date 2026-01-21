@@ -1,6 +1,7 @@
 'use client';
 
 import { useToast } from '@/hooks/useToast';
+import { useConfirm } from '@/context/ConfirmationContext';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
 import { useState, useEffect } from 'react';
@@ -45,8 +46,10 @@ export default function LocationsPage() {
         }
     };
 
+    const { confirm } = useConfirm();
+
     const handleDelete = async (id: string) => {
-        if (!confirm('Are you sure you want to delete this location?')) return;
+        if (!await confirm({ message: 'Are you sure you want to delete this location?', type: 'danger' })) return;
         try {
             const token = localStorage.getItem('token');
             const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/branches/${id}`, {

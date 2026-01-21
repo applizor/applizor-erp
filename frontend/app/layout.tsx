@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 import { AlertProvider } from '@/context/AlertContext'
 import { ToastProvider } from '@/contexts/ToastContext'
+import { ConfirmationProvider } from '@/context/ConfirmationContext'
 
 export const metadata: Metadata = {
   title: 'Applizor ERP',
@@ -18,7 +19,9 @@ export default function RootLayout({
       <body>
         <ToastProvider>
           <AlertProvider>
-            {children}
+            <ConfirmationProvider>
+              {children}
+            </ConfirmationProvider>
           </AlertProvider>
         </ToastProvider>
       </body>

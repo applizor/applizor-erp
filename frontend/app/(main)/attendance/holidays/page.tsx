@@ -5,7 +5,8 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useEffect, useState } from 'react';
 import { holidaysApi, Holiday } from '@/lib/api/attendance';
 import { PermissionGuard } from '@/components/PermissionGuard';
-import { Plus, Trash2, Calendar, Globe, Building2, Briefcase, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Calendar, Trash2, Globe, Briefcase, Building2, X } from 'lucide-react';
+import { useConfirm } from '@/context/ConfirmationContext';
 
 export default function HolidaysPage() {
     const toast = useToast();
@@ -52,8 +53,10 @@ export default function HolidaysPage() {
         }
     };
 
+    const { confirm } = useConfirm();
+
     const handleDelete = async (id: string) => {
-        if (confirm('Are you sure you want to delete this holiday?')) {
+        if (await confirm({ message: 'Are you sure you want to delete this holiday?', type: 'danger' })) {
             try {
                 await holidaysApi.delete(id);
                 loadData();
@@ -104,8 +107,8 @@ export default function HolidaysPage() {
                         <div>
                             <div className="flex justify-between items-start">
                                 <span className={`ent-badge flex items-center gap-1.5 ${holiday.type === 'national' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                                        holiday.type === 'regional' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                                            'bg-purple-50 text-purple-700 border-purple-200'
+                                    holiday.type === 'regional' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                                        'bg-purple-50 text-purple-700 border-purple-200'
                                     }`}>
                                     {getHolidayIcon(holiday.type)}
                                     {holiday.type}

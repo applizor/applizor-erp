@@ -1,6 +1,7 @@
 'use client';
 
 import { useToast } from '@/hooks/useToast';
+import { useConfirm } from '@/context/ConfirmationContext';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
 import { useEffect, useState } from 'react';
@@ -23,6 +24,7 @@ import { ArrowLeft, Mail, Phone, Calendar, Clock, User, CheckCircle, XCircle, Fi
 export default function CandidateDetailsPage({ params }: { params: { id: string } }) {
     const toast = useToast();
     const router = useRouter();
+    const { confirm } = useConfirm();
     const [candidate, setCandidate] = useState<Candidate | null>(null);
     const [interviews, setInterviews] = useState<Interview[]>([]);
     const [offer, setOffer] = useState<OfferLetter | null>(null);
@@ -133,14 +135,14 @@ export default function CandidateDetailsPage({ params }: { params: { id: string 
     };
 
     const acceptOffer = async (id: string) => {
-        if (confirm('Mark offer as ACCEPTED? This will mark the candidate as HIRED.')) {
+        if (await confirm({ message: 'Mark offer as ACCEPTED? This will mark the candidate as HIRED.', type: 'success' })) {
             await offersApi.updateStatus(id, 'accepted');
             loadData();
         }
     };
 
     const rejectOffer = async (id: string) => {
-        if (confirm('Mark offer as REJECTED? This will mark the candidate as REJECTED.')) {
+        if (await confirm({ message: 'Mark offer as REJECTED? This will mark the candidate as REJECTED.', type: 'danger' })) {
             await offersApi.updateStatus(id, 'rejected');
             loadData();
         }

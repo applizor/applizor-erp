@@ -3,11 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import {
-    ArrowLeft, Edit, Trash2, Mail, Phone, Building2, Calendar,
-    DollarSign, UserPlus, Clock, CheckCircle, Plus, MessageSquare,
-    ChevronRight, Activity, Globe, Tag, FileText, TrendingUp, AlertCircle, X
-} from 'lucide-react';
+import { Trash2, Edit, Edit2, Calendar, Phone, Mail, MapPin, User, Building, MessageSquare, Clock, ArrowLeft, CheckCircle, XCircle, AlertCircle, Plus, Send, TrendingUp, UserPlus, Globe, FileText, Tag, Activity, X, ChevronRight } from 'lucide-react';
+import { useConfirm } from '@/context/ConfirmationContext';
 import api from '@/lib/api';
 import { useToast } from '@/hooks/useToast';
 import { usePermission } from '@/hooks/usePermission';
@@ -150,8 +147,10 @@ export default function LeadDetailPage() {
         setShowActivityModal(true);
     };
 
+    const { confirm } = useConfirm();
+
     const handleDeleteActivity = async (activityId: string) => {
-        if (!confirm('Are you sure you want to delete this activity?')) return;
+        if (!await confirm({ message: 'Are you sure you want to delete this activity?', type: 'danger' })) return;
         try {
             await api.delete(`/leads/${lead.id}/activities/${activityId}`);
             toast.success('Activity purged');

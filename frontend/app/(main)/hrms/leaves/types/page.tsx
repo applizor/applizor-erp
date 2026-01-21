@@ -7,6 +7,7 @@ import { PermissionGuard } from '@/components/PermissionGuard';
 import AccessDenied from '@/components/AccessDenied';
 import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { useConfirm } from '@/context/ConfirmationContext';
 
 export default function LeaveTypesPage() {
     const { can, user } = usePermission();
@@ -153,8 +154,10 @@ export default function LeaveTypesPage() {
         }
     };
 
+    const { confirm } = useConfirm();
+
     const handleDelete = async (id: string) => {
-        if (!confirm('Are you sure?')) return;
+        if (!await confirm({ message: 'Are you sure?', type: 'danger' })) return;
         try {
             await leaveTypesApi.delete(id);
             toast.success('Leave type deleted successfully');

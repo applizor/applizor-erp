@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
 import { Mail, Plus, Trash2, Edit2, CheckCircle, XCircle } from 'lucide-react';
+import { useConfirm } from '@/context/ConfirmationContext';
 
 interface EmailTemplate {
     id: string;
@@ -59,8 +60,10 @@ export default function EmailTemplatesPage() {
         }
     };
 
+    const { confirm } = useConfirm();
+
     const handleDelete = async (id: string) => {
-        if (confirm('Delete this template?')) {
+        if (await confirm({ message: 'Delete this template?', type: 'danger' })) {
             await api.delete(`/recruitment/templates/${id}`);
             loadTemplates();
         }
@@ -103,7 +106,7 @@ export default function EmailTemplatesPage() {
                                 <h3 className="font-semibold text-gray-900">{t.name}</h3>
                             </div>
                             <span className={`px-2 py-0.5 text-xs rounded-full capitalize ${t.type === 'offer' ? 'bg-green-100 text-green-800' :
-                                    t.type === 'rejection' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'
+                                t.type === 'rejection' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'
                                 }`}>
                                 {t.type}
                             </span>

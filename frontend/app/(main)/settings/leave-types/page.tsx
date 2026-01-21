@@ -1,6 +1,7 @@
 'use client';
 
 import { useToast } from '@/hooks/useToast';
+import { useConfirm } from '@/context/ConfirmationContext';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
 import { useState, useEffect } from 'react';
@@ -106,8 +107,10 @@ export default function LeaveTypesPage() {
         }
     };
 
+    const { confirm } = useConfirm();
+
     const handleDelete = async (id: string) => {
-        if (confirm('Are you sure you want to delete this leave type?')) {
+        if (await confirm({ message: 'Are you sure you want to delete this leave type?', type: 'danger' })) {
             try {
                 await leaveTypesApi.delete(id);
                 loadData();
