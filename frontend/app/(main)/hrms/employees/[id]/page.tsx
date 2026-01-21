@@ -168,204 +168,7 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
         }
     };
 
-    const renderOverviewTab = () => (
-        <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2">
-            <div>
-                <label className="block text-sm font-medium text-gray-700">First Name</label>
-                <input type="text" disabled={!isEditing} required value={formData.firstName} onChange={(e) => setFormData({ ...formData, firstName: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm disabled:bg-gray-100" />
-            </div>
-            <div>
-                <label className="block text-sm font-medium text-gray-700">Last Name</label>
-                <input type="text" disabled={!isEditing} required value={formData.lastName} onChange={(e) => setFormData({ ...formData, lastName: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm disabled:bg-gray-100" />
-            </div>
-            <div>
-                <label className="block text-sm font-medium text-gray-700">Email</label>
-                <input type="email" disabled={!isEditing} required value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm disabled:bg-gray-100" />
-            </div>
-            <div>
-                <label className="block text-sm font-medium text-gray-700">Phone</label>
-                <input type="tel" disabled={!isEditing} value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm disabled:bg-gray-100" />
-            </div>
-            <div>
-                <label className="block text-sm font-medium text-gray-700">Date of Joining</label>
-                <input type="date" disabled={!isEditing} required value={formData.dateOfJoining} onChange={(e) => setFormData({ ...formData, dateOfJoining: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm disabled:bg-gray-100" />
-            </div>
-            <div>
-                <label className="block text-sm font-medium text-gray-700">Department</label>
-                <select disabled={!isEditing} value={formData.departmentId} onChange={(e) => setFormData({ ...formData, departmentId: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm disabled:bg-gray-100">
-                    <option value="">Select Department</option>
-                    {departments.map(dept => <option key={dept.id} value={dept.id}>{dept.name}</option>)}
-                </select>
-            </div>
-            <div>
-                <label className="block text-sm font-medium text-gray-700">Position</label>
-                <select disabled={!isEditing || !formData.departmentId} value={formData.positionId} onChange={(e) => setFormData({ ...formData, positionId: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm disabled:bg-gray-100">
-                    <option value="">Select Position</option>
-                    {positions.map(pos => <option key={pos.id} value={pos.id}>{pos.title}</option>)}
-                </select>
-            </div>
-            <div>
-                <label className="block text-sm font-medium text-gray-700">Status</label>
-                <select disabled={!isEditing} value={formData.status} onChange={(e) => setFormData({ ...formData, status: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm disabled:bg-gray-100">
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                    <option value="on-leave">On Leave</option>
-                    <option value="terminated">Terminated</option>
-                </select>
-            </div>
 
-            {/* Personal Details Snapshot */}
-            <div>
-                <label className="block text-sm font-medium text-gray-700">Gender</label>
-                <select disabled={!isEditing} value={formData.gender} onChange={(e) => setFormData({ ...formData, gender: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm disabled:bg-gray-100">
-                    <option value="">Select</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
-                </select>
-            </div>
-            <div>
-                <label className="block text-sm font-medium text-gray-700">Date of Birth</label>
-                <input type="date" disabled={!isEditing} value={formData.dateOfBirth} onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm disabled:bg-gray-100" />
-            </div>
-        </div>
-    );
-
-    const renderDetailsTab = () => (
-        <div className="space-y-8">
-            <section>
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Contact Information</h3>
-                <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2">
-                    <div className="sm:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700">Current Address</label>
-                        <textarea rows={2} disabled={!isEditing} value={formData.currentAddress} onChange={(e) => setFormData({ ...formData, currentAddress: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm disabled:bg-gray-100" />
-                    </div>
-                    <div className="sm:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700">Permanent Address</label>
-                        <textarea rows={2} disabled={!isEditing} value={formData.permanentAddress} onChange={(e) => setFormData({ ...formData, permanentAddress: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm disabled:bg-gray-100" />
-                    </div>
-                </div>
-            </section>
-
-            <section>
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Bank & Statutory</h3>
-                <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">Bank Name</label>
-                        <input type="text" disabled={!isEditing} value={formData.bankName} onChange={(e) => setFormData({ ...formData, bankName: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm disabled:bg-gray-100" />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">Account Number</label>
-                        <input type="text" disabled={!isEditing} value={formData.accountNumber} onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm disabled:bg-gray-100" />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">IFSC Code</label>
-                        <input type="text" disabled={!isEditing} value={formData.ifscCode} onChange={(e) => setFormData({ ...formData, ifscCode: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm disabled:bg-gray-100" />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">PAN Number</label>
-                        <input type="text" disabled={!isEditing} value={formData.panNumber} onChange={(e) => setFormData({ ...formData, panNumber: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm disabled:bg-gray-100" />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">Aadhaar Number</label>
-                        <input type="text" disabled={!isEditing} value={formData.aadhaarNumber} onChange={(e) => setFormData({ ...formData, aadhaarNumber: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm disabled:bg-gray-100" />
-                    </div>
-                </div>
-            </section>
-        </div>
-    );
-
-    const renderOtherDetailsTab = () => (
-        <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2">
-            <div>
-                <label className="block text-sm font-medium text-gray-700">Employment Type</label>
-                <select disabled={!isEditing} value={formData.employmentType} onChange={(e) => setFormData({ ...formData, employmentType: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm disabled:bg-gray-100">
-                    <option value="">Select Type</option>
-                    <option value="Full Time">Full Time</option>
-                    <option value="Part Time">Part Time</option>
-                    <option value="Contract">Contract</option>
-                    <option value="Internship">Internship</option>
-                    <option value="Trainee">Trainee</option>
-                </select>
-            </div>
-            <div>
-                <label className="block text-sm font-medium text-gray-700">Hourly Rate</label>
-                <input type="number" disabled={!isEditing} value={formData.hourlyRate} onChange={(e) => setFormData({ ...formData, hourlyRate: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm disabled:bg-gray-100" placeholder="0.00" />
-            </div>
-            <div>
-                <label className="block text-sm font-medium text-gray-700">Skills</label>
-                <input type="text" disabled={!isEditing} value={formData.skills} onChange={(e) => setFormData({ ...formData, skills: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm disabled:bg-gray-100" placeholder="React, Node.js" />
-            </div>
-            <div>
-                <label className="block text-sm font-medium text-gray-700">Slack ID</label>
-                <input type="text" disabled={!isEditing} value={formData.slackMemberId} onChange={(e) => setFormData({ ...formData, slackMemberId: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm disabled:bg-gray-100" />
-            </div>
-            <div>
-                <label className="block text-sm font-medium text-gray-700">Probation End Date</label>
-                <input type="date" disabled={!isEditing} value={formData.probationEndDate} onChange={(e) => setFormData({ ...formData, probationEndDate: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm disabled:bg-gray-100" />
-            </div>
-            <div>
-                <label className="block text-sm font-medium text-gray-700">Notice Start</label>
-                <input type="date" disabled={!isEditing} value={formData.noticePeriodStartDate} onChange={(e) => setFormData({ ...formData, noticePeriodStartDate: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm disabled:bg-gray-100" />
-            </div>
-            <div>
-                <label className="block text-sm font-medium text-gray-700">Notice End</label>
-                <input type="date" disabled={!isEditing} value={formData.noticePeriodEndDate} onChange={(e) => setFormData({ ...formData, noticePeriodEndDate: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm disabled:bg-gray-100" />
-            </div>
-        </div>
-    );
-
-    const renderDocumentsTab = () => (
-        <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <h3 className="text-lg font-medium text-gray-900">Uploaded Documents</h3>
-                <div className="relative">
-                    <input
-                        type="file"
-                        onChange={handleFileUpload}
-                        className="hidden"
-                        id="file-upload"
-                        disabled={uploading}
-                    />
-                    <label
-                        htmlFor="file-upload"
-                        className={`cursor-pointer bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                        {uploading ? 'Uploading...' : 'Upload Document'}
-                    </label>
-                </div>
-            </div>
-
-            {employee?.documents && employee.documents.length > 0 ? (
-                <ul className="border border-gray-200 rounded-md divide-y divide-gray-200">
-                    {employee.documents.map((doc: Document) => (
-                        <li key={doc.id} className="pl-3 pr-4 py-3 flex items-center justify-between text-sm">
-                            <div className="w-0 flex-1 flex items-center">
-                                <span className="flex-shrink-0 h-5 w-5 text-gray-400">
-                                    📄
-                                </span>
-                                <span className="ml-2 flex-1 w-0 truncate text-gray-900 font-medium">
-                                    {doc.name}
-                                </span>
-                                <span className="ml-2 flex-shrink-0 text-gray-500 text-xs">
-                                    {doc.type} • {new Date(doc.createdAt).toLocaleDateString()}
-                                </span>
-                            </div>
-                            <div className="ml-4 flex-shrink-0">
-                                <a href={doc.filePath} target="_blank" rel="noopener noreferrer" className="font-medium text-primary-600 hover:text-primary-500">
-                                    Download
-                                </a>
-                            </div>
-                        </li>
-                    ))}
-                </ul>
-            ) : (
-                <div className="text-center py-8 text-gray-500 border-2 border-dashed border-gray-200 rounded-lg">
-                    No documents uploaded yet.
-                </div>
-            )}
-        </div>
-    );
 
     if (loading) return <div className="p-8 text-center">Loading...</div>;
     if (!employee) return <div className="p-8 text-center">Employee not found</div>;
@@ -599,7 +402,7 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
                                             </div>
 
                                             <div>
-                                                <h3 className="text-sm font-black text-slate-900 border-l-4 border-indigo-600 pl-3 uppercase tracking-widest mb-6 mt-8">Deployment Details</h3>
+                                                <h3 className="text-sm font-black text-slate-900 border-l-4 border-indigo-600 pl-3 uppercase tracking-widest mb-6 mt-8">Deployment & Personal</h3>
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
                                                     <div className="ent-form-group">
                                                         <label className="ent-label">Joining Protocol Date</label>
@@ -628,6 +431,20 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
                                                             <option value="terminated">Separated</option>
                                                         </select>
                                                     </div>
+                                                    {/* Restored Personal Fields */}
+                                                    <div className="ent-form-group">
+                                                        <label className="ent-label">Bio-Identity (Gender)</label>
+                                                        <select disabled={!isEditing} value={formData.gender} onChange={(e) => setFormData({ ...formData, gender: e.target.value })} className="ent-select disabled:bg-slate-50/50">
+                                                            <option value="">Select</option>
+                                                            <option value="Male">Male</option>
+                                                            <option value="Female">Female</option>
+                                                            <option value="Other">Other</option>
+                                                        </select>
+                                                    </div>
+                                                    <div className="ent-form-group">
+                                                        <label className="ent-label">Date of Birth</label>
+                                                        <input type="date" disabled={!isEditing} value={formData.dateOfBirth} onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })} className="ent-input disabled:bg-slate-50/50" />
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -650,15 +467,28 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
                                                         <label className="ent-label">Clearance Protocol (IFSC)</label>
                                                         <input type="text" disabled={!isEditing} value={formData.ifscCode} onChange={(e) => setFormData({ ...formData, ifscCode: e.target.value })} className="ent-input font-mono" />
                                                     </div>
+                                                    {/* Restored Statutory fields */}
+                                                    <div className="ent-form-group">
+                                                        <label className="ent-label">Fiscal ID (PAN)</label>
+                                                        <input type="text" disabled={!isEditing} value={formData.panNumber} onChange={(e) => setFormData({ ...formData, panNumber: e.target.value })} className="ent-input font-mono" />
+                                                    </div>
+                                                    <div className="ent-form-group">
+                                                        <label className="ent-label">National ID (Aadhaar)</label>
+                                                        <input type="text" disabled={!isEditing} value={formData.aadhaarNumber} onChange={(e) => setFormData({ ...formData, aadhaarNumber: e.target.value })} className="ent-input font-mono" />
+                                                    </div>
                                                 </div>
                                             </section>
 
                                             <section>
                                                 <h3 className="text-sm font-black text-slate-900 border-l-4 border-indigo-600 pl-3 uppercase tracking-widest mb-6">Residential Protocol</h3>
-                                                <div className="grid grid-cols-1 gap-5">
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
                                                     <div className="ent-form-group">
                                                         <label className="ent-label">Primary Address</label>
                                                         <textarea rows={2} disabled={!isEditing} value={formData.currentAddress} onChange={(e) => setFormData({ ...formData, currentAddress: e.target.value })} className="ent-input" />
+                                                    </div>
+                                                    <div className="ent-form-group">
+                                                        <label className="ent-label">Permanent Address</label>
+                                                        <textarea rows={2} disabled={!isEditing} value={formData.permanentAddress} onChange={(e) => setFormData({ ...formData, permanentAddress: e.target.value })} className="ent-input" />
                                                     </div>
                                                 </div>
                                             </section>

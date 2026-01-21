@@ -408,8 +408,29 @@ export const convertQuotationToInvoice = async (req: AuthRequest, res: Response)
             return res.status(404).json({ error: 'Quotation not found' });
         }
 
-        if (!quotation.clientId) {
-            return res.status(400).json({ error: 'Quotation must have a client to convert to invoice' });
+        let finalClientId = quotation.clientId;
+
+        if (!finalClientId) {
+            if (quotation.leadId) {
+                // Check if the lead has been converted
+                const lead = await prisma.lead.findUnique({
+                    where: { id: quotation.leadId }
+                });
+
+                if (lead && lead.convertedToClientId) {
+                    finalClientId = lead.convertedToClientId;
+
+                    // Self-heal: Update the quotation with the correct client ID
+                    await prisma.quotation.update({
+                        where: { id: quotation.id },
+                        data: { clientId: finalClientId }
+                    });
+                } else {
+                    return res.status(400).json({ error: 'Linked Lead has not been converted to a Client yet. Please convert the lead first.' });
+                }
+            } else {
+                return res.status(400).json({ error: 'Quotation must have a client to convert to invoice' });
+            }
         }
 
         // Generate invoice number
@@ -422,7 +443,7 @@ export const convertQuotationToInvoice = async (req: AuthRequest, res: Response)
         const invoice = await prisma.invoice.create({
             data: {
                 companyId: user.companyId,
-                clientId: quotation.clientId,
+                clientId: finalClientId,
                 invoiceNumber,
                 invoiceDate: new Date(),
                 dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
