@@ -218,12 +218,35 @@ export const acceptQuotation = async (req: Request, res: Response) => {
                 clientName: name,
                 clientComments: comments || null,
                 status: 'accepted'
+            },
+            include: {
+                lead: true,
+                company: true
             }
         });
 
-        // TODO: Generate signed PDF
-        // TODO: Send acceptance notification email to company
-        // TODO: Send confirmation email to client
+        // Send acceptance emails
+        try {
+            const { sendQuotationAcceptanceToClient, sendQuotationAcceptanceToCompany } = await import('../services/email.service');
+
+            // Send to signature email (the email client entered during acceptance)
+            await sendQuotationAcceptanceToClient(updated);
+
+            // Also send to original lead email if different from signature email
+            if (updated.lead?.email && updated.lead.email !== email) {
+                await sendQuotationAcceptanceToClient({
+                    ...updated,
+                    clientEmail: updated.lead.email,
+                    clientName: updated.lead.name
+                });
+            }
+
+            // Send notification to company
+            await sendQuotationAcceptanceToCompany(updated);
+        } catch (emailError) {
+            console.error('Failed to send acceptance emails:', emailError);
+            // Don't fail the request if email fails
+        }
 
         res.json({
             message: 'Quotation accepted successfully',
@@ -279,10 +302,20 @@ export const rejectQuotation = async (req: Request, res: Response) => {
                 clientName: name,
                 clientComments: comments || null,
                 status: 'rejected'
+            },
+            include: {
+                company: true
             }
         });
 
-        // TODO: Send rejection notification email to company
+        // Send rejection notification email to company
+        try {
+            const { sendQuotationRejectionToCompany } = await import('../services/email.service');
+            await sendQuotationRejectionToCompany(updated);
+        } catch (emailError) {
+            console.error('Failed to send rejection email:', emailError);
+            // Don't fail the request if email fails
+        }
 
         res.json({
             message: 'Quotation rejected',
@@ -291,5 +324,88 @@ export const rejectQuotation = async (req: Request, res: Response) => {
     } catch (error: any) {
         console.error('Reject quotation error:', error);
         res.status(500).json({ error: 'Failed to reject quotation', details: error.message });
+    }
+};
+
+// Download Signed Quotation PDF (Public - No Auth Required)
+export const downloadSignedQuotationPDFPublic = async (req: Request, res: Response) => {
+    try {
+        const { token } = req.params;
+
+        const quotation = await prisma.quotation.findFirst({
+            where: {
+                publicToken: token,
+                isPublicEnabled: true
+            },
+            include: {
+                items: true,
+                lead: true,
+                company: true
+            }
+        });
+
+        if (!quotation) {
+            return res.status(404).json({ error: 'Quotation not found or link expired' });
+        }
+
+        // Check expiration
+        if (quotation.publicExpiresAt && new Date() > quotation.publicExpiresAt) {
+            return res.status(410).json({ error: 'This quotation link has expired' });
+        }
+
+        // Check if quotation has been accepted
+        if (!quotation.clientAcceptedAt || !quotation.clientSignature) {
+            return res.status(400).json({ error: 'Quotation has not been accepted by client yet' });
+        }
+
+        // Import PDF service dynamically
+        const { PDFService } = await import('../services/pdf.service');
+
+        // Generate signed PDF
+        const pdfBuffer = await PDFService.generateSignedQuotationPDF({
+            quotationNumber: quotation.quotationNumber,
+            quotationDate: quotation.quotationDate,
+            validUntil: quotation.validUntil || undefined,
+            company: {
+                name: quotation.company.name,
+                logo: quotation.company.logo || undefined,
+                address: quotation.company.address || undefined,
+                city: quotation.company.city || undefined,
+                state: quotation.company.state || undefined,
+                country: quotation.company.country,
+                pincode: quotation.company.pincode || undefined,
+                email: quotation.company.email || undefined,
+                phone: quotation.company.phone || undefined,
+                gstin: quotation.company.gstin || undefined
+            },
+            lead: quotation.lead ? {
+                name: quotation.lead.name,
+                company: quotation.lead.company || undefined,
+                email: quotation.lead.email || undefined,
+                phone: quotation.lead.phone || undefined
+            } : undefined,
+            items: quotation.items.map(item => ({
+                description: item.description,
+                quantity: Number(item.quantity),
+                unitPrice: Number(item.unitPrice)
+            })),
+            subtotal: Number(quotation.subtotal),
+            tax: Number(quotation.tax),
+            discount: Number(quotation.discount),
+            total: Number(quotation.total),
+            currency: quotation.currency,
+            notes: quotation.notes || undefined,
+            clientSignature: quotation.clientSignature,
+            clientName: quotation.clientName || undefined,
+            clientAcceptedAt: quotation.clientAcceptedAt
+        });
+
+        // Set headers for PDF download
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="Quotation-${quotation.quotationNumber}-Signed.pdf"`);
+        res.send(pdfBuffer);
+    } catch (error: any) {
+        console.error('Download signed quotation PDF (public) error:', error);
+        res.status(500).json({ error: 'Failed to generate signed PDF', details: error.message });
     }
 };

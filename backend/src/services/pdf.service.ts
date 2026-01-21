@@ -7,6 +7,8 @@ interface QuotationData {
     quotationNumber: string;
     quotationDate: Date;
     validUntil?: Date;
+    title?: string;
+    description?: string;
     company: {
         name: string;
         logo?: string;
@@ -256,6 +258,13 @@ export class PDFService {
             </div>
         </div>
     </div>
+
+    ${data.title || data.description ? `
+    <div class="quotation-details" style="margin-bottom: 30px; padding: 20px; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 4px;">
+        ${data.title ? `<h2 style="font-size: 18px; font-weight: bold; color: #92400e; margin-bottom: 10px;">${data.title}</h2>` : ''}
+        ${data.description ? `<div style="font-size: 13px; color: #78350f; line-height: 1.8;">${data.description}</div>` : ''}
+    </div>
+    ` : ''}
 
     ${data.lead ? `
     <div class="billed-to">

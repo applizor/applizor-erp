@@ -7,14 +7,16 @@ import {
     convertQuotationToInvoice,
     deleteQuotation,
     downloadQuotationPDF,
-    downloadSignedQuotationPDF
+    downloadSignedQuotationPDF,
+    sendQuotationEmail
 } from '../controllers/quotation.controller';
 import {
     generatePublicLink,
     revokePublicLink,
     getQuotationByToken,
     acceptQuotation,
-    rejectQuotation
+    rejectQuotation,
+    downloadSignedQuotationPDFPublic
 } from '../controllers/quotation-public.controller';
 import { authenticate } from '../middleware/auth';
 
@@ -36,9 +38,13 @@ router.post('/:id/revoke-link', authenticate, revokePublicLink);
 router.get('/:id/pdf', authenticate, downloadQuotationPDF);
 router.get('/:id/signed-pdf', authenticate, downloadSignedQuotationPDF);
 
+// Send quotation email (require authentication)
+router.post('/:id/send-email', authenticate, sendQuotationEmail);
+
 // Public routes (no authentication required)
 router.get('/public/:token', getQuotationByToken);
 router.post('/public/:token/accept', acceptQuotation);
 router.post('/public/:token/reject', rejectQuotation);
+router.get('/public/:token/signed-pdf', downloadSignedQuotationPDFPublic);
 
 export default router;

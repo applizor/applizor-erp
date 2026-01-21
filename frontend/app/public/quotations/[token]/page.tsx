@@ -182,13 +182,44 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
             <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
                 {/* Status Banner */}
                 {isAccepted && (
-                    <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4 flex items-center">
-                        <CheckCircle className="w-6 h-6 text-green-600 mr-3" />
-                        <div>
-                            <p className="font-medium text-green-900">Quotation Accepted</p>
-                            <p className="text-sm text-green-700">
-                                Accepted by {quotation.clientName} on {new Date(quotation.clientAcceptedAt).toLocaleDateString()}
-                            </p>
+                    <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
+                        <div className="flex items-start justify-between">
+                            <div className="flex items-center">
+                                <CheckCircle className="w-6 h-6 text-green-600 mr-3" />
+                                <div>
+                                    <p className="font-medium text-green-900">Quotation Accepted</p>
+                                    <p className="text-sm text-green-700">
+                                        Accepted by {quotation.clientName} on {new Date(quotation.clientAcceptedAt).toLocaleDateString()}
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={async () => {
+                                    try {
+                                        const response = await api.get(`/quotations/public/${params.token}/signed-pdf`, {
+                                            responseType: 'blob'
+                                        });
+                                        const url = window.URL.createObjectURL(new Blob([response.data]));
+                                        const link = document.createElement('a');
+                                        link.href = url;
+                                        link.setAttribute('download', `Quotation-${quotation.quotationNumber}-Signed.pdf`);
+                                        document.body.appendChild(link);
+                                        link.click();
+                                        link.remove();
+                                    } catch (error: any) {
+                                        setAlertDialog({
+                                            isOpen: true,
+                                            type: 'error',
+                                            title: 'Download Failed',
+                                            message: error.response?.data?.error || 'Failed to download signed PDF'
+                                        });
+                                    }
+                                }}
+                                className="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition"
+                            >
+                                <Download className="w-4 h-4 mr-2" />
+                                Download Signed PDF
+                            </button>
                         </div>
                     </div>
                 )}
@@ -266,6 +297,21 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
                             )}
                         </div>
                     </div>
+
+                    {/* Title & Description */}
+                    {(quotation.title || quotation.description) && (
+                        <div className="px-8 py-6 border-b border-gray-200 bg-amber-50">
+                            {quotation.title && (
+                                <h2 className="text-xl font-bold text-amber-900 mb-3">{quotation.title}</h2>
+                            )}
+                            {quotation.description && (
+                                <div
+                                    className="text-sm text-amber-800 prose prose-sm max-w-none"
+                                    dangerouslySetInnerHTML={{ __html: quotation.description }}
+                                />
+                            )}
+                        </div>
+                    )}
 
                     {/* Items Table */}
                     <div className="overflow-x-auto">

@@ -11,6 +11,7 @@ import { Plus, Trash2, Calendar, FileText, ArrowLeft, Info } from 'lucide-react'
 import ProductSelector from '@/components/quotations/ProductSelector';
 import { quotationsApi } from '@/lib/api/quotations';
 import AccessDenied from '@/components/AccessDenied';
+import RichTextEditor from '@/components/ui/RichTextEditor';
 
 export default function CreateQuotationPage() {
     const router = useRouter();
@@ -249,12 +250,10 @@ export default function CreateQuotationPage() {
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                 Description
                             </label>
-                            <textarea
+                            <RichTextEditor
                                 value={formData.description}
-                                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                className="w-full border border-gray-300 rounded-md px-4 py-2.5 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                                rows={2}
-                                placeholder="Brief summary of the scope..."
+                                onChange={(value) => setFormData({ ...formData, description: value })}
+                                placeholder="Brief summary of the scope... You can paste from Word documents with formatting."
                             />
                         </div>
                     </div>

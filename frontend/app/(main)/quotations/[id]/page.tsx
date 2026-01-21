@@ -136,6 +136,32 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
                         Print
                     </button>
 
+                    {can('Quotation', 'read') && quotation.clientAcceptedAt && (
+                        <button
+                            onClick={async () => {
+                                try {
+                                    const response = await api.get(`/quotations/${params.id}/signed-pdf`, {
+                                        responseType: 'blob'
+                                    });
+                                    const url = window.URL.createObjectURL(new Blob([response.data]));
+                                    const link = document.createElement('a');
+                                    link.href = url;
+                                    link.setAttribute('download', `Quotation-${quotation.quotationNumber}-Signed.pdf`);
+                                    document.body.appendChild(link);
+                                    link.click();
+                                    link.remove();
+                                    toast.success('Signed PDF downloaded successfully');
+                                } catch (error: any) {
+                                    toast.error(error.response?.data?.error || 'Failed to download signed PDF');
+                                }
+                            }}
+                            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none"
+                        >
+                            <Download className="w-4 h-4 mr-2" />
+                            Download Signed PDF
+                        </button>
+                    )}
+
                     {can('Quotation', 'update') && !quotation.isPublicEnabled && (
                         <button
                             onClick={handleGenerateLink}
@@ -148,9 +174,24 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
                     )}
 
                     {can('Quotation', 'update') && quotation.status === 'draft' && (
-                        <button className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none">
+                        <button
+                            onClick={async () => {
+                                try {
+                                    setGeneratingLink(true);
+                                    await api.post(`/quotations/${params.id}/send-email`);
+                                    toast.success('Quotation email sent successfully!');
+                                    await loadQuotation(); // Reload to get updated status
+                                } catch (error: any) {
+                                    toast.error(error.response?.data?.error || 'Failed to send email');
+                                } finally {
+                                    setGeneratingLink(false);
+                                }
+                            }}
+                            disabled={generatingLink}
+                            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none disabled:opacity-50"
+                        >
                             <Mail className="w-4 h-4 mr-2" />
-                            Send to Client
+                            {generatingLink ? 'Sending...' : 'Send to Client'}
                         </button>
                     )}
 

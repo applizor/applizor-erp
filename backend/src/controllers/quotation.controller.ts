@@ -490,6 +490,8 @@ export const downloadQuotationPDF = async (req: AuthRequest, res: Response) => {
             quotationNumber: quotation.quotationNumber,
             quotationDate: quotation.quotationDate,
             validUntil: quotation.validUntil || undefined,
+            title: quotation.title || undefined,
+            description: quotation.description || undefined,
             company: {
                 name: quotation.company.name,
                 logo: quotation.company.logo || undefined,
@@ -576,6 +578,8 @@ export const downloadSignedQuotationPDF = async (req: AuthRequest, res: Response
             quotationNumber: quotation.quotationNumber,
             quotationDate: quotation.quotationDate,
             validUntil: quotation.validUntil || undefined,
+            title: quotation.title || undefined,
+            description: quotation.description || undefined,
             company: quotation.company,
             lead: quotation.lead || undefined,
             items: quotation.items,
@@ -597,5 +601,80 @@ export const downloadSignedQuotationPDF = async (req: AuthRequest, res: Response
     } catch (error: any) {
         console.error('Download signed quotation PDF error:', error);
         res.status(500).json({ error: 'Failed to generate signed PDF', details: error.message });
+    }
+};
+
+// Send Quotation Email to Client
+export const sendQuotationEmail = async (req: AuthRequest, res: Response) => {
+    try {
+        const user = req.user;
+        if (!user) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        const { id } = req.params;
+
+        // Check permission
+        if (!PermissionService.hasBasicPermission(user, 'Quotation', 'update')) {
+            return res.status(403).json({ error: 'Access denied: No update rights for Quotation' });
+        }
+
+        // Scope check
+        const scopeFilter = await PermissionService.getScopedWhereClause(
+            user, 'Quotation', 'update', 'Quotation', 'createdBy', 'assignedTo'
+        );
+
+        const quotation = await prisma.quotation.findFirst({
+            where: { AND: [{ id }, scopeFilter] },
+            include: {
+                items: true,
+                lead: true,
+                company: true
+            }
+        });
+
+        if (!quotation) {
+            return res.status(404).json({ error: 'Quotation not found' });
+        }
+
+        // Check if lead has email
+        if (!quotation.lead?.email) {
+            return res.status(400).json({ error: 'Lead does not have an email address' });
+        }
+
+        // Generate public link if not already generated
+        let publicToken = quotation.publicToken;
+        let publicUrl = '';
+
+        if (!quotation.isPublicEnabled || !quotation.publicToken) {
+            const { v4: uuidv4 } = await import('uuid');
+            publicToken = uuidv4();
+            const publicExpiresAt = new Date();
+            publicExpiresAt.setDate(publicExpiresAt.getDate() + 30); // 30 days
+
+            await prisma.quotation.update({
+                where: { id },
+                data: {
+                    publicToken,
+                    publicExpiresAt,
+                    isPublicEnabled: true,
+                    status: 'sent'
+                }
+            });
+        }
+
+        publicUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/public/quotations/${publicToken}`;
+
+        // Send email
+        const { sendQuotationToClient } = await import('../services/email.service');
+        await sendQuotationToClient(quotation, publicUrl);
+
+        res.json({
+            message: 'Quotation email sent successfully',
+            publicUrl
+        });
+    } catch (error: any) {
+        console.error('Send quotation email error:', error);
+        res.status(500).json({ error: 'Failed to send quotation email', details: error.message });
     }
 };
