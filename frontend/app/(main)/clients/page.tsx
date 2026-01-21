@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Search, Plus, Users, Filter, ArrowUpRight, CheckCircle2, Clock, AlertCircle, FileText, ChevronRight, MoreVertical, Building2 } from 'lucide-react';
+import { Search, Plus, Users, Filter, ArrowUpRight, CheckCircle2, Clock, AlertCircle, FileText, ChevronRight, MoreVertical, Building2, Eye, Edit, Trash2 } from 'lucide-react';
 import { clientsApi } from '@/lib/api/clients';
 import { PermissionGuard } from '@/components/PermissionGuard';
 import { ClientListSkeleton } from '@/components/clients/ClientListSkeleton';
