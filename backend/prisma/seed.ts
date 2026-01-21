@@ -4,176 +4,225 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-    console.log('🌱 Starting database seeding...');
+    console.log('🌱 Starting database seeding (Production Backup Mode)...');
 
-    // 1. Create Company
-    console.log('📊 Creating company...');
-    let company = await prisma.company.findFirst({
-        where: { name: 'Applizor Softech LLP' }
-    });
-
-    if (!company) {
-        company = await prisma.company.create({
-            data: {
-                name: 'Applizor Softech LLP',
-                legalName: 'Applizor Softech LLP',
-                email: 'connect@applizor.com',
-                phone: '9130309480',
-                address: '209, WARD NO 7, VISHWAKARMA MUHALLA, GARROLI',
-                city: 'Chhatarpur',
-                state: 'Madhya Pradesh',
-                country: 'India',
-                pincode: '471201',
-                currency: 'INR',
-                isActive: true
-            }
-        });
-        console.log(`✅ Company created: ${company.name}`);
-    } else {
-        console.log(`✅ Company already exists: ${company.name}`);
-    }
-
-    // 2. Create Roles
-    console.log('👥 Creating roles...');
-    const adminRole = await prisma.role.upsert({
-        where: { name: 'Admin' },
+    // 1. Company Setup
+    const companyId = "b81a0e3f-9301-43f7-a633-6db7e5fa54b0";
+    const company = await prisma.company.upsert({
+        where: { id: companyId },
         update: {},
         create: {
-            name: 'Admin',
-            description: 'Full system access',
-            isSystem: true
+            id: companyId,
+            name: "Applizor Softech LLP",
+            legalName: "Applizor Softech LLP",
+            email: "connect@applizor.com",
+            phone: "9130309480",
+            address: "209, WARD NO 7, VISHWAKARMA MUHALLA, GARROLI, Madhya Pradesh, 471201",
+            city: "Garroli",
+            state: "Madhya Pradesh",
+            country: "India",
+            pincode: "471201",
+            isActive: true
         }
     });
+    console.log(`✅ Company: ${company.name}`);
 
-    const hrRole = await prisma.role.upsert({
-        where: { name: 'HR' },
-        update: {},
-        create: {
-            name: 'HR',
-            description: 'Human Resources Manager',
-            isSystem: false
-        }
-    });
+    // 2. Roles & Permissions (From DB Export)
+    const adminRoleId = "fbd2165d-3336-49b8-9b1f-188fbcd27b25";
+    const hrRoleId = "2efe4dac-9b40-4436-b299-badda6396405";
+    const empRoleId = "2af33051-91e2-49b0-be8e-e879b80dc41c";
 
-    const employeeRole = await prisma.role.upsert({
-        where: { name: 'Employee' },
-        update: {},
-        create: {
-            name: 'Employee',
-            description: 'Regular Employee',
-            isSystem: false
-        }
-    });
-    console.log('✅ Roles created: Admin, HR, Employee');
-
-    // 3. Create Admin Permissions (Full Access)
-    console.log('🔐 Creating admin permissions...');
-    const modules = [
-        'Dashboard', 'Company', 'User', 'Role',
-        'Client', 'Lead', 'LeadActivity',
-        'Quotation', 'Invoice', 'Payment', 'Subscription',
-        'Department', 'Position', 'Employee', 'Attendance', 'Leave',
-        'LeaveType', 'LeaveBalance', 'Shift', 'ShiftRoster', 'Payroll', 'Asset',
-        'Recruitment', 'Document', 'Holiday'
+    const allModules = [
+        "Dashboard", "Company", "User", "Role", "Client", "Lead", "LeadActivity",
+        "Quotation", "Invoice", "Payment", "Subscription", "Department", "Position",
+        "Employee", "Attendance", "Leave", "LeaveType", "LeaveBalance", "Shift",
+        "ShiftRoster", "Payroll", "Asset", "Recruitment", "Document", "Holiday",
+        "QuotationTemplate"
     ];
 
-    for (const module of modules) {
-        await prisma.rolePermission.upsert({
-            where: {
-                roleId_module: {
-                    roleId: adminRole.id,
-                    module: module
+    const rolesData = [
+        {
+            id: adminRoleId,
+            name: "Admin",
+            description: "Full system access",
+            isSystem: true,
+            permissions: allModules.map(m => ({ module: m, create: "all", read: "all", update: "all", delete: "all" }))
+        },
+        {
+            id: hrRoleId,
+            name: "HR",
+            description: "Human Resources Manager",
+            isSystem: false,
+            permissions: [
+                "Employee", "Department", "Position", "Attendance", "Leave", "LeaveType",
+                "LeaveBalance", "Shift", "Recruitment", "Payroll", "Asset", "Document"
+            ].map(m => ({ module: m, create: "all", read: "all", update: "all", delete: "all" }))
+        },
+        {
+            id: empRoleId,
+            name: "Employee",
+            description: "Regular Employee",
+            isSystem: false,
+            permissions: [
+                { module: "Dashboard", create: "none", read: "all", update: "none", delete: "none" },
+                { module: "Leave", create: "all", read: "owned", update: "owned", delete: "owned" },
+                { module: "Document", create: "owned", read: "owned", update: "owned", delete: "none" },
+                { module: "Employee", create: "none", read: "all", update: "none", delete: "none" },
+                { module: "Attendance", create: "all", read: "owned", update: "owned", delete: "owned" },
+                { module: "LeaveType", create: "none", read: "all", update: "none", delete: "none" },
+                { module: "LeaveBalance", create: "none", read: "owned", update: "owned", delete: "none" },
+                { module: "Shift", create: "none", read: "all", update: "none", delete: "none" },
+                { module: "ShiftRoster", create: "none", read: "owned", update: "none", delete: "none" },
+                { module: "Holiday", create: "none", read: "all", update: "none", delete: "none" },
+                { module: "Department", create: "none", read: "all", update: "none", delete: "none" },
+                { module: "Position", create: "none", read: "all", update: "none", delete: "none" }
+            ]
+        }
+    ];
+
+    for (const r of rolesData) {
+        await prisma.role.upsert({
+            where: { id: r.id },
+            update: { name: r.name, description: r.description, isSystem: r.isSystem },
+            create: { id: r.id, name: r.name, description: r.description, isSystem: r.isSystem }
+        });
+
+        for (const p of r.permissions) {
+            await prisma.rolePermission.upsert({
+                where: { roleId_module: { roleId: r.id, module: (p as any).module } },
+                update: {
+                    createLevel: (p as any).create || "none",
+                    readLevel: (p as any).read || "none",
+                    updateLevel: (p as any).update || "none",
+                    deleteLevel: (p as any).delete || "none"
+                },
+                create: {
+                    roleId: r.id,
+                    module: (p as any).module,
+                    createLevel: (p as any).create || "none",
+                    readLevel: (p as any).read || "none",
+                    updateLevel: (p as any).update || "none",
+                    deleteLevel: (p as any).delete || "none"
                 }
+            });
+        }
+    }
+    console.log('✅ Roles and permissions set');
+
+    // 3. Departments & Positions
+    const engineeringId = "a9e50298-d5db-4b87-8ab6-a8e12194321d";
+    const hrDeptId = "80f8b173-8253-4dff-be66-3b8229770117";
+
+    await prisma.department.upsert({
+        where: { id: engineeringId },
+        update: {},
+        create: { id: engineeringId, companyId: company.id, name: "Engineering", description: "Software Development" }
+    });
+
+    await prisma.position.upsert({
+        where: { id: "020858a5-3766-4388-99cb-39f9af2c2879" },
+        update: {},
+        create: { id: "020858a5-3766-4388-99cb-39f9af2c2879", departmentId: engineeringId, title: "Senior Software Engineer" }
+    });
+
+    await prisma.department.upsert({
+        where: { id: hrDeptId },
+        update: {},
+        create: { id: hrDeptId, companyId: company.id, name: "HR", description: "Human Resources" }
+    });
+
+    await prisma.position.upsert({
+        where: { id: "72eac940-3040-462e-8736-cf9f43547af2" },
+        update: {},
+        create: { id: "72eac940-3040-462e-8736-cf9f43547af2", departmentId: hrDeptId, title: "HR Manager" }
+    });
+    console.log('✅ Departments and positions created');
+
+    // 4. Leave Types (Production Data)
+    const leaveTypes = [
+        {
+            id: "c01b69ee-83c0-482d-af93-ad1690bc371d",
+            name: "Sick Leave",
+            days: 4,
+            isPaid: true,
+            frequency: "yearly",
+            carryForward: true,
+            maxCarryForward: 2,
+            monthlyLimit: 2,
+            accrualType: "yearly",
+            quarterlyLimit: 1,
+            probationQuota: 1,
+            confirmationBonus: 0,
+            policySettings: { noticePeriod: 14, minDaysForProof: 2, minDaysForNotice: 4, includeNonWorkingDays: false }
+        },
+        {
+            id: "6e2652ac-a743-42eb-a56f-561af5f05646",
+            name: "Casual Leave",
+            days: 4,
+            isPaid: true,
+            frequency: "yearly",
+            carryForward: true,
+            maxCarryForward: 2,
+            monthlyLimit: 2,
+            accrualType: "yearly",
+            quarterlyLimit: 1,
+            probationQuota: 1,
+            confirmationBonus: 0,
+            policySettings: { noticePeriod: 14, minDaysForProof: 2, minDaysForNotice: 4, includeNonWorkingDays: false }
+        },
+        {
+            id: "9d6bebad-72ef-43c9-96e1-afa64c1616ef",
+            name: "Earned Leaves",
+            days: 18,
+            isPaid: true,
+            frequency: "yearly",
+            carryForward: true,
+            maxCarryForward: 5,
+            monthlyLimit: 2,
+            accrualType: "monthly",
+            accrualRate: 1.5,
+            maxAccrual: 0, // Reset to 0 (Unlimited) as discussed
+            quarterlyLimit: 2,
+            probationQuota: 1,
+            confirmationBonus: 1.5,
+            policySettings: { noticePeriod: 14, minDaysForProof: 2, minDaysForNotice: 4, includeNonWorkingDays: false }
+        }
+    ];
+
+    for (const lt of leaveTypes) {
+        await prisma.leaveType.upsert({
+            where: { id: lt.id },
+            update: {
+                name: lt.name, days: lt.days, isPaid: lt.isPaid, frequency: lt.frequency,
+                carryForward: lt.carryForward, maxCarryForward: lt.maxCarryForward,
+                monthlyLimit: lt.monthlyLimit, accrualType: lt.accrualType,
+                accrualRate: (lt as any).accrualRate || 0,
+                maxAccrual: (lt as any).maxAccrual !== undefined ? lt.maxAccrual : 0,
+                quarterlyLimit: lt.quarterlyLimit,
+                probationQuota: lt.probationQuota,
+                confirmationBonus: lt.confirmationBonus,
+                policySettings: lt.policySettings
             },
-            update: {},
             create: {
-                roleId: adminRole.id,
-                module: module,
-                createLevel: 'all',
-                readLevel: 'all',
-                updateLevel: 'all',
-                deleteLevel: 'all'
+                id: lt.id, name: lt.name, days: lt.days, isPaid: lt.isPaid, frequency: lt.frequency,
+                carryForward: lt.carryForward, maxCarryForward: lt.maxCarryForward,
+                monthlyLimit: lt.monthlyLimit, accrualType: lt.accrualType,
+                accrualRate: (lt as any).accrualRate || 0,
+                maxAccrual: (lt as any).maxAccrual !== undefined ? lt.maxAccrual : 0,
+                quarterlyLimit: lt.quarterlyLimit,
+                probationQuota: lt.probationQuota,
+                confirmationBonus: lt.confirmationBonus,
+                policySettings: lt.policySettings
             }
         });
     }
-    console.log(`✅ Admin permissions created for ${modules.length} modules`);
+    console.log('✅ Leave types created');
 
-    // 4. Create HR Permissions (HR-specific access)
-    console.log('🔐 Creating HR permissions...');
-    const hrModules = {
-        'Employee': { create: 'all', read: 'all', update: 'all', delete: 'all' },
-        'Department': { create: 'all', read: 'all', update: 'all', delete: 'all' },
-        'Position': { create: 'all', read: 'all', update: 'all', delete: 'all' },
-        'Attendance': { create: 'all', read: 'all', update: 'all', delete: 'all' },
-        'Leave': { create: 'all', read: 'all', update: 'all', delete: 'all' },
-        'LeaveType': { create: 'all', read: 'all', update: 'all', delete: 'all' },
-        'LeaveBalance': { create: 'all', read: 'all', update: 'all', delete: 'all' },
-        'Shift': { create: 'all', read: 'all', update: 'all', delete: 'all' },
-        'Recruitment': { create: 'all', read: 'all', update: 'all', delete: 'all' },
-        'Payroll': { create: 'all', read: 'all', update: 'all', delete: 'all' },
-        'Asset': { create: 'all', read: 'all', update: 'all', delete: 'all' },
-        'Document': { create: 'all', read: 'all', update: 'all', delete: 'all' }
-    };
-
-    for (const [module, perms] of Object.entries(hrModules)) {
-        await prisma.rolePermission.upsert({
-            where: {
-                roleId_module: {
-                    roleId: hrRole.id,
-                    module: module
-                }
-            },
-            update: {},
-            create: {
-                roleId: hrRole.id,
-                module: module,
-                createLevel: perms.create,
-                readLevel: perms.read,
-                updateLevel: perms.update,
-                deleteLevel: perms.delete
-            }
-        });
-    }
-    console.log(`✅ HR permissions created for ${Object.keys(hrModules).length} modules`);
-
-    // 5. Create Employee Permissions (Limited access)
-    console.log('🔐 Creating employee permissions...');
-    const empModules = {
-        'Dashboard': { create: 'none', read: 'all', update: 'none', delete: 'none' },
-        'Attendance': { create: 'owned', read: 'owned', update: 'owned', delete: 'none' },
-        'Leave': { create: 'owned', read: 'owned', update: 'owned', delete: 'owned' },
-        'Document': { create: 'owned', read: 'owned', update: 'owned', delete: 'none' }
-    };
-
-    for (const [module, perms] of Object.entries(empModules)) {
-        await prisma.rolePermission.upsert({
-            where: {
-                roleId_module: {
-                    roleId: employeeRole.id,
-                    module: module
-                }
-            },
-            update: {},
-            create: {
-                roleId: employeeRole.id,
-                module: module,
-                createLevel: perms.create,
-                readLevel: perms.read,
-                updateLevel: perms.update,
-                deleteLevel: perms.delete
-            }
-        });
-    }
-    console.log(`✅ Employee permissions created for ${Object.keys(empModules).length} modules`);
-
-    // 6. Create Users
-    console.log('👤 Creating users...');
-
-    // Admin User
+    // 5. Admin User
     const hashedAdminPassword = await bcrypt.hash('admin123', 10);
     const adminUser = await prisma.user.upsert({
         where: { email: 'admin@applizor.com' },
-        update: {},
+        update: { password: hashedAdminPassword, companyId: company.id },
         create: {
             email: 'admin@applizor.com',
             password: hashedAdminPassword,
@@ -185,86 +234,13 @@ async function main() {
     });
 
     await prisma.userRole.upsert({
-        where: {
-            userId_roleId: {
-                userId: adminUser.id,
-                roleId: adminRole.id
-            }
-        },
+        where: { userId_roleId: { userId: adminUser.id, roleId: adminRoleId } },
         update: {},
-        create: {
-            userId: adminUser.id,
-            roleId: adminRole.id
-        }
+        create: { userId: adminUser.id, roleId: adminRoleId }
     });
-    console.log('✅ Admin user created: admin@applizor.com / admin123');
+    console.log('✅ Admin user: admin@applizor.com / admin123');
 
-    // HR User
-    const hashedHRPassword = await bcrypt.hash('hr2@123', 10);
-    const hrUser = await prisma.user.upsert({
-        where: { email: 'hr@applizor.com' },
-        update: {},
-        create: {
-            email: 'hr@applizor.com',
-            password: hashedHRPassword,
-            firstName: 'HR',
-            lastName: 'Manager',
-            companyId: company.id,
-            isActive: true
-        }
-    });
-
-    await prisma.userRole.upsert({
-        where: {
-            userId_roleId: {
-                userId: hrUser.id,
-                roleId: hrRole.id
-            }
-        },
-        update: {},
-        create: {
-            userId: hrUser.id,
-            roleId: hrRole.id
-        }
-    });
-    console.log('✅ HR user created: hr@applizor.com / hr2@123');
-
-    // Employee User
-    const hashedEmpPassword = await bcrypt.hash('emp1', 10);
-    const empUser = await prisma.user.upsert({
-        where: { email: 'emp1@test.com' },
-        update: {},
-        create: {
-            email: 'emp1@test.com',
-            password: hashedEmpPassword,
-            firstName: 'Employee',
-            lastName: 'One',
-            companyId: company.id,
-            isActive: true
-        }
-    });
-
-    await prisma.userRole.upsert({
-        where: {
-            userId_roleId: {
-                userId: empUser.id,
-                roleId: employeeRole.id
-            }
-        },
-        update: {},
-        create: {
-            userId: empUser.id,
-            roleId: employeeRole.id
-        }
-    });
-    console.log('✅ Employee user created: emp1@test.com / emp1');
-
-    console.log('\n🎉 Database seeding completed successfully!');
-    console.log('\n📝 Summary:');
-    console.log('   - Company: Applizor Softech LLP');
-    console.log('   - Roles: Admin, HR, Employee');
-    console.log('   - Users: 3 (admin, hr, employee)');
-    console.log('   - Permissions: Configured for all roles');
+    console.log('\n🎉 Seeding completed!');
 }
 
 main()

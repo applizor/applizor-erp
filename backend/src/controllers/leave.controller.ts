@@ -92,9 +92,12 @@ export const createLeaveType = async (req: AuthRequest, res: Response) => {
 
         const {
             name, days, isPaid, description, frequency, carryForward,
-            // Advanced
+            // Advanced Constraints
             maxCarryForward, monthlyLimit, maxConsecutiveDays, minServiceDays,
             sandwichRule, encashable, proofRequired, color,
+            // Accrual & Probation
+            accrualType, accrualRate, maxAccrual,
+            quarterlyLimit, probationQuota, confirmationBonus,
             // Relations
             departmentIds, positionIds, employmentStatus
         } = req.body;
@@ -116,6 +119,13 @@ export const createLeaveType = async (req: AuthRequest, res: Response) => {
                 encashable: encashable !== undefined ? encashable : false,
                 proofRequired: proofRequired !== undefined ? proofRequired : false,
                 color: color || '#3B82F6',
+                // Accrual & Probation
+                accrualType: accrualType || 'yearly',
+                accrualRate: accrualRate ? parseFloat(accrualRate) : 0,
+                maxAccrual: maxAccrual ? parseFloat(maxAccrual) : 0,
+                quarterlyLimit: quarterlyLimit ? parseInt(quarterlyLimit) : 0,
+                probationQuota: probationQuota ? parseFloat(probationQuota) : 0,
+                confirmationBonus: confirmationBonus ? parseFloat(confirmationBonus) : 0,
                 // Relations
                 departmentIds: departmentIds || [],
                 positionIds: positionIds || [],
@@ -130,7 +140,7 @@ export const createLeaveType = async (req: AuthRequest, res: Response) => {
 
         // Find all employees matches the criteria (dept/pos)
         // If arrays are empty, it applies to ALL.
-        const whereClause: any = { isActive: true };
+        const whereClause: any = { status: 'active' };
 
         if (departmentIds && departmentIds.length > 0) {
             whereClause.departmentId = { in: departmentIds };
@@ -206,6 +216,9 @@ export const updateLeaveType = async (req: AuthRequest, res: Response) => {
             // Advanced
             maxCarryForward, monthlyLimit, maxConsecutiveDays, minServiceDays,
             sandwichRule, encashable, proofRequired, color,
+            // New Fields
+            accrualType, accrualRate, maxAccrual,
+            quarterlyLimit, probationQuota, confirmationBonus,
             // Relations
             departmentIds, positionIds, employmentStatus
         } = req.body;
@@ -214,7 +227,7 @@ export const updateLeaveType = async (req: AuthRequest, res: Response) => {
             where: { id },
             data: {
                 name,
-                days: parseInt(days),
+                days: days ? parseInt(days) : undefined,
                 isPaid,
                 description,
                 frequency,
@@ -232,10 +245,13 @@ export const updateLeaveType = async (req: AuthRequest, res: Response) => {
                 departmentIds: departmentIds || [],
                 positionIds: positionIds || [],
                 employmentStatus: employmentStatus || [],
-                // Accrual
-                accrualType: req.body.accrualType,
-                accrualRate: req.body.accrualRate ? parseFloat(req.body.accrualRate) : 0,
-                maxAccrual: req.body.maxAccrual ? parseFloat(req.body.maxAccrual) : 0,
+                // Accrual & Probation
+                accrualType,
+                accrualRate: accrualRate ? parseFloat(accrualRate) : undefined,
+                maxAccrual: maxAccrual ? parseFloat(maxAccrual) : undefined,
+                quarterlyLimit: quarterlyLimit ? parseInt(quarterlyLimit) : undefined,
+                probationQuota: probationQuota ? parseFloat(probationQuota) : undefined,
+                confirmationBonus: confirmationBonus ? parseFloat(confirmationBonus) : undefined,
                 // Dynamic Policy
                 policySettings: req.body.policySettings || undefined
             }
@@ -1114,26 +1130,21 @@ export const getAllBalances = async (req: AuthRequest, res: Response) => {
 
         const balances = rawBalances.map(b => {
             // Robust check: handle 'Monthly', 'monthly', 'Monthly Accrual'
-            const isMonthly = b.leaveType.accrualType && b.leaveType.accrualType.toLowerCase().includes('monthly');
+            const isMonthly = b.leaveType.accrualType?.toLowerCase().includes('monthly');
+            const annualQuota = b.leaveType.days;
             let displayTotal = 0;
 
             if (isMonthly) {
-                const annualQuota = b.leaveType.days;
-                if (b.employee && b.employee.dateOfJoining) {
+                if (b.employee?.dateOfJoining) {
                     const joinDate = new Date(b.employee.dateOfJoining);
                     const joinYear = joinDate.getFullYear();
 
-                    let effectiveMonths = 12;
                     if (joinYear === currentYear) {
-                        effectiveMonths = 12 - joinDate.getMonth();
-                    } else if (joinYear > currentYear) {
-                        effectiveMonths = 0;
-                    }
-
-                    if (joinYear === currentYear) {
-                        const proRata = (annualQuota / 12) * effectiveMonths;
+                        const joinMonth = joinDate.getMonth();
+                        const remainingMonths = 12 - joinMonth;
+                        const proRata = (annualQuota / 12) * remainingMonths;
                         displayTotal = Math.round(proRata * 2) / 2;
-                    } else {
+                    } else if (joinYear < currentYear) {
                         displayTotal = annualQuota;
                     }
                 } else {

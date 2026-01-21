@@ -8,7 +8,8 @@ import {
     deleteQuotation,
     downloadQuotationPDF,
     downloadSignedQuotationPDF,
-    sendQuotationEmail
+    sendQuotationEmail,
+    getQuotationAnalytics
 } from '../controllers/quotation.controller';
 import {
     generatePublicLink,
@@ -40,6 +41,9 @@ router.get('/:id/signed-pdf', authenticate, downloadSignedQuotationPDF);
 
 // Send quotation email (require authentication)
 router.post('/:id/send-email', authenticate, sendQuotationEmail);
+
+// Analytics
+router.get('/:id/analytics', authenticate, getQuotationAnalytics);
 
 // Public routes (no authentication required)
 router.get('/public/:token', getQuotationByToken);

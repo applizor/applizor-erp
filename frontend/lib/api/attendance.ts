@@ -34,6 +34,10 @@ export interface LeaveType {
     departmentIds?: string[];
     positionIds?: string[];
     employmentStatus?: string[];
+    // Quarterly & Probation
+    quarterlyLimit?: number;
+    probationQuota?: number;
+    confirmationBonus?: number;
     // Dynamic Policies
     policySettings?: {
         noticePeriod?: number;

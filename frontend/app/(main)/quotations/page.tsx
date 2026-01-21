@@ -190,6 +190,9 @@ export default function QuotationsPage() {
                                         Total
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Views
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Status
                                     </th>
                                     <th className="relative px-6 py-3">
@@ -224,6 +227,12 @@ export default function QuotationsPage() {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                             {formatCurrency(quotation.total)}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            <div className="flex items-center" title={quotation.lastViewedAt ? `Last viewed: ${new Date(quotation.lastViewedAt).toLocaleString()}` : 'Not viewed yet'}>
+                                                <Eye size={14} className="mr-1.5 text-gray-400" />
+                                                {quotation.viewCount || 0}
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadge(quotation.status)}`}>

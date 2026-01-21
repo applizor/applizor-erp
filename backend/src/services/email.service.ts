@@ -297,3 +297,57 @@ export const sendQuotationRejectionToCompany = async (quotationData: any) => {
 
     return sendEmail(companyEmail, subject, html);
 };
+
+// Send Quotation Reminder
+export const sendQuotationReminder = async (quotationData: any, publicUrl: string) => {
+    const subject = `Reminder: Quotation #${quotationData.quotationNumber} from ${process.env.COMPANY_NAME || 'Applizor'}`;
+
+    const html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                .header { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+                .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+                .button { display: inline-block; padding: 12px 30px; background: #f59e0b; color: white; text-decoration: none; border-radius: 5px; margin: 10px 5px; }
+                .details { background: white; padding: 20px; border-radius: 5px; margin: 20px 0; }
+                .footer { text-align: center; margin-top: 30px; color: #666; font-size: 12px; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>Quotation Reminder</h1>
+                </div>
+                <div class="content">
+                    <p>Dear ${quotationData.lead?.name || 'Valued Client'},</p>
+                    <p>This is a gentle reminder regarding the quotation we sent on ${new Date(quotationData.quotationDate).toLocaleDateString()}.</p>
+                    
+                    <div class="details">
+                        <p><strong>Quotation Number:</strong> ${quotationData.quotationNumber}</p>
+                        ${quotationData.validUntil ? `<p><strong>Valid Until:</strong> ${new Date(quotationData.validUntil).toLocaleDateString()}</p>` : ''}
+                        <p><strong>Total Amount:</strong> ${quotationData.currency} ${Number(quotationData.total).toLocaleString()}</p>
+                    </div>
+                    
+                    <p>We wanted to ensure you didn't miss it. You can view or accept the quotation using the link below:</p>
+                    
+                    <div style="text-align: center; margin: 30px 0;">
+                        <a href="${publicUrl}" class="button">View Quotation</a>
+                    </div>
+                    
+                    <p>If you have any questions or need modifications, please feel free to reply to this email.</p>
+                    
+                    <p>Best regards,<br/>${process.env.COMPANY_NAME || 'Applizor'} Team</p>
+                </div>
+                <div class="footer">
+                    <p>This is an automated reminder. Please do not reply to this message directly.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+    `;
+
+    return sendEmail(quotationData.lead?.email || quotationData.clientEmail, subject, html);
+};

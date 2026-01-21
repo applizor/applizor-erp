@@ -231,13 +231,22 @@ export default function CompanySettingsPage() {
                                         className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                                     />
                                 </div>
-                                <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+                                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700">City</label>
                                         <input
                                             type="text"
                                             value={company.city || ''}
                                             onChange={e => setCompany({ ...company, city: e.target.value })}
+                                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700">State</label>
+                                        <input
+                                            type="text"
+                                            value={company.state || ''}
+                                            onChange={e => setCompany({ ...company, state: e.target.value })}
                                             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                                         />
                                     </div>

@@ -46,6 +46,9 @@ export default function LeaveTypesPage() {
         accrualType: 'yearly',
         accrualRate: 0,
         maxAccrual: 0,
+        quarterlyLimit: 0,
+        probationQuota: 0,
+        confirmationBonus: 0,
         // Dynamic
         noticePeriod: 0,
         minDaysForNotice: 0,
@@ -76,6 +79,11 @@ export default function LeaveTypesPage() {
         setEditingType(type);
         setFormData({
             ...type,
+            accrualRate: type.accrualRate || 0,
+            maxAccrual: type.maxAccrual || 0,
+            quarterlyLimit: type.quarterlyLimit || 0,
+            probationQuota: type.probationQuota || 0,
+            confirmationBonus: type.confirmationBonus || 0,
             noticePeriod: policy.noticePeriod || 0,
             minDaysForNotice: policy.minDaysForNotice || 0,
             minDaysForProof: policy.minDaysForProof || 0,
@@ -104,6 +112,9 @@ export default function LeaveTypesPage() {
             accrualType: 'yearly',
             accrualRate: 0,
             maxAccrual: 0,
+            quarterlyLimit: 0,
+            probationQuota: 0,
+            confirmationBonus: 0,
             noticePeriod: 0,
             minDaysForNotice: 0,
             minDaysForProof: 0,
@@ -253,6 +264,26 @@ export default function LeaveTypesPage() {
                                     <input type="number" value={formData.minServiceDays} onChange={e => setFormData({ ...formData, minServiceDays: parseInt(e.target.value) })} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm" />
                                     <p className="text-xs text-gray-500">Wait period before eligible</p>
                                 </div>
+                                <div className="border-t border-gray-100 md:col-span-3 mt-2 pt-2">
+                                    <h5 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Probation & Confirmation</h5>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700">Probation Quota</label>
+                                            <input type="number" step="0.5" value={formData.probationQuota} onChange={e => setFormData({ ...formData, probationQuota: parseFloat(e.target.value) })} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm" />
+                                            <p className="text-xs text-gray-500">Leaves allowed during probation</p>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700">Confirmation Bonus</label>
+                                            <input type="number" step="0.5" value={formData.confirmationBonus} onChange={e => setFormData({ ...formData, confirmationBonus: parseFloat(e.target.value) })} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm text-primary-600 font-bold" />
+                                            <p className="text-xs text-gray-500">Auto-added after probation ends</p>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700">Quarterly Limit</label>
+                                            <input type="number" value={formData.quarterlyLimit} onChange={e => setFormData({ ...formData, quarterlyLimit: parseInt(e.target.value) })} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm" />
+                                            <p className="text-xs text-gray-500">Max days per quarter (CL/SL)</p>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -372,11 +403,11 @@ export default function LeaveTypesPage() {
                                             <>
                                                 <div className="flex justify-between">
                                                     <span className="text-gray-500">Accrual Rate:</span>
-                                                    <span className="font-medium text-gray-900">{type.accrualRate}/{type.accrualType === 'monthly' ? 'Mo' : 'Day'}</span>
+                                                    <span className="font-medium text-gray-900">{type.accrualRate || 0}/{type.accrualType === 'monthly' ? 'Mo' : 'Day'}</span>
                                                 </div>
                                                 <div className="flex justify-between">
                                                     <span className="text-gray-500">Max Accrual:</span>
-                                                    <span className="font-medium text-gray-900">{type.maxAccrual > 0 ? type.maxAccrual : '∞'}</span>
+                                                    <span className="font-medium text-gray-900">{(type.maxAccrual ?? 0) > 0 ? type.maxAccrual : '∞'}</span>
                                                 </div>
                                             </>
                                         )}
@@ -384,6 +415,18 @@ export default function LeaveTypesPage() {
                                             <span className="text-gray-500">Min Service:</span>
                                             <span className="font-medium text-gray-900">{type.minServiceDays} Days</span>
                                         </div>
+                                        {type.quarterlyLimit ? (
+                                            <div className="flex justify-between">
+                                                <span className="text-gray-500">Quarterly Limit:</span>
+                                                <span className="font-medium text-indigo-600">{type.quarterlyLimit} Days</span>
+                                            </div>
+                                        ) : null}
+                                        {type.probationQuota ? (
+                                            <div className="flex justify-between border-t border-dashed border-gray-100 mt-1 pt-1">
+                                                <span className="text-gray-500 text-[11px]">Probation Quota:</span>
+                                                <span className="font-medium text-gray-900 text-[11px]">{type.probationQuota} Days</span>
+                                            </div>
+                                        ) : null}
                                     </div>
                                 </div>
 
@@ -427,6 +470,12 @@ export default function LeaveTypesPage() {
                                                             📎 Proof {policy.minDaysForProof ? `> ${policy.minDaysForProof} Days` : 'Req'}
                                                         </span>
                                                     )}
+
+                                                    {type.confirmationBonus ? (
+                                                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-100 animate-pulse">
+                                                            🎁 Bonus: +{type.confirmationBonus} Days
+                                                        </span>
+                                                    ) : null}
 
                                                     {policy.noticePeriod > 0 && (
                                                         <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-orange-50 text-orange-700 border border-orange-100">

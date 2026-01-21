@@ -155,16 +155,39 @@ export const getQuotationByToken = async (req: Request, res: Response) => {
             return res.status(410).json({ error: 'This quotation link has expired' });
         }
 
-        // Mark as viewed (first time only)
-        if (!quotation.clientViewedAt) {
-            await prisma.quotation.update({
+        // Capture Analytics Data
+        const ipAddress = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
+        const userAgent = req.headers['user-agent'] || 'unknown';
+
+        // Update View Statistics & Activity Log
+        // We use a transaction to ensure both happen or neither
+        await prisma.$transaction(async (tx) => {
+            // 1. Update Quotation Stats
+            await tx.quotation.update({
                 where: { id: quotation.id },
                 data: {
-                    clientViewedAt: new Date(),
-                    status: 'viewed'
+                    viewCount: { increment: 1 },
+                    lastViewedAt: new Date(),
+                    // Mark as viewed status if not already (first time view)
+                    ...(quotation.status === 'sent' ? {
+                        status: 'viewed',
+                        clientViewedAt: new Date()
+                    } : {})
                 }
             });
-        }
+
+            // 2. Log Activity
+            await tx.quotationActivity.create({
+                data: {
+                    quotationId: quotation.id,
+                    type: 'VIEWED',
+                    ipAddress,
+                    userAgent,
+                    deviceType: userAgent.toLowerCase().includes('mobile') ? 'Mobile' : 'Desktop', // Simple check
+                    browser: 'Browser' // Can be parsed more detailed if needed, but simple is fine for now
+                }
+            });
+        });
 
         res.json({ quotation });
     } catch (error: any) {

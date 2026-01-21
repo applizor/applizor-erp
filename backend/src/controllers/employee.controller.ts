@@ -354,11 +354,10 @@ export const getEmployees = async (req: AuthRequest, res: Response) => {
         const { companyId } = req.user;
         const userId = req.user.id;
 
-        // Check if super admin
-        const isAdmin = req.user.roles.some((ur: any) =>
-            ['admin', 'super admin', 'administrator'].includes(ur.role.name.toLowerCase())
+        // Check if super admin (Check name AND isSystem)
+        const isSuperAdmin = req.user.roles.some((ur: any) =>
+            ['admin', 'super admin', 'administrator'].includes(ur.role.name.toLowerCase()) || ur.role.isSystem
         );
-        const isSuperAdmin = isAdmin; // Alias for logic
 
         // Base where clause
         const whereClause: any = {

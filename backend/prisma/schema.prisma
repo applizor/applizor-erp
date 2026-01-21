@@ -384,7 +384,21 @@ model Quotation {
   company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   creator         User?    @relation("QuotationCreator", fields: [createdBy], references: [id])
   assignedUser    User?    @relation("QuotationAssignee", fields: [assignedTo], references: [id])
+
   items           QuotationItem[]
+  activities      QuotationActivity[]
+
+  // Analytics
+  viewCount       Int       @default(0)
+  lastViewedAt    DateTime?
+  emailOpens      Int       @default(0)
+  lastEmailOpenedAt DateTime?
+
+  // Auto-Reminders
+  reminderFrequency String?   // DAILY, WEEKLY, CUSTOM
+  nextReminderAt  DateTime?
+  reminderCount   Int       @default(0)
+  maxReminders    Int       @default(3)
   
   @@unique([companyId, quotationNumber])
   @@index([companyId])
@@ -406,6 +420,31 @@ model QuotationItem {
   quotation     Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
   
   @@index([quotationId])
+}
+
+// Analytics & Activity Log
+model QuotationActivity {
+  id          String   @id @default(uuid())
+  quotationId String
+  type        String   // VIEWED, DOWNLOADED, EMAIL_OPENED, LINK_CLICKED, STATUS_CHANGE
+  
+  // Detailed Tracking
+  ipAddress   String?
+  userAgent   String?
+  location    String?
+  deviceType  String?  // Mobile, Desktop, Tablet
+  browser     String?
+  os          String?
+  
+  // Metadata
+  metadata    Json?    // Any extra data
+  createdAt   DateTime @default(now())
+  
+  quotation   Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  
+  @@index([quotationId])
+  @@index([type])
+  @@index([createdAt])
 }
 
 // Quotation Templates
@@ -639,6 +678,7 @@ model Employee {
   noticePeriodEndDate   DateTime?
   
   status        String   @default("active") // active, inactive, terminated, on-leave
+  probationProcessed Boolean @default(false)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

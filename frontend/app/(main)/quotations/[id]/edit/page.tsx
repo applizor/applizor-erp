@@ -6,7 +6,7 @@ import { useToast } from '@/hooks/useToast';
 import { usePermission } from '@/hooks/usePermission';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useCurrency } from '@/context/CurrencyContext';
-import { Plus, Trash2, Calendar, FileText, ArrowLeft, Save } from 'lucide-react';
+import { Plus, Trash2, Calendar, FileText, ArrowLeft, Save, Clock } from 'lucide-react';
 import ProductSelector from '@/components/quotations/ProductSelector';
 import api from '@/lib/api';
 import { quotationsApi } from '@/lib/api/quotations';
@@ -29,7 +29,9 @@ export default function EditQuotationPage({ params }: { params: { id: string } }
         paymentTerms: '',
         deliveryTerms: '',
         notes: '',
-        currency: globalCurrency
+        currency: globalCurrency,
+        reminderFrequency: '',
+        maxReminders: 3
     });
 
     const [items, setItems] = useState<any[]>([
@@ -73,7 +75,9 @@ export default function EditQuotationPage({ params }: { params: { id: string } }
                     paymentTerms: q.paymentTerms || '',
                     deliveryTerms: q.deliveryTerms || '',
                     notes: q.notes || '',
-                    currency: globalCurrency
+                    currency: globalCurrency,
+                    reminderFrequency: q.reminderFrequency || '',
+                    maxReminders: q.maxReminders || 3
                 });
 
                 if (q.items && q.items.length > 0) {
@@ -266,6 +270,53 @@ export default function EditQuotationPage({ params }: { params: { id: string } }
                                     <option value="USD">USD ($)</option>
                                 </select>
                             </div>
+                        </div>
+                    </div>
+
+                    {/* Reminder Settings */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
+                        <div className="bg-orange-50 p-4 rounded-lg border border-orange-100">
+                            <h4 className="text-sm font-semibold text-orange-800 mb-3 flex items-center">
+                                <Clock className="w-4 h-4 mr-2" />
+                                Auto-Follow Up (Beta)
+                            </h4>
+                            <div className="flex space-x-4">
+                                <div className="flex-1">
+                                    <label className="block text-xs font-medium text-orange-700 mb-1">
+                                        Frequency
+                                    </label>
+                                    <select
+                                        value={formData.reminderFrequency}
+                                        onChange={(e) => setFormData({ ...formData, reminderFrequency: e.target.value })}
+                                        className="w-full border border-orange-200 rounded-md px-3 py-2 text-sm focus:ring-orange-500 focus:border-orange-500"
+                                    >
+                                        <option value="">Disabled</option>
+                                        <option value="DAILY">Daily</option>
+                                        <option value="3_DAYS">Every 3 Days</option>
+                                        <option value="WEEKLY">Weekly</option>
+                                    </select>
+                                </div>
+                                {formData.reminderFrequency && (
+                                    <div className="w-1/3">
+                                        <label className="block text-xs font-medium text-orange-700 mb-1">
+                                            Max Emails
+                                        </label>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            max="10"
+                                            value={formData.maxReminders}
+                                            onChange={(e) => setFormData({ ...formData, maxReminders: parseInt(e.target.value) })}
+                                            className="w-full border border-orange-200 rounded-md px-3 py-2 text-sm focus:ring-orange-500 focus:border-orange-500"
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                            <p className="text-xs text-orange-600 mt-2">
+                                {formData.reminderFrequency
+                                    ? `System will send up to ${formData.maxReminders} reminder emails automatically.`
+                                    : 'Select a frequency to enable automated follow-up emails.'}
+                            </p>
                         </div>
                     </div>
 

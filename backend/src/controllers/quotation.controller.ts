@@ -30,7 +30,9 @@ export const createQuotation = async (req: AuthRequest, res: Response) => {
             items,
             paymentTerms,
             deliveryTerms,
-            notes
+            notes,
+            reminderFrequency,
+            maxReminders
         } = req.body;
 
         // Generate quotation number
@@ -62,6 +64,19 @@ export const createQuotation = async (req: AuthRequest, res: Response) => {
             select: { currency: true }
         });
 
+        // Calculate next reminder date if frequency is set
+        let nextReminderAt = null;
+        if (reminderFrequency) {
+            const now = new Date();
+            if (reminderFrequency === 'DAILY') {
+                nextReminderAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+            } else if (reminderFrequency === 'WEEKLY') {
+                nextReminderAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+            } else if (reminderFrequency === '3_DAYS') {
+                nextReminderAt = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+            }
+        }
+
         // Create quotation
         const quotation = await prisma.quotation.create({
             data: {
@@ -82,6 +97,9 @@ export const createQuotation = async (req: AuthRequest, res: Response) => {
                 paymentTerms,
                 deliveryTerms,
                 notes,
+                reminderFrequency,
+                maxReminders: maxReminders ? parseInt(maxReminders) : 3,
+                nextReminderAt,
                 items: {
                     create: items.map((item: any) => ({
                         description: item.description,
@@ -256,7 +274,9 @@ export const updateQuotation = async (req: AuthRequest, res: Response) => {
             paymentTerms,
             deliveryTerms,
             notes,
-            items
+            items,
+            reminderFrequency,
+            maxReminders
         } = req.body;
 
         // Prepare update data
@@ -269,6 +289,25 @@ export const updateQuotation = async (req: AuthRequest, res: Response) => {
             deliveryTerms,
             notes
         };
+
+        // Recalculate next reminder if frequency changed
+        if (reminderFrequency) {
+            updateData.reminderFrequency = reminderFrequency;
+            const now = new Date();
+            let nextDate = null;
+            if (reminderFrequency === 'DAILY') {
+                nextDate = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+            } else if (reminderFrequency === 'WEEKLY') {
+                nextDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+            } else if (reminderFrequency === '3_DAYS') {
+                nextDate = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+            }
+            updateData.nextReminderAt = nextDate;
+        }
+
+        if (maxReminders !== undefined) {
+            updateData.maxReminders = parseInt(maxReminders);
+        }
 
         // If items are provided, recalculate totals and update items
         if (items && Array.isArray(items)) {
@@ -295,8 +334,11 @@ export const updateQuotation = async (req: AuthRequest, res: Response) => {
             updateData.total = total;
 
             // Delete existing items and create new ones
+            await prisma.quotationItem.deleteMany({
+                where: { quotationId: id }
+            });
+
             updateData.items = {
-                deleteMany: {},
                 create: items.map((item: any) => ({
                     description: item.description,
                     quantity: item.quantity,
@@ -386,10 +428,9 @@ export const convertQuotationToInvoice = async (req: AuthRequest, res: Response)
                     create: quotation.items.map(item => ({
                         description: item.description,
                         quantity: item.quantity,
-                        unitPrice: item.unitPrice,
-                        tax: item.tax,
-                        discount: item.discount,
-                        total: item.total
+                        rate: item.unitPrice,
+                        taxRate: item.tax,
+                        amount: item.total
                     }))
                 }
             },
@@ -580,9 +621,29 @@ export const downloadSignedQuotationPDF = async (req: AuthRequest, res: Response
             validUntil: quotation.validUntil || undefined,
             title: quotation.title || undefined,
             description: quotation.description || undefined,
-            company: quotation.company,
-            lead: quotation.lead || undefined,
-            items: quotation.items,
+            company: {
+                name: quotation.company.name,
+                logo: quotation.company.logo || undefined,
+                address: quotation.company.address || undefined,
+                city: quotation.company.city || undefined,
+                state: quotation.company.state || undefined,
+                country: quotation.company.country,
+                pincode: quotation.company.pincode || undefined,
+                email: quotation.company.email || undefined,
+                phone: quotation.company.phone || undefined,
+                gstin: quotation.company.gstin || undefined
+            },
+            lead: quotation.lead ? {
+                name: quotation.lead.name,
+                company: quotation.lead.company || undefined,
+                email: quotation.lead.email || undefined,
+                phone: quotation.lead.phone || undefined
+            } : undefined,
+            items: quotation.items.map(item => ({
+                description: item.description,
+                quantity: Number(item.quantity),
+                unitPrice: Number(item.unitPrice)
+            })),
             subtotal: Number(quotation.subtotal),
             tax: Number(quotation.tax),
             discount: Number(quotation.discount),
@@ -676,5 +737,55 @@ export const sendQuotationEmail = async (req: AuthRequest, res: Response) => {
     } catch (error: any) {
         console.error('Send quotation email error:', error);
         res.status(500).json({ error: 'Failed to send quotation email', details: error.message });
+    }
+};
+
+// Get Quotation Analytics
+export const getQuotationAnalytics = async (req: AuthRequest, res: Response) => {
+    try {
+        const user = req.user;
+        if (!user) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        const { id } = req.params;
+
+        // Check permission (Read access required to view analytics)
+        if (!PermissionService.hasBasicPermission(user, 'Quotation', 'read')) {
+            return res.status(403).json({ error: 'Access denied: No read rights for Quotation' });
+        }
+
+        // Scope check
+        const scopeFilter = await PermissionService.getScopedWhereClause(
+            user, 'Quotation', 'read', 'Quotation', 'createdBy', 'assignedTo'
+        );
+
+        const quotation = await prisma.quotation.findFirst({
+            where: { AND: [{ id }, scopeFilter] },
+            select: {
+                id: true,
+                viewCount: true,
+                lastViewedAt: true,
+                emailOpens: true,
+                lastEmailOpenedAt: true,
+                status: true,
+                clientViewedAt: true,
+                clientAcceptedAt: true,
+                clientRejectedAt: true,
+                activities: {
+                    orderBy: { createdAt: 'desc' },
+                    take: 50
+                }
+            }
+        });
+
+        if (!quotation) {
+            return res.status(404).json({ error: 'Quotation not found or access denied' });
+        }
+
+        res.json({ analytics: quotation });
+    } catch (error: any) {
+        console.error('Get quotation analytics error:', error);
+        res.status(500).json({ error: 'Failed to fetch quotation analytics', details: error.message });
     }
 };
