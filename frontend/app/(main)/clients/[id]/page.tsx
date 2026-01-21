@@ -5,18 +5,28 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Edit, Trash2, Mail, Phone, MapPin, Building2, FileText, Calendar } from 'lucide-react';
 import { clientsApi } from '@/lib/api/clients';
+import { quotationsApi } from '@/lib/api/quotations';
+import { invoicesApi } from '@/lib/api/invoices';
 import { useToast } from '@/hooks/useToast';
 import { usePermission } from '@/hooks/usePermission';
 import { PermissionGuard } from '@/components/PermissionGuard';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { ProfileSkeleton } from '@/components/skeletons/ProfileSkeleton';
+import { useCurrency } from '@/context/CurrencyContext';
 
 export default function ClientDetailPage() {
     const router = useRouter();
     const params = useParams();
     const toast = useToast();
     const { can } = usePermission();
+    const { formatCurrency } = useCurrency();
     const [client, setClient] = useState<any>(null);
+    const [stats, setStats] = useState({
+        quotationsCount: 0,
+        invoicesCount: 0,
+        outstandingBalance: 0
+    });
+    const [quotationsList, setQuotationsList] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [deleteDialog, setDeleteDialog] = useState(false);
     const [deleting, setDeleting] = useState(false);
@@ -29,11 +39,37 @@ export default function ClientDetailPage() {
 
     const loadClient = async (id: string) => {
         try {
-            const response = await clientsApi.getById(id);
+            setLoading(true);
+            const [clientRes, quotationsRes, invoicesRes] = await Promise.all([
+                clientsApi.getById(id),
+                quotationsApi.getAll({ clientId: id, limit: 1000 }).catch(() => ({ quotations: [] })),
+                invoicesApi.getAll({ clientId: id, limit: 1000 }).catch(() => ({ invoices: [] }))
+            ]);
+
             // Backend returns { client: {...} }
-            setClient(response.client || response);
+            setClient(clientRes.client || clientRes);
+
+            // Calculate Metrics
+            const quotations = quotationsRes.quotations || [];
+            setQuotationsList(quotations);
+            const invoices = invoicesRes.invoices || [];
+
+            const outstanding = invoices.reduce((sum: number, inv: any) => {
+                if (inv.status !== 'paid' && inv.status !== 'void' && inv.status !== 'cancelled') {
+                    return sum + (inv.total - (inv.paidAmount || 0));
+                }
+                return sum;
+            }, 0);
+
+            setStats({
+                quotationsCount: quotations.length,
+                invoicesCount: invoices.length,
+                outstandingBalance: outstanding
+            });
+
         } catch (error: any) {
-            toast.error(error.response?.data?.error || 'Failed to load client');
+            console.error(error);
+            toast.error(error.response?.data?.error || 'Failed to load client data');
             router.push('/clients');
         } finally {
             setLoading(false);
@@ -197,15 +233,15 @@ export default function ClientDetailPage() {
                         <div className="space-y-4">
                             <div className="flex items-center justify-between p-3 bg-indigo-50/50 rounded-lg border border-indigo-100">
                                 <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Quotations Generated</span>
-                                <span className="text-lg font-black text-gray-900">0</span>
+                                <span className="text-lg font-black text-gray-900">{stats.quotationsCount}</span>
                             </div>
                             <div className="flex items-center justify-between p-3 bg-violet-50/50 rounded-lg border border-violet-100">
                                 <span className="text-[10px] font-black text-violet-600 uppercase tracking-widest">Invoices Issued</span>
-                                <span className="text-lg font-black text-gray-900">0</span>
+                                <span className="text-lg font-black text-gray-900">{stats.invoicesCount}</span>
                             </div>
                             <div className="flex items-center justify-between p-3 bg-emerald-50/50 rounded-lg border border-emerald-100">
                                 <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Outstanding Balance</span>
-                                <span className="text-lg font-black text-emerald-700">₹0</span>
+                                <span className="text-lg font-black text-emerald-700">{formatCurrency(stats.outstandingBalance)}</span>
                             </div>
                         </div>
                     </div>
@@ -240,7 +276,38 @@ export default function ClientDetailPage() {
                         </dl>
                     </div>
                 </div>
-            </div>     {/* Delete Confirmation Dialog */}
+            </div>
+
+            {/* DEBUG: Quotations List */}
+            <div className="mt-8 p-6 bg-gray-50 border border-gray-200 rounded-lg">
+                <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-4">Debug: Quotations Data</h3>
+                <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                            <tr>
+                                <th scope="col" className="px-6 py-3 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest">ID</th>
+                                <th scope="col" className="px-6 py-3 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest">Status</th>
+                                <th scope="col" className="px-6 py-3 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest">Total</th>
+                                <th scope="col" className="px-6 py-3 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest">Date</th>
+                            </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                            {quotationsList.map((q: any) => (
+                                <tr key={q.id}>
+                                    <td className="px-6 py-4 whitespace-nowrap text-xs font-mono text-gray-900">{q.id}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-xs font-bold text-gray-900 uppercase">{q.status}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-xs font-bold text-gray-900 font-mono">{formatCurrency(q.total)}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-xs font-bold text-gray-900 font-mono">
+                                        {new Date(q.createdAt).toLocaleDateString()}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* Delete Confirmation Dialog */}
             <ConfirmDialog
                 isOpen={deleteDialog}
                 onClose={() => setDeleteDialog(false)}

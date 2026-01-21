@@ -46,6 +46,7 @@ export const quotationsApi = {
     getAll: async (params?: {
         status?: string;
         leadId?: string;
+        clientId?: string;
         page?: number;
         limit?: number;
     }) => {

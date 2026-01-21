@@ -138,7 +138,7 @@ export const getQuotations = async (req: AuthRequest, res: Response) => {
             return res.status(400).json({ error: 'User must belong to a company' });
         }
 
-        const { status, leadId, page = 1, limit = 10 } = req.query;
+        const { status, leadId, clientId, page = 1, limit = 10 } = req.query;
 
         // Check permission
         if (!PermissionService.hasBasicPermission(user, 'Quotation', 'read')) {
@@ -158,6 +158,12 @@ export const getQuotations = async (req: AuthRequest, res: Response) => {
 
         if (status) where.status = status;
         if (leadId) where.leadId = leadId;
+        if (clientId) {
+            where.OR = [
+                { clientId: clientId },
+                { lead: { convertedToClientId: clientId } }
+            ];
+        }
 
         const [quotations, total] = await Promise.all([
             prisma.quotation.findMany({
