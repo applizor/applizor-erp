@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Users, FileText, DollarSign, TrendingUp, Clock, CheckCircle } from 'lucide-react';
+import { Users, FileText, DollarSign, TrendingUp, Clock, CheckCircle, ChevronRight } from 'lucide-react';
 import api from '@/lib/api';
 import { useCurrency } from '@/context/CurrencyContext';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
@@ -83,208 +83,90 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="mt-2 text-sm text-gray-600">
-          Welcome back! Here's what's happening with your business.
+    <div className="animate-fade-in pb-20">
+      <div className="mb-6 px-2">
+        <h1 className="text-2xl font-black text-slate-900 tracking-tight leading-tight">Operational Intelligence</h1>
+        <p className="mt-1 text-slate-500 font-medium text-sm">
+          Enterprise resource overview and performance analytics.
         </p>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 mb-8">
-        {/* Total Clients */}
-        <div className="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-blue-500 text-white">
-                  <Users size={24} />
+      {/* Stats Grid - Premium Layout */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-8">
+        {[
+          { title: 'Customer Base', value: stats.totalClients, icon: Users, color: 'bg-indigo-500', trend: 'Growing', link: '/clients' },
+          { title: 'Market Leads', value: stats.totalLeads, icon: TrendingUp, color: 'bg-emerald-500', trend: 'Active', link: '/leads/list' },
+          { title: 'Settled Revenue', value: formatCurrency(stats.totalRevenue), icon: DollarSign, color: 'bg-violet-500', trend: 'Verified', link: '/invoices' },
+          { title: 'Pipeline Value', value: formatCurrency(stats.pendingInvoices), icon: Clock, color: 'bg-amber-500', trend: 'Pending', link: '/invoices' },
+          { title: 'Proposals', value: stats.totalQuotations, icon: FileText, color: 'bg-sky-500', trend: 'Sent', link: '/quotations' },
+          { title: 'Ledger Items', value: stats.totalInvoices, icon: CheckCircle, color: 'bg-rose-500', trend: 'Total', link: '/invoices' },
+        ].map((stat, i) => (
+          <div key={i} className="ent-card p-0.5 relative overflow-hidden group">
+            <Link href={stat.link} className="block p-4">
+              <div className="flex items-center">
+                <div className={`p-3 rounded-xl ${stat.color} bg-opacity-10 text-${stat.color.split('-')[1]}-600 group-hover:scale-110 transition-transform duration-500`}>
+                  <stat.icon size={20} />
                 </div>
+                <div className="ml-4 flex-1">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">{stat.title}</p>
+                  <div className="flex items-baseline gap-2">
+                    <h3 className="text-xl font-black text-slate-900 tracking-tight">{stat.value}</h3>
+                    <span className="text-[8px] font-black px-1.5 py-0.5 rounded-md bg-slate-50 text-slate-400 uppercase tracking-tighter">{stat.trend}</span>
+                  </div>
+                </div>
+                <ChevronRight size={16} className="text-slate-200 group-hover:text-indigo-600 transition-colors" />
               </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Total Clients</dt>
-                  <dd className="flex items-baseline">
-                    <div className="text-2xl font-semibold text-gray-900">{stats.totalClients}</div>
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-          <div className="bg-gray-50 px-5 py-3">
-            <Link href="/clients" className="text-sm font-medium text-primary-600 hover:text-primary-900">
-              View all clients →
             </Link>
           </div>
-        </div>
+        ))}
+      </div>
 
-        {/* Total Leads */}
-        <div className="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-green-500 text-white">
-                  <TrendingUp size={24} />
-                </div>
+      {/* Action Center - Refined Quick Links */}
+      <div className="mb-6 px-2">
+        <h2 className="text-sm font-black text-slate-900 tracking-[0.15em] uppercase mb-4">Workflow Accelerators</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+            { title: 'Onboard Client', desc: 'Enterprise registration', icon: Users, color: 'indigo', href: '/clients/create' },
+            { title: 'Capture Lead', desc: 'Capture opportunity', icon: TrendingUp, color: 'emerald', href: '/leads/create' },
+            { title: 'Draft Proposal', desc: 'Strategic quotation', icon: FileText, color: 'sky', href: '/quotations/create' },
+            { title: 'Generate Billing', desc: 'Execute invoice', icon: DollarSign, color: 'violet', href: '/invoices/create' },
+          ].map((action, i) => (
+            <Link
+              key={i}
+              href={action.href}
+              className="glass group p-4 rounded-2xl border border-slate-100 hover:border-indigo-100 transition-all duration-300 relative overflow-hidden"
+            >
+              <div className={`absolute top-0 right-0 w-16 h-16 bg-${action.color}-500/5 rounded-full -translate-y-1/2 translate-x-1/2 group-hover:scale-150 transition-transform duration-700`} />
+              <div className={`w-8 h-8 rounded-lg bg-${action.color}-50 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>
+                <action.icon size={16} className={`text-${action.color}-600`} />
               </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Active Leads</dt>
-                  <dd className="flex items-baseline">
-                    <div className="text-2xl font-semibold text-gray-900">{stats.totalLeads}</div>
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-          <div className="bg-gray-50 px-5 py-3">
-            <Link href="/leads/list" className="text-sm font-medium text-primary-600 hover:text-primary-900">
-              View all leads →
+              <h3 className="text-sm font-black text-slate-900 mb-0.5">{action.title}</h3>
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{action.desc}</p>
             </Link>
-          </div>
-        </div>
-
-        {/* Total Revenue */}
-        <div className="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-purple-500 text-white">
-                  <DollarSign size={24} />
-                </div>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Total Revenue</dt>
-                  <dd className="flex items-baseline">
-                    <div className="text-2xl font-semibold text-gray-900">
-                      {formatCurrency(stats.totalRevenue)}
-                    </div>
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-          <div className="bg-gray-50 px-5 py-3">
-            <Link href="/invoices" className="text-sm font-medium text-primary-600 hover:text-primary-900">
-              View invoices →
-            </Link>
-          </div>
-        </div>
-
-        {/* Pending Invoices */}
-        <div className="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-yellow-500 text-white">
-                  <Clock size={24} />
-                </div>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Pending Amount</dt>
-                  <dd className="flex items-baseline">
-                    <div className="text-2xl font-semibold text-gray-900">
-                      {formatCurrency(stats.pendingInvoices)}
-                    </div>
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-          <div className="bg-gray-50 px-5 py-3">
-            <span className="text-sm text-gray-500">Awaiting payment</span>
-          </div>
-        </div>
-
-        {/* Total Quotations */}
-        <div className="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-indigo-500 text-white">
-                  <FileText size={24} />
-                </div>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Quotations</dt>
-                  <dd className="flex items-baseline">
-                    <div className="text-2xl font-semibold text-gray-900">{stats.totalQuotations}</div>
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-          <div className="bg-gray-50 px-5 py-3">
-            <Link href="/quotations" className="text-sm font-medium text-primary-600 hover:text-primary-900">
-              View quotations →
-            </Link>
-          </div>
-        </div>
-
-        {/* Total Invoices */}
-        <div className="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-pink-500 text-white">
-                  <CheckCircle size={24} />
-                </div>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Total Invoices</dt>
-                  <dd className="flex items-baseline">
-                    <div className="text-2xl font-semibold text-gray-900">{stats.totalInvoices}</div>
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-          <div className="bg-gray-50 px-5 py-3">
-            <Link href="/invoices" className="text-sm font-medium text-primary-600 hover:text-primary-900">
-              View all invoices →
-            </Link>
-          </div>
+          ))}
         </div>
       </div>
 
-      {/* Quick Links */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Link
-          href="/clients/create"
-          className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow border-l-4 border-blue-500"
-        >
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Add Client</h3>
-          <p className="text-sm text-gray-600">Create a new client record</p>
-        </Link>
-
-        <Link
-          href="/leads/create"
-          className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow border-l-4 border-green-500"
-        >
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Add Lead</h3>
-          <p className="text-sm text-gray-600">Track a new sales opportunity</p>
-        </Link>
-
-        <Link
-          href="/quotations/create"
-          className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow border-l-4 border-indigo-500"
-        >
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Create Quotation</h3>
-          <p className="text-sm text-gray-600">Send a proposal to client</p>
-        </Link>
-
-        <Link
-          href="/invoices/create"
-          className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow border-l-4 border-pink-500"
-        >
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Create Invoice</h3>
-          <p className="text-sm text-gray-600">Bill your client</p>
-        </Link>
+      {/* Visual Indicator / Bottom Banner */}
+      <div className="mt-8 mx-2">
+        <div className="bg-slate-900 rounded-[2rem] p-8 relative overflow-hidden shadow-2xl">
+          <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-indigo-500/10 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2" />
+          <div className="relative z-10 max-w-2xl">
+            <h2 className="text-xl font-black text-white leading-tight mb-3">Enterprise Insight Engine</h2>
+            <p className="text-slate-400 text-sm font-medium leading-relaxed mb-6">
+              Your operational data is being synchronized in real-time. Advanced predictive analytics
+              will be available in the next module update.
+            </p>
+            <div className="flex gap-3">
+              <button className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-xl text-[10px] uppercase tracking-widest transition-all">
+                Review Reports
+              </button>
+              <button className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white font-black rounded-xl text-[10px] uppercase tracking-widest transition-all">
+                System Health
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

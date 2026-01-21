@@ -4,12 +4,12 @@ import { useState, useEffect } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Plus, Trash2, Calculator, Info } from 'lucide-react';
+import { Plus, Trash2, Calculator, Info, Calendar, DollarSign, User, ShieldCheck, FileType } from 'lucide-react';
 import { useCurrency } from '@/context/CurrencyContext';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
 const itemSchema = z.object({
-    description: z.string().min(1, 'Description is required'),
+    description: z.string().min(1, 'Description required'),
     quantity: z.number().min(0.01, 'Min 0.01'),
     rate: z.number().min(0, 'Min 0'),
     taxRate: z.number().min(0).default(0),
@@ -18,13 +18,13 @@ const itemSchema = z.object({
 
 const invoiceSchema = z.object({
     type: z.enum(['invoice', 'quotation', 'proforma']),
-    clientId: z.string().min(1, 'Client is required'),
+    clientId: z.string().min(1, 'Client selection required'),
     invoiceDate: z.string(),
     dueDate: z.string(),
     currency: z.string(),
     notes: z.string().optional(),
     terms: z.string().optional(),
-    items: z.array(itemSchema).min(1, 'At least one item is required'),
+    items: z.array(itemSchema).min(1, 'At least one line item required'),
     discount: z.number().min(0).default(0),
     isRecurring: z.boolean().default(false),
     recurringInterval: z.string().optional(),
@@ -71,7 +71,6 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
     const watchDiscount = watch('discount');
     const watchType = watch('type');
 
-    // Multi-tax calculation logic
     const calculateTotals = () => {
         let subtotal = 0;
         let totalTax = 0;
@@ -84,108 +83,122 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
         });
 
         const total = subtotal + totalTax - (watchDiscount || 0);
-
         return { subtotal, totalTax, total };
     };
 
     const totals = calculateTotals();
 
     return (
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {/* Document Type */}
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">Document Type</label>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            {/* Primary Configuration Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Meta Configuration */}
+                <div className="space-y-4">
+                    <div className="ent-form-group">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5 mb-2">
+                            <FileType className="w-3 h-3" />
+                            Protocol Type
+                        </label>
                         <select
                             {...register('type')}
-                            className="w-full rounded-lg border-gray-200 focus:ring-primary-500 focus:border-primary-500 transition-all"
+                            className="ent-input w-full font-bold text-xs"
                         >
-                            <option value="invoice">Tax Invoice</option>
-                            <option value="quotation">Quotation / Estimate</option>
-                            <option value="proforma">Proforma Invoice</option>
+                            <option value="invoice">Standard Tax Invoice</option>
+                            <option value="quotation">Commercial Quotation</option>
+                            <option value="proforma">Proforma Memorandum</option>
                         </select>
                     </div>
 
-                    {/* Client Selection */}
-                    <div className="md:col-span-2">
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">Select Client</label>
+                    <div className="ent-form-group">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5 mb-2">
+                            <User className="w-3 h-3" />
+                            Consignee Entity
+                        </label>
                         <select
                             {...register('clientId')}
-                            className={`w-full rounded-lg border-gray-200 focus:ring-primary-500 focus:border-primary-500 transition-all ${errors.clientId ? 'border-red-500' : ''
-                                }`}
+                            className={`ent-input w-full font-bold text-xs ${errors.clientId ? 'border-rose-500 ring-rose-500/10' : ''}`}
                         >
-                            <option value="">Choose a client...</option>
+                            <option value="">Select Target Entity...</option>
                             {clients.map((client) => (
                                 <option key={client.id} value={client.id}>
                                     {client.name} {client.email ? `(${client.email})` : ''}
                                 </option>
                             ))}
                         </select>
-                        {errors.clientId && <p className="mt-1 text-xs text-red-500">{errors.clientId.message}</p>}
+                        {errors.clientId && <p className="mt-1 text-[9px] font-black text-rose-500 uppercase tracking-tight">{errors.clientId.message}</p>}
                     </div>
+                </div>
 
-                    {/* Dates */}
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">Issue Date</label>
+                {/* Temporal Parameters */}
+                <div className="space-y-4">
+                    <div className="ent-form-group">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5 mb-2">
+                            <Calendar className="w-3 h-3" />
+                            Origination Date
+                        </label>
                         <input
                             type="date"
                             {...register('invoiceDate')}
-                            className="w-full rounded-lg border-gray-200 focus:ring-primary-500 focus:border-primary-500 transition-all"
+                            className="ent-input w-full font-bold text-xs"
                         />
                     </div>
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">
-                            {watchType === 'quotation' ? 'Expiry Date' : 'Due Date'}
+
+                    <div className="ent-form-group">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5 mb-2">
+                            <Calendar className="w-3 h-3" />
+                            Maturity Deadline
                         </label>
                         <input
                             type="date"
                             {...register('dueDate')}
-                            className="w-full rounded-lg border-gray-200 focus:ring-primary-500 focus:border-primary-500 transition-all"
+                            className="ent-input w-full font-bold text-xs"
                         />
                     </div>
+                </div>
 
-                    {/* Currency */}
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">Currency</label>
+                {/* Financial Context */}
+                <div className="space-y-4">
+                    <div className="ent-form-group">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5 mb-2">
+                            <DollarSign className="w-3 h-3" />
+                            Currency Base
+                        </label>
                         <select
                             {...register('currency')}
-                            className="w-full rounded-lg border-gray-200 focus:ring-primary-500 focus:border-primary-500 transition-all"
+                            className="ent-input w-full font-bold text-xs"
                         >
-                            <option value="USD">USD ($)</option>
-                            <option value="INR">INR (₹)</option>
-                            <option value="EUR">EUR (€)</option>
-                            <option value="GBP">GBP (£)</option>
+                            <option value="USD">USD - US Dollar ($)</option>
+                            <option value="INR">INR - Indian Rupee (₹)</option>
+                            <option value="EUR">EUR - Euro (€)</option>
+                            <option value="GBP">GBP - British Pound (£)</option>
                         </select>
                     </div>
 
-                    {/* Recurring Options */}
+                    {/* Automation Logic */}
                     {watchType === 'invoice' && (
-                        <div className="md:col-span-3 bg-primary-50 px-4 py-3 rounded-xl border border-primary-100 flex items-center justify-between mt-2">
-                            <div className="flex items-center gap-3">
+                        <div className="p-3 bg-primary-50/50 rounded-lg border border-primary-100/50 flex flex-col gap-2">
+                            <div className="flex items-center gap-2">
                                 <input
                                     type="checkbox"
                                     id="isRecurring"
                                     {...register('isRecurring')}
-                                    className="w-5 h-5 rounded border-primary-300 text-primary-600 focus:ring-primary-500"
+                                    className="w-4 h-4 rounded border-primary-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
                                 />
-                                <div>
-                                    <label htmlFor="isRecurring" className="block text-sm font-bold text-primary-900 leading-none">Make this a Recurring Invoice</label>
-                                    <p className="text-xs text-primary-600 mt-1">Automatically generate and send this invoice on a schedule.</p>
-                                </div>
+                                <label htmlFor="isRecurring" className="text-[10px] font-black text-primary-900 uppercase tracking-widest cursor-pointer">
+                                    Enable Automated Cycle
+                                </label>
                             </div>
 
                             {watch('isRecurring') && (
-                                <div className="flex items-center gap-3 animate-in fade-in slide-in-from-left-2 duration-300">
-                                    <span className="text-sm font-medium text-primary-700">Repeat</span>
+                                <div className="animate-in fade-in slide-in-from-top-1 duration-200">
                                     <select
                                         {...register('recurringInterval')}
-                                        className="bg-white border-primary-200 rounded-lg text-sm font-bold text-primary-900 focus:ring-primary-500 py-1.5"
+                                        className="w-full bg-white border-primary-200 rounded py-1 px-2 text-[10px] font-black uppercase tracking-widest text-primary-700 outline-none focus:ring-0 shadow-sm"
                                     >
-                                        <option value="monthly">Monthly</option>
-                                        <option value="weekly">Weekly</option>
-                                        <option value="quarterly">Quarterly</option>
-                                        <option value="yearly">Yearly</option>
+                                        <option value="monthly">Monthly Cycle</option>
+                                        <option value="weekly">Weekly Cycle</option>
+                                        <option value="quarterly">Quarterly Cycle</option>
+                                        <option value="yearly">Yearly Cycle</option>
                                     </select>
                                 </div>
                             )}
@@ -194,82 +207,82 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
                 </div>
             </div>
 
-            {/* Items Section */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
-                    <h3 className="font-bold text-gray-800 flex items-center gap-2">
-                        <Calculator size={18} className="text-primary-600" />
-                        Line Items
+            {/* Line Item Architecture */}
+            <div className="border border-gray-100 rounded-lg overflow-hidden bg-white shadow-sm">
+                <div className="px-4 py-3 bg-gray-50/50 border-b border-gray-100 flex justify-between items-center">
+                    <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                        <Calculator className="w-3.5 h-3.5 text-primary-600" />
+                        Line Item Breakdown
                     </h3>
                     <button
                         type="button"
                         onClick={() => append({ description: '', quantity: 1, rate: 0, taxRate: 0 })}
-                        className="text-sm font-medium text-primary-600 hover:text-primary-700 flex items-center gap-1 transition-colors"
+                        className="text-[10px] font-black text-primary-600 hover:text-primary-700 uppercase tracking-widest flex items-center gap-1 transition-all"
                     >
-                        <Plus size={16} /> Add Item
+                        <Plus size={14} /> Append Component
                     </button>
                 </div>
 
                 <div className="overflow-x-auto">
                     <table className="w-full border-collapse">
                         <thead>
-                            <tr className="bg-gray-50/30 text-left">
-                                <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase">Item Description</th>
-                                <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase w-32">Qty</th>
-                                <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase w-40">Rate</th>
-                                <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase w-32">Tax %</th>
-                                <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase w-40 text-right">Amount</th>
-                                <th className="px-6 py-3 w-16"></th>
+                            <tr className="bg-gray-50/30 text-left border-b border-gray-50">
+                                <th className="px-4 py-2 text-[9px] font-black text-gray-400 uppercase tracking-[0.1em]">Resource Description</th>
+                                <th className="px-4 py-2 text-[9px] font-black text-gray-400 uppercase tracking-[0.1em] w-24">Units</th>
+                                <th className="px-4 py-2 text-[9px] font-black text-gray-400 uppercase tracking-[0.1em] w-32">Unit Rate</th>
+                                <th className="px-4 py-2 text-[9px] font-black text-gray-400 uppercase tracking-[0.1em] w-24">Tax Factor %</th>
+                                <th className="px-4 py-2 text-[9px] font-black text-gray-400 uppercase tracking-[0.1em] w-40 text-right">Net Value</th>
+                                <th className="px-4 py-2 w-10"></th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50">
                             {fields.map((field, index) => (
-                                <tr key={field.id} className="hover:bg-gray-50/50 transition-colors">
-                                    <td className="px-6 py-4">
+                                <tr key={field.id} className="group hover:bg-gray-50 transition-colors">
+                                    <td className="px-4 py-2">
                                         <input
                                             {...register(`items.${index}.description`)}
-                                            placeholder="Service or Product name"
-                                            className="w-full border-none bg-transparent focus:ring-0 text-sm placeholder-gray-400"
+                                            placeholder="Component or service identifier..."
+                                            className="w-full border-none bg-transparent focus:ring-0 text-[11px] font-bold placeholder:text-gray-300 placeholder:italic p-0"
                                         />
                                         {errors.items?.[index]?.description && (
-                                            <span className="text-[10px] text-red-500">{errors.items[index]?.description?.message}</span>
+                                            <span className="text-[8px] font-black text-rose-500 uppercase block leading-none mt-1">{errors.items[index]?.description?.message}</span>
                                         )}
                                     </td>
-                                    <td className="px-6 py-4">
+                                    <td className="px-4 py-2">
                                         <input
                                             type="number"
                                             step="any"
                                             {...register(`items.${index}.quantity`, { valueAsNumber: true })}
-                                            className="w-full border-gray-100 rounded-md text-sm focus:ring-primary-500"
+                                            className="w-full bg-gray-50/50 border border-transparent focus:border-gray-200 focus:bg-white rounded px-1.5 py-1 text-[11px] font-black text-gray-900 transition-all text-center"
                                         />
                                     </td>
-                                    <td className="px-6 py-4">
+                                    <td className="px-4 py-2">
                                         <input
                                             type="number"
                                             step="any"
                                             {...register(`items.${index}.rate`, { valueAsNumber: true })}
-                                            className="w-full border-gray-100 rounded-md text-sm focus:ring-primary-500"
+                                            className="w-full bg-gray-50/50 border border-transparent focus:border-gray-200 focus:bg-white rounded px-1.5 py-1 text-[11px] font-black text-gray-900 transition-all text-right"
                                         />
                                     </td>
-                                    <td className="px-6 py-4">
+                                    <td className="px-4 py-2">
                                         <input
                                             type="number"
                                             step="any"
                                             {...register(`items.${index}.taxRate`, { valueAsNumber: true })}
-                                            className="w-full border-gray-100 rounded-md text-sm focus:ring-primary-500"
+                                            className="w-full bg-gray-50/50 border border-transparent focus:border-gray-200 focus:bg-white rounded px-1.5 py-1 text-[11px] font-black text-gray-900 transition-all text-center"
                                         />
                                     </td>
-                                    <td className="px-6 py-4 text-right text-sm font-bold text-gray-900">
+                                    <td className="px-4 py-2 text-right text-[11px] font-black text-gray-900">
                                         {formatCurrency((watchItems[index]?.quantity || 0) * (watchItems[index]?.rate || 0))}
                                     </td>
-                                    <td className="px-6 py-4 text-center">
+                                    <td className="px-4 py-2 text-center">
                                         {fields.length > 1 && (
                                             <button
                                                 type="button"
                                                 onClick={() => remove(index)}
-                                                className="text-gray-400 hover:text-red-500 transition-colors"
+                                                className="text-gray-300 hover:text-rose-500 transition-all opacity-0 group-hover:opacity-100"
                                             >
-                                                <Trash2 size={16} />
+                                                <Trash2 size={12} />
                                             </button>
                                         )}
                                     </td>
@@ -281,81 +294,96 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Notes & Terms */}
-                <div className="space-y-6">
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Notes / Message to Client</label>
+                {/* Supplemental Intelligence */}
+                <div className="space-y-4">
+                    <div className="ent-form-group">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5 mb-2">
+                            Communication Notes
+                        </label>
                         <textarea
                             {...register('notes')}
                             rows={3}
-                            className="w-full rounded-lg border-gray-200 focus:ring-primary-500 focus:border-primary-500 text-sm"
-                            placeholder="Thank you for your business!"
+                            className="ent-input w-full text-xs font-medium min-h-[100px]"
+                            placeholder="Directives or clarifications for the consignee entity..."
                         />
                     </div>
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Terms & Conditions</label>
+                    <div className="ent-form-group">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5 mb-2">
+                            Contractual Terms
+                        </label>
                         <textarea
                             {...register('terms')}
                             rows={3}
-                            className="w-full rounded-lg border-gray-200 focus:ring-primary-500 focus:border-primary-500 text-sm"
-                            placeholder="Payment is due within 30 days."
+                            className="ent-input w-full text-xs font-medium min-h-[100px]"
+                            placeholder="Regulatory or commercial terms governing this transaction..."
                         />
                     </div>
                 </div>
 
-                {/* Summary */}
-                <div className="bg-gray-900 text-white p-8 rounded-2xl shadow-xl flex flex-col justify-between">
-                    <div className="space-y-4">
+                {/* Final Calculation Matrix */}
+                <div className="bg-gray-900 text-white p-6 rounded-lg shadow-2xl relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-primary-600/10 rounded-full blur-3xl -translate-y-12 translate-x-12 group-hover:bg-primary-600/20 transition-all duration-700" />
+
+                    <div className="space-y-3 relative z-10 border-b border-white/5 pb-6">
                         <div className="flex justify-between items-center text-gray-400">
-                            <span className="text-sm">Subtotal</span>
-                            <span className="font-medium text-white">{formatCurrency(totals.subtotal)}</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest leading-none">Gross Subtotal</span>
+                            <span className="text-xs font-black text-white">{formatCurrency(totals.subtotal)}</span>
                         </div>
                         <div className="flex justify-between items-center text-gray-400">
-                            <span className="text-sm">Total Tax</span>
-                            <span className="font-medium text-white">{formatCurrency(totals.totalTax)}</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest leading-none">Aggregated Tax Factor</span>
+                            <span className="text-xs font-black text-emerald-400">+{formatCurrency(totals.totalTax)}</span>
                         </div>
                         <div className="flex justify-between items-center gap-4">
-                            <span className="text-sm text-gray-400">Discount</span>
-                            <div className="w-32 flex items-center bg-gray-800 rounded-md px-2 border border-gray-700">
-                                <span className="text-xs text-gray-500 mr-1">-</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 leading-none">Correction / Discount</span>
+                            <div className="w-24 flex items-center bg-white/5 rounded px-2 border border-white/10 hover:border-white/20 transition-all">
+                                <span className="text-[10px] text-gray-500 mr-1">-</span>
                                 <input
                                     type="number"
                                     {...register('discount', { valueAsNumber: true })}
-                                    className="bg-transparent border-none focus:ring-0 text-sm text-right w-full text-white"
+                                    className="bg-transparent border-none focus:ring-0 text-[11px] font-black text-rose-400 text-right w-full p-1"
                                 />
                             </div>
                         </div>
                     </div>
 
-                    <div className="pt-8 mt-8 border-t border-gray-800">
+                    <div className="pt-6 relative z-10">
                         <div className="flex justify-between items-end">
                             <div>
-                                <p className="text-xs font-bold text-primary-500 uppercase tracking-widest mb-1">Grand Total</p>
-                                <h2 className="text-4xl font-extrabold">{formatCurrency(totals.total)}</h2>
+                                <p className="text-[10px] font-black text-primary-400 uppercase tracking-[0.2em] mb-2 leading-none">Consolidated Valuation</p>
+                                <h2 className="text-3xl font-black tracking-tighter text-white">{formatCurrency(totals.total)}</h2>
                             </div>
-                            <div className="flex items-center gap-2 text-[10px] text-gray-500 bg-gray-800/50 px-3 py-1.5 rounded-full">
-                                <Info size={12} />
-                                Calculated in {watch('currency')}
+                            <div className="flex flex-col items-end gap-1">
+                                <span className="flex items-center gap-1 text-[8px] font-black text-gray-400 uppercase bg-white/5 px-2 py-1 rounded-full border border-white/10">
+                                    <ShieldCheck size={10} className="text-primary-500" />
+                                    Secure Computation
+                                </span>
+                                <span className="text-[9px] font-bold text-gray-500">Billed in {watch('currency')}</span>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div className="flex justify-end gap-4 pt-4">
+            {/* Execution Controls */}
+            <div className="flex justify-end gap-3 pt-6 border-t border-gray-100">
                 <button
                     type="button"
                     onClick={() => window.history.back()}
-                    className="px-6 py-3 rounded-lg border border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50 transition-all"
+                    className="px-6 py-2 rounded text-[10px] font-black text-gray-500 uppercase tracking-widest hover:bg-gray-100 hover:text-gray-900 transition-all"
                 >
-                    Discard Changes
+                    Discard Draft
                 </button>
                 <button
                     type="submit"
                     disabled={loading}
-                    className="px-10 py-3 rounded-lg bg-primary-600 text-white text-sm font-bold hover:bg-primary-700 shadow-lg shadow-primary-200 disabled:opacity-50 transition-all flex items-center gap-2"
+                    className="px-10 py-2 rounded bg-primary-600 text-white text-[10px] font-black uppercase tracking-[0.15em] hover:bg-primary-700 shadow-lg shadow-primary-500/20 disabled:opacity-50 transition-all flex items-center gap-2 group"
                 >
-                    {loading ? <LoadingSpinner size="sm" /> : `Save ${watchType === 'quotation' ? 'Quotation' : 'Invoice'}`}
+                    {loading ? <LoadingSpinner size="sm" /> : (
+                        <>
+                            Commit {watchType === 'quotation' ? 'Quotation' : 'Invoice'}
+                            <ShieldCheck className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
+                        </>
+                    )}
                 </button>
             </div>
         </form>

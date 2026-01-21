@@ -18,6 +18,7 @@ import { employeesApi } from '@/lib/api/hrms';
 import ScheduleInterviewModal from '@/components/recruitment/ScheduleInterviewModal';
 import OfferLetterModal from '@/components/recruitment/OfferLetterModal';
 import OnboardEmployeeModal from '@/components/recruitment/OnboardEmployeeModal';
+import { ArrowLeft, Mail, Phone, Calendar, Clock, User, CheckCircle, XCircle, FileText, ChevronRight, Briefcase, DollarSign, Award, Activity } from 'lucide-react';
 
 export default function CandidateDetailsPage({ params }: { params: { id: string } }) {
     const toast = useToast();
@@ -93,6 +94,7 @@ export default function CandidateDetailsPage({ params }: { params: { id: string 
             setSaving(true);
             await candidatesApi.updateStatus(params.id, statusFormData);
             loadData();
+            toast.success('Candidate status protocol updated');
         } catch (error) {
             console.error('Failed to update status:', error);
             toast.error('Failed to update candidate status');
@@ -144,204 +146,260 @@ export default function CandidateDetailsPage({ params }: { params: { id: string 
         }
     };
 
-    if (loading) return <div>Loading...</div>;
+    if (loading) return (
+        <div className="p-20 flex flex-col items-center justify-center animate-pulse">
+            <LoadingSpinner size="lg" />
+            <p className="mt-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Retrieving Candidate Intel...</p>
+        </div>
+    );
     if (!candidate) return <div>Candidate not found</div>;
 
     return (
-        <div>
-            <div className="mb-6">
-                <Link href="/recruitment/candidates" className="text-sm text-gray-500 hover:text-gray-700">
-                    ← Back to Candidates
-                </Link>
-                <div className="flex justify-between items-center mt-2">
-                    <div>
-                        <h1 className="text-2xl font-bold text-gray-900">
-                            {candidate.firstName} {candidate.lastName}
-                        </h1>
-                        <p className="text-sm text-gray-500">{candidate.email} • {candidate.phone}</p>
+        <div className="space-y-6 pb-20 max-w-7xl mx-auto">
+            {/* Header */}
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-5 rounded-lg border border-gray-200 shadow-sm gap-4">
+                <div className="flex items-center gap-4">
+                    <div className="p-3 bg-indigo-900 rounded-lg shadow-lg">
+                        <User className="w-6 h-6 text-white" />
                     </div>
-                    <div className="flex items-center space-x-3">
-                        <div className={`px-3 py-1 rounded-full text-sm font-semibold uppercase tracking-wide
-                    ${candidate.status === 'hired' ? 'bg-green-100 text-green-800' :
-                                candidate.status === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'}`}>
-                            {candidate.status}
-                        </div>
-                        {candidate.status === 'hired' && (
-                            <button
-                                onClick={() => setIsOnboardModalOpen(true)}
-                                className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 text-sm font-medium"
-                            >
-                                Onboard as Employee
-                            </button>
-                        )}
+                    <div>
+                        <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none uppercase">
+                            {candidate.firstName} {candidate.lastName}
+                        </h2>
+                        <p className="text-[10px] text-gray-500 font-bold mt-1.5 uppercase tracking-widest flex items-center gap-2">
+                            Target: {candidate.jobOpening?.title || 'General Pool'} <ChevronRight size={10} className="text-indigo-600" /> {candidate.currentStage || 'Screening'}
+                        </p>
                     </div>
                 </div>
+
+                <div className="flex items-center gap-3 w-full lg:w-auto">
+                    <div className="flex bg-gray-100 p-1 rounded font-black text-[9px] uppercase tracking-widest">
+                        <Link
+                            href="/recruitment/candidates"
+                            className="px-4 py-2 text-gray-600 hover:text-gray-900 rounded flex items-center gap-2 transition-all bg-white text-indigo-600 shadow-sm border border-gray-200"
+                        >
+                            <ArrowLeft size={12} /> Return to Reservoir
+                        </Link>
+                    </div>
+                    {candidate.status === 'hired' && (
+                        <button
+                            onClick={() => setIsOnboardModalOpen(true)}
+                            className="px-5 py-2.5 bg-emerald-600 text-white rounded text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all flex items-center gap-2 shadow-xl shadow-emerald-900/10 active:scale-95"
+                        >
+                            <Briefcase size={14} /> Onboard Employee
+                        </button>
+                    )}
+                </div>
             </div>
+
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
                 {/* Main Info */}
                 <div className="lg:col-span-2 space-y-6">
 
+                    {/* Candidate Identity Card */}
+                    <div className="ent-card p-6">
+                        <div className="flex justify-between items-start mb-6 border-b border-gray-100 pb-4">
+                            <div>
+                                <h3 className="text-sm font-black text-gray-900 tracking-tight leading-none uppercase flex items-center gap-2">
+                                    <FileText size={14} className="text-indigo-600" /> Application Dossier
+                                </h3>
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">
+                                    Submitted: {new Date(candidate.createdAt).toLocaleDateString()}
+                                </p>
+                            </div>
+                            <span className={`ent-badge ${candidate.status === 'hired' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                                candidate.status === 'rejected' ? 'bg-rose-50 text-rose-700 border-rose-100' :
+                                    'bg-indigo-50 text-indigo-700 border-indigo-100'
+                                }`}>
+                                STATUS: {candidate.status}
+                            </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-4">
+                                <div>
+                                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">Contact Protocol</span>
+                                    <div className="flex flex-col gap-1.5">
+                                        {candidate.email && (
+                                            <a href={`mailto:${candidate.email}`} className="text-[11px] font-bold text-gray-700 hover:text-indigo-600 flex items-center gap-2 transition-colors">
+                                                <Mail size={12} className="text-gray-400" /> {candidate.email}
+                                            </a>
+                                        )}
+                                        {candidate.phone && (
+                                            <a href={`tel:${candidate.phone}`} className="text-[11px] font-bold text-gray-700 hover:text-indigo-600 flex items-center gap-2 transition-colors">
+                                                <Phone size={12} className="text-gray-400" /> {candidate.phone}
+                                            </a>
+                                        )}
+                                    </div>
+                                </div>
+                                <div>
+                                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">Current Stage</span>
+                                    <div className="p-2 bg-gray-50 border border-gray-100 rounded text-[11px] font-bold text-gray-700 uppercase">
+                                        {candidate.currentStage || 'INITIAL REVIEW'}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">Intelligence Notes</span>
+                                <div className="p-3 bg-yellow-50/50 border border-yellow-100 rounded text-[11px] text-gray-600 min-h-[100px] leading-relaxed">
+                                    {candidate.notes || 'No contextual data recorded.'}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Interviews Section */}
-                    <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-                        <div className="px-4 py-5 sm:px-6 flex justify-between items-center">
-                            <h3 className="text-lg leading-6 font-medium text-gray-900">Interviews</h3>
+                    <div className="ent-card overflow-hidden">
+                        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                            <h3 className="text-sm font-black text-gray-900 tracking-tight leading-none uppercase flex items-center gap-2">
+                                <Clock size={14} className="text-indigo-600" /> Interview Log
+                            </h3>
                             <button
                                 onClick={() => setIsInterviewModalOpen(true)}
-                                className="text-sm text-primary-600 hover:text-primary-800 font-medium"
+                                className="text-[9px] font-black text-indigo-600 hover:text-indigo-700 uppercase tracking-widest flex items-center gap-1 border border-indigo-100 bg-white px-3 py-1.5 rounded shadow-sm hover:shadow transition-all"
                             >
-                                + Schedule Interview
+                                + Schedule
                             </button>
                         </div>
-                        <div className="border-t border-gray-200">
+                        <div className="divide-y divide-gray-100">
                             {interviews.length === 0 ? (
-                                <div className="px-4 py-5 text-sm text-gray-500 text-center">No interviews scheduled.</div>
+                                <div className="p-8 text-center bg-white">
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">No interview sessions scheduled.</p>
+                                </div>
                             ) : (
-                                <ul className="divide-y divide-gray-200">
+                                <div className="bg-white">
                                     {interviews.map((interview) => (
-                                        <li key={interview.id} className="px-4 py-4 sm:px-6">
-                                            <div className="flex items-center justify-between">
-                                                <div className="text-sm font-medium text-gray-900 truncate">
-                                                    Round {interview.round}: {interview.type.toUpperCase()}
-                                                </div>
-                                                <div className="ml-2 flex-shrink-0 flex">
-                                                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full
-                                                ${interview.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                                                        {interview.status}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <div className="mt-2 text-sm text-gray-500">
-                                                <p>Scheduled: {new Date(interview.scheduledAt).toLocaleString()}</p>
-                                                <p>Interviewer: {interview.interviewer}</p>
-                                                {interview.feedback && (
-                                                    <div className="mt-2 p-2 bg-gray-50 rounded">
-                                                        <p className="font-medium">Feedback:</p>
-                                                        <p>{interview.feedback}</p>
-                                                        <p>Rating: {interview.rating}/5</p>
+                                        <div key={interview.id} className="p-5 hover:bg-gray-50/50 transition-colors">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center font-black text-gray-500 text-xs shadow-sm">
+                                                        R{interview.round}
                                                     </div>
-                                                )}
+                                                    <div>
+                                                        <div className="text-[12px] font-black text-gray-900 uppercase tracking-tight">
+                                                            {interview.type} Protocol
+                                                        </div>
+                                                        <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                                                            {new Date(interview.scheduledAt).toLocaleString()} • {interview.interviewer}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <span className={`ent-badge ${interview.status === 'completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                                                    'bg-amber-50 text-amber-700 border-amber-100'
+                                                    }`}>
+                                                    {interview.status}
+                                                </span>
                                             </div>
+
+                                            {interview.feedback && (
+                                                <div className="mt-3 ml-11 p-3 bg-gray-50 rounded border border-gray-100">
+                                                    <div className="flex justify-between items-start">
+                                                        <p className="text-[11px] text-gray-600 italic leading-relaxed">"{interview.feedback}"</p>
+                                                        <div className="flex items-center gap-1 ml-4 bg-white px-2 py-1 rounded border border-gray-100 shadow-sm">
+                                                            <Award size={10} className="text-amber-500" />
+                                                            <span className="text-[10px] font-black text-gray-900">{interview.rating}/5</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+
                                             {interview.status === 'scheduled' && (
-                                                <div className="mt-2">
+                                                <div className="mt-3 ml-11">
                                                     <button
                                                         onClick={() => updateInterviewFeedback(interview.id)}
-                                                        className="text-primary-600 hover:text-primary-800 text-sm font-medium"
+                                                        className="text-[9px] font-black text-indigo-600 uppercase tracking-widest hover:underline flex items-center gap-1"
                                                     >
-                                                        Add Feedback & Complete
+                                                        <CheckCircle size={10} /> Record Feedback & Close
                                                     </button>
                                                 </div>
                                             )}
-                                        </li>
+                                        </div>
                                     ))}
-                                </ul>
+                                </div>
                             )}
                         </div>
                     </div>
 
                     {/* Offer Section */}
-                    <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-                        <div className="px-4 py-5 sm:px-6 flex justify-between items-center">
-                            <h3 className="text-lg leading-6 font-medium text-gray-900">Offer Letter</h3>
+                    <div className="ent-card overflow-hidden">
+                        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                            <h3 className="text-sm font-black text-gray-900 tracking-tight leading-none uppercase flex items-center gap-2">
+                                <DollarSign size={14} className="text-emerald-600" /> Compensation Offer
+                            </h3>
                             {!offer && (
                                 <button
                                     onClick={() => setIsOfferModalOpen(true)}
-                                    className="text-sm text-green-600 hover:text-green-800 font-medium"
+                                    className="text-[9px] font-black text-emerald-600 hover:text-emerald-700 uppercase tracking-widest flex items-center gap-1 border border-emerald-100 bg-white px-3 py-1.5 rounded shadow-sm hover:shadow transition-all"
                                 >
-                                    + Generate Offer
+                                    + Generate Proposal
                                 </button>
                             )}
                         </div>
-                        <div className="border-t border-gray-200">
+                        <div className="bg-white">
                             {offer ? (
-                                <div className="px-4 py-5 sm:px-6">
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <dt className="text-sm font-medium text-gray-500">Status</dt>
-                                            <dd className="mt-1 text-sm text-gray-900">
-                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full
-                                            ${offer.status === 'accepted' ? 'bg-green-100 text-green-800' :
-                                                        offer.status === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'}`}>
-                                                    {offer.status.toUpperCase()}
-                                                </span>
-                                            </dd>
-                                        </div>
-                                        <div>
-                                            <dt className="text-sm font-medium text-gray-500">Salary (CTC)</dt>
-                                            <dd className="mt-1 text-sm text-gray-900">₹ {offer.salary.toLocaleString()}</dd>
-                                        </div>
-                                        <div>
-                                            <dt className="text-sm font-medium text-gray-500">Position</dt>
-                                            <dd className="mt-1 text-sm text-gray-900">{offer.position}</dd>
-                                        </div>
-                                        <div>
-                                            <dt className="text-sm font-medium text-gray-500">Joining Date</dt>
-                                            <dd className="mt-1 text-sm text-gray-900">{new Date(offer.startDate).toLocaleDateString()}</dd>
+                                <div className="p-6">
+                                    <div className="flex flex-col md:flex-row justify-between items-end gap-4 mb-6 border-b border-gray-100 pb-6">
+                                        <div className="space-y-4 w-full">
+                                            <div className="grid grid-cols-2 gap-6">
+                                                <div>
+                                                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">Proposal Status</span>
+                                                    <span className={`ent-badge inline-block ${offer.status === 'accepted' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                                                        offer.status === 'rejected' ? 'bg-rose-50 text-rose-700 border-rose-100' :
+                                                            'bg-sky-50 text-sky-700 border-sky-100'
+                                                        }`}>
+                                                        {offer.status.toUpperCase()}
+                                                    </span>
+                                                </div>
+                                                <div>
+                                                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">Proposed CTC</span>
+                                                    <div className="text-xl font-black text-gray-900 tracking-tight">
+                                                        ₹ {offer.salary.toLocaleString()}
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">Designated Role</span>
+                                                    <div className="text-[11px] font-bold text-gray-700 uppercase">{offer.position}</div>
+                                                </div>
+                                                <div>
+                                                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">Effective Date</span>
+                                                    <div className="text-[11px] font-bold text-gray-700 uppercase">{new Date(offer.startDate).toLocaleDateString()}</div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
-                                    {offer.status === 'pending' || offer.status === 'sent' ? (
-                                        <div className="mt-6 flex space-x-4">
+
+                                    {(offer.status === 'pending' || offer.status === 'sent') && (
+                                        <div className="flex gap-3">
                                             <button
                                                 onClick={() => acceptOffer(offer.id)}
-                                                className="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700"
+                                                className="px-4 py-2 bg-emerald-600 text-white rounded text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 shadow-lg shadow-emerald-900/10 active:scale-95 transition-all"
                                             >
-                                                Mark Accepted (Hire)
+                                                Confirm Acceptance (Hire)
                                             </button>
                                             <button
                                                 onClick={() => rejectOffer(offer.id)}
-                                                className="bg-red-600 text-white px-4 py-2 rounded text-sm hover:bg-red-700"
+                                                className="px-4 py-2 bg-white text-rose-600 border border-rose-100 rounded text-[10px] font-black uppercase tracking-widest hover:bg-rose-50 shadow-sm active:scale-95 transition-all"
                                             >
                                                 Mark Rejected
                                             </button>
                                             {offer.status === 'pending' && (
                                                 <button
                                                     onClick={() => offersApi.updateStatus(offer.id, 'sent').then(loadData)}
-                                                    className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700"
+                                                    className="px-4 py-2 bg-white text-sky-600 border border-sky-100 rounded text-[10px] font-black uppercase tracking-widest hover:bg-sky-50 shadow-sm active:scale-95 transition-all ml-auto"
                                                 >
-                                                    Mark Sent
+                                                    Mark as Sent
                                                 </button>
                                             )}
                                         </div>
-                                    ) : null}
+                                    )}
                                 </div>
                             ) : (
-                                <div className="px-4 py-5 text-sm text-gray-500 text-center">No offer generated yet.</div>
+                                <div className="p-8 text-center">
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">No compensation proposal generated.</p>
+                                </div>
                             )}
-                        </div>
-                    </div>
-
-                    {/* Application Details (Existing) */}
-                    <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-                        <div className="px-4 py-5 sm:px-6">
-                            <h3 className="text-lg leading-6 font-medium text-gray-900">Application Details</h3>
-                        </div>
-                        <div className="border-t border-gray-200 px-4 py-5 sm:p-0">
-                            <dl className="sm:divide-y sm:divide-gray-200">
-                                <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                                    <dt className="text-sm font-medium text-gray-500">Applying For</dt>
-                                    <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                                        {candidate.jobOpening?.title || 'General Application'}
-                                    </dd>
-                                </div>
-                                <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                                    <dt className="text-sm font-medium text-gray-500">Applied On</dt>
-                                    <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                                        {new Date(candidate.createdAt).toLocaleDateString()}
-                                    </dd>
-                                </div>
-                                <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                                    <dt className="text-sm font-medium text-gray-500">Current Stage</dt>
-                                    <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                                        {candidate.currentStage || 'N/A'}
-                                    </dd>
-                                </div>
-                                <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                                    <dt className="text-sm font-medium text-gray-500">Notes</dt>
-                                    <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2 whitespace-pre-wrap">
-                                        {candidate.notes || 'No notes added.'}
-                                    </dd>
-                                </div>
-                            </dl>
                         </div>
                     </div>
 
@@ -349,49 +407,55 @@ export default function CandidateDetailsPage({ params }: { params: { id: string 
 
                 {/* Sidebar Actions */}
                 <div className="lg:col-span-1 space-y-6">
-                    <div className="bg-white shadow sm:rounded-lg p-6">
-                        <h3 className="text-lg font-medium text-gray-900 mb-4">Update Status</h3>
+                    <div className="ent-card p-6 bg-white border-t-4 border-t-indigo-500">
+                        <h3 className="text-sm font-black text-gray-900 uppercase tracking-tight mb-4 flex items-center gap-2">
+                            <Activity size={14} className="text-indigo-500" /> Status Protocol
+                        </h3>
                         <form onSubmit={handleUpdateStatus} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Status</label>
-                                <select
-                                    value={statusFormData.status}
-                                    onChange={(e) => setStatusFormData({ ...statusFormData, status: e.target.value })}
-                                    className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
-                                >
-                                    <option value="applied">Applied</option>
-                                    <option value="screening">Screening</option>
-                                    <option value="interview">Interview</option>
-                                    <option value="offer">Offer</option>
-                                    <option value="hired">Hired</option>
-                                    <option value="rejected">Rejected</option>
-                                </select>
+                            <div className="ent-form-group">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Pipeline Status</label>
+                                <div className="relative">
+                                    <select
+                                        value={statusFormData.status}
+                                        onChange={(e) => setStatusFormData({ ...statusFormData, status: e.target.value })}
+                                        className="ent-input w-full appearance-none"
+                                    >
+                                        <option value="applied">Applied</option>
+                                        <option value="screening">Screening</option>
+                                        <option value="interview">Interview</option>
+                                        <option value="offer">Offer</option>
+                                        <option value="hired">Hired</option>
+                                        <option value="rejected">Rejected</option>
+                                    </select>
+                                    <ChevronRight size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 rotate-90 pointer-events-none" />
+                                </div>
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Current Stage</label>
+                            <div className="ent-form-group">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Stage Details</label>
                                 <input
                                     type="text"
                                     value={statusFormData.currentStage}
                                     onChange={(e) => setStatusFormData({ ...statusFormData, currentStage: e.target.value })}
-                                    placeholder="e.g. Technical Round 1"
-                                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                                    placeholder="EX: TECH ROUND 1"
+                                    className="ent-input w-full"
                                 />
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Internal Notes</label>
+                            <div className="ent-form-group">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Internal Notes</label>
                                 <textarea
                                     rows={4}
                                     value={statusFormData.notes}
                                     onChange={(e) => setStatusFormData({ ...statusFormData, notes: e.target.value })}
-                                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                                    className="ent-input w-full resize-none"
+                                    placeholder="ADD CONTEXTUAL DATA..."
                                 />
                             </div>
                             <button
                                 type="submit"
                                 disabled={saving}
-                                className="w-full inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
+                                className="w-full py-2.5 bg-gray-900 text-white rounded text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-lg shadow-gray-900/10 disabled:opacity-50 active:scale-95"
                             >
-                                {saving ? 'Updating...' : 'Update Status'}
+                                {saving ? 'SYNCHRONIZING...' : 'UPDATE PROTOCOL'}
                             </button>
                         </form>
                     </div>

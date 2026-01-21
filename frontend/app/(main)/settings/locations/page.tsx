@@ -5,6 +5,19 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import {
+    MapPin,
+    Building2,
+    Phone,
+    Mail,
+    Plus,
+    Trash2,
+    Globe,
+    Activity,
+    Edit,
+    ChevronRight,
+    Map
+} from 'lucide-react';
 
 export default function LocationsPage() {
     const toast = useToast();
@@ -51,56 +64,117 @@ export default function LocationsPage() {
     };
 
     return (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div className="flex justify-between items-center mb-6">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Locations / Branches</h1>
-                    <p className="mt-1 text-sm text-gray-500">Manage your company offices and branches</p>
+        <div className="animate-fade-in pb-20">
+            <div className="max-w-7xl mx-auto px-4 lg:px-8 py-8">
+                <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8 gap-4 px-2">
+                    <div className="space-y-0.5">
+                        <h1 className="text-2xl font-black text-slate-900 tracking-tight leading-tight flex items-center gap-3">
+                            Operational Verticals
+                            {locations.length > 0 && (
+                                <span className="text-[9px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 uppercase font-black tracking-widest">
+                                    {locations.length} BRANCHES
+                                </span>
+                            )}
+                        </h1>
+                        <p className="text-slate-500 font-medium text-sm">
+                            Manage global corporate locations, regional hubs, and branch infrastructure.
+                        </p>
+                    </div>
+                    <Link
+                        href="/settings/locations/create"
+                        className="btn-primary"
+                    >
+                        <Plus size={16} className="mr-2" /> Add Location
+                    </Link>
                 </div>
-                <Link
-                    href="/settings/locations/create"
-                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700"
-                >
-                    Add New Location
-                </Link>
-            </div>
 
-            <div className="bg-white shadow overflow-hidden sm:rounded-md">
-                <ul role="list" className="divide-y divide-gray-200">
-                    {locations.map((location) => (
-                        <li key={location.id}>
-                            <div className="px-4 py-4 flex items-center sm:px-6">
-                                <div className="min-w-0 flex-1 sm:flex sm:items-center sm:justify-between">
-                                    <div>
-                                        <div className="flex text-sm">
-                                            <p className="font-medium text-primary-600 truncate">{location.name}</p>
-                                            <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${location.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                                {location.isActive ? 'Active' : 'Inactive'}
-                                            </span>
-                                        </div>
-                                        <div className="mt-2 flex">
-                                            <div className="flex items-center text-sm text-gray-500">
-                                                <p className="truncate">
-                                                    {location.city}, {location.state} • {location.phone || 'No phone'}
-                                                </p>
+                <div className="ent-card overflow-hidden">
+                    <div className="px-5 py-4 border-b border-slate-50 bg-slate-50/30">
+                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Regional Branch Registry</h3>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="ent-table">
+                            <thead>
+                                <tr>
+                                    <th className="rounded-l-xl">Branch Identity</th>
+                                    <th>Geographic Coordinates</th>
+                                    <th>Communication Line</th>
+                                    <th>Status</th>
+                                    <th className="text-right rounded-r-xl">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {loading ? (
+                                    <tr>
+                                        <td colSpan={5} className="px-6 py-12 text-center text-slate-400 animate-pulse font-black uppercase text-[10px] tracking-widest">Mapping locations...</td>
+                                    </tr>
+                                ) : locations.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={5} className="px-6 py-12 text-center">
+                                            <div className="flex flex-col items-center">
+                                                <MapPin size={24} className="text-slate-200 mb-2" />
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No operational branches discovered</p>
                                             </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="ml-5 flex-shrink-0 flex space-x-2">
-                                    <button onClick={() => handleDelete(location.id)} className="text-red-600 hover:text-red-900 text-sm font-medium">
-                                        Delete
-                                    </button>
-                                </div>
-                            </div>
-                        </li>
-                    ))}
-                    {!loading && locations.length === 0 && (
-                        <li className="px-4 py-8 text-center text-gray-500">
-                            No locations found. Add your first branch.
-                        </li>
-                    )}
-                </ul>
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    locations.map((location) => (
+                                        <tr key={location.id} className="group hover:bg-slate-50/50 transition-colors">
+                                            <td className="px-4 py-3 whitespace-nowrap">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="h-8 w-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shadow-sm transition-transform group-hover:scale-110">
+                                                        <Building2 size={16} />
+                                                    </div>
+                                                    <div>
+                                                        <div className="text-xs font-black text-slate-900 tracking-tight">{location.name}</div>
+                                                        <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{location.code || 'LOC-GENERIC'}</div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-3 whitespace-nowrap">
+                                                <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-600">
+                                                    <Map size={10} className="text-slate-400" />
+                                                    {location.city}, {location.state}
+                                                </div>
+                                                <div className="text-[9px] font-bold text-slate-400 uppercase tracking-tight ml-4">
+                                                    {location.country || 'India'}
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-3 whitespace-nowrap">
+                                                <div className="space-y-0.5">
+                                                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-600">
+                                                        <Phone size={10} className="text-indigo-400" />
+                                                        {location.phone || 'N/A'}
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5 text-[9px] font-bold text-slate-400 lowercase">
+                                                        <Mail size={10} className="text-slate-300" />
+                                                        {location.email || 'no-email@corp.com'}
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-3 whitespace-nowrap">
+                                                <span className={`ent-badge ${location.isActive ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-rose-50 text-rose-700 border-rose-100'}`}>
+                                                    <Activity size={8} className="mr-1" />
+                                                    {location.isActive ? 'OPERATIONAL' : 'DECOMMISSIONED'}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
+                                                <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
+                                                    <button className="p-1.5 hover:bg-white hover:shadow-sm rounded-lg text-slate-400 hover:text-indigo-600 border border-transparent hover:border-slate-100 transition-all">
+                                                        <Edit size={14} />
+                                                    </button>
+                                                    <button onClick={() => handleDelete(location.id)} className="p-1.5 hover:bg-white hover:shadow-sm rounded-lg text-slate-400 hover:text-rose-600 border border-transparent hover:border-slate-100 transition-all">
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     );

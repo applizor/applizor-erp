@@ -4,6 +4,8 @@ import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { UserPlus, Globe, TrendingUp, BarChart3, Activity, ArrowLeft, ChevronRight, Save, CreditCard, Tag, FileText } from 'lucide-react';
 import api from '@/lib/api';
 import { useCurrency } from '@/context/CurrencyContext';
 import { usePermission } from '@/hooks/usePermission';
@@ -15,13 +17,13 @@ export default function CreateLeadPage() {
     const { currency } = useCurrency();
     const { can, user } = usePermission();
     const [loading, setLoading] = useState(false);
+    const [activeTab, setActiveTab] = useState('identity');
 
-    // Page Level Security - Same pattern as Employee module
+    // Page Level Security
     if (user && !can('Lead', 'create')) {
         return <AccessDenied />;
     }
 
-    // Exact state as LeadFormModal
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -43,7 +45,6 @@ export default function CreateLeadPage() {
         e.preventDefault();
         setLoading(true);
 
-        // Exact payload transformation as LeadFormModal
         const payload = {
             ...formData,
             tags: formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag !== ''),
@@ -52,195 +53,273 @@ export default function CreateLeadPage() {
 
         try {
             await api.post('/leads', payload);
-            toast.success('Lead created successfully');
-            router.push('/leads');
+            toast.success('Opportunity committed to registry');
+            router.push('/leads/list');
         } catch (error: any) {
-            console.error('Error creating lead', error);
-            toast.error(error.response?.data?.error || 'Failed to create lead');
+            toast.error(error.response?.data?.error || 'Acquisition protocol failed');
         } finally {
             setLoading(false);
         }
     };
 
+    const tabs = [
+        { id: 'identity', label: 'Prospect Identity', icon: <UserPlus size={14} /> },
+        { id: 'corporate', label: 'Corporate Entity', icon: <Globe size={14} /> },
+        { id: 'strategic', label: 'Strategic Parameters', icon: <BarChart3 size={14} /> },
+        { id: 'intel', label: 'Intelligence', icon: <Activity size={14} /> }
+    ];
+
     return (
-        <div className="max-w-3xl mx-auto px-4 py-8">
-            <h1 className="text-2xl font-bold mb-6">Create New Lead</h1>
-
-            <form onSubmit={handleSubmit} className="bg-white shadow px-4 py-5 sm:rounded-lg sm:p-6 space-y-6">
-                {/* Basic Info */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <label htmlFor="name" className="block text-sm font-medium text-gray-700">Name *</label>
-                        <input
-                            type="text"
-                            id="name"
-                            required
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                            value={formData.name}
-                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        />
+        <div className="space-y-6 max-w-5xl mx-auto pb-20">
+            {/* Header */}
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-5 rounded-lg border border-gray-200 shadow-sm gap-4">
+                <div className="flex items-center gap-4">
+                    <div className="p-3 bg-primary-900 rounded-lg shadow-lg">
+                        <UserPlus className="w-6 h-6 text-white" />
                     </div>
                     <div>
-                        <label htmlFor="jobTitle" className="block text-sm font-medium text-gray-700">Job Title</label>
-                        <input
-                            type="text"
-                            id="jobTitle"
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                            value={formData.jobTitle}
-                            onChange={(e) => setFormData({ ...formData, jobTitle: e.target.value })}
-                        />
+                        <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none uppercase">Acquire New Opportunity</h2>
+                        <p className="text-[10px] text-gray-500 font-bold mt-1.5 uppercase tracking-widest flex items-center gap-2">
+                            Revenue Pipeline <ChevronRight size={10} className="text-primary-600" /> Lead Acquisition Protocol
+                        </p>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
-                        <input
-                            type="email"
-                            id="email"
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                            value={formData.email}
-                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        />
-                    </div>
-                    <div>
-                        <label htmlFor="phone" className="block text-sm font-medium text-gray-700">Phone</label>
-                        <input
-                            type="tel"
-                            id="phone"
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                            value={formData.phone}
-                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                        />
-                    </div>
-                </div>
-
-                {/* Company Info */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <label htmlFor="company" className="block text-sm font-medium text-gray-700">Company</label>
-                        <input
-                            type="text"
-                            id="company"
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                            value={formData.company}
-                            onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                        />
-                    </div>
-                    <div>
-                        <label htmlFor="website" className="block text-sm font-medium text-gray-700">Website</label>
-                        <input
-                            type="url"
-                            id="website"
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                            value={formData.website}
-                            onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                        />
-                    </div>
-                </div>
-
-                {/* Lead Details */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <label htmlFor="priority" className="block text-sm font-medium text-gray-700">Priority</label>
-                        <select
-                            id="priority"
-                            className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md capitalize"
-                            value={formData.priority}
-                            onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-                        >
-                            <option value="low">Low</option>
-                            <option value="medium">Medium</option>
-                            <option value="high">High</option>
-                            <option value="urgent">Urgent</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label htmlFor="value" className="block text-sm font-medium text-gray-700">Estimated Value ({currency})</label>
-                        <input
-                            type="number"
-                            id="value"
-                            min="0"
-                            step="0.01"
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                            value={formData.value}
-                            onChange={(e) => setFormData({ ...formData, value: e.target.value })}
-                        />
-                    </div>
-                </div>
-
-                {/* Source */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <label htmlFor="source" className="block text-sm font-medium text-gray-700">Source</label>
-                        <select
-                            id="source"
-                            className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
-                            value={formData.source}
-                            onChange={(e) => setFormData({ ...formData, source: e.target.value })}
-                        >
-                            <option value="website">Website</option>
-                            <option value="referral">Referral</option>
-                            <option value="linkedin">LinkedIn</option>
-                            <option value="cold_call">Cold Call</option>
-                            <option value="social_media">Social Media</option>
-                            <option value="other">Other</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label htmlFor="sourceDetails" className="block text-sm font-medium text-gray-700">Source Details</label>
-                        <input
-                            type="text"
-                            id="sourceDetails"
-                            placeholder="e.g. Campaign Name"
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                            value={formData.sourceDetails}
-                            onChange={(e) => setFormData({ ...formData, sourceDetails: e.target.value })}
-                        />
-                    </div>
-                </div>
-
-                {/* Notes & Tags */}
-                <div>
-                    <label htmlFor="notes" className="block text-sm font-medium text-gray-700">Notes</label>
-                    <textarea
-                        id="notes"
-                        rows={3}
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                        value={formData.notes}
-                        onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    />
-                </div>
-
-                <div>
-                    <label htmlFor="tags" className="block text-sm font-medium text-gray-700">Tags (comma separated)</label>
-                    <input
-                        type="text"
-                        id="tags"
-                        placeholder="e.g. tech, important, q1"
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                        value={formData.tags}
-                        onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-                    />
-                </div>
-
-                <div className="flex justify-end space-x-3 pt-4 border-t border-gray-100">
-                    <button
-                        type="button"
-                        onClick={() => router.back()}
-                        className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                <div className="flex items-center gap-3">
+                    <Link
+                        href="/leads/list"
+                        className="px-4 py-2 text-gray-400 hover:text-gray-600 font-black text-[10px] uppercase tracking-widest flex items-center gap-2 transition-all"
                     >
-                        Cancel
-                    </button>
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-50"
-                    >
-                        {loading ? 'Creating...' : 'Create Lead'}
-                    </button>
+                        <ArrowLeft size={14} /> Abort Protocol
+                    </Link>
                 </div>
-            </form>
+            </div>
+
+            <div className="ent-card overflow-hidden">
+                <div className="border-b border-gray-100 bg-gray-50/50">
+                    <nav className="flex overflow-x-auto no-scrollbar">
+                        {tabs.map((tab) => (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`
+                                    flex items-center gap-2 py-4 px-6 border-b-2 font-black text-[10px] uppercase tracking-[0.15em] transition-all whitespace-nowrap
+                                    ${activeTab === tab.id
+                                        ? 'border-primary-600 text-primary-600 bg-white shadow-[0_-4px_10px_-4px_rgba(0,0,0,0.05)]'
+                                        : 'border-transparent text-gray-400 hover:text-gray-600 hover:bg-gray-100/50'}
+                                `}
+                            >
+                                {tab.icon}
+                                {tab.label}
+                            </button>
+                        ))}
+                    </nav>
+                </div>
+
+                <form onSubmit={handleSubmit} className="p-8">
+                    {/* Tab Content: Identity */}
+                    {activeTab === 'identity' && (
+                        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="ent-form-group">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Prospect Full Name <span className="text-rose-500">*</span></label>
+                                    <input
+                                        type="text"
+                                        required
+                                        className="ent-input w-full"
+                                        placeholder="EX: NATHAN DRAKE"
+                                        value={formData.name}
+                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                    />
+                                </div>
+                                <div className="ent-form-group">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Professional Designation</label>
+                                    <input
+                                        type="text"
+                                        className="ent-input w-full"
+                                        placeholder="EX: CHIEF ACQUISITION OFFICER"
+                                        value={formData.jobTitle}
+                                        onChange={(e) => setFormData({ ...formData, jobTitle: e.target.value })}
+                                    />
+                                </div>
+                                <div className="ent-form-group">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Contact Protocol (Email)</label>
+                                    <input
+                                        type="email"
+                                        className="ent-input w-full"
+                                        placeholder="EX: NATHAN@UNCHARTERED.COM"
+                                        value={formData.email}
+                                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                    />
+                                </div>
+                                <div className="ent-form-group">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Contact Protocol (Phone)</label>
+                                    <input
+                                        type="tel"
+                                        className="ent-input w-full"
+                                        placeholder="EX: +1 (555) 000-0000"
+                                        value={formData.phone}
+                                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Tab Content: Corporate */}
+                    {activeTab === 'corporate' && (
+                        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="ent-form-group">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Corporate Legal Entity</label>
+                                    <input
+                                        type="text"
+                                        className="ent-input w-full"
+                                        placeholder="EX: ABSTERGO INDUSTRIES"
+                                        value={formData.company}
+                                        onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                                    />
+                                </div>
+                                <div className="ent-form-group">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Digital Presence (URL)</label>
+                                    <input
+                                        type="url"
+                                        className="ent-input w-full"
+                                        placeholder="EX: HTTPS://WWW.ABSTERGO.COM"
+                                        value={formData.website}
+                                        onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                                    />
+                                </div>
+                                <div className="ent-form-group">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Industrial Vertical</label>
+                                    <input
+                                        type="text"
+                                        className="ent-input w-full"
+                                        placeholder="EX: AEROSPACE & DEFENSE"
+                                        value={formData.industry}
+                                        onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Tab Content: Strategic */}
+                    {activeTab === 'strategic' && (
+                        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="ent-form-group">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Criticality Level (Priority)</label>
+                                    <select
+                                        className="ent-input w-full"
+                                        value={formData.priority}
+                                        onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
+                                    >
+                                        <option value="low">LOW PRIORITY</option>
+                                        <option value="medium">STANDARD PROTOCOL</option>
+                                        <option value="high">HIGH CRITICALITY</option>
+                                        <option value="urgent">URGENT INTERVENTION</option>
+                                    </select>
+                                </div>
+                                <div className="ent-form-group">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Strategic Valuation ({currency})</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        className="ent-input w-full bg-emerald-50/30 border-emerald-100 font-bold text-emerald-900"
+                                        value={formData.value}
+                                        onChange={(e) => setFormData({ ...formData, value: e.target.value })}
+                                    />
+                                </div>
+                                <div className="ent-form-group">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Inbound Protocol (Source)</label>
+                                    <select
+                                        className="ent-input w-full"
+                                        value={formData.source}
+                                        onChange={(e) => setFormData({ ...formData, source: e.target.value })}
+                                    >
+                                        <option value="website">DIRECT WEB PORTAL</option>
+                                        <option value="referral">TRUSTED REFERRAL</option>
+                                        <option value="linkedin">LINKEDIN INTELLIGENCE</option>
+                                        <option value="cold_call">OUTBOUND COLD PROTOCOL</option>
+                                        <option value="social_media">SOCIAL ARCHIVAL</option>
+                                        <option value="other">MISCELLANEOUS DELEGATION</option>
+                                    </select>
+                                </div>
+                                <div className="ent-form-group">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Source Specification</label>
+                                    <input
+                                        type="text"
+                                        className="ent-input w-full"
+                                        placeholder="EX: Q3 CAMPAIGN - OMEGA"
+                                        value={formData.sourceDetails}
+                                        onChange={(e) => setFormData({ ...formData, sourceDetails: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Tab Content: Intel */}
+                    {activeTab === 'intel' && (
+                        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                            <div className="ent-form-group">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Intelligence Notes (Contextual Data)</label>
+                                <textarea
+                                    className="ent-input w-full min-h-[120px] resize-none"
+                                    placeholder="COLLECT RELEVANT CONTEXT, MEETING TRANSCRIPTS, OR STRATEGIC INTEL..."
+                                    value={formData.notes}
+                                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                                />
+                            </div>
+                            <div className="ent-form-group">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Categorical Tags (Internal Routing)</label>
+                                <div className="relative">
+                                    <Tag className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+                                    <input
+                                        type="text"
+                                        className="ent-input w-full pl-10"
+                                        placeholder="EX: TECH, PRIORITY_A1, ENTERPRISE (COMMA SEPARATED)"
+                                        value={formData.tags}
+                                        onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Navigation Actions */}
+                    <div className="flex justify-between items-center pt-8 border-t border-gray-100 mt-10">
+                        <div className="flex items-center gap-3">
+                            <Link href="/leads/list" className="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-rose-600 transition-colors">Terminate Operation</Link>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                            {activeTab !== 'intel' ? (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const currIdx = tabs.findIndex(t => t.id === activeTab);
+                                        if (currIdx < tabs.length - 1) setActiveTab(tabs[currIdx + 1].id);
+                                    }}
+                                    className="px-6 py-2.5 bg-gray-900 text-white rounded text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all flex items-center gap-2 shadow-lg shadow-gray-900/10"
+                                >
+                                    Next Phase <ChevronRight size={14} />
+                                </button>
+                            ) : (
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="px-8 py-2.5 bg-primary-900 text-white rounded text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all flex items-center gap-2 shadow-xl shadow-primary-900/10 disabled:opacity-50"
+                                >
+                                    {loading ? 'SYNCHRONIZING...' : 'Commit to Registry'}
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </form>
+            </div>
         </div>
     );
 }

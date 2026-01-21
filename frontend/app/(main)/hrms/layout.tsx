@@ -14,8 +14,6 @@ export default function HRMSLayout({
 
     return (
         <div className="px-4 py-6 sm:px-0">
-            <h1 className="text-2xl font-bold text-gray-900 mb-6">Human Resource Management</h1>
-
             <div className="mt-6">
                 <Suspense fallback={<div>Loading...</div>}>
                     {children}

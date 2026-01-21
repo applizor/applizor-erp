@@ -2,12 +2,12 @@
 
 import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
-
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
 import { usePermission } from '@/hooks/usePermission';
 import { PermissionGuard } from '@/components/PermissionGuard';
 import AccessDenied from '@/components/AccessDenied';
+import { Plus, Trash2, Clock, Calendar, Users, Settings2, Activity, X, Edit2 } from 'lucide-react';
 
 interface Shift {
     id: string;
@@ -29,11 +29,6 @@ export default function ShiftsPage() {
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
-
-    // Page Level Security
-    if (user && !can('Shift', 'read')) {
-        return <AccessDenied />;
-    }
 
     const [currentShift, setCurrentShift] = useState<Partial<Shift>>({
         name: '',
@@ -79,8 +74,10 @@ export default function ShiftsPage() {
         try {
             if (isEditing && currentShift.id) {
                 await api.put(`/shifts/${currentShift.id}`, currentShift);
+                toast.success('Shift updated successfully');
             } else {
                 await api.post('/shifts', currentShift);
+                toast.success('Shift created successfully');
             }
             setShowModal(false);
             resetForm();
@@ -89,16 +86,16 @@ export default function ShiftsPage() {
             console.error('Save error:', error);
             const msg = error.response?.data?.error || 'Failed to save shift';
             setError(msg);
-            // Also show valid alert for modal context if needed, but better to show in modal
             toast.error(msg);
         }
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm('Are you sure? This will remove the shift from the system.')) return;
+        if (!confirm('Are you sure you want to delete this shift? This action cannot be undone.')) return;
         try {
             await api.delete(`/shifts/${id}`);
             loadShifts();
+            toast.success('Shift deleted');
         } catch (error: any) {
             toast.error(error.response?.data?.error || 'Failed to delete shift');
         }
@@ -123,194 +120,234 @@ export default function ShiftsPage() {
         setShowModal(true);
     };
 
+    if (user && !can('Shift', 'read')) {
+        return <AccessDenied />;
+    }
+
+    if (loading) return <LoadingSpinner />;
+
     return (
-        <div>
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-lg font-medium text-gray-900">Shift Management</h2>
+        <div className="space-y-4">
+            <div className="flex justify-between items-center bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                <div>
+                    <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                        <Clock className="w-5 h-5 text-primary-600" />
+                        Shift Configuration Matrix
+                    </h2>
+                    <p className="text-xs text-gray-500">Define and manage operational work patterns</p>
+                </div>
+
                 <PermissionGuard module="Shift" action="create">
                     <button
                         onClick={() => { resetForm(); setShowModal(true); }}
-                        className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 text-sm"
+                        className="flex items-center gap-2 bg-primary-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-primary-700 transition-colors shadow-sm"
                     >
-                        + Add Shift
+                        <Plus className="w-4 h-4" />
+                        Add Shift
                     </button>
                 </PermissionGuard>
             </div>
 
             {error && (
-                <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative" role="alert">
-                    <strong className="font-bold">Error: </strong>
-                    <span className="block sm:inline">{error}</span>
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2.5 rounded text-xs font-bold flex items-center gap-2" role="alert">
+                    <Activity className="w-4 h-4" />
+                    {error}
                 </div>
             )}
 
-            {loading ? (
-                <div className="space-y-4">
-                    {[1, 2, 3].map(i => (
-                        <div key={i} className="bg-white p-4 rounded-md shadow animate-pulse flex justify-between">
-                            <div className="space-y-2">
-                                <div className="h-4 bg-gray-200 rounded w-32"></div>
-                                <div className="h-3 bg-gray-100 rounded w-48"></div>
-                            </div>
-                            <div className="h-8 bg-gray-200 rounded w-20"></div>
-                        </div>
-                    ))}
-                </div>
-            ) : (
-                <div className="bg-white shadow overflow-hidden sm:rounded-md">
-                    <ul className="divide-y divide-gray-200">
-                        {shifts.map((shift) => (
-                            <li key={shift.id} className="px-6 py-4 hover:bg-gray-50 flex justify-between items-center">
-                                <div>
-                                    <div className="flex items-center space-x-2">
-                                        <h3 className="text-md font-medium text-gray-900">{shift.name}</h3>
-                                        {shift.isActive ? (
-                                            <span className="px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-800">Active</span>
-                                        ) : (
-                                            <span className="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-800">Inactive</span>
-                                        )}
-                                    </div>
-                                    <p className="text-sm text-gray-500 mt-1">
-                                        {shift.startTime} - {shift.endTime} • {shift.breakDuration} mins break
-                                    </p>
-                                    <div className="flex flex-wrap gap-1 mt-2">
-                                        {daysOfWeek.map(day => (
-                                            <span
-                                                key={day.id}
-                                                className={`text-[10px] px-1.5 py-0.5 rounded uppercase font-bold ${shift.workDays?.includes(day.id)
-                                                    ? 'bg-primary-50 text-primary-700 border border-primary-200'
-                                                    : 'bg-gray-50 text-gray-400 border border-gray-100'
-                                                    }`}
-                                            >
-                                                {day.label}
-                                            </span>
-                                        ))}
-                                    </div>
-                                    <p className="text-xs text-gray-400 mt-1">
-                                        Assigned to {shift._count?.employees || 0} employees
-                                    </p>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {shifts.map((shift) => (
+                    <div key={shift.id} className="ent-card group hover:border-primary-300 transition-all flex flex-col justify-between">
+                        <div>
+                            <div className="flex justify-between items-start">
+                                <div className="flex items-center gap-2">
+                                    <h3 className="text-sm font-bold text-gray-900">{shift.name}</h3>
+                                    <span className={`ent-badge ${shift.isActive ? 'bg-green-50 text-green-700 border-green-200' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>
+                                        {shift.isActive ? 'Active' : 'Archived'}
+                                    </span>
                                 </div>
-                                <div className="flex space-x-2">
+                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <PermissionGuard module="Shift" action="update">
-                                        <button onClick={() => handleEdit(shift)} className="text-primary-600 hover:text-primary-900 text-sm">Edit</button>
+                                        <button
+                                            onClick={() => handleEdit(shift)}
+                                            title="Edit"
+                                            className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded transition-colors"
+                                        >
+                                            <Edit2 className="w-3.5 h-3.5" />
+                                        </button>
                                     </PermissionGuard>
                                     <PermissionGuard module="Shift" action="delete">
-                                        <button onClick={() => handleDelete(shift.id)} className="text-red-600 hover:text-red-900 text-sm">Delete</button>
+                                        <button
+                                            onClick={() => handleDelete(shift.id)}
+                                            title="Delete"
+                                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                        >
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
                                     </PermissionGuard>
                                 </div>
-                            </li>
-                        ))}
-                        {shifts.length === 0 && (
-                            <li className="px-6 py-8 text-center text-gray-500">
-                                No shifts defined. Create a shift (e.g. "General Shift") to get started.
-                            </li>
-                        )}
-                    </ul>
-                </div>
-            )}
+                            </div>
+
+                            <div className="mt-3 grid grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none">Timing</p>
+                                    <p className="text-sm font-black text-primary-700">
+                                        {shift.startTime} <span className="text-gray-400 font-medium">—</span> {shift.endTime}
+                                    </p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none">Break</p>
+                                    <p className="text-sm font-bold text-gray-700">{shift.breakDuration} mins</p>
+                                </div>
+                            </div>
+
+                            <div className="mt-4 flex flex-wrap gap-1">
+                                {daysOfWeek.map(day => (
+                                    <span
+                                        key={day.id}
+                                        className={`text-[9px] px-1.5 py-0.5 rounded font-black uppercase tracking-tighter border ${shift.workDays?.includes(day.id)
+                                            ? 'bg-slate-800 text-white border-slate-800'
+                                            : 'bg-gray-50 text-gray-300 border-gray-100'
+                                            }`}
+                                    >
+                                        {day.label}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-[10px] font-bold text-gray-500 uppercase tracking-wide">
+                            <span className="flex items-center gap-1">
+                                <Users className="w-3 h-3" />
+                                {shift._count?.employees || 0} Members Assigned
+                            </span>
+                            <span className="text-gray-300">ID: {shift.id.slice(0, 8)}</span>
+                        </div>
+                    </div>
+                ))}
+
+                {shifts.length === 0 && (
+                    <div className="col-span-full py-20 text-center bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                        <Settings2 className="w-12 h-12 text-gray-200 mx-auto mb-3" />
+                        <h4 className="text-sm font-bold text-gray-900">No shift protocols defined</h4>
+                        <p className="text-xs text-gray-500 mt-1 max-w-xs mx-auto">Create your first operational shift (e.g. Day Shift) to begin workforce scheduling.</p>
+                    </div>
+                )}
+            </div>
 
             {showModal && (
-                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-                    <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-                        <div className="p-6">
-                            <h3 className="text-lg font-bold mb-4">{isEditing ? 'Edit Shift' : 'Add Shift'}</h3>
-                            <form onSubmit={handleSubmit} className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">Shift Name *</label>
+                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl shadow-2xl max-w-md w-full border border-gray-200 overflow-hidden">
+                        <div className="flex justify-between items-center p-4 bg-gray-50 border-b border-gray-200">
+                            <div>
+                                <h3 className="text-base font-bold text-gray-900">{isEditing ? 'Modify Shift' : 'New Shift Protocol'}</h3>
+                                <p className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold">Operational Configuration</p>
+                            </div>
+                            <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 p-1 hover:bg-gray-100 rounded-full transition-colors">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+                            <div className="ent-form-group">
+                                <label className="text-xs font-bold text-gray-700 uppercase mb-1.5 block">Shift Label</label>
+                                <input
+                                    type="text"
+                                    required
+                                    placeholder="e.g. Morning Operational Shift"
+                                    value={currentShift.name}
+                                    onChange={(e) => setCurrentShift({ ...currentShift, name: e.target.value })}
+                                    className="ent-input"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="ent-form-group">
+                                    <label className="text-xs font-bold text-gray-700 uppercase mb-1.5 block">Start Time</label>
                                     <input
-                                        type="text"
+                                        type="time"
                                         required
-                                        placeholder="e.g. Morning Shift"
-                                        value={currentShift.name}
-                                        onChange={(e) => setCurrentShift({ ...currentShift, name: e.target.value })}
-                                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                                        value={currentShift.startTime}
+                                        onChange={(e) => setCurrentShift({ ...currentShift, startTime: e.target.value })}
+                                        className="ent-input"
                                     />
                                 </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700">Start Time *</label>
-                                        <input
-                                            type="time"
-                                            required
-                                            value={currentShift.startTime}
-                                            onChange={(e) => setCurrentShift({ ...currentShift, startTime: e.target.value })}
-                                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700">End Time *</label>
-                                        <input
-                                            type="time"
-                                            required
-                                            value={currentShift.endTime}
-                                            onChange={(e) => setCurrentShift({ ...currentShift, endTime: e.target.value })}
-                                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
-                                        />
-                                    </div>
+                                <div className="ent-form-group">
+                                    <label className="text-xs font-bold text-gray-700 uppercase mb-1.5 block">End Time</label>
+                                    <input
+                                        type="time"
+                                        required
+                                        value={currentShift.endTime}
+                                        onChange={(e) => setCurrentShift({ ...currentShift, endTime: e.target.value })}
+                                        className="ent-input"
+                                    />
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">Break Duration (mins)</label>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="ent-form-group">
+                                    <label className="text-xs font-bold text-gray-700 uppercase mb-1.5 block">Break (Mins)</label>
                                     <input
                                         type="number"
                                         min="0"
                                         value={currentShift.breakDuration}
                                         onChange={(e) => setCurrentShift({ ...currentShift, breakDuration: parseInt(e.target.value) })}
-                                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                                        className="ent-input"
                                     />
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">Work Days</label>
-                                    <div className="flex flex-wrap gap-2">
-                                        {daysOfWeek.map(day => (
-                                            <button
-                                                type="button"
-                                                key={day.id}
-                                                onClick={() => {
-                                                    const current = currentShift.workDays || [];
-                                                    const updated = current.includes(day.id)
-                                                        ? current.filter(d => d !== day.id)
-                                                        : [...current, day.id];
-                                                    setCurrentShift({ ...currentShift, workDays: updated });
-                                                }}
-                                                className={`px-3 py-1 rounded text-xs border ${currentShift.workDays?.includes(day.id)
-                                                    ? 'bg-primary-600 text-white border-primary-600'
-                                                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                                                    }`}
-                                            >
-                                                {day.label}
-                                            </button>
-                                        ))}
-                                    </div>
+                                <div className="flex flex-col justify-end pb-3">
+                                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                                        <input
+                                            type="checkbox"
+                                            checked={currentShift.isActive}
+                                            onChange={(e) => setCurrentShift({ ...currentShift, isActive: e.target.checked })}
+                                            className="h-4 w-4 border-gray-300 text-primary-600 focus:ring-primary-500 rounded"
+                                        />
+                                        <span className="text-xs font-bold text-gray-700 uppercase">Is Active</span>
+                                    </label>
                                 </div>
+                            </div>
 
-                                <div className="flex items-center mt-2">
-                                    <input
-                                        type="checkbox"
-                                        id="active-check"
-                                        checked={currentShift.isActive}
-                                        onChange={(e) => setCurrentShift({ ...currentShift, isActive: e.target.checked })}
-                                        className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                                    />
-                                    <label htmlFor="active-check" className="ml-2 block text-sm text-gray-900">Active</label>
+                            <div className="ent-form-group">
+                                <label className="text-xs font-bold text-gray-700 uppercase mb-2 block">Active Workdays</label>
+                                <div className="flex flex-wrap gap-1.5">
+                                    {daysOfWeek.map(day => (
+                                        <button
+                                            type="button"
+                                            key={day.id}
+                                            onClick={() => {
+                                                const current = currentShift.workDays || [];
+                                                const updated = current.includes(day.id)
+                                                    ? current.filter(d => d !== day.id)
+                                                    : [...current, day.id];
+                                                setCurrentShift({ ...currentShift, workDays: updated });
+                                            }}
+                                            className={`px-2.5 py-1 rounded text-[10px] font-black uppercase transition-all ${currentShift.workDays?.includes(day.id)
+                                                ? 'bg-slate-800 text-white border-transparent shadow-md'
+                                                : 'bg-white text-gray-400 border border-gray-200 hover:border-gray-400'
+                                                }`}
+                                        >
+                                            {day.label}
+                                        </button>
+                                    ))}
                                 </div>
+                            </div>
 
-                                <div className="flex justify-end space-x-3 mt-6">
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowModal(false)}
-                                        className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        className="bg-primary-600 py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-primary-700"
-                                    >
-                                        {isEditing ? 'Save Changes' : 'Create Shift'}
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
+                            <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 mt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowModal(false)}
+                                    className="px-4 py-2 text-sm font-bold text-gray-600 hover:bg-gray-50 rounded transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="bg-primary-600 text-white px-6 py-2 rounded text-sm font-bold hover:bg-primary-700 shadow-md transition-all active:scale-95"
+                                >
+                                    {isEditing ? 'Update Shift' : 'Create Protocol'}
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}

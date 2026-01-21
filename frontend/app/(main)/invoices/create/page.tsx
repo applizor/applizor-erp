@@ -6,7 +6,7 @@ import { useToast } from '@/hooks/useToast';
 import { clientsApi } from '@/lib/api/clients';
 import { invoicesApi } from '@/lib/api/invoices';
 import { InvoiceForm } from '@/components/invoices/InvoiceForm';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Receipt, FileText } from 'lucide-react';
 import Link from 'next/link';
 
 export default function CreateInvoicePage() {
@@ -26,7 +26,7 @@ export default function CreateInvoicePage() {
             setClients(response.clients || []);
         } catch (error) {
             console.error('Failed to load clients');
-            toast.error('Could not load clients list');
+            toast.error('Could not load client registry');
         } finally {
             setFetchingClients(false);
         }
@@ -36,41 +36,44 @@ export default function CreateInvoicePage() {
         setLoading(true);
         try {
             await invoicesApi.create(values);
-            toast.success(`${values.type === 'quotation' ? 'Quotation' : 'Invoice'} created successfully!`);
+            toast.success(`${values.type === 'quotation' ? 'Quotation' : 'Invoice'} committed to registry.`);
             router.push('/invoices');
             router.refresh();
         } catch (error: any) {
-            toast.error(error.response?.data?.error || 'Failed to create document');
+            toast.error(error.response?.data?.error || 'Transaction commitment failed');
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="min-h-screen bg-gray-50/50 pb-20">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
-                {/* Header Section */}
-                <div className="mb-8">
+        <div className="space-y-6">
+            {/* Contextual Navigation */}
+            <div className="flex justify-between items-center bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                <div className="flex items-center gap-4">
                     <Link
                         href="/invoices"
-                        className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-primary-600 transition-colors mb-4 group"
+                        className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400 hover:text-gray-900"
+                        title="Return to Ledger"
                     >
-                        <ArrowLeft size={16} className="mr-2 group-hover:-translate-x-1 transition-transform" />
-                        Back to Invoices
+                        <ArrowLeft size={18} />
                     </Link>
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div>
-                            <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Create New Document</h1>
-                            <p className="mt-1 text-sm text-gray-500">Draft professional invoices and quotations for your clients</p>
-                        </div>
+                    <div>
+                        <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2 leading-none">
+                            <Receipt className="w-5 h-5 text-primary-600" />
+                            Document Generation
+                        </h2>
+                        <p className="text-xs text-gray-500 font-medium mt-1">Initiating new commercial transaction record</p>
                     </div>
                 </div>
+            </div>
 
-                {/* Form Section */}
+            {/* Principal Interface */}
+            <div className="ent-card p-6">
                 {fetchingClients ? (
-                    <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-gray-100 shadow-sm">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-                        <p className="mt-4 text-gray-500 font-medium">Loading dependencies...</p>
+                    <div className="flex flex-col items-center justify-center py-24 bg-gray-50/30 rounded-lg border border-dashed border-gray-200">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+                        <p className="mt-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Synchronizing dependency data...</p>
                     </div>
                 ) : (
                     <InvoiceForm clients={clients} onSubmit={handleSubmit} loading={loading} />

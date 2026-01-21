@@ -2,7 +2,8 @@
 
 import { useToast } from '@/hooks/useToast';
 import { useState, useEffect } from 'react';
-import { Building, MapPin, Globe, CreditCard, Save } from 'lucide-react';
+import { Building, MapPin, Globe, CreditCard, Save, Upload, Loader2, Link as LinkIcon, Phone, Mail } from 'lucide-react';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
 export default function CompanySettingsPage() {
     const toast = useToast();
@@ -11,6 +12,7 @@ export default function CompanySettingsPage() {
     const [logoFile, setLogoFile] = useState<File | null>(null);
     const [logoPreview, setLogoPreview] = useState<string | null>(null);
     const [uploadingLogo, setUploadingLogo] = useState(false);
+    const [saving, setSaving] = useState(false);
 
     // Helper to get base URL (without /api)
     const getBaseUrl = () => {
@@ -84,6 +86,7 @@ export default function CompanySettingsPage() {
 
     const handleUpdateProfile = async (e: React.FormEvent) => {
         e.preventDefault();
+        setSaving(true);
         try {
             const token = localStorage.getItem('token');
             const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/company`, {
@@ -102,52 +105,78 @@ export default function CompanySettingsPage() {
         } catch (error) {
             console.error(error);
             toast.error('An error occurred while saving');
+        } finally {
+            setSaving(false);
         }
     };
 
     if (loading) return (
-        <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+        <div className="flex flex-col justify-center items-center h-96">
+            <LoadingSpinner size="lg" />
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-4">Loading Configuration...</p>
         </div>
     );
 
-    if (!company) return <div className="p-8 text-center text-gray-500">Company not found.</div>;
+    if (!company) return <div className="p-20 text-center font-black text-gray-400 uppercase tracking-widest">Company Protocol Not Found</div>;
 
     return (
-        <div className="max-w-5xl mx-auto px-4 py-8">
-            <h1 className="text-3xl font-bold mb-8 text-gray-900 border-b pb-4">Company Settings</h1>
+        <div className="max-w-7xl mx-auto pb-20 space-y-6">
+            <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div className="flex items-center gap-4">
+                    <div className="p-3 bg-indigo-900 rounded-lg shadow-lg">
+                        <Building className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                        <h1 className="text-xl font-black text-gray-900 tracking-tight leading-none uppercase">Company Identity</h1>
+                        <p className="text-[10px] text-gray-500 font-bold mt-1.5 uppercase tracking-widest flex items-center gap-2">
+                            System Configuration & branding
+                        </p>
+                    </div>
+                </div>
+                <button
+                    onClick={handleUpdateProfile}
+                    disabled={saving}
+                    className="px-5 py-2.5 bg-gray-900 text-white rounded text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all flex items-center gap-2 shadow-xl shadow-gray-900/10 active:scale-95 disabled:opacity-50"
+                >
+                    {saving ? <Loader2 className="animate-spin w-4 h-4" /> : <Save className="w-4 h-4" />}
+                    {saving ? 'Synchronizing...' : 'Save Configuration'}
+                </button>
+            </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Left Column: Logo & Basic Info */}
                 <div className="lg:col-span-1 space-y-6">
                     {/* Logo Card */}
-                    <div className="bg-white shadow rounded-lg p-6">
-                        <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                            <Building className="w-5 h-5 mr-2 text-gray-500" />
-                            Logo
+                    <div className="ent-card p-6">
+                        <h2 className="text-sm font-black text-gray-900 uppercase tracking-tight mb-4 flex items-center gap-2">
+                            <Upload className="w-4 h-4 text-gray-400" />
+                            Brand Assets
                         </h2>
 
                         <div className="flex flex-col items-center">
-                            <div className="h-32 w-32 border border-gray-200 rounded-lg overflow-hidden flex items-center justify-center bg-gray-50 mb-4">
+                            <div className="h-40 w-40 border-2 border-dashed border-gray-200 rounded-xl overflow-hidden flex items-center justify-center bg-gray-50 mb-6 relative group">
                                 {logoPreview ? (
-                                    <img src={logoPreview} alt="Company Logo" className="h-full w-full object-contain" />
+                                    <img src={logoPreview} alt="Company Logo" className="h-full w-full object-contain p-4" />
                                 ) : (
-                                    <span className="text-gray-400 text-sm">No Logo</span>
+                                    <span className="text-[10px] font-black text-gray-300 uppercase tracking-widest">No Asset</span>
                                 )}
+                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                                    <span className="text-[9px] font-black text-white uppercase tracking-widest">Change</span>
+                                </div>
                             </div>
 
-                            <label className="block w-full">
+                            <label className="block w-full mb-3">
                                 <span className="sr-only">Choose logo</span>
                                 <input
                                     type="file"
                                     accept="image/*"
                                     onChange={handleLogoChange}
-                                    className="block w-full text-sm text-gray-500
+                                    className="block w-full text-[10px] text-gray-500 font-bold uppercase
                                     file:mr-4 file:py-2 file:px-4
-                                    file:rounded-full file:border-0
-                                    file:text-sm file:font-semibold
-                                    file:bg-primary-50 file:text-primary-700
-                                    hover:file:bg-primary-100 cursor-pointer"
+                                    file:rounded file:border-0
+                                    file:text-[9px] file:font-black file:uppercase file:tracking-widest
+                                    file:bg-indigo-50 file:text-indigo-700
+                                    hover:file:bg-indigo-100 cursor-pointer"
                                 />
                             </label>
 
@@ -155,117 +184,128 @@ export default function CompanySettingsPage() {
                                 <button
                                     onClick={handleLogoUpload}
                                     disabled={uploadingLogo}
-                                    className="mt-4 w-full px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
+                                    className="w-full px-4 py-2 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded hover:bg-indigo-700 transition-all shadow-md active:scale-95 disabled:opacity-50"
                                 >
-                                    {uploadingLogo ? 'Uploading...' : 'Save Logo'}
+                                    {uploadingLogo ? 'Uploading...' : 'Confirm Upload'}
                                 </button>
                             )}
                         </div>
+                    </div>
+
+                    <div className="ent-card p-6 border-l-4 border-l-amber-400">
+                        <h2 className="text-sm font-black text-gray-900 uppercase tracking-tight mb-2">System Note</h2>
+                        <p className="text-[11px] text-gray-500 leading-relaxed">
+                            Changes made to the company profile will reflect across all modules, invoices, and payslips immediately. Ensure legal details are accurate for compliance.
+                        </p>
                     </div>
                 </div>
 
                 {/* Right Column: Details Form */}
                 <div className="lg:col-span-2">
-                    <form onSubmit={handleUpdateProfile} className="bg-white shadow rounded-lg overflow-hidden">
+                    <form onSubmit={handleUpdateProfile} className="space-y-6">
 
                         {/* Section 1: Basic Information */}
-                        <div className="p-6 border-b border-gray-200">
-                            <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                                <Building className="w-5 h-5 mr-2 text-gray-500" />
-                                Basic Information
+                        <div className="ent-card p-6">
+                            <h2 className="text-sm font-black text-gray-900 mb-6 flex items-center gap-2 uppercase tracking-tight border-b border-gray-100 pb-2">
+                                <Building className="w-4 h-4 text-indigo-600" />
+                                Organization Profile
                             </h2>
                             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">Display Name</label>
+                                <div className="ent-form-group">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Display Name</label>
                                     <input
                                         type="text"
                                         required
                                         value={company.name || ''}
                                         onChange={e => setCompany({ ...company, name: e.target.value })}
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                                        className="ent-input w-full font-bold"
                                     />
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">Legal Name</label>
+                                <div className="ent-form-group">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Legal Registered Name</label>
                                     <input
                                         type="text"
                                         value={company.legalName || ''}
                                         onChange={e => setCompany({ ...company, legalName: e.target.value })}
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                                        className="ent-input w-full"
                                     />
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">Email Address</label>
+                                <div className="ent-form-group">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block flex items-center gap-1">
+                                        <Mail size={10} /> Contact Email
+                                    </label>
                                     <input
                                         type="email"
                                         value={company.email || ''}
                                         onChange={e => setCompany({ ...company, email: e.target.value })}
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                                        className="ent-input w-full"
                                     />
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">Phone Number</label>
+                                <div className="ent-form-group">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block flex items-center gap-1">
+                                        <Phone size={10} /> Contact Phone
+                                    </label>
                                     <input
                                         type="text"
                                         value={company.phone || ''}
                                         onChange={e => setCompany({ ...company, phone: e.target.value })}
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                                        className="ent-input w-full"
                                     />
                                 </div>
                             </div>
                         </div>
 
                         {/* Section 2: Location */}
-                        <div className="p-6 border-b border-gray-200">
-                            <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                                <MapPin className="w-5 h-5 mr-2 text-gray-500" />
-                                Location
+                        <div className="ent-card p-6">
+                            <h2 className="text-sm font-black text-gray-900 mb-6 flex items-center gap-2 uppercase tracking-tight border-b border-gray-100 pb-2">
+                                <MapPin className="w-4 h-4 text-indigo-600" />
+                                Headquarters Location
                             </h2>
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">Address</label>
+                            <div className="space-y-6">
+                                <div className="ent-form-group">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Street Address</label>
                                     <textarea
                                         rows={2}
                                         value={company.address || ''}
                                         onChange={e => setCompany({ ...company, address: e.target.value })}
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                                        className="ent-input w-full resize-none"
                                     />
                                 </div>
-                                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700">City</label>
+                                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                                    <div className="ent-form-group">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">City / Metro</label>
                                         <input
                                             type="text"
                                             value={company.city || ''}
                                             onChange={e => setCompany({ ...company, city: e.target.value })}
-                                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                                            className="ent-input w-full"
                                         />
                                     </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700">State</label>
+                                    <div className="ent-form-group">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">State / Prov</label>
                                         <input
                                             type="text"
                                             value={company.state || ''}
                                             onChange={e => setCompany({ ...company, state: e.target.value })}
-                                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                                            className="ent-input w-full"
                                         />
                                     </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700">Pincode</label>
+                                    <div className="ent-form-group">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Postal Code</label>
                                         <input
                                             type="text"
                                             value={company.pincode || ''}
                                             onChange={e => setCompany({ ...company, pincode: e.target.value })}
-                                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                                            className="ent-input w-full"
                                         />
                                     </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700">Country</label>
+                                    <div className="ent-form-group">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Country</label>
                                         <input
                                             type="text"
                                             value={company.country || 'India'}
                                             onChange={e => setCompany({ ...company, country: e.target.value })}
-                                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                                            className="ent-input w-full"
                                         />
                                     </div>
                                 </div>
@@ -273,67 +313,56 @@ export default function CompanySettingsPage() {
                         </div>
 
                         {/* Section 3: Business Details */}
-                        <div className="p-6">
-                            <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                                <Globe className="w-5 h-5 mr-2 text-gray-500" />
-                                Business Details
+                        <div className="ent-card p-6">
+                            <h2 className="text-sm font-black text-gray-900 mb-6 flex items-center gap-2 uppercase tracking-tight border-b border-gray-100 pb-2">
+                                <Globe className="w-4 h-4 text-indigo-600" />
+                                Fiscal & Statutory
                             </h2>
                             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">Currency</label>
-                                    <div className="mt-1 flex rounded-md shadow-sm">
-                                        <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 sm:text-sm">
-                                            <CreditCard className="h-4 w-4" />
-                                        </span>
+                                <div className="ent-form-group">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Base Currency</label>
+                                    <div className="relative">
+                                        <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
                                         <select
                                             value={company.currency || 'USD'}
                                             onChange={e => setCompany({ ...company, currency: e.target.value })}
-                                            className="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-r-md border border-gray-300 focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                                            className="ent-input w-full pl-9 appearance-none"
                                         >
                                             <option value="USD">USD ($) - US Dollar</option>
                                             <option value="INR">INR (₹) - Indian Rupee</option>
                                         </select>
                                     </div>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">GSTIN</label>
+                                <div className="ent-form-group">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">GSTIN / Tax ID</label>
                                     <input
                                         type="text"
                                         value={company.gstin || ''}
                                         onChange={e => setCompany({ ...company, gstin: e.target.value })}
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                                        className="ent-input w-full font-mono"
                                     />
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">PAN Number</label>
+                                <div className="ent-form-group">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">PAN Number</label>
                                     <input
                                         type="text"
                                         value={company.pan || ''}
                                         onChange={e => setCompany({ ...company, pan: e.target.value })}
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                                        className="ent-input w-full font-mono"
                                     />
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">TAN Number</label>
+                                <div className="ent-form-group">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">TAN Number</label>
                                     <input
                                         type="text"
                                         value={company.tan || ''}
                                         onChange={e => setCompany({ ...company, tan: e.target.value })}
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                                        className="ent-input w-full font-mono"
                                     />
                                 </div>
                             </div>
                         </div>
 
-                        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end">
-                            <button
-                                type="submit"
-                                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-                            >
-                                <Save className="w-4 h-4 mr-2" />
-                                Save Changes
-                            </button>
-                        </div>
                     </form>
                 </div>
             </div>

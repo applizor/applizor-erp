@@ -1,30 +1,35 @@
 import React from 'react';
 import Link from 'next/link';
-import { Users, Plus, FileText, Upload } from 'lucide-react';
+import { Users, Plus, Upload, Activity } from 'lucide-react';
 
 export function LeadEmptyState() {
     return (
-        <div className="text-center py-12 bg-white rounded-lg shadow-sm border-2 border-dashed border-gray-300">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary-100 mb-4">
-                <Users className="w-8 h-8 text-primary-600" />
+        <div className="ent-card p-12 flex flex-col items-center justify-center text-center border-2 border-dashed border-gray-200 bg-gray-50/50">
+            <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mb-6 border border-gray-100">
+                <Activity className="w-8 h-8 text-primary-200" />
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No leads yet</h3>
-            <p className="text-sm text-gray-500 mb-6 max-w-sm mx-auto">
-                Start building your sales pipeline by adding your first lead. Track prospects and convert them to clients.
+
+            <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-2">
+                Registry Empty
+            </h3>
+
+            <p className="text-[11px] text-gray-500 font-medium max-w-sm mx-auto mb-8 leading-relaxed uppercase tracking-wide">
+                The opportunity pipeline currently holds zero intelligence records. Initialize acquisition protocols to begin tracking.
             </p>
-            <div className="flex items-center justify-center gap-3">
+
+            <div className="flex items-center gap-3">
                 <Link
                     href="/leads/create"
-                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 transition-colors"
+                    className="flex items-center gap-2 px-5 py-2.5 bg-primary-900 text-white rounded text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-xl shadow-primary-900/10 active:scale-95"
                 >
-                    <Plus size={18} className="mr-2" />
-                    Add Your First Lead
+                    <Plus size={14} />
+                    Acquire Intelligence
                 </Link>
                 <button
-                    className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+                    className="flex items-center gap-2 px-5 py-2.5 bg-white text-gray-600 rounded text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 hover:text-gray-900 transition-all border border-gray-200 shadow-sm active:scale-95"
                 >
-                    <Upload size={18} className="mr-2" />
-                    Import Leads
+                    <Upload size={14} />
+                    Import Batch
                 </button>
             </div>
         </div>

@@ -16,9 +16,7 @@ export default function RecruitmentLayout({ children }: { children: React.ReactN
         <div className="min-h-screen bg-gray-50">
             <div className="bg-white shadow">
                 <div className="px-4 sm:px-6 lg:px-8">
-                    <div className="py-4">
-                        <h1 className="text-2xl font-bold text-gray-900">Recruitment & ATS</h1>
-                    </div>
+
                     <div className="border-b border-gray-200">
                         <nav className="-mb-px flex space-x-8" aria-label="Tabs">
                             {tabs.map((tab) => {

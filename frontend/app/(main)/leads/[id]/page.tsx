@@ -5,7 +5,8 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
     ArrowLeft, Edit, Trash2, Mail, Phone, Building2, Calendar,
-    DollarSign, UserPlus, Clock, CheckCircle, Plus, MessageSquare
+    DollarSign, UserPlus, Clock, CheckCircle, Plus, MessageSquare,
+    ChevronRight, Activity, Globe, Tag, FileText, TrendingUp, AlertCircle, X
 } from 'lucide-react';
 import api from '@/lib/api';
 import { useToast } from '@/hooks/useToast';
@@ -51,13 +52,10 @@ export default function LeadDetailPage() {
     const loadLead = async (id: string) => {
         try {
             const response = await api.get(`/leads/${id}`);
-            // Backend returns { lead: {...} }
             const leadData = response.data.lead || response.data;
-            console.log('Lead data:', leadData); // Debug
             setLead(leadData);
         } catch (error: any) {
-            console.error('Load lead error:', error);
-            toast.error(error.response?.data?.error || 'Failed to load lead');
+            toast.error(error.response?.data?.error || 'Intelligence retrieval failed');
             router.push('/leads/list');
         } finally {
             setLoading(false);
@@ -75,29 +73,27 @@ export default function LeadDetailPage() {
 
     const handleDelete = async () => {
         if (!lead) return;
-
         setDeleting(true);
         try {
             await api.delete(`/leads/${lead.id}`);
-            toast.success('Lead deleted successfully');
+            toast.success('Opportunity purged from registry');
             router.push('/leads/list');
         } catch (error: any) {
-            toast.error(error.response?.data?.error || 'Failed to delete lead');
+            toast.error(error.response?.data?.error || 'Purge protocol failed');
             setDeleting(false);
         }
     };
 
     const handleConvertToClient = async () => {
         if (!lead) return;
-
         setConvertDialog(false);
         setConverting(true);
         try {
             await api.post(`/leads/${lead.id}/convert-to-client`);
-            toast.success('Lead converted to client successfully');
+            toast.success('Opportunity upgraded to Client Registry');
             router.push('/clients');
         } catch (error: any) {
-            toast.error(error.response?.data?.error || 'Failed to convert lead');
+            toast.error(error.response?.data?.error || 'Conversion protocol failed');
         } finally {
             setConverting(false);
         }
@@ -113,13 +109,11 @@ export default function LeadDetailPage() {
         setSavingActivity(true);
         try {
             if (editingActivity) {
-                // Update existing activity
                 await api.put(`/leads/${lead.id}/activities/${editingActivity.id}`, activityForm);
-                toast.success('Activity updated successfully');
+                toast.success('Activity updated');
             } else {
-                // Create new activity
                 await api.post(`/leads/${lead.id}/activities`, activityForm);
-                toast.success('Activity added successfully');
+                toast.success('Activity recorded');
             }
 
             setShowActivityModal(false);
@@ -134,9 +128,9 @@ export default function LeadDetailPage() {
                 outcome: ''
             });
             loadActivities(lead.id);
-            loadLead(lead.id); // Refresh lead data for nextFollowUpAt
+            loadLead(lead.id);
         } catch (error: any) {
-            toast.error(error.response?.data?.error || `Failed to ${editingActivity ? 'update' : 'add'} activity`);
+            toast.error(error.response?.data?.error || `Protocol failed`);
         } finally {
             setSavingActivity(false);
         }
@@ -158,527 +152,350 @@ export default function LeadDetailPage() {
 
     const handleDeleteActivity = async (activityId: string) => {
         if (!confirm('Are you sure you want to delete this activity?')) return;
-
         try {
             await api.delete(`/leads/${lead.id}/activities/${activityId}`);
-            toast.success('Activity deleted successfully');
+            toast.success('Activity purged');
             loadActivities(lead.id);
         } catch (error: any) {
-            toast.error(error.response?.data?.error || 'Failed to delete activity');
+            toast.error(error.response?.data?.error || 'Purge failed');
         }
     };
 
     const handleCompleteActivity = async (activityId: string) => {
         const outcome = prompt('Enter outcome (optional):');
-
         try {
             await api.post(`/leads/${lead.id}/activities/${activityId}/complete`, { outcome });
-            toast.success('Activity marked as completed');
+            toast.success('Activity synchronized');
             loadActivities(lead.id);
-            loadLead(lead.id); // Refresh for lastContactedAt
+            loadLead(lead.id);
         } catch (error: any) {
-            toast.error(error.response?.data?.error || 'Failed to complete activity');
+            toast.error(error.response?.data?.error || 'Synchronization failed');
         }
-    };
-
-    const handleCloseModal = () => {
-        setShowActivityModal(false);
-        setEditingActivity(null);
-        setActivityForm({
-            type: 'call',
-            title: '',
-            description: '',
-            scheduledAt: '',
-            dueDate: '',
-            status: 'pending',
-            outcome: ''
-        });
     };
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-screen">
+            <div className="p-20 flex flex-col items-center justify-center animate-pulse">
                 <LoadingSpinner size="lg" />
+                <p className="mt-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Retrieving Strategic Intel...</p>
             </div>
         );
     }
 
-    if (!lead) {
-        return null;
-    }
+    if (!lead) return null;
 
-    const getStatusBadge = (status: string) => {
+    const getStatusStyles = (status: string) => {
         const styles: Record<string, string> = {
-            new: 'bg-blue-100 text-blue-800',
-            contacted: 'bg-purple-100 text-purple-800',
-            qualified: 'bg-green-100 text-green-800',
-            proposal: 'bg-yellow-100 text-yellow-800',
-            negotiation: 'bg-orange-100 text-orange-800',
-            won: 'bg-green-100 text-green-800',
-            lost: 'bg-red-100 text-red-800'
+            new: 'bg-blue-50 text-blue-700 border-blue-100',
+            contacted: 'bg-purple-50 text-purple-700 border-purple-100',
+            qualified: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+            proposal: 'bg-amber-50 text-amber-700 border-amber-100',
+            negotiation: 'bg-orange-50 text-orange-700 border-orange-100',
+            won: 'bg-green-50 text-green-700 border-green-100',
+            lost: 'bg-rose-50 text-rose-700 border-rose-100'
         };
-        return styles[status] || 'bg-gray-100 text-gray-800';
+        return styles[status] || 'bg-gray-50 text-gray-700 border-gray-100';
     };
 
-    const getPriorityBadge = (priority: string) => {
-        const styles: Record<string, string> = {
-            low: 'bg-gray-100 text-gray-800',
-            medium: 'bg-blue-100 text-blue-800',
-            high: 'bg-red-100 text-red-800'
+    const getStatusLabel = (status: string) => {
+        const labels: Record<string, string> = {
+            new: 'RAW INQUIRY',
+            contacted: 'DISCOVERY PHASE',
+            qualified: 'QUALIFIED LEAD',
+            proposal: 'PROPOSAL PENDING',
+            negotiation: 'NEGOTIATION',
+            won: 'SECURED DEAl',
+            lost: 'SHELVED'
         };
-        return styles[priority] || 'bg-gray-100 text-gray-800';
-    };
-
-    const getActivityIcon = (type: string) => {
-        switch (type) {
-            case 'call': return <Phone size={16} className="text-blue-600" />;
-            case 'email': return <Mail size={16} className="text-purple-600" />;
-            case 'meeting': return <Calendar size={16} className="text-green-600" />;
-            case 'note': return <MessageSquare size={16} className="text-gray-600" />;
-            default: return <Clock size={16} className="text-gray-600" />;
-        }
+        return labels[status] || status.toUpperCase();
     };
 
     return (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            {/* Header */}
-            <div className="mb-6">
-                <Link
-                    href="/leads/list"
-                    className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 mb-4"
-                >
-                    <ArrowLeft size={16} className="mr-1" />
-                    Back to Leads
-                </Link>
-
-                <div className="flex items-start justify-between">
-                    <div className="flex items-center">
-                        <div className="flex-shrink-0 h-16 w-16 bg-primary-100 rounded-full flex items-center justify-center">
-                            <span className="text-primary-600 font-bold text-2xl">
-                                {lead.name?.charAt(0).toUpperCase() || 'L'}
-                            </span>
-                        </div>
-                        <div className="ml-4">
-                            <h1 className="text-3xl font-bold text-gray-900">{lead.name}</h1>
-                            <div className="mt-2 flex items-center gap-2 flex-wrap">
-                                <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadge(lead.status)}`}>
-                                    {lead.status}
-                                </span>
-                                <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getPriorityBadge(lead.priority)}`}>
-                                    {lead.priority} priority
-                                </span>
-                            </div>
-                        </div>
+        <div className="space-y-6 max-w-7xl mx-auto pb-20">
+            {/* Header / Command Bar */}
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-5 rounded-lg border border-gray-200 shadow-sm gap-4">
+                <div className="flex items-center gap-4">
+                    <div className="p-3 bg-primary-900 rounded-lg shadow-lg">
+                        <TrendingUp className="w-6 h-6 text-white" />
                     </div>
-
-                    <div className="flex items-center gap-2 flex-wrap">
-                        {can('Lead', 'update') && can('Client', 'create') && (
-                            <button
-                                onClick={() => setConvertDialog(true)}
-                                disabled={converting || lead.status === 'won'}
-                                className="inline-flex items-center px-4 py-2 border border-green-300 rounded-md shadow-sm text-sm font-medium text-green-700 bg-white hover:bg-green-50 transition-colors disabled:opacity-50"
-                            >
-                                <UserPlus size={16} className="mr-2" />
-                                {converting ? 'Converting...' : 'Convert to Client'}
-                            </button>
-                        )}
-                        <PermissionGuard module="Lead" action="update">
-                            <Link
-                                href={`/leads/${lead.id}/edit`}
-                                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
-                            >
-                                <Edit size={16} className="mr-2" />
-                                Edit
-                            </Link>
-                        </PermissionGuard>
-                        <PermissionGuard module="Lead" action="delete">
-                            <button
-                                onClick={() => setDeleteDialog(true)}
-                                className="inline-flex items-center px-4 py-2 border border-red-300 rounded-md shadow-sm text-sm font-medium text-red-700 bg-white hover:bg-red-50 transition-colors"
-                            >
-                                <Trash2 size={16} className="mr-2" />
-                                Delete
-                            </button>
-                        </PermissionGuard>
+                    <div>
+                        <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none uppercase">{lead.name}</h2>
+                        <p className="text-[10px] text-gray-500 font-bold mt-1.5 uppercase tracking-widest flex items-center gap-2">
+                            Revenue Pipeline <ChevronRight size={10} className="text-primary-600" /> Opportunity Discovery
+                        </p>
                     </div>
+                    <div className={`ml-4 px-3 py-1 border rounded font-black text-[9px] uppercase tracking-widest ${getStatusStyles(lead.status)}`}>
+                        {getStatusLabel(lead.status)}
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                    {can('Lead', 'update') && can('Client', 'create') && (
+                        <button
+                            onClick={() => setConvertDialog(true)}
+                            disabled={converting || lead.status === 'won'}
+                            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase tracking-widest flex items-center gap-2 rounded transition-all disabled:opacity-50"
+                        >
+                            <UserPlus size={14} /> {converting ? 'PROTOCOL IN PROGRESS...' : 'Commit to Client Registry'}
+                        </button>
+                    )}
+                    <PermissionGuard module="Lead" action="update">
+                        <Link
+                            href={`/leads/${lead.id}/edit`}
+                            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-black text-[10px] uppercase tracking-widest flex items-center gap-2 rounded transition-all"
+                        >
+                            <Edit size={14} /> Reconfigure
+                        </Link>
+                    </PermissionGuard>
+                    <PermissionGuard module="Lead" action="delete">
+                        <button
+                            onClick={() => setDeleteDialog(true)}
+                            className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 font-black text-[10px] uppercase tracking-widest flex items-center gap-2 rounded transition-all"
+                        >
+                            <Trash2 size={14} /> Purge
+                        </button>
+                    </PermissionGuard>
                 </div>
             </div>
 
-            {/* Content Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Main Info */}
+                {/* Discovery Dossier */}
                 <div className="lg:col-span-2 space-y-6">
-                    {/* Contact Information */}
-                    <div className="bg-white shadow rounded-lg p-6">
-                        <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                            <Mail className="mr-2 text-primary-600" size={20} />
-                            Contact Information
-                        </h2>
-                        <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            <div>
-                                <dt className="text-sm font-medium text-gray-500">Email</dt>
-                                <dd className="mt-1 text-sm text-gray-900">{lead.email || '-'}</dd>
-                            </div>
-                            <div>
-                                <dt className="text-sm font-medium text-gray-500">Phone</dt>
-                                <dd className="mt-1 text-sm text-gray-900">{lead.phone || '-'}</dd>
-                            </div>
-                            <div>
-                                <dt className="text-sm font-medium text-gray-500">Job Title</dt>
-                                <dd className="mt-1 text-sm text-gray-900">{lead.jobTitle || '-'}</dd>
-                            </div>
-                            <div>
-                                <dt className="text-sm font-medium text-gray-500">Website</dt>
-                                <dd className="mt-1 text-sm text-gray-900">
-                                    {lead.website ? (
-                                        <a href={lead.website} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:text-primary-800">
-                                            {lead.website}
-                                        </a>
-                                    ) : '-'}
-                                </dd>
-                            </div>
-                        </dl>
-                    </div>
-
-                    {/* Company Information */}
-                    <div className="bg-white shadow rounded-lg p-6">
-                        <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                            <Building2 className="mr-2 text-primary-600" size={20} />
-                            Company Information
-                        </h2>
-                        <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            <div>
-                                <dt className="text-sm font-medium text-gray-500">Company</dt>
-                                <dd className="mt-1 text-sm text-gray-900">{lead.company || '-'}</dd>
-                            </div>
-                            <div>
-                                <dt className="text-sm font-medium text-gray-500">Industry</dt>
-                                <dd className="mt-1 text-sm text-gray-900">{lead.industry || '-'}</dd>
-                            </div>
-                        </dl>
-                    </div>
-
-                    {/* Lead Details */}
-                    <div className="bg-white shadow rounded-lg p-6">
-                        <h2 className="text-lg font-medium text-gray-900 mb-4">Lead Details</h2>
-                        <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            <div>
-                                <dt className="text-sm font-medium text-gray-500">Source</dt>
-                                <dd className="mt-1 text-sm text-gray-900 capitalize">{lead.source?.replace('-', ' ') || '-'}</dd>
-                            </div>
-                            <div>
-                                <dt className="text-sm font-medium text-gray-500">Source Details</dt>
-                                <dd className="mt-1 text-sm text-gray-900">{lead.sourceDetails || '-'}</dd>
-                            </div>
-                            {lead.nextFollowUpAt && (
-                                <div className="sm:col-span-2">
-                                    <dt className="text-sm font-medium text-gray-500">Next Follow-up</dt>
-                                    <dd className="mt-1 text-sm text-gray-900 flex items-center">
-                                        <Clock size={16} className="mr-2 text-orange-600" />
-                                        {new Date(lead.nextFollowUpAt).toLocaleString('en-IN', {
-                                            year: 'numeric',
-                                            month: 'long',
-                                            day: 'numeric',
-                                            hour: '2-digit',
-                                            minute: '2-digit'
-                                        })}
-                                    </dd>
-                                </div>
-                            )}
-                            <div className="sm:col-span-2">
-                                <dt className="text-sm font-medium text-gray-500">Notes</dt>
-                                <dd className="mt-1 text-sm text-gray-900 whitespace-pre-wrap">{lead.notes || '-'}</dd>
-                            </div>
-                            {lead.tags && lead.tags.length > 0 && (
-                                <div className="sm:col-span-2">
-                                    <dt className="text-sm font-medium text-gray-500 mb-2">Tags</dt>
-                                    <dd className="flex flex-wrap gap-2">
-                                        {lead.tags.map((tag: string, index: number) => (
-                                            <span
-                                                key={index}
-                                                className="px-2 py-1 text-xs bg-gray-100 text-gray-800 rounded-full"
-                                            >
-                                                {tag}
-                                            </span>
-                                        ))}
-                                    </dd>
-                                </div>
-                            )}
-                        </dl>
-                    </div>
-                </div>
-
-                {/* Sidebar */}
-                <div className="space-y-6">
-                    {/* Activities / Follow-ups - MOVED TO TOP */}
-                    <div className="bg-white shadow rounded-lg p-6">
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-lg font-medium text-gray-900 flex items-center">
-                                <Clock className="mr-2 text-primary-600" size={20} />
-                                Activities
-                            </h2>
-                            {can('LeadActivity', 'create') && (
-                                <button
-                                    onClick={() => setShowActivityModal(true)}
-                                    className="inline-flex items-center px-3 py-1.5 border border-transparent rounded-md text-xs font-medium text-white bg-primary-600 hover:bg-primary-700"
-                                >
-                                    <Plus size={14} className="mr-1" />
-                                    Add
-                                </button>
-                            )}
+                    {/* Identity & Corporate Map */}
+                    <div className="ent-card p-0 overflow-hidden">
+                        <div className="px-6 py-4 bg-gray-50/50 border-b border-gray-100 flex items-center justify-between">
+                            <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-gray-400 flex items-center gap-2">
+                                <Globe size={12} className="text-primary-600" /> Identity & Corporate Matrix
+                            </h3>
                         </div>
-                        {activities.length === 0 ? (
-                            <p className="text-sm text-gray-500 text-center py-4">No activities yet</p>
-                        ) : (
-                            <div className="space-y-3 max-h-96 overflow-y-auto">
-                                {activities.slice(0, 5).map((activity) => (
-                                    <div key={activity.id} className="border-l-4 border-primary-200 pl-3 py-2 hover:bg-gray-50 rounded-r transition-colors">
-                                        <div className="flex items-start justify-between">
-                                            <div className="flex items-start flex-1 min-w-0">
-                                                <div className="mt-0.5 mr-2">
-                                                    {getActivityIcon(activity.type)}
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <h4 className="text-sm font-medium text-gray-900 truncate">{activity.title}</h4>
-                                                    {activity.description && (
-                                                        <p className="text-xs text-gray-600 mt-1 line-clamp-2">{activity.description}</p>
-                                                    )}
-                                                    <div className="mt-1 flex items-center gap-2 text-xs text-gray-500 flex-wrap">
-                                                        <span className="capitalize">{activity.type}</span>
-                                                        <span>•</span>
-                                                        <span>{new Date(activity.createdAt).toLocaleDateString()}</span>
-                                                        {activity.status && (
-                                                            <>
-                                                                <span>•</span>
-                                                                <span className={`px-2 py-0.5 rounded-full ${activity.status === 'completed'
-                                                                    ? 'bg-green-100 text-green-800'
-                                                                    : activity.status === 'pending'
-                                                                        ? 'bg-yellow-100 text-yellow-800'
-                                                                        : 'bg-gray-100 text-gray-800'
-                                                                    }`}>
-                                                                    {activity.status}
-                                                                </span>
-                                                            </>
-                                                        )}
-                                                    </div>
-                                                </div>
+                        <div className="p-8">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 block mb-1">Corporate Entity</label>
+                                        <p className="text-sm font-black text-gray-900 uppercase tracking-tight">{lead.company || 'INTERNAL REGISTRY'}</p>
+                                    </div>
+                                    <div>
+                                        <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 block mb-1">Professional Designation</label>
+                                        <p className="text-sm font-bold text-gray-700 uppercase">{lead.jobTitle || 'UNSPECIFIED'}</p>
+                                    </div>
+                                    <div>
+                                        <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 block mb-1">Industrial Vertical</label>
+                                        <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">{lead.industry || 'GENERAL SECTOR'}</p>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-4">
+                                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
+                                        <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 block mb-3">Communication Protocols</label>
+                                        <div className="space-y-2">
+                                            <div className="flex items-center gap-3 text-sm text-gray-600">
+                                                <Mail size={14} className="text-primary-500" />
+                                                <span className="font-medium">{lead.email || 'NO_EMAIL_RECORDED'}</span>
                                             </div>
-                                            <div className="flex items-center gap-1 ml-2">
-                                                {activity.status === 'pending' && can('LeadActivity', 'update') && (
-                                                    <button
-                                                        onClick={() => handleCompleteActivity(activity.id)}
-                                                        className="p-1 text-green-600 hover:bg-green-50 rounded"
-                                                        title="Mark as complete"
-                                                    >
-                                                        <CheckCircle size={14} />
-                                                    </button>
-                                                )}
-                                                {can('LeadActivity', 'update') && (
-                                                    <button
-                                                        onClick={() => handleEditActivity(activity)}
-                                                        className="p-1 text-blue-600 hover:bg-blue-50 rounded"
-                                                        title="Edit"
-                                                    >
-                                                        <Edit size={14} />
-                                                    </button>
-                                                )}
-                                                {can('LeadActivity', 'delete') && (
-                                                    <button
-                                                        onClick={() => handleDeleteActivity(activity.id)}
-                                                        className="p-1 text-red-600 hover:bg-red-50 rounded"
-                                                        title="Delete"
-                                                    >
-                                                        <Trash2 size={14} />
-                                                    </button>
-                                                )}
+                                            <div className="flex items-center gap-3 text-sm text-gray-600">
+                                                <Phone size={14} className="text-emerald-500" />
+                                                <span className="font-medium">{lead.phone || 'NO_PHONE_RECORDED'}</span>
                                             </div>
+                                            {lead.website && (
+                                                <div className="flex items-center gap-3 text-sm text-gray-600">
+                                                    <Globe size={14} className="text-indigo-500" />
+                                                    <a href={lead.website} target="_blank" className="text-primary-600 hover:underline font-bold truncate">{lead.website}</a>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
-                                ))}
-                                {activities.length > 5 && (
-                                    <Link
-                                        href={`/leads/${lead.id}/activities`}
-                                        className="block text-center text-sm text-primary-600 hover:text-primary-800 pt-2"
-                                    >
-                                        View all {activities.length} activities →
-                                    </Link>
-                                )}
+                                </div>
                             </div>
-                        )}
-                    </div>
-
-                    {/* Lead Value */}
-                    <div className="bg-white shadow rounded-lg p-6">
-                        <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                            <DollarSign className="mr-2 text-primary-600" size={20} />
-                            Lead Value
-                        </h2>
-                        <div className="text-3xl font-bold text-primary-600">
-                            {lead.value ? formatCurrency(parseFloat(lead.value)) : '-'}
                         </div>
-                        {lead.probability && (
-                            <div className="mt-4">
-                                <dt className="text-sm font-medium text-gray-500">Probability</dt>
-                                <dd className="mt-1 text-lg font-semibold text-gray-900">{lead.probability}%</dd>
-                            </div>
-                        )}
                     </div>
 
-                    {/* Metadata */}
-                    <div className="bg-white shadow rounded-lg p-6">
-                        <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                            <Calendar className="mr-2 text-primary-600" size={20} />
-                            Information
-                        </h2>
-                        <dl className="space-y-3">
-                            <div>
-                                <dt className="text-sm font-medium text-gray-500">Created</dt>
-                                <dd className="mt-1 text-sm text-gray-900">
-                                    {new Date(lead.createdAt).toLocaleDateString('en-IN', {
-                                        year: 'numeric',
-                                        month: 'long',
-                                        day: 'numeric'
-                                    })}
-                                </dd>
-                            </div>
-                            <div>
-                                <dt className="text-sm font-medium text-gray-500">Last Updated</dt>
-                                <dd className="mt-1 text-sm text-gray-900">
-                                    {new Date(lead.updatedAt).toLocaleDateString('en-IN', {
-                                        year: 'numeric',
-                                        month: 'long',
-                                        day: 'numeric'
-                                    })}
-                                </dd>
-                            </div>
-                            {lead.lastContactedAt && (
+                    {/* Strategic Intel */}
+                    <div className="ent-card p-0 overflow-hidden">
+                        <div className="px-6 py-4 bg-gray-50/50 border-b border-gray-100">
+                            <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-gray-400 flex items-center gap-2">
+                                <FileText size={12} className="text-primary-600" /> Strategic Intelligence Report
+                            </h3>
+                        </div>
+                        <div className="p-8 space-y-8">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                                 <div>
-                                    <dt className="text-sm font-medium text-gray-500">Last Contacted</dt>
-                                    <dd className="mt-1 text-sm text-gray-900">
-                                        {new Date(lead.lastContactedAt).toLocaleDateString('en-IN', {
-                                            year: 'numeric',
-                                            month: 'long',
-                                            day: 'numeric'
-                                        })}
-                                    </dd>
+                                    <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 block mb-1">Inbound Protocol</label>
+                                    <p className="text-xs font-black text-gray-900 uppercase tracking-widest">{lead.source?.replace('-', ' ') || 'DIRECT'}</p>
+                                    <p className="text-[10px] text-gray-400 font-bold mt-1 uppercase tracking-tighter">{lead.sourceDetails || 'NO_CAMPAIGN_DATA'}</p>
+                                </div>
+                                <div>
+                                    <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 block mb-1">Criticality Level</label>
+                                    <div className={`text-[10px] font-black px-2 py-0.5 rounded-sm inline-block border ${lead.priority === 'high' ? 'bg-rose-50 text-rose-600 border-rose-100' : 'bg-gray-100 text-gray-500 border-gray-200'}`}>
+                                        {lead.priority?.toUpperCase()}
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 block mb-1">Registry Entry</label>
+                                    <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">{new Date(lead.createdAt).toLocaleDateString()}</p>
+                                </div>
+                            </div>
+
+                            <div className="bg-primary-50/30 p-6 rounded-xl border border-primary-100/50">
+                                <label className="text-[9px] font-black uppercase tracking-widest text-primary-400 block mb-4">Intelligence Notes</label>
+                                <p className="text-sm text-primary-900/80 leading-relaxed font-medium whitespace-pre-wrap">{lead.notes || 'NO_CONTEXTUAL_INTEL_RECORDED_FOR_THIS_OPPORTUNITY'}</p>
+                            </div>
+
+                            {lead.tags && lead.tags.length > 0 && (
+                                <div>
+                                    <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 block mb-3">Protocol Tags</label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {lead.tags.map((tag: string, i: number) => (
+                                            <span key={i} className="px-2 py-1 bg-white border border-gray-100 text-[9px] font-black text-gray-500 rounded uppercase tracking-widest flex items-center gap-1.5 shadow-sm">
+                                                <Tag size={10} className="text-primary-400" /> {tag}
+                                            </span>
+                                        ))}
+                                    </div>
                                 </div>
                             )}
-                        </dl>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Tactical Sidebar */}
+                <div className="space-y-6">
+                    {/* Valuation Panel */}
+                    <div className="ent-card p-6 bg-primary-900 text-white border-0 shadow-2xl shadow-primary-900/20">
+                        <label className="text-[9px] font-black uppercase tracking-[0.2em] text-primary-300 block mb-2">Strategic Valuation</label>
+                        <div className="text-4xl font-black tracking-tighter mb-4">
+                            {lead.value ? formatCurrency(parseFloat(lead.value)) : '$ 0.00'}
+                        </div>
+                        <div className="pt-4 border-t border-primary-800 flex justify-between items-center">
+                            <div>
+                                <p className="text-[9px] text-primary-300 font-black uppercase tracking-widest">Pipeline Weight</p>
+                                <p className="text-lg font-black">{lead.probability || 0}%</p>
+                            </div>
+                            <div className="w-12 h-12 bg-primary-800 rounded-lg flex items-center justify-center">
+                                <TrendingUp size={20} className="text-primary-400" />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Activity Registry */}
+                    <div className="ent-card p-0 overflow-hidden">
+                        <div className="px-5 py-4 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+                            <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400">Activity Registry</h3>
+                            <button onClick={() => setShowActivityModal(true)} className="p-1.5 bg-primary-900 text-white rounded-md hover:scale-110 transition-transform">
+                                <Plus size={14} />
+                            </button>
+                        </div>
+                        <div className="p-0 max-h-[500px] overflow-y-auto no-scrollbar">
+                            {activities.length === 0 ? (
+                                <div className="p-10 text-center">
+                                    <Activity size={32} className="mx-auto text-gray-100 mb-3" />
+                                    <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">No Tactical Movements Recorded</p>
+                                </div>
+                            ) : (
+                                <div className="divide-y divide-gray-50">
+                                    {activities.map((activity) => (
+                                        <div key={activity.id} className="p-4 hover:bg-gray-50/50 transition-colors group">
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <span className={`w-1.5 h-1.5 rounded-full ${activity.status === 'completed' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                                                        <h4 className="text-[11px] font-black text-gray-900 uppercase tracking-tight truncate">{activity.title}</h4>
+                                                    </div>
+                                                    <p className="text-[10px] text-gray-500 font-medium line-clamp-2 leading-relaxed">{activity.description}</p>
+                                                    <div className="mt-2 flex items-center gap-3">
+                                                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-tighter flex items-center gap-1">
+                                                            <Calendar size={10} /> {new Date(activity.createdAt).toLocaleDateString()}
+                                                        </span>
+                                                        <span className="text-[9px] font-black text-primary-600 uppercase tracking-tight bg-primary-50 px-1.5 py-0.5 rounded-sm">
+                                                            {activity.type}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    {activity.status === 'pending' && (
+                                                        <button onClick={() => handleCompleteActivity(activity.id)} className="p-1.5 bg-emerald-50 text-emerald-600 rounded hover:bg-emerald-600 hover:text-white transition-all">
+                                                            <CheckCircle size={10} />
+                                                        </button>
+                                                    )}
+                                                    <button onClick={() => handleEditActivity(activity)} className="p-1.5 bg-blue-50 text-blue-600 rounded hover:bg-blue-600 hover:text-white transition-all">
+                                                        <Edit size={10} />
+                                                    </button>
+                                                    <button onClick={() => handleDeleteActivity(activity.id)} className="p-1.5 bg-rose-50 text-rose-600 rounded hover:bg-rose-600 hover:text-white transition-all">
+                                                        <Trash2 size={10} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Schedule / Flow */}
+                    <div className="ent-card p-5 border-l-4 border-l-amber-400">
+                        <label className="text-[9px] font-black uppercase tracking-widest text-amber-600 block mb-3">Critical Intervention Schedule</label>
+                        <div className="space-y-4">
+                            <div>
+                                <dt className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Next Follow-up Expected</dt>
+                                <dd className="text-sm font-bold text-gray-900 flex items-center gap-2 mt-1">
+                                    <Clock size={14} className="text-amber-500" />
+                                    {lead.nextFollowUpAt ? new Date(lead.nextFollowUpAt).toLocaleString() : 'PENDING SCHEDULING'}
+                                </dd>
+                            </div>
+                            <div className="pt-3 border-t border-gray-100">
+                                <dt className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Last Contact Event</dt>
+                                <dd className="text-xs font-bold text-gray-500 mt-1">
+                                    {lead.lastContactedAt ? new Date(lead.lastContactedAt).toLocaleDateString() : 'NO HISTORICAL RECORD'}
+                                </dd>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            {/* Add/Edit Activity Modal */}
+            {/* Modals & Dialogs */}
             {showActivityModal && (
-                <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
-                        <h3 className="text-lg font-medium text-gray-900 mb-4">
-                            {editingActivity ? 'Edit Activity' : 'Add Activity'}
-                        </h3>
-                        <form onSubmit={handleAddActivity} className="space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">Type *</label>
-                                    <select
-                                        value={activityForm.type}
-                                        onChange={(e) => setActivityForm({ ...activityForm, type: e.target.value })}
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                                        required
-                                    >
-                                        <option value="call">📞 Call</option>
-                                        <option value="email">📧 Email</option>
-                                        <option value="meeting">📅 Meeting</option>
-                                        <option value="note">📝 Note</option>
-                                        <option value="task">✅ Task</option>
+                <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-8 animate-in zoom-in-95 duration-200">
+                        <div className="flex items-center justify-between mb-8">
+                            <div>
+                                <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">{editingActivity ? 'Modify Movement' : 'Record Strategic Action'}</h3>
+                                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">Registry Synchronization Protocol</p>
+                            </div>
+                            <button onClick={() => setShowActivityModal(false)} className="text-gray-400 hover:text-gray-900"><X size={20} /></button>
+                        </div>
+                        <form onSubmit={handleAddActivity} className="space-y-5">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="ent-form-group">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Protocol Type</label>
+                                    <select value={activityForm.type} onChange={(e) => setActivityForm({ ...activityForm, type: e.target.value })} className="ent-input w-full">
+                                        <option value="call">TELE-COMM (CALL)</option>
+                                        <option value="email">ELECTRONIC MAIL</option>
+                                        <option value="meeting">STRATEGIC SESSION</option>
+                                        <option value="note">INTELLIGENCE NOTE</option>
                                     </select>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">Status</label>
-                                    <select
-                                        value={activityForm.status}
-                                        onChange={(e) => setActivityForm({ ...activityForm, status: e.target.value })}
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                                    >
-                                        <option value="pending">Pending</option>
-                                        <option value="completed">Completed</option>
-                                        <option value="cancelled">Cancelled</option>
+                                <div className="ent-form-group">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Movement Status</label>
+                                    <select value={activityForm.status} onChange={(e) => setActivityForm({ ...activityForm, status: e.target.value })} className="ent-input w-full">
+                                        <option value="pending">PENDING EXECUTION</option>
+                                        <option value="completed">SYNCHRONIZED</option>
+                                        <option value="cancelled">ABORTED</option>
                                     </select>
                                 </div>
                             </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Title *</label>
-                                <input
-                                    type="text"
-                                    value={activityForm.title}
-                                    onChange={(e) => setActivityForm({ ...activityForm, title: e.target.value })}
-                                    placeholder="e.g., Follow-up call with client"
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                                    required
-                                />
+                            <div className="ent-form-group">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Operation Title</label>
+                                <input type="text" value={activityForm.title} onChange={(e) => setActivityForm({ ...activityForm, title: e.target.value })} className="ent-input w-full" placeholder="DESCRIBE THE ACTION..." required />
                             </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Description</label>
-                                <textarea
-                                    value={activityForm.description}
-                                    onChange={(e) => setActivityForm({ ...activityForm, description: e.target.value })}
-                                    rows={3}
-                                    placeholder="Add details about this activity..."
-                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                                />
+                            <div className="ent-form-group">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Tactical Description</label>
+                                <textarea value={activityForm.description} onChange={(e) => setActivityForm({ ...activityForm, description: e.target.value })} rows={3} className="ent-input w-full resize-none" placeholder="RECORD CRITICAL DETAILS..." />
                             </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">Scheduled Date/Time</label>
-                                    <input
-                                        type="datetime-local"
-                                        value={activityForm.scheduledAt}
-                                        onChange={(e) => setActivityForm({ ...activityForm, scheduledAt: e.target.value })}
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                                    />
-                                    <p className="mt-1 text-xs text-gray-500">When this activity is planned</p>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">Due Date</label>
-                                    <input
-                                        type="datetime-local"
-                                        value={activityForm.dueDate}
-                                        onChange={(e) => setActivityForm({ ...activityForm, dueDate: e.target.value })}
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                                    />
-                                    <p className="mt-1 text-xs text-gray-500">Deadline for completion</p>
-                                </div>
-                            </div>
-
-                            {activityForm.status === 'completed' && (
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">Outcome</label>
-                                    <input
-                                        type="text"
-                                        value={activityForm.outcome}
-                                        onChange={(e) => setActivityForm({ ...activityForm, outcome: e.target.value })}
-                                        placeholder="e.g., Successful, No answer, Rescheduled"
-                                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                                    />
-                                </div>
-                            )}
-
-                            <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
-                                <button
-                                    type="button"
-                                    onClick={handleCloseModal}
-                                    className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={savingActivity}
-                                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-50"
-                                >
-                                    {savingActivity ? 'Saving...' : editingActivity ? 'Update Activity' : 'Save Activity'}
+                            <div className="flex justify-end gap-3 pt-6 border-t border-gray-100">
+                                <button type="button" onClick={() => setShowActivityModal(false)} className="px-6 py-2 text-[10px] font-black uppercase tracking-widest text-gray-400">Abort</button>
+                                <button type="submit" disabled={savingActivity} className="px-6 py-2 bg-primary-900 text-white text-[10px] font-black uppercase tracking-widest rounded shadow-xl shadow-primary-900/10">
+                                    {savingActivity ? 'SYNCING...' : 'Commit to Log'}
                                 </button>
                             </div>
                         </form>
@@ -686,28 +503,26 @@ export default function LeadDetailPage() {
                 </div>
             )}
 
-            {/* Convert to Client Confirmation Dialog */}
             <ConfirmDialog
                 isOpen={convertDialog}
                 onClose={() => setConvertDialog(false)}
                 onConfirm={handleConvertToClient}
-                title="Convert Lead to Client"
-                message={`Are you sure you want to convert "${lead?.name}" to a client? This will create a new client record and mark this lead as won.`}
-                confirmText="Convert to Client"
-                cancelText="Cancel"
+                title="Protocol Upgrade: Client Conversion"
+                message={`Initialize final conversion protocol for "${lead?.name}"? A permanent client record will be established and this opportunity will be marked as WON.`}
+                confirmText="Execute Upgrade"
+                cancelText="Abort"
                 type="warning"
                 isLoading={converting}
             />
 
-            {/* Delete Confirmation Dialog */}
             <ConfirmDialog
                 isOpen={deleteDialog}
                 onClose={() => setDeleteDialog(false)}
                 onConfirm={handleDelete}
-                title="Delete Lead"
-                message={`Are you sure you want to delete "${lead.name}"? This action cannot be undone.`}
-                confirmText="Delete"
-                cancelText="Cancel"
+                title="Purge Protocol: Data Deletion"
+                message={`Initiate complete erasure of "${lead?.name}" and all associated intelligence from the registry? This action is irreversible.`}
+                confirmText="Purge Record"
+                cancelText="Abort"
                 type="danger"
                 isLoading={deleting}
             />

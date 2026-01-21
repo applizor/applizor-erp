@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Search, Plus, Eye, Edit, Trash2, UserPlus } from 'lucide-react';
+import { Search, Plus, Eye, Edit, Trash2, LayoutGrid, ChevronRight, ArrowLeft, ArrowRight, Activity, Filter, FileText } from 'lucide-react';
 import api from '@/lib/api';
 import { usePermission } from '@/hooks/usePermission';
 import { PermissionGuard } from '@/components/PermissionGuard';
@@ -85,276 +85,233 @@ export default function LeadsListPage() {
         setDeleting(true);
         try {
             await api.delete(`/leads/${deleteDialog.leadId}`);
-            toast.success('Lead deleted successfully');
+            toast.success('Opportunity purged from registry');
             setDeleteDialog({ isOpen: false, leadId: null, leadName: '' });
             fetchLeads(pagination.page, search, filters);
         } catch (error: any) {
-            toast.error(error.response?.data?.error || 'Failed to delete lead');
+            toast.error(error.response?.data?.error || 'Purge protocol failed');
         } finally {
             setDeleting(false);
         }
     };
 
     const getStatusBadge = (status: string) => {
-        const styles: Record<string, string> = {
-            new: 'bg-blue-100 text-blue-800',
-            contacted: 'bg-purple-100 text-purple-800',
-            qualified: 'bg-green-100 text-green-800',
-            proposal: 'bg-yellow-100 text-yellow-800',
-            negotiation: 'bg-orange-100 text-orange-800',
-            won: 'bg-green-100 text-green-800',
-            lost: 'bg-red-100 text-red-800'
+        const statusMap: Record<string, string> = {
+            won: 'ent-badge-success',
+            lost: 'ent-badge-danger',
+            proposal: 'ent-badge-warning',
+            qualified: 'ent-badge-primary',
+            negotiation: 'ent-badge-warning',
         };
-        return styles[status] || 'bg-gray-100 text-gray-800';
+        return statusMap[status] || 'ent-badge-info';
     };
 
     const getPriorityBadge = (priority: string) => {
-        const styles: Record<string, string> = {
-            low: 'bg-gray-100 text-gray-800',
-            medium: 'bg-blue-100 text-blue-800',
-            high: 'bg-red-100 text-red-800'
-        };
-        return styles[priority] || 'bg-gray-100 text-gray-800';
+        return priority === 'high' || priority === 'urgent' ? 'ent-badge-danger' : 'ent-badge-primary';
     };
 
     return (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="space-y-6">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Leads</h1>
-                    <p className="mt-1 text-sm text-gray-500">
-                        Manage your sales pipeline
-                        {!loading && leads.length > 0 && (
-                            <span className="ml-2 text-primary-600 font-medium">
-                                ({pagination.total} total)
-                            </span>
-                        )}
-                    </p>
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-5 rounded-lg border border-gray-200 shadow-sm gap-4">
+                <div className="flex items-center gap-4">
+                    <div className="p-3 bg-primary-900 rounded-lg shadow-lg">
+                        <FileText className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                        <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none uppercase">Opportunities Ledger</h2>
+                        <p className="text-[10px] text-gray-500 font-bold mt-1.5 uppercase tracking-widest flex items-center gap-2">
+                            Revenue Acquisition Stream <ChevronRight size={10} className="text-primary-600" /> Registry Management
+                        </p>
+                    </div>
                 </div>
-                <div className="flex items-center gap-2">
-                    <Link
-                        href="/leads/kanban"
-                        className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
-                    >
-                        Kanban View
-                    </Link>
+
+                <div className="flex items-center gap-3 w-full lg:w-auto">
+                    <div className="flex bg-gray-100 p-1 rounded font-black text-[9px] uppercase tracking-widest">
+                        <Link
+                            href="/leads/kanban"
+                            className="px-4 py-2 text-gray-400 hover:text-gray-600 rounded flex items-center gap-2 transition-all"
+                        >
+                            Board View
+                        </Link>
+                        <button className="px-4 py-2 bg-white text-primary-600 shadow-sm rounded flex items-center gap-2 border border-gray-200">
+                            Ledger
+                        </button>
+                    </div>
                     <PermissionGuard module="Lead" action="create">
                         <Link
                             href="/leads/create"
-                            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 transition-colors"
+                            className="px-5 py-2.5 bg-primary-900 text-white rounded text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all flex items-center gap-2 shadow-xl shadow-primary-900/10 active:scale-95"
                         >
-                            <Plus size={18} className="mr-2" />
-                            New Lead
+                            <Plus size={14} /> Acquire Lead
                         </Link>
                     </PermissionGuard>
                 </div>
             </div>
 
-            {/* Search */}
-            <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-4">
-                <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Search size={18} className="text-gray-400" />
+            {/* Global Search & Filtration */}
+            <div className="mx-2 space-y-4">
+                <div className="ent-card p-4 border-primary-100/50">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                        <input
+                            type="text"
+                            placeholder="QUERY BY IDENTITY, COMPANY, OR CONTACT PROTOCOL..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            className="ent-input w-full pl-10 pr-4 py-2.5 text-[10px] font-black uppercase tracking-widest"
+                        />
                     </div>
-                    <input
-                        type="text"
-                        placeholder="Search leads by name, email, company or phone..."
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                </div>
+
+                <div className="bg-white/50 rounded-lg p-1">
+                    <LeadFilterBar
+                        filters={filters}
+                        onFilterChange={handleFilterChange}
+                        onClearFilters={handleClearFilters}
                     />
                 </div>
             </div>
 
-            {/* Filters */}
-            <LeadFilterBar
-                filters={filters}
-                onFilterChange={handleFilterChange}
-                onClearFilters={handleClearFilters}
-            />
-
-            {/* Content */}
-            {loading ? (
-                <LeadListSkeleton />
-            ) : leads.length === 0 ? (
-                <LeadEmptyState />
-            ) : (
-                <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                                <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Name
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Contact
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Company
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Status
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Priority
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Source
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Value
-                                    </th>
-                                    <th className="relative px-6 py-3">
-                                        <span className="sr-only">Actions</span>
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                                {leads.map((lead) => (
-                                    <tr
-                                        key={lead.id}
-                                        className="hover:bg-gray-50 transition-colors"
-                                    >
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="flex items-center">
-                                                <div className="flex-shrink-0 h-10 w-10 bg-primary-100 rounded-full flex items-center justify-center">
-                                                    <span className="text-primary-600 font-semibold text-sm">
-                                                        {lead.name?.charAt(0).toUpperCase() || 'L'}
-                                                    </span>
+            {/* Content Engine */}
+            <div className="mx-2">
+                {loading ? (
+                    <LeadListSkeleton />
+                ) : leads.length === 0 ? (
+                    <LeadEmptyState />
+                ) : (
+                    <div className="ent-card overflow-hidden">
+                        <div className="overflow-x-auto">
+                            <table className="ent-table">
+                                <thead>
+                                    <tr>
+                                        <th>Prospect Identity</th>
+                                        <th>Contact Protocol</th>
+                                        <th>Corporate Entity</th>
+                                        <th>Pipeline Stage</th>
+                                        <th>Priority</th>
+                                        <th>Origin</th>
+                                        <th>Valuation</th>
+                                        <th className="text-right">Action Protocol</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {leads.map((lead) => (
+                                        <tr key={lead.id}>
+                                            <td className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center font-black text-[10px] text-gray-500 border border-gray-200 uppercase">
+                                                    {lead.name?.charAt(0).toUpperCase() || 'L'}
                                                 </div>
-                                                <div className="ml-4">
-                                                    <div className="text-sm font-medium text-gray-900">{lead.name}</div>
+                                                <div>
+                                                    <div className="text-[11px] font-black text-gray-900 uppercase leading-none">
+                                                        {lead.name}
+                                                    </div>
                                                     {lead.jobTitle && (
-                                                        <div className="text-xs text-gray-500">{lead.jobTitle}</div>
+                                                        <div className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter mt-1">{lead.jobTitle}</div>
                                                     )}
                                                 </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="text-sm text-gray-900">{lead.email || '-'}</div>
-                                            <div className="text-sm text-gray-500">{lead.phone || '-'}</div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="text-sm text-gray-900">{lead.company || '-'}</div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadge(lead.status)}`}>
-                                                {lead.status}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getPriorityBadge(lead.priority)}`}>
-                                                {lead.priority}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            {lead.source || '-'}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                            {lead.value ? formatCurrency(parseFloat(lead.value)) : '-'}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <div className="flex items-center justify-end gap-2">
-                                                <Link
-                                                    href={`/leads/${lead.id}`}
-                                                    className="text-primary-600 hover:text-primary-900 p-1 rounded hover:bg-primary-50 transition-colors"
-                                                    title="View"
-                                                >
-                                                    <Eye size={16} />
-                                                </Link>
-                                                <PermissionGuard module="Lead" action="update">
+                                            </td>
+                                            <td>
+                                                <div className="text-[10px] font-black text-gray-600 lowercase">{lead.email || '-'}</div>
+                                                <div className="text-[9px] font-bold text-gray-400 mt-0.5">{lead.phone || '-'}</div>
+                                            </td>
+                                            <td>
+                                                <div className="text-[10px] font-black text-gray-700 uppercase tracking-widest">{lead.company || '-'}</div>
+                                            </td>
+                                            <td>
+                                                <span className={`ent-badge ${getStatusBadge(lead.status)}`}>
+                                                    {lead.status?.toUpperCase()}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span className={`ent-badge ${getPriorityBadge(lead.priority)}`}>
+                                                    {lead.priority?.toUpperCase()}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{lead.source || 'ORGANIC'}</div>
+                                            </td>
+                                            <td>
+                                                <div className="text-[12px] font-black text-gray-900 tracking-tight">
+                                                    {lead.value ? formatCurrency(parseFloat(lead.value)) : '-'}
+                                                </div>
+                                            </td>
+                                            <td className="text-right">
+                                                <div className="flex justify-end gap-2 px-2">
                                                     <Link
-                                                        href={`/leads/${lead.id}/edit`}
-                                                        className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50 transition-colors"
-                                                        title="Edit"
+                                                        href={`/leads/${lead.id}`}
+                                                        className="p-2 text-gray-400 hover:text-primary-600 transition-all rounded hover:bg-gray-50"
+                                                        title="Discovery"
                                                     >
-                                                        <Edit size={16} />
+                                                        <Eye size={14} />
                                                     </Link>
-                                                </PermissionGuard>
-                                                <PermissionGuard module="Lead" action="delete">
-                                                    <button
-                                                        onClick={() => handleDeleteClick(lead)}
-                                                        className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50 transition-colors"
-                                                        title="Delete"
-                                                    >
-                                                        <Trash2 size={16} />
-                                                    </button>
-                                                </PermissionGuard>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    {/* Pagination */}
-                    {pagination.totalPages > 1 && (
-                        <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-                            <div className="flex-1 flex justify-between sm:hidden">
-                                <button
-                                    onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
-                                    disabled={pagination.page === 1}
-                                    className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-                                >
-                                    Previous
-                                </button>
-                                <button
-                                    onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
-                                    disabled={pagination.page === pagination.totalPages}
-                                    className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-                                >
-                                    Next
-                                </button>
-                            </div>
-                            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                                <div>
-                                    <p className="text-sm text-gray-700">
-                                        Showing <span className="font-medium">{((pagination.page - 1) * pagination.limit) + 1}</span> to{' '}
-                                        <span className="font-medium">
-                                            {Math.min(pagination.page * pagination.limit, pagination.total)}
-                                        </span> of{' '}
-                                        <span className="font-medium">{pagination.total}</span> results
-                                    </p>
-                                </div>
-                                <div>
-                                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-                                        <button
-                                            onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
-                                            disabled={pagination.page === 1}
-                                            className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                                        >
-                                            Previous
-                                        </button>
-                                        <button
-                                            onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
-                                            disabled={pagination.page === pagination.totalPages}
-                                            className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                                        >
-                                            Next
-                                        </button>
-                                    </nav>
-                                </div>
-                            </div>
+                                                    <PermissionGuard module="Lead" action="update">
+                                                        <Link
+                                                            href={`/leads/${lead.id}/edit`}
+                                                            className="p-2 text-gray-400 hover:text-indigo-600 transition-all rounded hover:bg-gray-50"
+                                                            title="Edit Intel"
+                                                        >
+                                                            <Edit size={14} />
+                                                        </Link>
+                                                    </PermissionGuard>
+                                                    <PermissionGuard module="Lead" action="delete">
+                                                        <button
+                                                            onClick={() => handleDeleteClick(lead)}
+                                                            className="p-2 text-gray-400 hover:text-rose-600 transition-all rounded hover:bg-gray-50"
+                                                            title="Terminate"
+                                                        >
+                                                            <Trash2 size={14} />
+                                                        </button>
+                                                    </PermissionGuard>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
-                    )}
-                </div>
-            )}
 
-            {/* Delete Confirmation Dialog */}
-            <ConfirmDialog
-                isOpen={deleteDialog.isOpen}
-                onClose={() => setDeleteDialog({ isOpen: false, leadId: null, leadName: '' })}
-                onConfirm={handleDeleteConfirm}
-                title="Delete Lead"
-                message={`Are you sure you want to delete "${deleteDialog.leadName}"? This action cannot be undone.`}
-                confirmText="Delete"
-                cancelText="Cancel"
-                type="danger"
-                isLoading={deleting}
-            />
+                        {/* Pagination Engine */}
+                        {pagination.totalPages > 1 && (
+                            <div className="bg-gray-50 px-6 py-4 flex items-center justify-between border-t border-gray-100">
+                                <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                    Displaying <span className="text-gray-900">{Math.min(pagination.page * pagination.limit, pagination.total)}</span> of <span className="text-gray-900">{pagination.total}</span> Identified Entities
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
+                                        disabled={pagination.page === 1}
+                                        className="p-2 bg-white border border-gray-200 rounded text-gray-600 hover:bg-gray-50 disabled:opacity-30 transition-all shadow-sm active:scale-95"
+                                    >
+                                        <ArrowLeft size={16} />
+                                    </button>
+                                    <div className="px-4 py-1.5 bg-white border border-gray-200 rounded text-[10px] font-black text-gray-900 uppercase">
+                                        Page {pagination.page} / {pagination.totalPages}
+                                    </div>
+                                    <button
+                                        onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
+                                        disabled={pagination.page === pagination.totalPages}
+                                        className="p-2 bg-white border border-gray-200 rounded text-gray-600 hover:bg-gray-50 disabled:opacity-30 transition-all shadow-sm active:scale-95"
+                                    >
+                                        <ArrowRight size={16} />
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                <ConfirmDialog
+                    isOpen={deleteDialog.isOpen}
+                    onClose={() => setDeleteDialog({ isOpen: false, leadId: null, leadName: '' })}
+                    onConfirm={handleDeleteConfirm}
+                    title="Confirm Opportunity Purge"
+                    message={`Are you sure you want to terminate intellectual record for "${deleteDialog.leadName}"? This protocol is irreversible.`}
+                    confirmText="Confirm Delete"
+                    type="danger"
+                    isLoading={deleting}
+                />
+            </div>
         </div>
     );
 }

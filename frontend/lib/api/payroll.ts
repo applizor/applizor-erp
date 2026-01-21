@@ -11,8 +11,57 @@ export interface SalaryComponent {
     updatedAt?: string;
 }
 
+export interface Payroll {
+    id: string;
+    employee: {
+        firstName: string;
+        lastName: string;
+        employeeId: string;
+        department?: { name: string };
+    };
+    month: number;
+    year: number;
+    grossSalary: number;
+    totalDeductions: number;
+    netSalary: number;
+    status: 'draft' | 'paid';
+    processedAt: string;
+}
+
+export interface EmployeeSalaryStructure {
+    employeeId: string;
+    ctc: number;
+    breakdown: Record<string, number>;
+}
+
 export const payrollApi = {
-    // Components
+    // ... items ...
+    getList: async (month: number, year: number) => {
+        const response = await api.get<Payroll[]>(`/payroll/list?month=${month}&year=${year}`);
+        return response.data;
+    },
+
+    approve: async (id: string) => {
+        const response = await api.post(`/payroll/${id}/approve`);
+        return response.data;
+    },
+
+    downloadPayslip: async (id: string) => {
+        const response = await api.get(`/payroll/${id}/payslip`, { responseType: 'blob' });
+        return response.data;
+    },
+
+    // Structure
+    getStructure: async (employeeId: string) => {
+        const response = await api.get(`/payroll/structure/${employeeId}`);
+        return response.data;
+    },
+
+    saveStructure: async (employeeId: string, data: any) => {
+        const response = await api.put(`/payroll/structure/${employeeId}`, data);
+        return response.data;
+    },
+
     getComponents: async () => {
         const response = await api.get<SalaryComponent[]>('/payroll/components');
         return response.data;
@@ -30,17 +79,6 @@ export const payrollApi = {
 
     deleteComponent: async (id: string) => {
         const response = await api.delete(`/payroll/components/${id}`);
-        return response.data;
-    },
-
-    // Structure
-    getEmployeeStructure: async (employeeId: string) => {
-        const response = await api.get(`/payroll/structure/${employeeId}`);
-        return response.data;
-    },
-
-    updateEmployeeStructure: async (employeeId: string, data: any) => {
-        const response = await api.put(`/payroll/structure/${employeeId}`, data);
         return response.data;
     },
 

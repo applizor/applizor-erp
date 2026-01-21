@@ -2,9 +2,10 @@
 
 import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
-
 import { useEffect, useState } from 'react';
 import { candidatesApi, jobOpeningsApi, Candidate, JobOpening } from '@/lib/api/recruitment';
+import { Users, Plus, Filter, Search, ChevronRight, X, Trash2, Mail, Phone, Briefcase, ChevronDown } from 'lucide-react';
+import Link from 'next/link';
 
 export default function CandidatesPage() {
     const toast = useToast();
@@ -35,7 +36,7 @@ export default function CandidatesPage() {
         try {
             setLoading(true);
             const [candidatesData, jobsData] = await Promise.all([
-                candidatesApi.getAll(filters),
+                candidatesApi.getAll(filters.jobOpeningId),
                 jobOpeningsApi.getAll()
             ]);
             setCandidates(candidatesData);
@@ -54,6 +55,7 @@ export default function CandidatesPage() {
             setIsModalOpen(false);
             setFormData({ firstName: '', lastName: '', email: '', phone: '', jobOpeningId: '', notes: '' });
             loadData();
+            toast.success('Candidate successfully inducted');
         } catch (error) {
             console.error('Failed to create candidate:', error);
             toast.error('Failed to add candidate');
@@ -65,6 +67,7 @@ export default function CandidatesPage() {
             try {
                 await candidatesApi.delete(id);
                 loadData();
+                toast.success('Candidate record purged');
             } catch (error) {
                 console.error('Failed to delete candidate:', error);
                 toast.error('Failed to delete candidate');
@@ -72,170 +75,241 @@ export default function CandidatesPage() {
         }
     };
 
-    const getStatusColor = (status: string) => {
-        switch (status) {
-            case 'applied': return 'bg-blue-100 text-blue-800';
-            case 'screening': return 'bg-purple-100 text-purple-800';
-            case 'interview': return 'bg-yellow-100 text-yellow-800';
-            case 'offer': return 'bg-orange-100 text-orange-800';
-            case 'hired': return 'bg-green-100 text-green-800';
-            case 'rejected': return 'bg-red-100 text-red-800';
-            default: return 'bg-gray-100 text-gray-800';
-        }
-    };
-
-    if (loading && candidates.length === 0) return <div>Loading...</div>;
+    if (loading && candidates.length === 0) return (
+        <div className="p-20 flex flex-col items-center justify-center animate-pulse">
+            <LoadingSpinner size="lg" />
+            <p className="mt-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Retrieving Talent Data...</p>
+        </div>
+    );
 
     return (
-        <div>
-            <div className="mb-6 flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
-                <div>
-                    <h2 className="text-xl font-semibold text-gray-800">Candidates</h2>
-                    <p className="text-sm text-gray-500">Track applicants and interview progress</p>
+        <div className="space-y-6 pb-20 max-w-7xl mx-auto">
+            {/* Header */}
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-5 rounded-lg border border-gray-200 shadow-sm gap-4">
+                <div className="flex items-center gap-4">
+                    <div className="p-3 bg-indigo-900 rounded-lg shadow-lg">
+                        <Users className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                        <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none uppercase">Talent Reservoir</h2>
+                        <p className="text-[10px] text-gray-500 font-bold mt-1.5 uppercase tracking-widest flex items-center gap-2">
+                            Recruitment Ops <ChevronRight size={10} className="text-indigo-600" /> Candidate Pipeline
+                        </p>
+                    </div>
                 </div>
-                <div className="flex space-x-2">
-                    <select
-                        value={filters.jobOpeningId}
-                        onChange={(e) => setFilters({ ...filters, jobOpeningId: e.target.value })}
-                        className="border border-gray-300 rounded-md shadow-sm px-3 py-2 text-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                    >
-                        <option value="">All Jobs</option>
-                        {jobs.map(job => <option key={job.id} value={job.id}>{job.title}</option>)}
-                    </select>
+
+                <div className="flex items-center gap-3">
                     <button
                         onClick={() => setIsModalOpen(true)}
-                        className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700"
+                        className="px-5 py-2.5 bg-indigo-900 text-white rounded text-[10px] font-black uppercase tracking-widest hover:bg-indigo-950 transition-all flex items-center gap-2 shadow-xl shadow-indigo-900/10 active:scale-95"
                     >
-                        + Add Candidate
+                        <Plus size={14} /> Intake Candidate
                     </button>
                 </div>
             </div>
 
-            <div className="bg-white shadow overflow-hidden border-b border-gray-200 sm:rounded-lg">
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                        <tr>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Candidate</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Applied For</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Applied Date</th>
-                            <th scope="col" className="relative px-6 py-3"><span className="sr-only">Actions</span></th>
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                        {candidates.map((candidate) => (
-                            <tr key={candidate.id} className="hover:bg-gray-50">
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                    <div className="flex items-center">
-                                        <div>
-                                            <div className="text-sm font-medium text-gray-900">{candidate.firstName} {candidate.lastName}</div>
-                                            <div className="text-sm text-gray-500">{candidate.email}</div>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                    <div className="text-sm text-gray-900">{candidate.jobOpening?.title || 'General Application'}</div>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(candidate.status)}`}>
-                                        {candidate.status.toUpperCase()}
-                                    </span>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {new Date(candidate.createdAt).toLocaleDateString()}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <button onClick={() => handleDelete(candidate.id)} className="text-red-600 hover:text-red-900">Delete</button>
-                                </td>
-                            </tr>
-                        ))}
-                        {candidates.length === 0 && (
+            {/* Filter / Search Tool */}
+            <div className="ent-card p-3 flex flex-col md:flex-row items-center gap-3 bg-white/80 backdrop-blur border-indigo-100/50">
+                <div className="flex items-center gap-2 px-2 border-r border-gray-100 min-w-max">
+                    <Filter size={14} className="text-indigo-600" />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">FILTERS</span>
+                </div>
+
+                <div className="relative flex-1 w-full md:w-auto">
+                    <select
+                        value={filters.jobOpeningId}
+                        onChange={(e) => setFilters({ ...filters, jobOpeningId: e.target.value })}
+                        className="ent-input w-full py-1.5 text-[10px] font-bold uppercase tracking-wide appearance-none"
+                    >
+                        <option value="">Target: All Strategic Openings</option>
+                        {jobs.map(job => <option key={job.id} value={job.id}>{job.title}</option>)}
+                    </select>
+                    <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                </div>
+
+                <div className="relative w-full md:w-64">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                        type="text"
+                        placeholder="SEARCH DATABASE..."
+                        className="ent-input w-full pl-9 py-1.5 text-[10px] font-bold uppercase tracking-wide placeholder-gray-300"
+                    />
+                </div>
+            </div>
+
+            {/* Data Grid */}
+            <div className="ent-card overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="ent-table">
+                        <thead>
                             <tr>
-                                <td colSpan={5} className="px-6 py-10 text-center text-sm text-gray-500">
-                                    No candidates found.
-                                </td>
+                                <th>Candidate Identity</th>
+                                <th>Strategic Targeting</th>
+                                <th>Evolvement State</th>
+                                <th>Intake Chronology</th>
+                                <th className="text-right">Operations</th>
                             </tr>
-                        )}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {candidates.map((candidate) => (
+                                <tr key={candidate.id} className="group hover:bg-indigo-50/30 transition-colors">
+                                    <td className="p-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="h-9 w-9 rounded-lg bg-indigo-50 flex items-center justify-center text-[11px] font-black text-indigo-700 border border-indigo-100 shadow-sm">
+                                                {candidate.firstName[0]}
+                                            </div>
+                                            <div>
+                                                <div className="text-[13px] font-black text-gray-900 tracking-tight leading-none uppercase group-hover:text-indigo-700 transition-colors">
+                                                    {candidate.firstName} {candidate.lastName}
+                                                </div>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    {candidate.email && (
+                                                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tight flex items-center gap-1">
+                                                            <Mail size={10} className="text-indigo-400" /> {candidate.email}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="p-4">
+                                        <div className="flex items-center gap-2">
+                                            <Briefcase size={12} className="text-gray-400" />
+                                            <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">
+                                                {candidate.jobOpening?.title || 'GENERAL POOL'}
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td className="p-4">
+                                        <span className={`ent-badge ${candidate.status === 'hired' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                                                candidate.status === 'rejected' ? 'bg-rose-50 text-rose-700 border-rose-100' :
+                                                    'bg-indigo-50 text-indigo-700 border-indigo-100'
+                                            }`}>
+                                            {candidate.status}
+                                        </span>
+                                    </td>
+                                    <td className="p-4">
+                                        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                                            {new Date(candidate.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
+                                        </span>
+                                    </td>
+                                    <td className="p-4 text-right">
+                                        <div className="flex justify-end gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
+                                            <button onClick={() => handleDelete(candidate.id)} className="p-2 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-all" title="Purge Record">
+                                                <Trash2 size={14} />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                            {candidates.length === 0 && (
+                                <tr>
+                                    <td colSpan={5} className="p-12 text-center">
+                                        <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-gray-100">
+                                            <Users className="w-8 h-8 text-gray-300" />
+                                        </div>
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Reservoir Empty. Initiate Intake.</p>
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             {isModalOpen && (
-                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-                    <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full m-4">
-                        <div className="flex justify-between items-center p-5 border-b">
-                            <h3 className="text-xl font-medium text-gray-900">Add New Candidate</h3>
-                            <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-500">
-                                <span className="text-2xl">&times;</span>
+                <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full animate-in zoom-in-95 duration-200 overflow-hidden border border-gray-200">
+                        <div className="px-8 py-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                            <div>
+                                <h3 className="text-lg font-black text-gray-900 tracking-tight uppercase">Intake New Professional</h3>
+                                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">Candidate Profile Creation</p>
+                            </div>
+                            <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-900 transition-colors">
+                                <X size={20} />
                             </button>
                         </div>
-                        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">First Name</label>
-                                <input
-                                    type="text"
-                                    required
-                                    value={formData.firstName}
-                                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Last Name</label>
-                                <input
-                                    type="text"
-                                    required
-                                    value={formData.lastName}
-                                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Email</label>
-                                <input
-                                    type="email"
-                                    required
-                                    value={formData.email}
-                                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Phone</label>
-                                <input
-                                    type="tel"
-                                    value={formData.phone}
-                                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Applying For</label>
-                                <select
-                                    value={formData.jobOpeningId}
-                                    onChange={(e) => setFormData({ ...formData, jobOpeningId: e.target.value })}
-                                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                                >
-                                    <option value="">General Application</option>
-                                    {jobs.map(job => (
-                                        <option key={job.id} value={job.id}>{job.title}</option>
-                                    ))}
-                                </select>
+
+                        <form onSubmit={handleSubmit} className="p-8 space-y-6">
+                            <div className="grid grid-cols-2 gap-6">
+                                <div className="ent-form-group">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Forename <span className="text-rose-500">*</span></label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={formData.firstName}
+                                        onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                                        className="ent-input w-full"
+                                        placeholder="EX: JOHN"
+                                    />
+                                </div>
+                                <div className="ent-form-group">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Surname <span className="text-rose-500">*</span></label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={formData.lastName}
+                                        onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                                        className="ent-input w-full"
+                                        placeholder="EX: DOE"
+                                    />
+                                </div>
                             </div>
 
-                            <div className="flex justify-end space-x-3 pt-4 border-t">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="ent-form-group">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Digital Address <span className="text-rose-500">*</span></label>
+                                    <input
+                                        type="email"
+                                        required
+                                        value={formData.email}
+                                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                        className="ent-input w-full"
+                                        placeholder="EX: JOHN.D@EXAMPLE.COM"
+                                    />
+                                </div>
+                                <div className="ent-form-group">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Communication Link</label>
+                                    <input
+                                        type="tel"
+                                        value={formData.phone}
+                                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                        className="ent-input w-full"
+                                        placeholder="+1 (555)..."
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="ent-form-group">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Target Protocol (Job ID)</label>
+                                <div className="relative">
+                                    <select
+                                        value={formData.jobOpeningId}
+                                        onChange={(e) => setFormData({ ...formData, jobOpeningId: e.target.value })}
+                                        className="ent-input w-full appearance-none"
+                                    >
+                                        <option value="">General Intake / Unsolicited</option>
+                                        {jobs.map(job => (
+                                            <option key={job.id} value={job.id}>{job.title}</option>
+                                        ))}
+                                    </select>
+                                    <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                                </div>
+                            </div>
+
+                            <div className="pt-6 flex items-center justify-end gap-3 border-t border-gray-100">
                                 <button
                                     type="button"
                                     onClick={() => setIsModalOpen(false)}
-                                    className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                                    className="px-6 py-2.5 text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-gray-900 transition-colors"
                                 >
-                                    Cancel
+                                    Abort
                                 </button>
                                 <button
                                     type="submit"
-                                    className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                                    className="px-6 py-2.5 bg-indigo-900 text-white rounded text-[10px] font-black uppercase tracking-widest hover:bg-indigo-950 transition-all shadow-lg shadow-indigo-900/10"
                                 >
-                                    Add Candidate
+                                    Authorize Intake
                                 </button>
                             </div>
                         </form>

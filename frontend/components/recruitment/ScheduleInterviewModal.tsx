@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Calendar, X, Clock, User, Hash } from 'lucide-react';
 
 interface ScheduleInterviewModalProps {
     isOpen: boolean;
@@ -34,75 +35,92 @@ export default function ScheduleInterviewModal({ isOpen, onClose, onSubmit }: Sc
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-            <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full m-4">
-                <div className="flex justify-between items-center p-5 border-b">
-                    <h3 className="text-xl font-medium text-gray-900">Schedule Interview</h3>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-500">
-                        <span className="text-2xl">&times;</span>
+        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full animate-in zoom-in-95 duration-200 overflow-hidden border border-gray-200">
+                <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                    <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-indigo-600" />
+                        <div>
+                            <h3 className="text-sm font-black text-gray-900 tracking-tight uppercase leading-none">Schedule Session</h3>
+                            <p className="text-[9px] text-gray-500 font-bold uppercase tracking-widest mt-0.5">Interview Protocol</p>
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="text-gray-400 hover:text-gray-900 transition-colors">
+                        <X size={18} />
                     </button>
                 </div>
-                <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">Round Number</label>
-                        <input
-                            type="number"
-                            required
-                            min="1"
-                            value={formData.round}
-                            onChange={(e) => setFormData({ ...formData, round: Number(e.target.value) })}
-                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                        />
+
+                <form onSubmit={handleSubmit} className="p-6 space-y-5">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="ent-form-group">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block flex items-center gap-1">
+                                <Hash size={10} /> Round Number
+                            </label>
+                            <input
+                                type="number"
+                                required
+                                min="1"
+                                value={formData.round}
+                                onChange={(e) => setFormData({ ...formData, round: Number(e.target.value) })}
+                                className="ent-input w-full"
+                            />
+                        </div>
+                        <div className="ent-form-group">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Interview Type</label>
+                            <select
+                                value={formData.type}
+                                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                                className="ent-input w-full appearance-none"
+                            >
+                                <option value="technical">Technical</option>
+                                <option value="hr">HR</option>
+                                <option value="managerial">Managerial</option>
+                                <option value="final">Final Round</option>
+                            </select>
+                        </div>
                     </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">Interview Type</label>
-                        <select
-                            value={formData.type}
-                            onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                        >
-                            <option value="technical">Technical</option>
-                            <option value="hr">HR</option>
-                            <option value="managerial">Managerial</option>
-                            <option value="final">Final Round</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">Date & Time</label>
+
+                    <div className="ent-form-group">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block flex items-center gap-1">
+                            <Clock size={10} /> Date & Time Target
+                        </label>
                         <input
                             type="datetime-local"
                             required
                             value={formData.scheduledAt}
                             onChange={(e) => setFormData({ ...formData, scheduledAt: e.target.value })}
-                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                            className="ent-input w-full"
                         />
                     </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">Interviewer Name</label>
+
+                    <div className="ent-form-group">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block flex items-center gap-1">
+                            <User size={10} /> Interviewer
+                        </label>
                         <input
                             type="text"
                             required
                             value={formData.interviewer}
                             onChange={(e) => setFormData({ ...formData, interviewer: e.target.value })}
-                            placeholder="e.g. Jane Doe"
-                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                            placeholder="EX: JANE DOE"
+                            className="ent-input w-full"
                         />
                     </div>
 
-                    <div className="flex justify-end space-x-3 pt-4 border-t">
+                    <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
                         <button
                             type="button"
                             onClick={onClose}
-                            className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                            className="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-gray-900 transition-colors"
                         >
                             Cancel
                         </button>
                         <button
                             type="submit"
                             disabled={submitting}
-                            className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
+                            className="px-5 py-2 bg-indigo-900 text-white rounded text-[10px] font-black uppercase tracking-widest hover:bg-indigo-950 transition-all shadow-lg shadow-indigo-900/10 disabled:opacity-50"
                         >
-                            {submitting ? 'Scheduling...' : 'Schedule'}
+                            {submitting ? 'Scheudling...' : 'Confirm Schedule'}
                         </button>
                     </div>
                 </form>

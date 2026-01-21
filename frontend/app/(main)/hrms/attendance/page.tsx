@@ -7,21 +7,19 @@ import { useEffect, useState } from 'react';
 import { attendanceApi, Attendance } from '@/lib/api/attendance';
 import { auth } from '@/lib/auth';
 
-import { MapPin, Search } from 'lucide-react';
+import { MapPin, Search, Calendar, Clock, User, Filter, Activity, LogOut, ChevronRight, LayoutGrid } from 'lucide-react';
 
 export default function AttendancePage() {
     const toast = useToast();
-    const user = auth.getUser() as any; // Cast to any to access role for now
+    const user = auth.getUser() as any;
     const isAdmin = user?.role === 'admin' || user?.role === 'hr_manager';
     const [activeTab, setActiveTab] = useState('my-attendance');
 
-    // My Attendance State
     const [todayStatus, setTodayStatus] = useState<any>(null);
     const [myHistory, setMyHistory] = useState<Attendance[]>([]);
     const [loading, setLoading] = useState(false);
     const [geoLoading, setGeoLoading] = useState(false);
 
-    // Admin State
     const [adminLogs, setAdminLogs] = useState<any[]>([]);
     const [filters, setFilters] = useState({ date: '', employeeName: '' });
 
@@ -44,6 +42,7 @@ export default function AttendancePage() {
             setMyHistory(history);
         } catch (error) {
             console.error('Failed to load attendance:', error);
+            toast.error('Sync failed');
         } finally {
             setLoading(false);
         }
@@ -56,6 +55,7 @@ export default function AttendancePage() {
             setAdminLogs(logs);
         } catch (error) {
             console.error('Failed to load logs:', error);
+            toast.error('Audit sync failed');
         } finally {
             setLoading(false);
         }
@@ -64,7 +64,7 @@ export default function AttendancePage() {
     const handleCheckIn = async () => {
         setGeoLoading(true);
         if (!navigator.geolocation) {
-            toast.info('Geolocation is not supported by your browser');
+            toast.info('Geolocation protocol not supported');
             setGeoLoading(false);
             return;
         }
@@ -75,7 +75,7 @@ export default function AttendancePage() {
                     latitude: position.coords.latitude,
                     longitude: position.coords.longitude
                 });
-                toast.success('Checked in successfully!');
+                toast.success('Check-in sequence successful');
                 loadMyData();
             } catch (error: any) {
                 toast.error(error.response?.data?.error || 'Check-in failed');
@@ -84,16 +84,15 @@ export default function AttendancePage() {
             }
         }, (error) => {
             console.error('Geo Error:', error);
-            toast.info('Unable to retrieve your location. Please allow location access.');
+            toast.info('Location access required for verification');
             setGeoLoading(false);
         });
     };
 
     const handleCheckOut = async () => {
-        if (!confirm('Are you sure you want to check out?')) return;
         try {
             await attendanceApi.checkOut();
-            toast.success('Checked out successfully!');
+            toast.success('Check-out sequence successful');
             loadMyData();
         } catch (error: any) {
             toast.error(error.response?.data?.error || 'Check-out failed');
@@ -102,15 +101,20 @@ export default function AttendancePage() {
 
     const renderMyAttendance = () => (
         <div className="space-y-6">
-            {/* Action Card */}
-            <div className="bg-white rounded-lg shadow p-6 flex flex-col items-center justify-center space-y-4">
-                <div className="text-center">
-                    <h2 className="text-2xl font-bold text-gray-900">
-                        {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            {/* Operational Status Card */}
+            <div className="ent-card p-6 bg-gradient-to-br from-white to-gray-50 flex flex-col items-center justify-center border-primary-100 shadow-xl shadow-primary-900/5">
+                <div className="text-center mb-6">
+                    <div className="flex items-center gap-2 justify-center text-gray-400 mb-2">
+                        <Calendar size={12} className="text-primary-600" />
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em]">Current Registry Period</span>
+                    </div>
+                    <h2 className="text-2xl font-black text-gray-900 tracking-tight leading-none">
+                        {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).toUpperCase()}
                     </h2>
-                    <p className="text-gray-500 mt-1">
-                        {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-                    </p>
+                    <div className="mt-4 inline-flex items-center gap-2 px-3 py-1 bg-white rounded-full border border-gray-100 shadow-sm">
+                        <Clock size={14} className="text-primary-600" />
+                        <span className="text-sm font-black text-gray-900 tracking-tight">{new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
                 </div>
 
                 <div className="flex items-center space-x-4">
@@ -118,168 +122,213 @@ export default function AttendancePage() {
                         <button
                             onClick={handleCheckIn}
                             disabled={geoLoading}
-                            className="bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-8 rounded-full shadow-lg flex items-center text-lg disabled:opacity-50"
+                            className="bg-primary-900 hover:bg-black text-white px-10 py-4 rounded font-black text-[12px] uppercase tracking-widest shadow-2xl shadow-primary-900/40 flex items-center gap-3 transition-all active:scale-95 disabled:opacity-50"
                         >
-                            <MapPin className="mr-2 h-6 w-6" />
-                            {geoLoading ? 'Getting Location...' : 'Check In'}
+                            <MapPin size={18} />
+                            {geoLoading ? 'SYNCHRONIZING LOCATION...' : 'Initiate Shift Check-In'}
                         </button>
                     ) : !todayStatus?.checkedOut ? (
                         <button
                             onClick={handleCheckOut}
-                            className="bg-red-600 hover:bg-red-700 text-white font-bold py-4 px-8 rounded-full shadow-lg flex items-center text-lg"
+                            className="bg-rose-600 hover:bg-rose-700 text-white px-10 py-4 rounded font-black text-[12px] uppercase tracking-widest shadow-2xl shadow-rose-900/30 flex items-center gap-3 transition-all active:scale-95"
                         >
-                            <LogOutIcon className="mr-2 h-6 w-6" />
-                            Check Out
+                            <LogOut size={18} />
+                            Terminate Shift Session
                         </button>
                     ) : (
-                        <div className="text-gray-600 font-medium py-2 px-4 bg-gray-100 rounded-full">
-                            ✅ Attendance Completed for Today
+                        <div className="px-8 py-4 bg-emerald-50 border border-emerald-100 rounded-full flex items-center gap-3">
+                            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                            <span className="text-[10px] font-black text-emerald-800 uppercase tracking-widest">Shift Protocol Completed</span>
                         </div>
                     )}
                 </div>
 
                 {todayStatus?.checkedIn && (
-                    <div className="bg-blue-50 text-blue-800 px-4 py-2 rounded-md text-sm">
-                        Checked in at: {new Date(todayStatus.checkInTime).toLocaleTimeString()}
+                    <div className="mt-6 flex items-center gap-4 text-[10px] font-bold text-gray-500 bg-gray-100/50 px-4 py-2 rounded">
+                        <span className="flex items-center gap-1.5"><Activity size={12} className="text-emerald-500" /> SESSION ACTIVE</span>
+                        <span className="w-px h-3 bg-gray-300" />
+                        <span>INITIALIZED AT: {new Date(todayStatus.checkInTime).toLocaleTimeString()}</span>
                     </div>
                 )}
             </div>
 
-            {/* History List */}
-            <h3 className="text-lg font-medium text-gray-900 mt-8">My History</h3>
-            <div className="bg-white shadow overflow-hidden sm:rounded-md">
-                <ul className="divide-y divide-gray-200">
-                    {myHistory.map((record) => (
-                        <li key={record.id} className="px-6 py-4 flex items-center justify-between">
-                            <div>
-                                <div className="text-sm font-medium text-gray-900">
-                                    {new Date(record.date).toLocaleDateString()}
-                                </div>
-                                <div className="text-sm text-gray-500">
-                                    {record.checkIn ? new Date(record.checkIn).toLocaleTimeString() : '-'}
-                                    {' ➔ '}
-                                    {record.checkOut ? new Date(record.checkOut).toLocaleTimeString() : '-'}
-                                </div>
-                            </div>
-                            <div>
-                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                    ${record.status === 'present' ? 'bg-green-100 text-green-800' :
-                                        record.status === 'late' ? 'bg-yellow-100 text-yellow-800' :
-                                            'bg-red-100 text-red-800'}`}>
-                                    {record.status}
-                                </span>
-                            </div>
-                        </li>
-                    ))}
-                    {myHistory.length === 0 && (
-                        <li className="px-6 py-4 text-center text-gray-500">No records found.</li>
-                    )}
-                </ul>
+            {/* Individual Ledger */}
+            <div className="space-y-3">
+                <div className="flex items-center justify-between px-2">
+                    <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                        <Activity size={12} /> Personal Activity Registry
+                    </h3>
+                </div>
+
+                <div className="ent-card overflow-hidden">
+                    <table className="ent-table">
+                        <thead>
+                            <tr>
+                                <th>Registry Date</th>
+                                <th>Session Range</th>
+                                <th>Total Duration</th>
+                                <th>Protocol Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {myHistory.map((record) => (
+                                <tr key={record.id}>
+                                    <td className="font-black text-gray-900 uppercase">{new Date(record.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                                    <td>
+                                        <div className="flex items-center gap-2 font-bold text-gray-600 text-[10px]">
+                                            <span className="px-1.5 py-0.5 bg-gray-50 rounded border border-gray-100">{record.checkIn ? new Date(record.checkIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '---'}</span>
+                                            <ChevronRight size={10} className="text-gray-300" />
+                                            <span className="px-1.5 py-0.5 bg-gray-50 rounded border border-gray-100">{record.checkOut ? new Date(record.checkOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'RUNNING'}</span>
+                                        </div>
+                                    </td>
+                                    <td className="font-black text-[10px] text-gray-500 italic">SYSTEM CALCULATED</td>
+                                    <td>
+                                        <span className={`ent-badge ${record.status === 'present' ? 'ent-badge-success' :
+                                                record.status === 'late' ? 'ent-badge-warning' : 'ent-badge-danger'
+                                            }`}>
+                                            {record.status?.toUpperCase()}
+                                        </span>
+                                    </td>
+                                </tr>
+                            ))}
+                            {myHistory.length === 0 && (
+                                <tr>
+                                    <td colSpan={4} className="py-12 text-center text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                        No registry records found for the current period
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     );
 
     const renderAdminLogs = () => (
         <div className="space-y-4">
-            {/* Filters */}
-            <div className="bg-white p-4 rounded-md shadow flex gap-4">
-                <div className="flex-1">
-                    <label className="block text-xs font-medium text-gray-700">Date</label>
-                    <input type="date" value={filters.date} onChange={(e) => setFilters({ ...filters, date: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+            {/* Global Filters */}
+            <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+                <div className="ent-form-group mb-0">
+                    <label className="text-[9px] font-black text-gray-500 mb-1 uppercase tracking-widest">Registry Date</label>
+                    <input type="date" value={filters.date} onChange={(e) => setFilters({ ...filters, date: e.target.value })} className="ent-input w-full py-2 px-3 text-[10px] font-black" />
                 </div>
-                <div className="flex-1">
-                    <label className="block text-xs font-medium text-gray-700">Employee Name</label>
-                    <input type="text" placeholder="Search..." value={filters.employeeName} onChange={(e) => setFilters({ ...filters, employeeName: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+                <div className="ent-form-group mb-0">
+                    <label className="text-[9px] font-black text-gray-500 mb-1 uppercase tracking-widest">Resource Name</label>
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+                        <input type="text" placeholder="SEARCH RESOURCE..." value={filters.employeeName} onChange={(e) => setFilters({ ...filters, employeeName: e.target.value })} className="ent-input w-full py-2 pl-9 pr-3 text-[10px] font-black uppercase tracking-widest" />
+                    </div>
                 </div>
-                <div className="flex items-end">
-                    <button onClick={loadAdminData} className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700">
-                        <Search className="h-4 w-4" />
-                    </button>
-                </div>
+                <button
+                    onClick={loadAdminData}
+                    className="flex items-center justify-center gap-2 bg-primary-900 text-white px-4 py-2.5 rounded font-black text-[10px] uppercase tracking-widest hover:bg-black transition-all"
+                >
+                    <Activity size={14} /> Global Sync
+                </button>
             </div>
 
-            {/* Table */}
-            <div className="bg-white shadow overflow-hidden rounded-lg">
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
+            {/* Global Audit Ledger */}
+            <div className="ent-card overflow-hidden">
+                <table className="ent-table">
+                    <thead>
                         <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check In</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check Out</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Note</th>
+                            <th>Resource</th>
+                            <th>Registry Date</th>
+                            <th>Check-In Protocol</th>
+                            <th>Check-Out Protocol</th>
+                            <th>Compliance Status</th>
+                            <th>Operational Note</th>
                         </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
+                    <tbody>
                         {adminLogs.map((log: any) => (
                             <tr key={log.id}>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                    {log.employee?.firstName} {log.employee?.lastName}
+                                <td className="flex items-center gap-3">
+                                    <div className="w-7 h-7 rounded bg-gray-100 flex items-center justify-center font-black text-[10px] text-gray-600 border border-gray-200 uppercase">
+                                        {log.employee?.firstName?.[0]}{log.employee?.lastName?.[0]}
+                                    </div>
+                                    <div>
+                                        <div className="text-[11px] font-black text-gray-900 uppercase leading-none">{log.employee?.firstName} {log.employee?.lastName}</div>
+                                        <div className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter mt-1">{log.employee?.department?.name || 'GENERIC'}</div>
+                                    </div>
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {new Date(log.date).toLocaleDateString()}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {log.checkIn ? new Date(log.checkIn).toLocaleTimeString() : '-'}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {log.checkOut ? new Date(log.checkOut).toLocaleTimeString() : '-'}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                        ${log.status === 'present' ? 'bg-green-100 text-green-800' :
-                                            log.status === 'late' ? 'bg-yellow-100 text-yellow-800' :
-                                                'bg-red-100 text-red-800'}`}>
-                                        {log.status}
+                                <td className="font-black text-gray-600 uppercase text-[10px]">{new Date(log.date).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                                <td className="font-bold text-gray-600 text-[10px]">{log.checkIn ? new Date(log.checkIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '---'}</td>
+                                <td className="font-bold text-gray-600 text-[10px]">{log.checkOut ? new Date(log.checkOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '---'}</td>
+                                <td>
+                                    <span className={`ent-badge ${log.status === 'present' ? 'ent-badge-success' :
+                                            log.status === 'late' ? 'ent-badge-warning' : 'ent-badge-danger'
+                                        }`}>
+                                        {log.status?.toUpperCase()}
                                     </span>
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {log.notes}
+                                <td className="text-[10px] font-bold text-gray-400 italic">
+                                    {log.notes || 'NO NOTES LOGGED'}
                                 </td>
                             </tr>
                         ))}
+                        {adminLogs.length === 0 && (
+                            <tr>
+                                <td colSpan={6} className="py-20 text-center text-[10px] font-black text-gray-400 uppercase tracking-[0.25em]">
+                                    No global activity logs detected for the specified criteria
+                                </td>
+                            </tr>
+                        )}
                     </tbody>
                 </table>
             </div>
         </div>
     );
 
-    function LogOutIcon(props: any) {
-        return (
-            <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" x2="9" y1="12" y2="12" /></svg>
-        )
-    }
-
     return (
-        <div className="px-4 py-6 sm:px-0">
-            <div className="max-w-6xl mx-auto px-4 py-8">
-                <div className="flex justify-between items-center mb-6">
-                    <h1 className="text-2xl font-bold text-gray-900">Attendance Center</h1>
+        <div className="max-w-6xl mx-auto space-y-6">
+            {/* Semantic Header */}
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-5 rounded-lg border border-gray-200 shadow-sm gap-4">
+                <div className="flex items-center gap-4">
+                    <div className="p-3 bg-primary-900 rounded-lg shadow-lg">
+                        <Activity className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                        <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none uppercase">Attendance Matrix</h2>
+                        <p className="text-[10px] text-gray-500 font-bold mt-1.5 uppercase tracking-widest flex items-center gap-2">
+                            Global Workforce Chronology Protocol <ChevronRight size={10} className="text-primary-600" /> {activeTab.replace('-', ' ').toUpperCase()}
+                        </p>
+                    </div>
                 </div>
 
-                <div className="border-b border-gray-200 mb-6">
-                    <nav className="-mb-px flex space-x-8">
+                <div className="flex bg-gray-100 p-1 rounded-lg border border-gray-200">
+                    <button
+                        onClick={() => setActiveTab('my-attendance')}
+                        className={`flex items-center gap-2 py-2 px-4 rounded font-black text-[10px] uppercase tracking-widest transition-all ${activeTab === 'my-attendance' ? 'bg-white text-primary-900 shadow-md ring-1 ring-black/5' : 'text-gray-500 hover:text-gray-900'
+                            }`}
+                    >
+                        <User size={14} /> Registry Status
+                    </button>
+                    {isAdmin && (
                         <button
-                            onClick={() => setActiveTab('my-attendance')}
-                            className={`${activeTab === 'my-attendance' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+                            onClick={() => setActiveTab('admin-logs')}
+                            className={`flex items-center gap-2 py-2 px-4 rounded font-black text-[10px] uppercase tracking-widest transition-all ${activeTab === 'admin-logs' ? 'bg-white text-primary-900 shadow-md ring-1 ring-black/5' : 'text-gray-500 hover:text-gray-900'
+                                }`}
                         >
-                            My Attendance
+                            <LayoutGrid size={14} /> System Audit
                         </button>
-                        {isAdmin && (
-                            <button
-                                onClick={() => setActiveTab('admin-logs')}
-                                className={`${activeTab === 'admin-logs' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
-                            >
-                                Admin Logs
-                            </button>
-                        )}
-                    </nav>
+                    )}
                 </div>
-
-                {activeTab === 'my-attendance' && renderMyAttendance()}
-                {activeTab === 'admin-logs' && renderAdminLogs()}
             </div>
+
+            {loading && !geoLoading && (
+                <div className="py-20 flex flex-col items-center justify-center bg-white/50 rounded-lg border border-dashed border-gray-200 animate-pulse">
+                    <LoadingSpinner size="lg" />
+                    <p className="mt-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Synchronizing Registry Intelligence...</p>
+                </div>
+            )}
+
+            {!loading && (
+                <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
+                    {activeTab === 'my-attendance' ? renderMyAttendance() : renderAdminLogs()}
+                </div>
+            )}
         </div>
     );
 }

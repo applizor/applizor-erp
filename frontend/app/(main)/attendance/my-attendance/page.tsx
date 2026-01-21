@@ -6,7 +6,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { attendanceApi, holidaysApi, Holiday } from '@/lib/api/attendance';
-import { Clock, LogIn, LogOut, MapPin, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Clock, LogIn, LogOut, MapPin, AlertTriangle, CheckCircle, Calendar, History, ArrowRight, Info } from 'lucide-react';
 
 interface Attendance {
     id: string;
@@ -26,29 +26,23 @@ export default function MyAttendancePage() {
     const [actionLoading, setActionLoading] = useState(false);
     const [location, setLocation] = useState<{ lat: number, lng: number } | null>(null);
     const [locError, setLocError] = useState<string | null>(null);
+    const [todayHoliday, setTodayHoliday] = useState<any>(null);
 
     useEffect(() => {
         loadData();
-        // Request location on load
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
                 (pos) => {
-                    setLocation({
-                        lat: pos.coords.latitude,
-                        lng: pos.coords.longitude
-                    });
+                    setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
                 },
                 (err) => {
-                    setLocError('Location access denied. Geo-fencing check-in may fail.');
-                    console.warn('Geolocation error:', err);
+                    setLocError('Location access denied. Geo-fencing may fail.');
                 }
             );
         } else {
-            setLocError('Geolocation not supported by this browser.');
+            setLocError('Geolocation not supported.');
         }
     }, []);
-
-    const [todayHoliday, setTodayHoliday] = useState<any>(null);
 
     const loadData = async () => {
         try {
@@ -60,12 +54,10 @@ export default function MyAttendancePage() {
             setAttendance(historyData);
             setTodayStatus(statusData);
 
-            // Check for Holiday
             const todayStr = new Date().toDateString();
             const holidays = await holidaysApi.getAll(new Date().getFullYear());
             const holiday = holidays.find((h: Holiday) => new Date(h.date).toDateString() === todayStr);
             setTodayHoliday(holiday || null);
-
         } catch (error) {
             console.error('Failed to load attendance:', error);
         } finally {
@@ -81,11 +73,10 @@ export default function MyAttendancePage() {
                 payload.latitude = location.lat;
                 payload.longitude = location.lng;
             }
-
             await attendanceApi.checkIn(payload);
+            toast.success('Check-in successful');
             loadData();
         } catch (error: any) {
-            console.error('Check-in failed:', error);
             toast.error(error.response?.data?.error || 'Check-in failed');
         } finally {
             setActionLoading(false);
@@ -96,9 +87,9 @@ export default function MyAttendancePage() {
         try {
             setActionLoading(true);
             await attendanceApi.checkOut();
+            toast.success('Check-out successful');
             loadData();
         } catch (error: any) {
-            console.error('Check-out failed:', error);
             toast.error(error.response?.data?.error || 'Check-out failed');
         } finally {
             setActionLoading(false);
@@ -106,136 +97,168 @@ export default function MyAttendancePage() {
     };
 
     return (
-        <div className="p-6 max-w-5xl mx-auto">
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-gray-800">My Attendance</h2>
-                <Link href="/attendance/leaves" className="text-sm text-primary-600 hover:text-primary-800 font-medium">
-                    Apply for Leave &rarr;
+        <div className="space-y-4">
+            <div className="flex justify-between items-center bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                <div>
+                    <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2 leading-none">
+                        <MapPin className="w-5 h-5 text-primary-600" />
+                        Presence Tracking
+                    </h2>
+                    <p className="text-xs text-gray-500 font-medium mt-1">Manage your daily check-in and check-out logs</p>
+                </div>
+                <Link href="/attendance/leaves" className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-primary-600 hover:text-primary-700 bg-primary-50 px-3 py-1.5 rounded transition-colors group">
+                    Leave Management <ArrowRight size={12} className="group-hover:translate-x-1 transition-transform" />
                 </Link>
             </div>
 
-            {/* Holiday Banner */}
             {todayHoliday && (
-                <div className="bg-teal-50 border-l-4 border-teal-500 p-4 mb-6 rounded-r-md shadow-sm">
-                    <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                            <Clock className="h-5 w-5 text-teal-500" />
-                        </div>
-                        <div className="ml-3">
-                            <p className="text-sm text-teal-700">
-                                <span className="font-bold">Holiday:</span> Today is <span className="font-medium">{todayHoliday.name}</span>.
-                            </p>
-                        </div>
+                <div className="bg-emerald-50 border border-emerald-100 p-3 rounded-lg flex items-center gap-3 animate-pulse">
+                    <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center">
+                        <Calendar size={16} className="text-emerald-600" />
+                    </div>
+                    <div>
+                        <p className="text-[10px] font-black text-emerald-800 uppercase tracking-widest leading-none">Today is a Holiday</p>
+                        <p className="text-xs font-bold text-emerald-600 italic mt-0.5">{todayHoliday.name}</p>
                     </div>
                 </div>
             )}
 
-            {/* Today's Status Card */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
-                <div className="flex flex-col md:flex-row justify-between items-center">
-                    <div>
-                        <h3 className="text-lg font-semibold text-gray-900">Today's Status</h3>
-                        <p className="text-gray-500 text-sm">{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                        {todayStatus?.checkInTime && (
-                            <div className="mt-2 text-sm text-gray-600">
-                                Checked In: <span className="font-mono font-medium">{new Date(todayStatus.checkInTime).toLocaleTimeString()}</span>
+            {locError && (
+                <div className="p-2.5 bg-rose-50 rounded border border-rose-100 flex items-center gap-2 text-rose-600">
+                    <AlertTriangle size={14} />
+                    <span className="text-[10px] font-bold uppercase tracking-wide">{locError}</span>
+                </div>
+            )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div className="lg:col-span-2 ent-card p-5 relative overflow-hidden flex flex-col justify-between min-h-[220px]">
+                    <div className="absolute top-0 right-0 w-48 h-48 bg-primary-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+
+                    <div className="relative z-10 flex justify-between items-start">
+                        <div>
+                            <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Today's Presence</h3>
+                            <div className="text-lg font-bold text-gray-900">
+                                {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
                             </div>
-                        )}
-                        {todayStatus?.checkOutTime && (
-                            <div className="text-sm text-gray-600">
-                                Checked Out: <span className="font-mono font-medium">{new Date(todayStatus.checkOutTime).toLocaleTimeString()}</span>
-                            </div>
-                        )}
-                        {locError && (
-                            <div className="mt-2 flex items-center text-xs text-amber-600">
-                                <AlertTriangle size={12} className="mr-1" />
-                                {locError}
-                            </div>
-                        )}
+                        </div>
                         {location && (
-                            <div className="mt-1 flex items-center text-xs text-green-600">
-                                <MapPin size={12} className="mr-1" />
-                                Location Acquired
+                            <div className="flex items-center gap-1 text-emerald-600 bg-emerald-50 px-2 py-1 rounded border border-emerald-100">
+                                <CheckCircle size={10} />
+                                <span className="text-[8px] font-black uppercase tracking-widest">Geo-Verified</span>
                             </div>
                         )}
                     </div>
 
-                    <div className="mt-4 md:mt-0 flex space-x-4">
-                        {/* Show Check In if NOT checked in (either no record or last record is checked out) */}
-                        {!todayStatus?.checkedIn && (
-                            <button
-                                onClick={handleCheckIn}
-                                disabled={actionLoading}
-                                className="flex items-center space-x-2 bg-green-600 text-white px-6 py-3 rounded-md hover:bg-green-700 disabled:opacity-50 transition-colors shadow-sm"
-                            >
-                                <LogIn size={20} />
-                                <span>{actionLoading ? 'Processing...' : 'Check In'}</span>
-                            </button>
-                        )}
-
-                        {/* Show Check Out if currently checked in */}
-                        {todayStatus?.checkedIn && (
-                            <button
-                                onClick={handleCheckOut}
-                                disabled={actionLoading}
-                                className="flex items-center space-x-2 bg-red-600 text-white px-6 py-3 rounded-md hover:bg-red-700 disabled:opacity-50 transition-colors shadow-sm"
-                            >
-                                <LogOut size={20} />
-                                <span>{actionLoading ? 'Processing...' : 'Check Out'}</span>
-                            </button>
-                        )}
+                    <div className="relative z-10 grid grid-cols-2 gap-4 mt-8">
+                        <div className="bg-gray-50 p-3 rounded border border-gray-100">
+                            <div className="text-[9px] font-black text-gray-400 uppercase tracking-tighter mb-1">Check-In</div>
+                            <div className="text-xl font-black text-gray-900 tracking-tighter">
+                                {todayStatus?.checkInTime ? new Date(todayStatus.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                            </div>
+                        </div>
+                        <div className="bg-gray-50 p-3 rounded border border-gray-100">
+                            <div className="text-[9px] font-black text-gray-400 uppercase tracking-tighter mb-1">Check-Out</div>
+                            <div className="text-xl font-black text-gray-900 tracking-tighter">
+                                {todayStatus?.checkOutTime ? new Date(todayStatus.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                            </div>
+                        </div>
                     </div>
+                </div>
+
+                <div className="ent-card flex flex-col items-center justify-center p-8 bg-gray-50/50 border-dashed">
+                    {!todayStatus?.checkedIn ? (
+                        <button
+                            onClick={handleCheckIn}
+                            disabled={actionLoading}
+                            className="w-36 h-36 rounded-full bg-white border-4 border-gray-100 shadow-xl flex flex-col items-center justify-center group active:scale-95 transition-all duration-300 disabled:opacity-50"
+                        >
+                            <div className="w-16 h-16 rounded-full bg-primary-600 text-white flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg shadow-primary-200">
+                                <LogIn size={24} />
+                            </div>
+                            <span className="mt-3 text-[10px] font-black text-gray-900 uppercase tracking-widest">
+                                {actionLoading ? '...' : 'Check-In'}
+                            </span>
+                        </button>
+                    ) : (
+                        <button
+                            onClick={handleCheckOut}
+                            disabled={actionLoading}
+                            className="w-36 h-36 rounded-full bg-white border-4 border-gray-100 shadow-xl flex flex-col items-center justify-center group active:scale-95 transition-all duration-300 disabled:opacity-50"
+                        >
+                            <div className="w-16 h-16 rounded-full bg-rose-600 text-white flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg shadow-rose-200">
+                                <LogOut size={24} />
+                            </div>
+                            <span className="mt-3 text-[10px] font-black text-gray-900 uppercase tracking-widest">
+                                {actionLoading ? '...' : 'Check-Out'}
+                            </span>
+                        </button>
+                    )}
                 </div>
             </div>
 
-            {/* Attendance History */}
-            <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-                <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
-                    <h3 className="text-lg leading-6 font-medium text-gray-900">Attendance History</h3>
+            <div className="ent-card overflow-hidden">
+                <div className="px-5 py-3 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
+                    <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Attendance History</h3>
+                    <History size={14} className="text-gray-400" />
                 </div>
-                <ul className="divide-y divide-gray-200">
-                    {attendance.map((record) => (
-                        <li key={record.id} className="px-4 py-4 sm:px-6 hover:bg-gray-50">
-                            <div className="flex items-center justify-between">
-                                <div className="flex flex-col">
-                                    <span className="text-sm font-medium text-indigo-600">
-                                        {new Date(record.date).toLocaleDateString()}
-                                    </span>
-                                    <span className={`text-xs inline-flex w-fit mt-1 px-2 py-0.5 rounded-full capitalize ${record.status === 'present' ? 'bg-green-100 text-green-800' :
-                                        record.status === 'absent' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
-                                        }`}>
-                                        {record.status}
-                                    </span>
-                                </div>
-                                <div className="flex space-x-6">
-                                    <div className="flex flex-col items-end">
-                                        <p className="text-xs text-gray-500 uppercase tracking-wider">In</p>
-                                        <p className="text-sm font-mono text-gray-900">
-                                            {record.checkIn ? new Date(record.checkIn).toLocaleTimeString() : '--:--'}
-                                        </p>
-                                    </div>
-                                    <div className="flex flex-col items-end">
-                                        <p className="text-xs text-gray-500 uppercase tracking-wider">Out</p>
-                                        <p className="text-sm font-mono text-gray-900">
-                                            {record.checkOut ? new Date(record.checkOut).toLocaleTimeString() : '--:--'}
-                                        </p>
-                                    </div>
-                                    {(record.ipAddress || record.location) && (
-                                        <div className="hidden sm:flex flex-col items-end w-24">
-                                            <p className="text-xs text-gray-500 uppercase tracking-wider">Info</p>
-                                            <p className="text-xs text-gray-400 truncate w-full text-right" title={`IP: ${record.ipAddress}\nLoc: ${record.location}`}>
-                                                {record.location ? '📍 Loc' : '🌐 IP'}
-                                            </p>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </li>
-                    ))}
-                    {attendance.length === 0 && (
-                        <li className="px-6 py-8 text-center text-gray-500">No attendance history found.</li>
-                    )}
-                </ul>
+                <div className="overflow-x-auto">
+                    <table className="ent-table">
+                        <thead>
+                            <tr>
+                                <th className="text-[10px] uppercase tracking-widest">Date</th>
+                                <th className="text-[10px] uppercase tracking-widest">In</th>
+                                <th className="text-[10px] uppercase tracking-widest">Out</th>
+                                <th className="text-[10px] uppercase tracking-widest">Status</th>
+                                <th className="text-[10px] uppercase tracking-widest text-right">Details</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-50">
+                            {attendance.length === 0 ? (
+                                <tr>
+                                    <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
+                                        <Info className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                                        <p className="text-xs font-bold uppercase tracking-widest">No history discovered</p>
+                                    </td>
+                                </tr>
+                            ) : (
+                                attendance.map((record) => (
+                                    <tr key={record.id} className="group hover:bg-primary-50/30 transition-colors">
+                                        <td className="px-4 py-3">
+                                            <div className="text-xs font-bold text-gray-900 uppercase whitespace-nowrap">
+                                                {new Date(record.date).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
+                                            </div>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <div className="text-xs font-black text-gray-900 tracking-tighter">
+                                                {record.checkIn ? new Date(record.checkIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                                            </div>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <div className="text-xs font-black text-gray-900 tracking-tighter">
+                                                {record.checkOut ? new Date(record.checkOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                                            </div>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <span className={`ent-badge font-bold uppercase ${record.status === 'present' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : record.status === 'absent' ? 'bg-rose-50 text-rose-700 border-rose-100' : 'bg-amber-50 text-amber-700 border-amber-100'}`}>
+                                                {record.status}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-3 text-right">
+                                            {(record.ipAddress || record.location) ? (
+                                                <div className="flex items-center justify-end gap-2 group-hover:translate-x-[-4px] transition-transform" title={`IP: ${record.ipAddress || 'N/A'}`}>
+                                                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-tighter">Verified</span>
+                                                    <div className={`w-1.5 h-1.5 rounded-full ${record.location ? 'bg-emerald-500' : 'bg-primary-500'}`} />
+                                                </div>
+                                            ) : (
+                                                <span className="text-[8px] font-bold text-gray-300 uppercase">System</span>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     );

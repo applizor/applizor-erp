@@ -9,6 +9,8 @@ import Link from 'next/link';
 import { employeesApi, departmentsApi, Employee, Department } from '@/lib/api/hrms';
 import { PermissionGuard } from '@/components/PermissionGuard';
 import { usePermission } from '@/hooks/usePermission';
+import { Plus, Users, Clock, Zap, Search, Filter, Trash2, UserPlus, Fingerprint, Shield } from 'lucide-react';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 export default function EmployeesPage() {
     const toast = useToast();
@@ -18,6 +20,7 @@ export default function EmployeesPage() {
     const [departments, setDepartments] = useState<Department[]>([]);
     const [loading, setLoading] = useState(true);
     const [redirecting, setRedirecting] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
     const [filters, setFilters] = useState({
         departmentId: '',
         status: ''
@@ -36,20 +39,16 @@ export default function EmployeesPage() {
     const checkAccessAndRedirect = async () => {
         if (!user) return;
 
-        // Check if user has only "owned" read access
         const permissions = user.permissions?.['Employee'];
         const hasOwnedAccess = permissions?.readLevel === 'owned';
 
         if (hasOwnedAccess) {
-            // Find employee record for current user and redirect
             setRedirecting(true);
             try {
                 const employees = await employeesApi.getAll();
                 if (employees.length > 0) {
-                    // Should only return one employee (their own)
                     router.push(`/hrms/employees/${employees[0].id}`);
                 } else {
-                    // No employee record found
                     setRedirecting(false);
                 }
             } catch (error) {
@@ -70,145 +69,197 @@ export default function EmployeesPage() {
             setDepartments(deptData);
         } catch (error) {
             console.error('Failed to load data:', error);
+            toast.error('Data synchronization failed');
         } finally {
             setLoading(false);
         }
     };
 
-    const handleDelete = async (id: string) => {
-        if (!confirm('Are you sure you want to delete this employee?')) return;
+    const handleDelete = async () => {
+        if (!showDeleteConfirm) return;
         try {
-            await employeesApi.delete(id);
+            await employeesApi.delete(showDeleteConfirm);
+            toast.success('Resource purged from registry');
             loadData();
         } catch (error: any) {
-            toast.error(error.response?.data?.error || 'Failed to delete employee');
+            toast.error(error.response?.data?.error || 'Purge sequence failed');
+        } finally {
+            setShowDeleteConfirm(null);
         }
     };
 
     if (redirecting) {
         return (
-            <div className="flex items-center justify-center h-64">
+            <div className="flex items-center justify-center p-24">
                 <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
-                    <p className="text-gray-600">Loading your profile...</p>
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-4"></div>
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Accessing Node Profile...</p>
                 </div>
             </div>
         );
     }
 
     return (
-        <div>
-            <div className="flex justify-between items-center mb-6">
-                <div className="flex items-center space-x-4">
-                    <h2 className="text-lg font-medium text-gray-900">Employees</h2>
-                    <select
-                        value={filters.departmentId}
-                        onChange={(e) => setFilters({ ...filters, departmentId: e.target.value })}
-                        className="border-gray-300 rounded-md shadow-sm text-sm focus:ring-primary-500 focus:border-primary-500"
-                    >
-                        <option value="">All Departments</option>
-                        {departments.map(dept => (
-                            <option key={dept.id} value={dept.id}>{dept.name}</option>
-                        ))}
-                    </select>
-                    <select
-                        value={filters.status}
-                        onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                        className="border-gray-300 rounded-md shadow-sm text-sm focus:ring-primary-500 focus:border-primary-500"
-                    >
-                        <option value="">All Statuses</option>
-                        <option value="active">Active</option>
-                        <option value="inactive">Inactive</option>
-                        <option value="on-leave">On Leave</option>
-                        <option value="terminated">Terminated</option>
-                    </select>
+        <div className="space-y-6">
+            {/* Contextual Header */}
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-4 rounded-lg border border-gray-200 shadow-sm gap-4">
+                <div className="flex items-center gap-4">
+                    <div className="p-2.5 bg-primary-900 rounded-lg shadow-lg">
+                        <Users className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                        <h2 className="text-lg font-black text-gray-900 tracking-tight leading-none uppercase">Resource Directory</h2>
+                        <p className="text-[10px] text-gray-500 font-bold mt-1 uppercase tracking-widest leading-none">Global Human Capital Intelligence Matrix</p>
+                    </div>
                 </div>
-                <PermissionGuard module="Employee" action="create">
-                    <Link
-                        href="/hrms/employees/new"
-                        className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 text-sm"
-                    >
-                        + Add Employee
-                    </Link>
-                </PermissionGuard>
+
+                <div className="flex items-center gap-2 w-full lg:w-auto">
+                    <div className="flex-1 lg:w-64 relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                        <input
+                            type="text"
+                            placeholder="QUERY RESOURCE..."
+                            className="ent-input w-full pl-9 py-1.5 text-[10px] font-black tracking-widest"
+                        />
+                    </div>
+                    <PermissionGuard module="Employee" action="create">
+                        <Link
+                            href="/hrms/employees/new"
+                            className="px-4 py-2 bg-primary-600 text-white rounded text-[10px] font-black uppercase tracking-widest hover:bg-primary-700 shadow-lg shadow-primary-900/10 flex items-center gap-2 transition-all whitespace-nowrap"
+                        >
+                            <UserPlus size={14} /> Register Resource
+                        </Link>
+                    </PermissionGuard>
+                </div>
+            </div>
+
+            {/* Logical Filtration Schema */}
+            <div className="flex items-center gap-3 bg-gray-50/50 p-2 rounded-lg border border-gray-100">
+                <div className="flex items-center gap-2 px-2 text-gray-400">
+                    <Filter size={12} />
+                    <span className="text-[9px] font-black uppercase tracking-widest">Refinement:</span>
+                </div>
+                <select
+                    value={filters.departmentId}
+                    onChange={(e) => setFilters({ ...filters, departmentId: e.target.value })}
+                    className="bg-white border border-gray-200 rounded px-3 py-1 text-[10px] font-black uppercase tracking-widest text-gray-900 outline-none focus:ring-1 focus:ring-primary-500 shadow-sm min-w-[140px]"
+                >
+                    <option value="">Division Schema</option>
+                    {departments.map(dept => (
+                        <option key={dept.id} value={dept.id}>{dept.name}</option>
+                    ))}
+                </select>
+
+                <select
+                    value={filters.status}
+                    onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+                    className="bg-white border border-gray-200 rounded px-3 py-1 text-[10px] font-black uppercase tracking-widest text-gray-900 outline-none focus:ring-1 focus:ring-primary-500 shadow-sm min-w-[140px]"
+                >
+                    <option value="">Engagement Status</option>
+                    <option value="active">Active Duty</option>
+                    <option value="on-leave">On Sabbatical</option>
+                    <option value="inactive">Inactive Cache</option>
+                    <option value="terminated">Terminated</option>
+                </select>
+
+                <div className="ml-auto flex items-center gap-2 px-3 py-1 bg-white border border-gray-100 rounded shadow-sm">
+                    <Zap className="w-3 h-3 text-amber-500" />
+                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Active Nodes:</span>
+                    <span className="text-[10px] font-black text-primary-600">{employees.filter(e => e.status === 'active').length}</span>
+                </div>
             </div>
 
             {loading ? (
-                <div className="text-center py-8">Loading...</div>
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
+                        <div key={i} className="h-44 rounded-lg bg-gray-50 animate-pulse border border-gray-100" />
+                    ))}
+                </div>
             ) : employees.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">No employees found.</div>
+                <div className="flex flex-col items-center justify-center py-24 bg-gray-50/30 rounded-lg border border-dashed border-gray-200">
+                    <Users className="w-8 h-8 text-gray-300 mb-3" />
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Zero Resources Detected in Lifecycle</p>
+                </div>
             ) : (
-                <div className="bg-white shadow overflow-hidden sm:rounded-md">
-                    <ul className="divide-y divide-gray-200">
-                        {employees.map((emp) => (
-                            <li key={emp.id} className="px-6 py-4 hover:bg-gray-50 flex justify-between items-center">
-                                <div className="flex items-center">
-                                    <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 font-bold mr-4">
-                                        {emp.firstName[0]}{emp.lastName[0]}
-                                    </div>
-                                    <div>
-                                        <h3 className="text-md font-medium text-gray-900">{emp.firstName} {emp.lastName}</h3>
-                                        <p className="text-sm text-gray-500">
-                                            {emp.position?.title} • {emp.department?.name}
-                                        </p>
-                                        <p className="text-xs text-gray-400">
-                                            {emp.email} • {emp.phone}
-                                        </p>
-                                        {(emp.employmentType || emp.hourlyRate) && (
-                                            <p className="text-xs text-primary-600 mt-1">
-                                                {emp.employmentType} {emp.hourlyRate ? `• $${emp.hourlyRate}/hr` : ''}
-                                            </p>
-                                        )}
-                                    </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {employees.map((emp) => (
+                        <div key={emp.id} className="ent-card group relative p-4 bg-white hover:border-primary-200 hover:shadow-lg transition-all">
+                            {/* Identifier Protocol */}
+                            <div className="absolute top-2 right-2 flex flex-col items-end gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                                <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border ${emp.status === 'active' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                                    emp.status === 'on-leave' ? 'bg-amber-50 text-amber-700 border-amber-100' :
+                                        'bg-gray-50 text-gray-500 border-gray-200'
+                                    }`}>
+                                    {emp.status}
+                                </span>
+                            </div>
+
+                            <div className="flex items-center gap-4 mb-4">
+                                <div className="h-11 w-11 rounded-lg bg-primary-900 flex items-center justify-center text-sm font-black text-white shadow-lg shadow-primary-900/20 group-hover:scale-105 transition-transform uppercase">
+                                    {emp.firstName[0]}{emp.lastName[0]}
                                 </div>
-                                <div className="flex items-center space-x-4">
-                                    <div className="flex flex-col items-end space-y-1">
-                                        <span className={`px-2 py-1 text-xs rounded-full ${emp.status === 'active' ? 'bg-green-100 text-green-800' :
-                                            emp.status === 'inactive' ? 'bg-gray-100 text-gray-800' :
-                                                emp.status === 'on-leave' ? 'bg-yellow-100 text-yellow-800' :
-                                                    'bg-red-100 text-red-800'
-                                            }`}>
-                                            {emp.status}
-                                        </span>
-                                        {/* Check for User Account */}
-                                        {emp.userId && (
-                                            <span className="px-2 py-0.5 text-[10px] border border-blue-200 text-blue-600 rounded-full bg-blue-50">
-                                                Portal Access
-                                            </span>
-                                        )}
-                                        {/* Check for Admin Role (Optional, requires matching logic to backend/frontend type) */}
-                                        {/* @ts-ignore */}
-                                        {emp.user?.roles?.some(r => r.role?.isSystem) && (
-                                            <span className="px-2 py-0.5 text-[10px] border border-purple-200 text-purple-600 rounded-full bg-purple-50">
-                                                System Admin
-                                            </span>
-                                        )}
-                                    </div>
-                                    <div className="flex space-x-2">
-                                        <Link
-                                            href={`/hrms/employees/${emp.id}`}
-                                            className="text-primary-600 hover:text-primary-900 text-sm font-medium"
+                                <div className="overflow-hidden">
+                                    <h3 className="text-sm font-black text-gray-900 tracking-tight leading-none truncate mb-1">
+                                        {emp.firstName} {emp.lastName}
+                                    </h3>
+                                    <p className="text-[9px] font-black text-primary-600 uppercase tracking-widest truncate">
+                                        {emp.id.slice(-8).toUpperCase()}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-2 mb-4 bg-gray-50/50 p-2.5 rounded-lg border border-gray-100/50">
+                                <div className="flex items-center justify-between text-[9px] font-bold text-gray-500 uppercase tracking-tight">
+                                    <span className="flex items-center gap-1.5"><Shield className="w-2.5 h-2.5" /> Division</span>
+                                    <span className="text-gray-900">{emp.department?.name || 'N/A'}</span>
+                                </div>
+                                <div className="flex items-center justify-between text-[9px] font-bold text-gray-500 uppercase tracking-tight">
+                                    <span className="flex items-center gap-1.5"><Zap className="w-2.5 h-2.5" /> Designation</span>
+                                    <span className="text-gray-900 truncate max-w-[120px] text-right">{emp.position?.title || 'UNASSIGNED'}</span>
+                                </div>
+                                <div className="flex items-center justify-between text-[9px] font-bold text-gray-500 uppercase tracking-tight">
+                                    <span className="flex items-center gap-1.5"><Fingerprint className="w-2.5 h-2.5" /> Type</span>
+                                    <span className="text-gray-900">{emp.employmentType}</span>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                                <div className="flex items-center gap-3">
+                                    <Link
+                                        href={`/hrms/employees/${emp.id}`}
+                                        className="text-[9px] font-black text-primary-600 hover:text-primary-800 uppercase tracking-widest transition-all hover:translate-x-0.5"
+                                    >
+                                        Inspect Resource
+                                    </Link>
+                                    {can('Employee', 'delete') && emp.userId !== user?.id && (
+                                        <button
+                                            onClick={() => setShowDeleteConfirm(emp.id)}
+                                            className="text-[9px] font-black text-gray-300 hover:text-rose-600 uppercase tracking-widest transition-colors"
                                         >
-                                            View
-                                        </Link>
-                                        {/* Only show delete button if:
-                                            1. User has delete permission AND
-                                            2. Not viewing their own employee record */}
-                                        {can('Employee', 'delete') && emp.userId !== user?.id && (
-                                            <button
-                                                onClick={() => handleDelete(emp.id)}
-                                                className="text-red-600 hover:text-red-900 text-sm font-medium"
-                                            >
-                                                Delete
-                                            </button>
-                                        )}
-                                    </div>
+                                            Delete
+                                        </button>
+                                    )}
                                 </div>
-                            </li>
-                        ))}
-                    </ul>
+                                {emp.userId && (
+                                    <div className="p-1 bg-sky-50 rounded text-sky-600 border border-sky-100" title="System Observer Profile Enabled">
+                                        <Shield size={10} />
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    ))}
                 </div>
             )}
+
+            <ConfirmDialog
+                isOpen={!!showDeleteConfirm}
+                onClose={() => setShowDeleteConfirm(null)}
+                onConfirm={handleDelete}
+                title="Confirm Resource Deletion"
+                message="This will decouple the resource from all organizational nodes. This action is irreversible."
+                type="danger"
+                confirmText="Confirm Delete"
+            />
         </div>
     );
 }

@@ -114,44 +114,45 @@ export default function QuotationsPage() {
     };
 
     return (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="animate-fade-in pb-20">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Quotations</h1>
-                    <p className="mt-1 text-sm text-gray-500">
-                        Manage your quotations and proposals
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4 px-2">
+                <div className="space-y-0.5">
+                    <h1 className="text-2xl font-black text-slate-900 tracking-tight leading-tight flex items-center gap-3">
+                        Proposal Ledger
                         {!loading && quotations.length > 0 && (
-                            <span className="ml-2 text-primary-600 font-medium">
-                                ({quotations.length} total)
+                            <span className="text-[9px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 uppercase font-black tracking-widest">
+                                {quotations.length} ENTRIES
                             </span>
                         )}
+                    </h1>
+                    <p className="text-slate-500 font-medium text-sm">
+                        Executive management of strategic quotations and business proposals.
                     </p>
                 </div>
                 <PermissionGuard module="Quotation" action="create">
                     <Link
                         href="/quotations/create"
-                        className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 transition-colors"
+                        className="btn-primary"
                     >
-                        <Plus size={18} className="mr-2" />
-                        New Quotation
+                        <Plus size={16} /> Draft Proposal
                     </Link>
                 </PermissionGuard>
             </div>
 
-            {/* Search */}
-            <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-4">
-                <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Search size={18} className="text-gray-400" />
+            {/* Global Search & Filtration */}
+            <div className="flex flex-col md:flex-row gap-4 mb-6 mx-2">
+                <div className="flex-1 glass p-1.5 rounded-xl border border-slate-100/50 shadow-sm focus-within:border-indigo-500/50 transition-all">
+                    <div className="relative flex items-center">
+                        <Search size={16} className="absolute left-3.5 text-slate-400" />
+                        <input
+                            type="text"
+                            placeholder="Query by document serial or client identity..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2 bg-transparent border-none focus:ring-0 text-slate-900 text-xs font-bold placeholder:text-slate-300 placeholder:font-medium"
+                        />
                     </div>
-                    <input
-                        type="text"
-                        placeholder="Search quotations by number, client name..."
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                    />
                 </div>
             </div>
 
@@ -163,122 +164,105 @@ export default function QuotationsPage() {
                 onClearFilters={handleClearFilters}
             />
 
-            {/* Content */}
-            {loading ? (
-                <QuotationListSkeleton />
-            ) : quotations.length === 0 ? (
-                <QuotationEmptyState />
-            ) : (
-                <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                                <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Quotation #
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Lead/Client
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Date
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Valid Until
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Total
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Views
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Status
-                                    </th>
-                                    <th className="relative px-6 py-3">
-                                        <span className="sr-only">Actions</span>
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                                {quotations.map((quotation) => (
-                                    <tr
-                                        key={quotation.id}
-                                        className="hover:bg-gray-50 transition-colors"
-                                    >
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="text-sm font-medium text-gray-900">
-                                                {quotation.quotationNumber}
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="text-sm text-gray-900">
-                                                {quotation.lead?.name || quotation.client?.name || '-'}
-                                            </div>
-                                            <div className="text-xs text-gray-500">
-                                                {quotation.lead ? 'Lead' : 'Client'}
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            {new Date(quotation.quotationDate).toLocaleDateString()}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            {new Date(quotation.validUntil).toLocaleDateString()}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                            {formatCurrency(quotation.total)}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            <div className="flex items-center" title={quotation.lastViewedAt ? `Last viewed: ${new Date(quotation.lastViewedAt).toLocaleString()}` : 'Not viewed yet'}>
-                                                <Eye size={14} className="mr-1.5 text-gray-400" />
-                                                {quotation.viewCount || 0}
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadge(quotation.status)}`}>
-                                                {quotation.status}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <div className="flex items-center justify-end gap-2">
-                                                <Link
-                                                    href={`/quotations/${quotation.id}`}
-                                                    className="text-primary-600 hover:text-primary-900 p-1 rounded hover:bg-primary-50 transition-colors"
-                                                    title="View"
-                                                >
-                                                    <Eye size={16} />
-                                                </Link>
-                                                <PermissionGuard module="Quotation" action="delete">
-                                                    <button
-                                                        onClick={() => handleDeleteClick(quotation)}
-                                                        className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50 transition-colors"
-                                                        title="Delete"
-                                                    >
-                                                        <Trash2 size={16} />
-                                                    </button>
-                                                </PermissionGuard>
-                                            </div>
-                                        </td>
+            {/* Content Engine */}
+            <div className="mx-2">
+                {loading ? (
+                    <QuotationListSkeleton />
+                ) : quotations.length === 0 ? (
+                    <QuotationEmptyState />
+                ) : (
+                    <div className="ent-card overflow-hidden">
+                        <div className="overflow-x-auto">
+                            <table className="ent-table">
+                                <thead>
+                                    <tr>
+                                        <th className="rounded-l-xl">Serial ID</th>
+                                        <th>Counterparty</th>
+                                        <th>Issuance</th>
+                                        <th>Expiration</th>
+                                        <th>Financial Value</th>
+                                        <th>Exposure</th>
+                                        <th>Lifecycle State</th>
+                                        <th className="text-right rounded-r-xl">Actions</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody className="divide-y divide-slate-50">
+                                    {quotations.map((quotation) => (
+                                        <tr key={quotation.id} className="group hover:bg-slate-50/50 transition-colors">
+                                            <td className="px-4 py-3 whitespace-nowrap">
+                                                <div className="text-xs font-black text-slate-900 tracking-tight">
+                                                    {quotation.quotationNumber}
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-3 whitespace-nowrap">
+                                                <div className="text-xs font-black text-slate-700">
+                                                    {quotation.lead?.name || quotation.client?.name || '-'}
+                                                </div>
+                                                <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                                                    {quotation.lead ? 'Lead Entity' : 'Client Registry'}
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-3 whitespace-nowrap text-xs font-bold text-slate-500">
+                                                {new Date(quotation.quotationDate).toLocaleDateString()}
+                                            </td>
+                                            <td className="px-4 py-3 whitespace-nowrap text-xs font-bold text-slate-500">
+                                                {new Date(quotation.validUntil).toLocaleDateString()}
+                                            </td>
+                                            <td className="px-4 py-3 whitespace-nowrap text-sm font-black text-slate-900 tracking-tighter">
+                                                {formatCurrency(quotation.total)}
+                                            </td>
+                                            <td className="px-4 py-3 whitespace-nowrap text-xs font-bold text-slate-500">
+                                                <div className="flex items-center" title={quotation.lastViewedAt ? `Last viewed: ${new Date(quotation.lastViewedAt).toLocaleString()}` : 'No exposure recorded'}>
+                                                    <Eye size={14} className="mr-1.5 text-slate-300 group-hover:text-indigo-500 transition-colors" />
+                                                    <span className="font-black text-slate-600">{quotation.viewCount || 0}</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-3 whitespace-nowrap">
+                                                <span className={`ent-badge ${getStatusBadge(quotation.status)}`}>
+                                                    {quotation.status}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
+                                                <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <Link
+                                                        href={`/quotations/${quotation.id}`}
+                                                        className="p-1.5 bg-white border border-slate-100 text-indigo-600 hover:text-white hover:bg-indigo-600 rounded-lg transition-all shadow-sm"
+                                                        title="Strategic Intelligence"
+                                                    >
+                                                        <Eye size={14} />
+                                                    </Link>
+                                                    <PermissionGuard module="Quotation" action="delete">
+                                                        <button
+                                                            onClick={() => handleDeleteClick(quotation)}
+                                                            className="p-1.5 bg-white border border-slate-100 text-rose-500 hover:text-white hover:bg-rose-500 rounded-lg transition-all shadow-sm"
+                                                            title="Purge Entry"
+                                                        >
+                                                            <Trash2 size={14} />
+                                                        </button>
+                                                    </PermissionGuard>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                </div>
-            )}
+                )}
 
-            {/* Delete Confirmation Dialog */}
-            <ConfirmDialog
-                isOpen={deleteDialog.isOpen}
-                onClose={() => setDeleteDialog({ isOpen: false, quotationId: null, quotationNumber: '' })}
-                onConfirm={handleDeleteConfirm}
-                title="Delete Quotation"
-                message={`Are you sure you want to delete quotation "${deleteDialog.quotationNumber}"? This action cannot be undone.`}
-                confirmText="Delete"
-                cancelText="Cancel"
-                type="danger"
-                isLoading={deleting}
-            />
+                {/* Delete Confirmation Dialog */}
+                <ConfirmDialog
+                    isOpen={deleteDialog.isOpen}
+                    onClose={() => setDeleteDialog({ isOpen: false, quotationId: null, quotationNumber: '' })}
+                    onConfirm={handleDeleteConfirm}
+                    title="Delete Quotation"
+                    message={`Are you sure you want to delete quotation "${deleteDialog.quotationNumber}"? This action cannot be undone.`}
+                    confirmText="Delete"
+                    cancelText="Cancel"
+                    type="danger"
+                    isLoading={deleting}
+                />
+            </div>
         </div>
     );
 }

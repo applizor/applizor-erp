@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { Candidate, OfferLetter } from '@/lib/api/recruitment';
 import { departmentsApi, Department, positionsApi, Position } from '@/lib/api/hrms';
 import AlertDialog from '@/components/ui/AlertDialog';
+import { UserPlus, X, User, Briefcase, Calendar, Shield, Lock } from 'lucide-react';
 
 interface OnboardEmployeeModalProps {
     isOpen: boolean;
@@ -115,126 +116,159 @@ export default function OnboardEmployeeModal({ isOpen, onClose, onSubmit, candid
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-            <div className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full m-4">
-                <div className="flex justify-between items-center p-5 border-b">
-                    <h3 className="text-xl font-medium text-gray-900">Onboard Employee</h3>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-500">
-                        <span className="text-2xl">&times;</span>
+        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full animate-in zoom-in-95 duration-200 overflow-hidden border border-gray-200 max-h-[90vh] flex flex-col">
+                <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 flex-shrink-0">
+                    <div className="flex items-center gap-2">
+                        <UserPlus className="w-5 h-5 text-indigo-600" />
+                        <div>
+                            <h3 className="text-sm font-black text-gray-900 tracking-tight uppercase leading-none">Onboard Employee</h3>
+                            <p className="text-[9px] text-gray-500 font-bold uppercase tracking-widest mt-0.5">HRMS Intake Protocol</p>
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="text-gray-400 hover:text-gray-900 transition-colors">
+                        <X size={18} />
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Personal Info (Read Only mostly) */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">First Name</label>
-                            <input type="text" value={formData.firstName} disabled className="mt-1 block w-full bg-gray-100 px-3 py-2 border border-gray-300 rounded-md" />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Last Name</label>
-                            <input type="text" value={formData.lastName} disabled className="mt-1 block w-full bg-gray-100 px-3 py-2 border border-gray-300 rounded-md" />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Email</label>
-                            <input type="email" value={formData.email} disabled className="mt-1 block w-full bg-gray-100 px-3 py-2 border border-gray-300 rounded-md" />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Phone</label>
-                            <input type="text" value={formData.phone} disabled className="mt-1 block w-full bg-gray-100 px-3 py-2 border border-gray-300 rounded-md" />
-                        </div>
+                <form onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto">
 
-                        {/* Employment Details */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Employee ID <span className="text-red-500">*</span></label>
-                            <input
-                                type="text"
-                                required
-                                placeholder="e.g. EMP001"
-                                value={formData.employeeId}
-                                onChange={e => setFormData({ ...formData, employeeId: e.target.value })}
-                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
-                            />
+                    <div className="space-y-4">
+                        <div className="flex items-center gap-2 mb-2">
+                            <span className="h-px bg-gray-100 flex-1"></span>
+                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Biographical Data</span>
+                            <span className="h-px bg-gray-100 flex-1"></span>
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Joining Date <span className="text-red-500">*</span></label>
-                            <input
-                                type="date"
-                                required
-                                value={formData.dateOfJoining}
-                                onChange={e => setFormData({ ...formData, dateOfJoining: e.target.value })}
-                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Department</label>
-                            <select
-                                value={formData.departmentId}
-                                onChange={e => setFormData({ ...formData, departmentId: e.target.value })}
-                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
-                            >
-                                <option value="">Select Department</option>
-                                {departments.map((d: Department) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Position</label>
-                            <select
-                                value={formData.positionId}
-                                onChange={e => setFormData({ ...formData, positionId: e.target.value })}
-                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
-                            >
-                                <option value="">Select Position</option>
-                                {positions.filter((p: Position) => !formData.departmentId || p.departmentId === formData.departmentId).map((p: Position) => (
-                                    <option key={p.id} value={p.id}>{p.title}</option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-
-                    <div className="border-t pt-4">
-                        <h4 className="text-md font-medium text-gray-900 mb-3">User Account Setup</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Password <span className="text-red-500">*</span></label>
-                                <input
-                                    type="password"
-                                    required
-                                    minLength={6}
-                                    value={formData.password}
-                                    onChange={e => setFormData({ ...formData, password: e.target.value })}
-                                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
-                                />
+                            <div className="ent-form-group">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">First Name</label>
+                                <input type="text" value={formData.firstName} disabled className="ent-input w-full bg-gray-50 text-gray-500 cursor-not-allowed" />
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Confirm Password <span className="text-red-500">*</span></label>
-                                <input
-                                    type="password"
-                                    required
-                                    minLength={6}
-                                    value={formData.confirmPassword}
-                                    onChange={e => setFormData({ ...formData, confirmPassword: e.target.value })}
-                                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
-                                />
+                            <div className="ent-form-group">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Last Name</label>
+                                <input type="text" value={formData.lastName} disabled className="ent-input w-full bg-gray-50 text-gray-500 cursor-not-allowed" />
+                            </div>
+                            <div className="ent-form-group">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Email</label>
+                                <input type="email" value={formData.email} disabled className="ent-input w-full bg-gray-50 text-gray-500 cursor-not-allowed" />
+                            </div>
+                            <div className="ent-form-group">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Phone</label>
+                                <input type="text" value={formData.phone} disabled className="ent-input w-full bg-gray-50 text-gray-500 cursor-not-allowed" />
                             </div>
                         </div>
                     </div>
 
-                    <div className="flex justify-end space-x-3 pt-4 border-t">
+                    <div className="space-y-4">
+                        <div className="flex items-center gap-2 mb-2">
+                            <span className="h-px bg-gray-100 flex-1"></span>
+                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Employment Configuration</span>
+                            <span className="h-px bg-gray-100 flex-1"></span>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="ent-form-group">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Employee ID <span className="text-rose-500">*</span></label>
+                                <input
+                                    type="text"
+                                    required
+                                    placeholder="e.g. EMP001"
+                                    value={formData.employeeId}
+                                    onChange={e => setFormData({ ...formData, employeeId: e.target.value })}
+                                    className="ent-input w-full"
+                                />
+                            </div>
+                            <div className="ent-form-group">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Joining Date <span className="text-rose-500">*</span></label>
+                                <input
+                                    type="date"
+                                    required
+                                    value={formData.dateOfJoining}
+                                    onChange={e => setFormData({ ...formData, dateOfJoining: e.target.value })}
+                                    className="ent-input w-full"
+                                />
+                            </div>
+
+                            <div className="ent-form-group">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Department</label>
+                                <div className="relative">
+                                    <select
+                                        value={formData.departmentId}
+                                        onChange={e => setFormData({ ...formData, departmentId: e.target.value })}
+                                        className="ent-input w-full appearance-none"
+                                    >
+                                        <option value="">Select Department</option>
+                                        {departments.map((d: Department) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                                    </select>
+                                </div>
+                            </div>
+                            <div className="ent-form-group">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Position</label>
+                                <div className="relative">
+                                    <select
+                                        value={formData.positionId}
+                                        onChange={e => setFormData({ ...formData, positionId: e.target.value })}
+                                        className="ent-input w-full appearance-none"
+                                    >
+                                        <option value="">Select Position</option>
+                                        {positions.filter((p: Position) => !formData.departmentId || p.departmentId === formData.departmentId).map((p: Position) => (
+                                            <option key={p.id} value={p.id}>{p.title}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="p-4 bg-slate-50 rounded-lg border border-slate-100">
+                        <h4 className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <Shield size={12} /> Access Credentials Setup
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="ent-form-group">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Password <span className="text-rose-500">*</span></label>
+                                <div className="relative">
+                                    <Lock size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                    <input
+                                        type="password"
+                                        required
+                                        minLength={6}
+                                        value={formData.password}
+                                        onChange={e => setFormData({ ...formData, password: e.target.value })}
+                                        className="ent-input w-full pl-9"
+                                    />
+                                </div>
+                            </div>
+                            <div className="ent-form-group">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Confirm Password <span className="text-rose-500">*</span></label>
+                                <div className="relative">
+                                    <Lock size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                    <input
+                                        type="password"
+                                        required
+                                        minLength={6}
+                                        value={formData.confirmPassword}
+                                        onChange={e => setFormData({ ...formData, confirmPassword: e.target.value })}
+                                        className="ent-input w-full pl-9"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex justify-end gap-3 pt-6 border-t border-gray-100">
                         <button
                             type="button"
                             onClick={onClose}
-                            className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
+                            className="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-gray-900 transition-colors"
                         >
                             Cancel
                         </button>
                         <button
                             type="submit"
                             disabled={submitting}
-                            className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 disabled:opacity-50"
+                            className="px-5 py-2 bg-indigo-900 text-white rounded text-[10px] font-black uppercase tracking-widest hover:bg-indigo-950 transition-all shadow-lg shadow-indigo-900/10 disabled:opacity-50"
                         >
-                            {submitting ? 'Onboarding...' : 'Create Employee & User'}
+                            {submitting ? 'Onboarding...' : 'Execute Onboarding'}
                         </button>
                     </div>
                 </form>

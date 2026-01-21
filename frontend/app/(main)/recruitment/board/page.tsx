@@ -87,20 +87,34 @@ export default function KanbanBoardPage() {
     if (loading) return <div className="p-8 text-center">Loading Board...</div>;
 
     return (
-        <div className="h-full flex flex-col overflow-hidden">
-            <div className="px-6 py-4 border-b bg-white flex justify-between items-center">
-                <h2 className="text-xl font-bold text-gray-800">Recruitment Pipeline</h2>
-                <div className="text-sm text-gray-500">Drag and drop candidates to move them between stages</div>
+        <div className="h-full flex flex-col animate-fade-in">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4 px-6 pt-4">
+                <div className="space-y-0.5">
+                    <h1 className="text-2xl font-black text-slate-900 tracking-tight leading-tight flex items-center gap-3">
+                        Acquisition Pipeline
+                        {!loading && STAGES.length > 0 && (
+                            <span className="text-[9px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 uppercase font-black tracking-widest">
+                                {STAGES.length} STAGES
+                            </span>
+                        )}
+                    </h1>
+                    <p className="text-slate-500 font-medium text-sm">
+                        Strategic management of human capital acquisition through progressive evaluation stages.
+                    </p>
+                </div>
+                <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest hidden lg:block">
+                    Drag and drop candidates to evolve their status
+                </div>
             </div>
 
-            <div className="flex-1 overflow-x-auto overflow-y-hidden bg-gray-100 p-6">
+            <div className="flex-1 overflow-x-auto overflow-y-hidden px-6 pb-6">
                 <DragDropContext onDragEnd={onDragEnd}>
                     <div className="flex h-full space-x-4">
                         {STAGES.map((stage) => (
-                            <div key={stage} className="flex flex-col w-80 bg-gray-50 rounded-lg border border-gray-200 shadow-sm h-full max-h-full">
-                                <div className="p-3 font-semibold text-gray-700 border-b bg-white rounded-t-lg flex justify-between">
-                                    <span>{stage}</span>
-                                    <span className="bg-gray-200 text-gray-600 text-xs px-2 py-0.5 rounded-full">
+                            <div key={stage} className="flex flex-col w-72 bg-slate-50/50 rounded-[1.5rem] border border-slate-100 h-full max-h-full transition-all hover:bg-slate-50">
+                                <div className="p-4 flex items-center justify-between border-b border-white/50">
+                                    <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">{stage}</span>
+                                    <span className="h-5 w-5 rounded-lg bg-white border border-slate-100 flex items-center justify-center text-[10px] font-black text-indigo-600 shadow-sm">
                                         {columns[stage]?.length || 0}
                                     </span>
                                 </div>
@@ -110,8 +124,7 @@ export default function KanbanBoardPage() {
                                         <div
                                             ref={provided.innerRef}
                                             {...provided.droppableProps}
-                                            className={`flex-1 p-2 overflow-y-auto transition-colors ${snapshot.isDraggingOver ? 'bg-blue-50' : ''
-                                                }`}
+                                            className={`flex-1 p-3 overflow-y-auto transition-all scrollbar-thin scrollbar-thumb-slate-200 ${snapshot.isDraggingOver ? 'bg-indigo-50/40' : ''}`}
                                         >
                                             {columns[stage]?.map((candidate, index) => (
                                                 <Draggable
@@ -125,25 +138,40 @@ export default function KanbanBoardPage() {
                                                             {...provided.draggableProps}
                                                             {...provided.dragHandleProps}
                                                             className={`
-                                                                bg-white p-4 mb-3 rounded shadow-sm border border-gray-100
-                                                                hover:shadow-md transition-shadow cursor-move
-                                                                ${snapshot.isDragging ? 'shadow-lg ring-2 ring-primary-500 rotate-2' : ''}
+                                                                bg-white p-3.5 mb-3 rounded-2xl border border-slate-100 shadow-sm
+                                                                transition-all duration-200 group relative overflow-hidden
+                                                                ${snapshot.isDragging ? 'shadow-2xl ring-2 ring-indigo-500/20 scale-[1.02] rotate-1 z-50' : 'hover:shadow-md hover:border-indigo-100'}
                                                             `}
                                                             style={provided.draggableProps.style}
                                                         >
-                                                            <div className="font-medium text-gray-900">
-                                                                {candidate.firstName} {candidate.lastName}
+                                                            {/* Accent Bar */}
+                                                            <div className={`absolute top-0 left-0 bottom-0 w-1 ${candidate.status === 'rejected' ? 'bg-rose-400' :
+                                                                candidate.status === 'hired' ? 'bg-emerald-400' :
+                                                                    'bg-indigo-400'
+                                                                }`} />
+
+                                                            <div>
+                                                                <div className="text-xs font-black text-slate-900 tracking-tight leading-none mb-1 group-hover:text-indigo-600 transition-colors">
+                                                                    {candidate.firstName} {candidate.lastName}
+                                                                </div>
+                                                                <div className="text-[9px] font-bold text-slate-500 flex items-center gap-1.5 uppercase tracking-tighter">
+                                                                    <span className="w-1 h-1 rounded-full bg-slate-300" />
+                                                                    {candidate.jobOpening?.title || 'General Intake'}
+                                                                </div>
                                                             </div>
-                                                            <div className="text-xs text-gray-500 mt-1">
-                                                                {candidate.jobOpening?.title || 'General App'}
-                                                            </div>
-                                                            <div className="mt-2 flex justify-between items-center">
-                                                                <span className={`text-xs px-1.5 py-0.5 rounded ${candidate.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                                                                        candidate.status === 'hired' ? 'bg-green-100 text-green-800' :
-                                                                            'bg-gray-100 text-gray-600'
+
+                                                            <div className="mt-4 flex justify-between items-center">
+                                                                <span className={`text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-lg ${candidate.status === 'rejected' ? 'bg-rose-50 text-rose-700' :
+                                                                    candidate.status === 'hired' ? 'bg-emerald-50 text-emerald-700' :
+                                                                        'bg-slate-50 text-slate-500'
                                                                     }`}>
                                                                     {candidate.status}
                                                                 </span>
+                                                                <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                    <div className="h-5 w-5 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center hover:bg-indigo-100 cursor-pointer">
+                                                                        <span className="text-[10px] font-black">→</span>
+                                                                    </div>
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     )}

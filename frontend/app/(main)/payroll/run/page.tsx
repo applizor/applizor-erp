@@ -2,12 +2,11 @@
 
 import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
-
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Clock, FileText, CheckCircle, Activity, Briefcase, ChevronRight, LayoutGrid, DollarSign } from 'lucide-react';
 import { usePermission } from '@/hooks/usePermission';
 import AccessDenied from '@/components/AccessDenied';
-
 import { payrollApi } from '@/lib/api/payroll';
 import { PermissionGuard } from '@/components/PermissionGuard';
 
@@ -16,14 +15,11 @@ export default function RunPayrollPage() {
     const router = useRouter();
     const { can, user } = usePermission();
 
-    const [month, setMonth] = useState(new Date().getMonth() + 1); // Current month
+    const [month, setMonth] = useState(new Date().getMonth() + 1);
     const [year, setYear] = useState(new Date().getFullYear());
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState<any>(null);
 
-    // Page Level Security
-    // If we are still loading user, maybe show loading? useAuth handles that but usePermission just exposes user.
-    // If user is loaded and no permission, show AccessDenied.
     if (user && !can('Payroll', 'create')) {
         return <AccessDenied />;
     }
@@ -33,129 +29,156 @@ export default function RunPayrollPage() {
             setLoading(true);
             const data = await payrollApi.process({ month, year });
             setResult(data);
-            toast.success(`Payroll processed successfully for ${data.payrolls.length} employees!`);
-            // router.push('/payroll/payslips');
+            toast.success(`Batch processed: ${data.payrolls.length} entities synchronized`);
         } catch (error: any) {
             console.error(error);
-            toast.error(error.response?.data?.error || 'Failed to process payroll');
+            toast.error(error.response?.data?.error || 'Batch initialization failed');
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="max-w-4xl mx-auto px-4 py-8">
-            <div className="max-w-4xl mx-auto px-4 py-8">
-                <h1 className="text-2xl font-bold mb-6">Run Payroll</h1>
+        <div className="space-y-6">
+            {/* Semantic Header Component */}
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-5 rounded-lg border border-gray-200 shadow-sm gap-4">
+                <div className="flex items-center gap-4">
+                    <div className="p-3 bg-primary-900 rounded-lg shadow-lg">
+                        <DollarSign className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                        <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none uppercase">Payroll Engine</h2>
+                        <p className="text-[10px] text-gray-500 font-bold mt-1.5 uppercase tracking-widest flex items-center gap-2">
+                            Global Computation Protocol <ChevronRight size={10} className="text-primary-600" /> Batch Processing Console
+                        </p>
+                    </div>
+                </div>
 
-                <div className="bg-white shadow rounded-lg p-6 mb-8">
-                    <p className="text-gray-600 mb-6">
-                        Select the month and year to process payroll for all active employees.
-                        This calculation will consider:
-                        <ul className="list-disc ml-5 mt-2">
-                            <li>Active Salary Structures</li>
-                            <li>Attendance Records (LOP calculation)</li>
-                            <li>Defined Earnings & Deductions</li>
-                        </ul>
-                    </p>
+                <div className="flex items-center gap-3">
+                    <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-gray-50 border border-gray-100 rounded text-[10px] font-black uppercase tracking-widest text-gray-400">
+                        <Activity size={12} />
+                        <span>Calculated: {result?.payrolls.length || 0} Entities</span>
+                    </div>
+                </div>
+            </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <div className="mx-2 mb-8">
+                <div className="ent-card p-6 border-primary-100/50 bg-gradient-to-br from-white to-gray-50/50">
+                    <div className="flex items-start gap-4 mb-6">
+                        <div className="p-2.5 rounded bg-primary-900 text-white">
+                            <Clock size={16} />
+                        </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700">Month</label>
+                            <h3 className="text-[10px] font-black text-gray-900 uppercase tracking-widest mb-1">Batch Parameters</h3>
+                            <p className="text-[10px] text-gray-500 font-bold leading-relaxed max-w-2xl italic">
+                                Initialize global remuneration synchronization for the specified fiscal period. Operations involve
+                                net valuation logic based on active structures, attendance-based LOP, and authorized variances.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-5 items-end">
+                        <div className="ent-form-group">
+                            <label className="text-[9px] font-black text-primary-600 mb-1.5 uppercase tracking-widest">Pay Period (Month)</label>
                             <select
                                 value={month}
                                 onChange={(e) => setMonth(Number(e.target.value))}
-                                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md border"
+                                className="ent-input w-full p-2.5 text-[11px] font-black tracking-widest uppercase cursor-pointer"
                             >
                                 {Array.from({ length: 12 }, (_, i) => (
                                     <option key={i + 1} value={i + 1}>
-                                        {new Date(0, i).toLocaleString('default', { month: 'long' })}
+                                        {new Date(0, i).toLocaleString('default', { month: 'long' }).toUpperCase()}
                                     </option>
                                 ))}
                             </select>
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Year</label>
+                        <div className="ent-form-group">
+                            <label className="text-[9px] font-black text-primary-600 mb-1.5 uppercase tracking-widest">Pay Period (Year)</label>
                             <input
                                 type="number"
                                 value={year}
                                 onChange={(e) => setYear(Number(e.target.value))}
-                                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md border"
+                                className="ent-input w-full p-2.5 text-[11px] font-black tracking-widest"
                             />
                         </div>
 
-                        <div className="flex items-end">
+                        <div className="md:col-span-2">
                             <PermissionGuard module="Payroll" action="create">
                                 <button
                                     onClick={handleProcess}
                                     disabled={loading}
-                                    className="w-full inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none disabled:opacity-50"
+                                    className="w-full h-[41px] bg-primary-900 text-white rounded font-black text-[11px] uppercase tracking-widest hover:bg-black transition-all flex items-center justify-center gap-3 shadow-xl shadow-primary-900/10 active:scale-95 disabled:opacity-50"
                                 >
-                                    {loading ? 'Processing...' : 'Run Payroll'}
+                                    {loading ? (
+                                        <>
+                                            <LoadingSpinner size="sm" />
+                                            <span>Processing Batch...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <FileText size={16} />
+                                            <span>Initialize Batch Protocol</span>
+                                        </>
+                                    )}
                                 </button>
                             </PermissionGuard>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                {result && (
-                    <div className="bg-white shadow rounded-lg p-6">
-                        <h3 className="text-lg font-medium text-gray-900 mb-4">Processing Summary</h3>
-                        <div className="bg-green-50 border-l-4 border-green-400 p-4 mb-4">
-                            <div className="flex">
-                                <div className="flex-shrink-0">
-                                    <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
-                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                    </svg>
-                                </div>
-                                <div className="ml-3">
-                                    <p className="text-sm text-green-700">
-                                        Successfully processed payroll for {result.payrolls.length} employees.
-                                    </p>
-                                </div>
-                            </div>
+            {result && (
+                <div className="mx-2 animate-in fade-in slide-in-from-bottom-5 duration-500">
+                    <div className="ent-card overflow-hidden">
+                        <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
+                            <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                                <Activity size={12} className="text-primary-600" />
+                                Execution Summary: {result.payrolls.length} Recognized Entities
+                            </h3>
+                            <span className="text-[9px] font-black text-emerald-700 bg-emerald-50 px-3 py-1 rounded border border-emerald-100 flex items-center gap-2 uppercase tracking-widest">
+                                <CheckCircle size={14} />
+                                Protocol Verified
+                            </span>
                         </div>
 
                         <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
+                            <table className="ent-table">
+                                <thead>
                                     <tr>
-                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Employee
-                                        </th>
-                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Gross
-                                        </th>
-                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Deductions
-                                        </th>
-                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Net Salary
-                                        </th>
+                                        <th>Resource Entity</th>
+                                        <th>Gross Asset Value</th>
+                                        <th>Statutory Deductions</th>
+                                        <th>Net Remuneration</th>
                                     </tr>
                                 </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
+                                <tbody>
                                     {result.payrolls.map((payroll: any) => (
                                         <tr key={payroll.id}>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                                {/* Requires backend to return employee name in nested object which we ensured in controller? No wait, processPayroll returns payroll object which MIGHT verify if we included employee details in the response or just the payroll record. 
-                                                Let's check controller line 216: res.json({ message, payrolls }) 
-                                                The upsert returns the Payroll object. It does NOT include relation unless we explicitly include it in the result query or the return of upsert (Prisma upsert returns just the model by default unless include is specified). 
-                                                The controller `processPayroll` upsert logic lines 180-211 DOES NOT use `include`. 
-                                                So `payroll.employee` will be undefined here. 
-                                                Correction needed in controller OR frontend needs to just show IDs or fetch list.
-                                                Actually, displaying ID is fine for MVP or I can refactor controller. 
-                                                Let's just show Employee ID for now or Refactor controller to return Employee details. Refactoring controller is better UX. */}
-                                                EMP-{payroll.employeeId.substring(0, 8)}
+                                            <td className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center font-black text-[10px] text-gray-400 border border-gray-200 uppercase">
+                                                    ID
+                                                </div>
+                                                <div>
+                                                    <div className="text-[11px] font-black text-gray-900 uppercase">
+                                                        EMP-{payroll.employeeId.slice(0, 8).toUpperCase()}
+                                                    </div>
+                                                    <div className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter">System ID: {payroll.id.slice(-6).toUpperCase()}</div>
+                                                </div>
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                {Number(payroll.grossSalary).toFixed(2)}
+                                            <td>
+                                                <div className="text-[11px] font-black text-gray-900">
+                                                    {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(Number(payroll.grossSalary))}
+                                                </div>
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-red-600">
-                                                {Number(payroll.deductions).toFixed(2)}
+                                            <td>
+                                                <div className="text-[10px] font-black text-rose-500 bg-rose-50 px-2 py-0.5 rounded border border-rose-100 inline-block uppercase">
+                                                    -{new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(Number(payroll.deductions))}
+                                                </div>
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-bold">
-                                                {Number(payroll.netSalary).toFixed(2)}
+                                            <td>
+                                                <div className="text-[12px] font-black text-primary-600 tracking-tight">
+                                                    {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(Number(payroll.netSalary))}
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
@@ -163,8 +186,8 @@ export default function RunPayrollPage() {
                             </table>
                         </div>
                     </div>
-                )}
-            </div>
+                </div>
+            )}
         </div>
     );
 }

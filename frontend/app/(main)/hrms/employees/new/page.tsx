@@ -7,6 +7,7 @@ import { departmentsApi, positionsApi, employeesApi, Department, Position } from
 import api from '@/lib/api';
 import { usePermission } from '@/hooks/usePermission';
 import AccessDenied from '@/components/AccessDenied';
+import { UserPlus, ArrowLeft, ChevronRight, Shield, Globe, CreditCard, Activity, Briefcase } from 'lucide-react';
 
 export default function NewEmployeePage() {
     const router = useRouter();
@@ -14,17 +15,12 @@ export default function NewEmployeePage() {
 
     const [departments, setDepartments] = useState<Department[]>([]);
     const [positions, setPositions] = useState<Position[]>([]);
-    const [roles, setRoles] = useState<any[]>([]); // Roles state
+    const [roles, setRoles] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
-
-    // Page Level Security
-    if (user && !can('Employee', 'create')) {
-        return <AccessDenied />;
-    }
     const [activeTab, setActiveTab] = useState('basic');
+    const [error, setError] = useState<string | null>(null);
 
     const [formData, setFormData] = useState({
-        // Basic
         firstName: '',
         lastName: '',
         email: '',
@@ -34,38 +30,32 @@ export default function NewEmployeePage() {
         departmentId: '',
         positionId: '',
         status: 'active',
-
-        // User Account
         createAccount: false,
         password: '',
         roleId: '',
-
-        // Personal
         gender: '',
         dateOfBirth: '',
         bloodGroup: '',
         maritalStatus: '',
-
-        // Address
         currentAddress: '',
         permanentAddress: '',
-
-        // Bank & Statutory
         bankName: '',
         accountNumber: '',
         ifscCode: '',
         panNumber: '',
         aadhaarNumber: '',
-
-        // Other Details
         employmentType: '',
         hourlyRate: '',
         slackMemberId: '',
-        skills: '', // Comma separated string for UI
+        skills: '',
         probationEndDate: '',
         noticePeriodStartDate: '',
         noticePeriodEndDate: ''
     });
+
+    if (user && !can('Employee', 'create')) {
+        return <AccessDenied />;
+    }
 
     useEffect(() => {
         loadMetadata();
@@ -107,15 +97,11 @@ export default function NewEmployeePage() {
         }
     };
 
-    const [error, setError] = useState<string | null>(null);
-
     const handleSubmit = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
         setError(null);
         try {
             setLoading(true);
-
-            // Clean up payload
             const payload = {
                 ...formData,
                 departmentId: formData.departmentId || undefined,
@@ -124,18 +110,14 @@ export default function NewEmployeePage() {
                 gender: formData.gender || undefined,
                 bloodGroup: formData.bloodGroup || undefined,
                 maritalStatus: formData.maritalStatus || undefined,
-                // Only send password/role if createAccount is true
                 password: formData.createAccount ? formData.password : undefined,
                 roleId: formData.createAccount ? formData.roleId : undefined,
-
-                // Optional advanced fields
                 employmentType: formData.employmentType || undefined,
                 hourlyRate: formData.hourlyRate ? parseFloat(formData.hourlyRate) : undefined,
                 slackMemberId: formData.slackMemberId || undefined,
                 probationEndDate: formData.probationEndDate || undefined,
                 noticePeriodStartDate: formData.noticePeriodStartDate || undefined,
                 noticePeriodEndDate: formData.noticePeriodEndDate || undefined,
-                // Convert skills string to JSON array
                 skills: formData.skills ? formData.skills.split(',').map(s => s.trim()) : undefined,
             };
 
@@ -143,8 +125,7 @@ export default function NewEmployeePage() {
             router.push('/hrms/employees');
         } catch (error: any) {
             console.error('Create error:', error);
-            setError(error.response?.data?.error || error.message || 'Failed to create employee');
-            // Scroll to top to see error
+            setError(error.response?.data?.error || error.message || 'Registry creation failed');
             window.scrollTo({ top: 0, behavior: 'smooth' });
         } finally {
             setLoading(false);
@@ -152,109 +133,121 @@ export default function NewEmployeePage() {
     };
 
     const tabs = [
-        { id: 'basic', label: 'Basic Info' },
-        { id: 'personal', label: 'Personal Details' },
-        { id: 'address', label: 'Address' },
-        { id: 'bank', label: 'Bank & Statutory' },
-        { id: 'other', label: 'Other Details' }
+        { id: 'basic', label: 'Core Identity', icon: <UserPlus size={14} /> },
+        { id: 'personal', label: 'BioData', icon: <Activity size={14} /> },
+        { id: 'address', label: 'Residential', icon: <Globe size={14} /> },
+        { id: 'bank', label: 'Compliance', icon: <CreditCard size={14} /> },
+        { id: 'other', label: 'Advanced', icon: <Briefcase size={14} /> }
     ];
 
     const renderTabContent = () => {
+        const inputClass = "ent-input w-full p-2.5 text-[11px] font-bold";
+        const labelClass = "text-[10px] font-black text-gray-500 mb-1.5 uppercase tracking-widest flex items-center gap-1.5";
+
         switch (activeTab) {
             case 'basic':
                 return (
                     <div className="space-y-6">
-                        <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">First Name *</label>
-                                <input type="text" required value={formData.firstName} onChange={(e) => setFormData({ ...formData, firstName: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500" />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="ent-form-group">
+                                <label className={labelClass}>Given Name <span className="text-rose-500">*</span></label>
+                                <input type="text" required value={formData.firstName} onChange={(e) => setFormData({ ...formData, firstName: e.target.value })} className={inputClass} placeholder="FIRST NAME" />
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Last Name *</label>
-                                <input type="text" required value={formData.lastName} onChange={(e) => setFormData({ ...formData, lastName: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500" />
+                            <div className="ent-form-group">
+                                <label className={labelClass}>Family Name <span className="text-rose-500">*</span></label>
+                                <input type="text" required value={formData.lastName} onChange={(e) => setFormData({ ...formData, lastName: e.target.value })} className={inputClass} placeholder="LAST NAME" />
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Email *</label>
-                                <input type="email" required value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500" />
+                            <div className="ent-form-group">
+                                <label className={labelClass}>Registry Email <span className="text-rose-500">*</span></label>
+                                <input type="email" required value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className={inputClass} placeholder="OFFICIAL@DOMAIN.COM" />
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Phone</label>
-                                <input type="tel" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500" />
+                            <div className="ent-form-group">
+                                <label className={labelClass}>Contact Protocol</label>
+                                <input type="tel" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className={inputClass} placeholder="+1-XXX-XXX-XXXX" />
                             </div>
-                            {/* Employee ID is now Auto Generated */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Date of Joining *</label>
-                                <input type="date" required value={formData.dateOfJoining} onChange={(e) => setFormData({ ...formData, dateOfJoining: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500" />
+                            <div className="ent-form-group">
+                                <label className={labelClass}>Accession Date <span className="text-rose-500">*</span></label>
+                                <input type="date" required value={formData.dateOfJoining} onChange={(e) => setFormData({ ...formData, dateOfJoining: e.target.value })} className={inputClass} />
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Department</label>
-                                <select value={formData.departmentId} onChange={(e) => setFormData({ ...formData, departmentId: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500">
-                                    <option value="">Select Department</option>
-                                    {departments.map(dept => <option key={dept.id} value={dept.id}>{dept.name}</option>)}
+                            <div className="ent-form-group">
+                                <label className={labelClass}>Division Schema</label>
+                                <select value={formData.departmentId} onChange={(e) => setFormData({ ...formData, departmentId: e.target.value })} className={inputClass}>
+                                    <option value="">SELECT DIVISION</option>
+                                    {departments.map(dept => <option key={dept.id} value={dept.id}>{dept.name.toUpperCase()}</option>)}
                                 </select>
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Position</label>
-                                <select value={formData.positionId} onChange={(e) => setFormData({ ...formData, positionId: e.target.value })} disabled={!formData.departmentId} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500 disabled:bg-gray-100">
-                                    <option value="">Select Position</option>
-                                    {positions.map(pos => <option key={pos.id} value={pos.id}>{pos.title}</option>)}
+                            <div className="ent-form-group">
+                                <label className={labelClass}>Designation Node</label>
+                                <select value={formData.positionId} onChange={(e) => setFormData({ ...formData, positionId: e.target.value })} disabled={!formData.departmentId} className={`${inputClass} disabled:bg-gray-50 disabled:text-gray-400`}>
+                                    <option value="">SELECT DESIGNATION</option>
+                                    {positions.map(pos => <option key={pos.id} value={pos.id}>{pos.title.toUpperCase()}</option>)}
                                 </select>
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Status</label>
-                                <select value={formData.status} onChange={(e) => setFormData({ ...formData, status: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500">
-                                    <option value="active">Active</option>
-                                    <option value="inactive">Inactive</option>
-                                    <option value="on-leave">On Leave</option>
-                                    <option value="terminated">Terminated</option>
+                            <div className="ent-form-group">
+                                <label className={labelClass}>Engagement Status</label>
+                                <select value={formData.status} onChange={(e) => setFormData({ ...formData, status: e.target.value })} className={inputClass}>
+                                    <option value="active">ACTIVE DUTY</option>
+                                    <option value="inactive">INACTIVE CACHE</option>
+                                    <option value="on-leave">ON SABBATICAL</option>
+                                    <option value="terminated">TERMINATED</option>
                                 </select>
                             </div>
                         </div>
 
-                        {/* Portal Access Section */}
-                        <div className="bg-gray-50 p-4 rounded-md border border-gray-200 mt-6">
-                            <div className="flex items-center mb-4">
-                                <input
-                                    id="createAccount"
-                                    type="checkbox"
-                                    checked={formData.createAccount}
-                                    onChange={(e) => setFormData({ ...formData, createAccount: e.target.checked })}
-                                    className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                                />
-                                <label htmlFor="createAccount" className="ml-2 block text-sm text-gray-900 font-medium">
-                                    Enable User Portal Access
-                                </label>
+                        <div className="bg-gray-50/50 p-6 rounded-lg border border-gray-100">
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center border transition-all ${formData.createAccount ? 'bg-primary-900 border-primary-800 text-white' : 'bg-white border-gray-200 text-gray-400'}`}>
+                                    <Shield size={18} />
+                                </div>
+                                <div className="flex-1">
+                                    <div className="flex items-center justify-between">
+                                        <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-gray-900">System Observer Portal Access</h4>
+                                        <label className="relative inline-flex items-center cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={formData.createAccount}
+                                                onChange={(e) => setFormData({ ...formData, createAccount: e.target.checked })}
+                                                className="sr-only peer"
+                                            />
+                                            <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary-600"></div>
+                                        </label>
+                                    </div>
+                                    <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-1">ENABLE CLOUD ECOSYSTEM INTERACTION FOR THIS RESOURCE</p>
+                                </div>
                             </div>
 
                             {formData.createAccount && (
-                                <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700">Password *</label>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-top-2 duration-300">
+                                    <div className="ent-form-group">
+                                        <label className={labelClass}>Access Credentials (Password) <span className="text-rose-500">*</span></label>
                                         <input
                                             type="text"
                                             required={formData.createAccount}
                                             value={formData.password}
                                             onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
-                                            placeholder="Set login password"
+                                            className={inputClass}
+                                            placeholder="SET INITIAL KEY"
                                         />
                                     </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700">Assign Role *</label>
+                                    <div className="ent-form-group">
+                                        <label className={labelClass}>Authorization Role <span className="text-rose-500">*</span></label>
                                         <select
                                             required={formData.createAccount}
                                             value={formData.roleId}
                                             onChange={(e) => setFormData({ ...formData, roleId: e.target.value })}
-                                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                                            className={inputClass}
                                         >
-                                            <option value="">Select Role</option>
+                                            <option value="">SELECT ROLE SCHEMA</option>
                                             {roles.map(role => (
-                                                <option key={role.id} value={role.id}>{role.name}</option>
+                                                <option key={role.id} value={role.id}>{role.name.toUpperCase()}</option>
                                             ))}
                                         </select>
                                     </div>
-                                    <div className="sm:col-span-2 text-xs text-gray-500">
-                                        The user will log in using their email address: <strong>{formData.email || '(enter email above)'}</strong>
+                                    <div className="md:col-span-2 p-3 bg-primary-50 rounded border border-primary-100 flex items-center gap-3">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-pulse" />
+                                        <span className="text-[9px] font-black text-primary-700 uppercase tracking-widest">
+                                            AUTHENTICATION IDENTIFIER: <span className="underline">{formData.email || 'PENDING_INPUT'}</span>
+                                        </span>
                                     </div>
                                 </div>
                             )}
@@ -263,31 +256,31 @@ export default function NewEmployeePage() {
                 );
             case 'personal':
                 return (
-                    <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Date of Birth</label>
-                            <input type="date" value={formData.dateOfBirth} onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500" />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="ent-form-group">
+                            <label className={labelClass}>Date of Genesis (DOB)</label>
+                            <input type="date" value={formData.dateOfBirth} onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })} className={inputClass} />
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Gender</label>
-                            <select value={formData.gender} onChange={(e) => setFormData({ ...formData, gender: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500">
-                                <option value="">Select Gender</option>
-                                <option value="Male">Male</option>
-                                <option value="Female">Female</option>
-                                <option value="Other">Other</option>
+                        <div className="ent-form-group">
+                            <label className={labelClass}>Gender Identity</label>
+                            <select value={formData.gender} onChange={(e) => setFormData({ ...formData, gender: e.target.value })} className={inputClass}>
+                                <option value="">SELECT OPTION</option>
+                                <option value="Male">MALE</option>
+                                <option value="Female">FEMALE</option>
+                                <option value="Other">OTHER</option>
                             </select>
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Blood Group</label>
-                            <input type="text" value={formData.bloodGroup} onChange={(e) => setFormData({ ...formData, bloodGroup: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500" placeholder="e.g. O+" />
+                        <div className="ent-form-group">
+                            <label className={labelClass}>Biological Group (Blood)</label>
+                            <input type="text" value={formData.bloodGroup} onChange={(e) => setFormData({ ...formData, bloodGroup: e.target.value })} className={inputClass} placeholder="E.G. O+" />
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Marital Status</label>
-                            <select value={formData.maritalStatus} onChange={(e) => setFormData({ ...formData, maritalStatus: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500">
-                                <option value="">Select Status</option>
-                                <option value="Single">Single</option>
-                                <option value="Married">Married</option>
-                                <option value="Divorced">Divorced</option>
+                        <div className="ent-form-group">
+                            <label className={labelClass}>Social Lifecycle Status</label>
+                            <select value={formData.maritalStatus} onChange={(e) => setFormData({ ...formData, maritalStatus: e.target.value })} className={inputClass}>
+                                <option value="">SELECT STATUS</option>
+                                <option value="Single">SINGLE</option>
+                                <option value="Married">MARRIED</option>
+                                <option value="Divorced">DIVORCED</option>
                             </select>
                         </div>
                     </div>
@@ -295,78 +288,71 @@ export default function NewEmployeePage() {
             case 'address':
                 return (
                     <div className="space-y-6">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Current Address</label>
-                            <textarea rows={3} value={formData.currentAddress} onChange={(e) => setFormData({ ...formData, currentAddress: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500" />
+                        <div className="ent-form-group">
+                            <label className={labelClass}>Primary Hub (Current Address)</label>
+                            <textarea rows={3} value={formData.currentAddress} onChange={(e) => setFormData({ ...formData, currentAddress: e.target.value })} className={`${inputClass} resize-none`} placeholder="STREET, SUITE, CITY, REGION, POSTAL" />
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Permanent Address</label>
-                            <textarea rows={3} value={formData.permanentAddress} onChange={(e) => setFormData({ ...formData, permanentAddress: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500" />
+                        <div className="ent-form-group">
+                            <label className={labelClass}>Base Registry (Permanent Address)</label>
+                            <textarea rows={3} value={formData.permanentAddress} onChange={(e) => setFormData({ ...formData, permanentAddress: e.target.value })} className={`${inputClass} resize-none`} placeholder="STREET, SUITE, CITY, REGION, POSTAL" />
                         </div>
                     </div>
                 );
             case 'bank':
                 return (
-                    <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Bank Name</label>
-                            <input type="text" value={formData.bankName} onChange={(e) => setFormData({ ...formData, bankName: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500" />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="ent-form-group">
+                            <label className={labelClass}>Financial Institution</label>
+                            <input type="text" value={formData.bankName} onChange={(e) => setFormData({ ...formData, bankName: e.target.value })} className={inputClass} placeholder="BANK NAME" />
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Account Number</label>
-                            <input type="text" value={formData.accountNumber} onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500" />
+                        <div className="ent-form-group">
+                            <label className={labelClass}>Ledger Account Number</label>
+                            <input type="text" value={formData.accountNumber} onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })} className={inputClass} placeholder="ACC_NUM_INTERNAL" />
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">IFSC Code</label>
-                            <input type="text" value={formData.ifscCode} onChange={(e) => setFormData({ ...formData, ifscCode: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500" />
+                        <div className="ent-form-group">
+                            <label className={labelClass}>Routing Protocol (IFSC)</label>
+                            <input type="text" value={formData.ifscCode} onChange={(e) => setFormData({ ...formData, ifscCode: e.target.value })} className={inputClass} placeholder="CODE_XXXXX" />
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">PAN Number</label>
-                            <input type="text" value={formData.panNumber} onChange={(e) => setFormData({ ...formData, panNumber: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500" />
+                        <div className="ent-form-group">
+                            <label className={labelClass}>Tax Allocation Number (PAN)</label>
+                            <input type="text" value={formData.panNumber} onChange={(e) => setFormData({ ...formData, panNumber: e.target.value })} className={inputClass} placeholder="ABCDE1234F" />
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Aadhaar Number</label>
-                            <input type="text" value={formData.aadhaarNumber} onChange={(e) => setFormData({ ...formData, aadhaarNumber: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500" />
+                        <div className="ent-form-group">
+                            <label className={labelClass}>Citizen Identifier (Aadhaar)</label>
+                            <input type="text" value={formData.aadhaarNumber} onChange={(e) => setFormData({ ...formData, aadhaarNumber: e.target.value })} className={inputClass} placeholder="XXXX-XXXX-XXXX" />
                         </div>
                     </div>
                 );
             case 'other':
                 return (
-                    <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Employment Type</label>
-                            <select value={formData.employmentType} onChange={(e) => setFormData({ ...formData, employmentType: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500">
-                                <option value="">Select Type</option>
-                                <option value="Full Time">Full Time</option>
-                                <option value="Part Time">Part Time</option>
-                                <option value="Contract">Contract</option>
-                                <option value="Internship">Internship</option>
-                                <option value="Trainee">Trainee</option>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="ent-form-group">
+                            <label className={labelClass}>Engagement Type</label>
+                            <select value={formData.employmentType} onChange={(e) => setFormData({ ...formData, employmentType: e.target.value })} className={inputClass}>
+                                <option value="">SELECT TYPE</option>
+                                <option value="Full Time">FULL TIME</option>
+                                <option value="Part Time">PART TIME</option>
+                                <option value="Contract">CONTRACT</option>
+                                <option value="Internship">INTERNSHIP</option>
+                                <option value="Trainee">TRAINEE</option>
                             </select>
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Hourly Rate</label>
-                            <input type="number" value={formData.hourlyRate} onChange={(e) => setFormData({ ...formData, hourlyRate: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500" placeholder="0.00" />
+                        <div className="ent-form-group">
+                            <label className={labelClass}>Frequency Rate (Hourly)</label>
+                            <input type="number" value={formData.hourlyRate} onChange={(e) => setFormData({ ...formData, hourlyRate: e.target.value })} className={inputClass} placeholder="0.00" />
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Skills (comma separated)</label>
-                            <input type="text" value={formData.skills} onChange={(e) => setFormData({ ...formData, skills: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500" placeholder="React, Node.js, etc." />
+                        <div className="ent-form-group md:col-span-2">
+                            <label className={labelClass}>Competency Tags (Skills)</label>
+                            <input type="text" value={formData.skills} onChange={(e) => setFormData({ ...formData, skills: e.target.value })} className={inputClass} placeholder="REACT, NODEJS, KUBERNETES..." />
+                            <p className="text-[8px] font-bold text-gray-400 mt-1 uppercase tracking-tighter">COMMA-SEPARATED VALUES FOR INDEXING</p>
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Slack Member ID</label>
-                            <input type="text" value={formData.slackMemberId} onChange={(e) => setFormData({ ...formData, slackMemberId: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500" placeholder="@U12345678" />
+                        <div className="ent-form-group">
+                            <label className={labelClass}>Slack Identifier</label>
+                            <input type="text" value={formData.slackMemberId} onChange={(e) => setFormData({ ...formData, slackMemberId: e.target.value })} className={inputClass} placeholder="@UXXXXXXXX" />
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Probation End Date</label>
-                            <input type="date" value={formData.probationEndDate} onChange={(e) => setFormData({ ...formData, probationEndDate: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500" />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Notice Period Start</label>
-                            <input type="date" value={formData.noticePeriodStartDate} onChange={(e) => setFormData({ ...formData, noticePeriodStartDate: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500" />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Notice Period End</label>
-                            <input type="date" value={formData.noticePeriodEndDate} onChange={(e) => setFormData({ ...formData, noticePeriodEndDate: e.target.value })} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500" />
+                        <div className="ent-form-group">
+                            <label className={labelClass}>Probationary Threshold</label>
+                            <input type="date" value={formData.probationEndDate} onChange={(e) => setFormData({ ...formData, probationEndDate: e.target.value })} className={inputClass} />
                         </div>
                     </div>
                 );
@@ -374,83 +360,93 @@ export default function NewEmployeePage() {
     };
 
     return (
-        <div className="max-w-4xl mx-auto px-4 py-6 sm:px-0">
-            <div className="mb-6">
-                <Link href="/hrms/employees" className="text-sm text-gray-500 hover:text-gray-700">
-                    ← Back to Employees
-                </Link>
-                <h1 className="text-2xl font-bold text-gray-900 mt-2">Add New Employee</h1>
+        <div className="space-y-6 max-w-5xl mx-auto">
+            {/* Semantic Navigation & Header */}
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-4 rounded-lg border border-gray-200 shadow-sm gap-4">
+                <div className="flex items-center gap-4">
+                    <Link
+                        href="/hrms/employees"
+                        className="p-2.5 bg-gray-50 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all"
+                    >
+                        <ArrowLeft size={18} />
+                    </Link>
+                    <div>
+                        <h2 className="text-lg font-black text-gray-900 tracking-tight leading-none uppercase">Resource Registration</h2>
+                        <p className="text-[10px] text-gray-500 font-bold mt-1 uppercase tracking-widest leading-none">Initialize New Human Capital Node in Registry</p>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                    <div className="px-3 py-1 bg-emerald-50 border border-emerald-100 rounded text-emerald-600 flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <span className="text-[9px] font-black uppercase tracking-widest">Registry Synchronization Active</span>
+                    </div>
+                </div>
             </div>
 
             {error && (
-                <div className="mb-4 bg-red-50 border-l-4 border-red-500 p-4">
-                    <div className="flex">
-                        <div className="flex-shrink-0">
-                            {/* Icon */}
-                            <svg className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
-                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                            </svg>
-                        </div>
-                        <div className="ml-3">
-                            <p className="text-sm text-red-700">
-                                {error}
-                            </p>
-                        </div>
+                <div className="bg-rose-50 border border-rose-100 p-4 rounded-lg flex items-center gap-3 animate-in fade-in slide-in-from-left-2 duration-300">
+                    <div className="w-8 h-8 rounded-full bg-rose-500 flex items-center justify-center bg-opacity-10 text-rose-600">
+                        <Activity size={18} />
+                    </div>
+                    <div>
+                        <h4 className="text-[10px] font-black text-rose-900 uppercase tracking-widest leading-none">Lifecycle Validation Error</h4>
+                        <p className="text-[10px] font-bold text-rose-700 mt-1 uppercase tracking-tight">{error}</p>
                     </div>
                 </div>
             )}
 
-            <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-                <div className="border-b border-gray-200">
-                    <nav className="-mb-px flex">
+            <div className="ent-card overflow-hidden">
+                <div className="border-b border-gray-100 bg-gray-50/50">
+                    <nav className="flex overflow-x-auto no-scrollbar">
                         {tabs.map((tab) => (
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
                                 className={`
-                                    w-1/4 py-4 px-1 text-center border-b-2 font-medium text-sm
+                                    flex items-center gap-2 py-4 px-6 border-b-2 font-black text-[10px] uppercase tracking-[0.15em] transition-all whitespace-nowrap
                                     ${activeTab === tab.id
-                                        ? 'border-primary-500 text-primary-600'
-                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}
+                                        ? 'border-primary-600 text-primary-600 bg-white shadow-[0_-4px_10px_-4px_rgba(0,0,0,0.05)]'
+                                        : 'border-transparent text-gray-400 hover:text-gray-600 hover:bg-gray-100/50'}
                                 `}
                             >
+                                {tab.icon}
                                 {tab.label}
                             </button>
                         ))}
                     </nav>
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-6">
+                <form onSubmit={handleSubmit} className="p-8">
                     {renderTabContent()}
 
-                    <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 mt-6">
-                        <Link
-                            href="/hrms/employees"
-                            className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none"
-                        >
-                            Cancel
-                        </Link>
-                        {activeTab !== 'other' && (
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    const currIdx = tabs.findIndex(t => t.id === activeTab);
-                                    if (currIdx < tabs.length - 1) setActiveTab(tabs[currIdx + 1].id);
-                                }}
-                                className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none"
-                            >
-                                Next
-                            </button>
-                        )}
-                        {activeTab === 'other' && (
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
-                            >
-                                {loading ? 'Creating...' : 'Create Employee'}
-                            </button>
-                        )}
+                    <div className="flex justify-between items-center pt-8 border-t border-gray-100 mt-10">
+                        <div className="flex items-center gap-2 text-gray-400">
+                            <Link href="/hrms/employees" className="text-[9px] font-black uppercase tracking-widest hover:text-gray-600 transition-colors">Abort Sequence</Link>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                            {activeTab !== 'other' ? (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const currIdx = tabs.findIndex(t => t.id === activeTab);
+                                        if (currIdx < tabs.length - 1) setActiveTab(tabs[currIdx + 1].id);
+                                    }}
+                                    className="px-6 py-2.5 bg-gray-900 text-white rounded text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all flex items-center gap-2 shadow-lg shadow-gray-900/10"
+                                >
+                                    Proceed <ChevronRight size={14} />
+                                </button>
+                            ) : (
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="px-8 py-2.5 bg-primary-600 text-white rounded text-[10px] font-black uppercase tracking-widest hover:bg-primary-700 transition-all flex items-center gap-2 shadow-lg shadow-primary-900/10 disabled:opacity-50"
+                                >
+                                    {loading ? 'SYNCHRONIZING...' : 'Commit to Registry'}
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </form>
             </div>

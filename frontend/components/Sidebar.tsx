@@ -151,53 +151,65 @@ export default function Sidebar() {
     return (
         <>
             {/* Mobile Header */}
-            <div className="md:hidden bg-white shadow-sm p-4 flex justify-between items-center fixed w-full z-20 top-0">
-                <span className="text-xl font-bold text-gray-800">Applizor ERP</span>
-                <button onClick={toggleMobileMenu} className="p-2 text-gray-600">
-                    <Menu />
+            <div className="md:hidden bg-white/80 backdrop-blur-md border-b border-slate-100 p-4 flex justify-between items-center fixed w-full z-30 top-0">
+                <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
+                        <Building2 size={18} className="text-white" />
+                    </div>
+                    <span className="text-lg font-black text-slate-900 tracking-tight">Applizor</span>
+                </div>
+                <button onClick={toggleMobileMenu} className="p-2 text-slate-600 hover:bg-slate-50 rounded-xl transition-colors">
+                    <Menu size={24} />
                 </button>
             </div>
 
             {/* Sidebar Container */}
             <div className={`
-                fixed inset-y-0 left-0 z-10 w-64 bg-slate-900 text-white transform transition-transform duration-300 ease-in-out font-sans
+                fixed inset-y-0 left-0 z-40 w-72 bg-slate-900 text-white transform transition-all duration-300 ease-in-out border-r border-slate-800/50 shadow-2xl
                 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
-                md:translate-x-0 md:static md:inset-auto md:h-screen
+                md:translate-x-0 md:sticky md:top-0 md:h-screen
             `}>
                 <div className="flex flex-col h-full">
-                    {/* Brand */}
-                    <div className="h-16 flex items-center px-6 bg-slate-950">
-                        <h1 className="text-xl font-bold tracking-wider">Applizor ERP</h1>
+                    {/* Brand Section */}
+                    <div className="h-16 flex items-center px-6 gap-3 border-b border-slate-800/50">
+                        <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                            <Building2 size={18} className="text-white" />
+                        </div>
+                        <div>
+                            <h1 className="text-lg font-black tracking-tight text-white">Applizor</h1>
+                            <p className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest">Enterprise ERP</p>
+                        </div>
                     </div>
 
-                    {/* Navigation */}
-                    <div className="flex-1 overflow-y-auto py-4">
+                    {/* Navigation Section */}
+                    <div className="flex-1 overflow-y-auto py-4 no-scrollbar">
                         {Object.entries(groupedNav).map(([category, items]) => (
-                            <div key={category} className="mb-6">
-                                <h3 className="px-6 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                            <div key={category} className="mb-4 px-3">
+                                <h3 className="px-4 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2">
                                     {category}
                                 </h3>
-                                <nav className="space-y-1 px-3">
+                                <nav className="space-y-1">
                                     {items.map((item) => {
-                                        // More precise active state detection
-                                        // Exact match OR child route (with trailing slash to avoid false matches)
                                         const isActive = pathname === item.href ||
-                                            (item.href !== '/dashboard' &&
-                                                pathname?.startsWith(item.href + '/'));
+                                            (item.href !== '/dashboard' && pathname?.startsWith(item.href + '/'));
+
                                         return (
                                             <Link
                                                 key={item.name}
                                                 href={item.href}
                                                 className={`
-                                                    group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-150
+                                                    group flex items-center px-4 py-2 text-[11px] font-bold rounded-xl transition-all duration-200 relative
                                                     ${isActive
-                                                        ? 'bg-primary-600 text-white'
-                                                        : 'text-slate-300 hover:bg-slate-800 hover:text-white'}
+                                                        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20 translate-x-1'
+                                                        : 'text-slate-400 hover:text-white hover:bg-slate-800/50 hover:translate-x-1'}
                                                 `}
                                                 onClick={() => setIsMobileMenuOpen(false)}
                                             >
-                                                <item.icon className={`mr-3 h-5 w-5 flex-shrink-0 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-white'}`} />
+                                                <item.icon className={`mr-3 h-4 w-4 flex-shrink-0 transition-transform group-hover:scale-110 ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-white'}`} />
                                                 {item.name}
+                                                {isActive && (
+                                                    <div className="absolute right-4 w-1 h-1 rounded-full bg-indigo-300 animate-pulse" />
+                                                )}
                                             </Link>
                                         );
                                     })}
@@ -206,25 +218,25 @@ export default function Sidebar() {
                         ))}
                     </div>
 
-                    {/* User Profile & Logout */}
-                    <div className="bg-slate-950 p-4 border-t border-slate-800">
-                        <div className="flex items-center">
-                            <div className="flex-shrink-0">
-                                <div className="h-8 w-8 rounded-full bg-slate-700 flex items-center justify-center text-sm font-bold text-white">
+                    {/* User Profile & Footer Section */}
+                    <div className="p-3 bg-slate-950/50 border-t border-slate-800/50">
+                        <div className="bg-slate-800/40 rounded-2xl p-2.5 border border-slate-700/30">
+                            <div className="flex items-center gap-2.5">
+                                <div className="h-8 w-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-600 flex items-center justify-center text-[10px] font-black text-white shadow-inner">
                                     {user?.firstName?.[0]}{user?.lastName?.[0]}
                                 </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-[11px] font-black text-white truncate">{user?.firstName} {user?.lastName}</p>
+                                    <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest truncate">Premium</p>
+                                </div>
+                                <button
+                                    onClick={handleLogout}
+                                    className="p-1.5 text-slate-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-all"
+                                    title="Logout"
+                                >
+                                    <LogOut size={16} />
+                                </button>
                             </div>
-                            <div className="ml-3">
-                                <p className="text-sm font-medium text-white">{user?.firstName} {user?.lastName}</p>
-                                <p className="text-xs text-slate-400">View Profile</p>
-                            </div>
-                            <button
-                                onClick={handleLogout}
-                                className="ml-auto p-1.5 text-slate-400 hover:text-white rounded-md hover:bg-slate-800"
-                                title="Logout"
-                            >
-                                <LogOut className="h-5 w-5" />
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -233,10 +245,15 @@ export default function Sidebar() {
             {/* Overlay for mobile */}
             {isMobileMenuOpen && (
                 <div
-                    className="fixed inset-0 bg-gray-600 bg-opacity-75 z-0 md:hidden"
+                    className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-30 md:hidden animate-fade-in"
                     onClick={() => setIsMobileMenuOpen(false)}
                 />
             )}
+
+            <style jsx global>{`
+                .no-scrollbar::-webkit-scrollbar { display: none; }
+                .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+            `}</style>
         </>
     );
 }

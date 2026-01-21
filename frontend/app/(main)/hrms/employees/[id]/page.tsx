@@ -1,11 +1,31 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import {
+    User,
+    Mail,
+    Phone,
+    Calendar,
+    Briefcase,
+    MapPin,
+    CreditCard,
+    FileText,
+    ChevronLeft,
+    Edit,
+    Save,
+    X,
+    Download,
+    Building2,
+    Activity,
+    Clock,
+    UploadCloud,
+    Trash2,
+    Shield
+} from 'lucide-react';
 import api from '@/lib/api';
 import { departmentsApi, positionsApi, employeesApi, Department, Position, Employee, Document } from '@/lib/api/hrms';
-import Layout from '@/components/Layout';
 import { usePermission } from '@/hooks/usePermission';
 import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
@@ -398,130 +418,332 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
     };
 
     return (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            {/* Doc Modal */}
+        <div className="animate-fade-in pb-20">
+            {/* Modal: Document Generation */}
             {showDocModal && (
-                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-                    <div className="bg-white p-5 rounded-lg shadow-xl w-96">
-                        <h3 className="text-lg font-medium mb-4">Generate Document</h3>
-                        <div className="mb-4">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Select Template</label>
-                            <select
-                                className="w-full border border-gray-300 rounded-md p-2"
-                                value={selectedTemplate}
-                                onChange={e => setSelectedTemplate(e.target.value)}
-                            >
-                                <option value="">-- Choose Template --</option>
-                                {templates.map(t => (
-                                    <option key={t.id} value={t.id}>{t.name} ({t.type})</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div className="flex justify-end space-x-3">
-                            <button
-                                onClick={() => setShowDocModal(false)}
-                                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded"
-                            >
-                                Cancel
+                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
+                    <div className="ent-card max-w-sm w-full animate-in fade-in zoom-in duration-300 p-0 overflow-hidden">
+                        <div className="px-6 py-4 border-b border-slate-50 bg-slate-50/30 flex justify-between items-center">
+                            <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">Generate Document</h3>
+                            <button onClick={() => setShowDocModal(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                                <X size={18} />
                             </button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div className="ent-form-group">
+                                <label className="ent-label">Select Template</label>
+                                <select
+                                    className="ent-select"
+                                    value={selectedTemplate}
+                                    onChange={e => setSelectedTemplate(e.target.value)}
+                                >
+                                    <option value="">-- Choose Template --</option>
+                                    {templates.map(t => (
+                                        <option key={t.id} value={t.id}>{t.name} ({t.type})</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                        <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-50 flex justify-end gap-2">
+                            <button onClick={() => setShowDocModal(false)} className="btn-secondary">Cancel</button>
                             <button
                                 onClick={handleGenerateDocument}
                                 disabled={generating}
-                                className="px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700 disabled:opacity-50"
+                                className="btn-primary"
                             >
-                                {generating ? 'Generating...' : 'Generate PDF'}
+                                {generating ? <LoadingSpinner size="sm" className="mr-2" /> : <Download size={14} className="mr-2" />}
+                                {generating ? 'Generating...' : 'Download PDF'}
                             </button>
                         </div>
                     </div>
                 </div>
             )}
 
-            <div className="max-w-4xl mx-auto px-4 py-6 sm:px-0">
-                <div className="mb-6 flex justify-between items-center">
-                    <div>
+            <div className="max-w-6xl mx-auto px-4 lg:px-8 py-8">
+                {/* Header Section */}
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 px-2">
+                    <div className="flex flex-col">
                         <Link
                             href={hasOwnedAccess ? "/dashboard" : "/hrms/employees"}
-                            className="text-sm text-gray-500 hover:text-gray-700"
+                            className="text-[10px] font-black text-slate-400 hover:text-indigo-600 uppercase tracking-widest flex items-center gap-1 transition-colors mb-2"
                         >
-                            ← Back to {hasOwnedAccess ? "Dashboard" : "Employees"}
+                            <ChevronLeft size={10} /> {hasOwnedAccess ? "Dashboard" : "Global Directory"}
                         </Link>
-                        <h1 className="text-2xl font-bold text-gray-900 mt-2">
-                            {employee.firstName} {employee.lastName}
-                        </h1>
-                        <p className="text-sm text-gray-500">{employee.position?.title} • {employee.department?.name}</p>
+                        <div className="flex items-center gap-4">
+                            <div className="h-14 w-14 bg-gradient-to-tr from-indigo-500 to-indigo-600 rounded-2xl flex items-center justify-center text-white text-xl font-black shadow-lg shadow-indigo-100 ring-4 ring-white">
+                                {employee.firstName.charAt(0)}{employee.lastName.charAt(0)}
+                            </div>
+                            <div>
+                                <h1 className="text-2xl font-black text-slate-900 tracking-tight leading-tight">
+                                    {employee.firstName} {employee.lastName}
+                                </h1>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                    <span className="text-xs font-bold text-slate-500 flex items-center gap-1">
+                                        <Briefcase size={12} className="text-slate-300" />
+                                        {employee.position?.title || 'No Position Assigned'}
+                                    </span>
+                                    <div className="w-1 h-1 bg-slate-200 rounded-full" />
+                                    <span className="text-xs font-bold text-slate-500">
+                                        {employee.department?.name || 'No Dept'}
+                                    </span>
+                                    <span className={`ml-2 ent-badge ${employee.status === 'active' ? 'ent-badge-success' : 'ent-badge-neutral'}`}>
+                                        {employee.status}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div>
+
+                    <div className="flex items-center gap-3">
                         {!hasOwnedAccess && (
-                            <button
-                                onClick={openDocModal}
-                                className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50 text-sm font-medium shadow-sm"
-                            >
-                                Generate Document
+                            <button onClick={openDocModal} className="btn-secondary">
+                                <FileText size={14} className="mr-2" /> Generate Doc
                             </button>
+                        )}
+                        {canEditThisEmployee && !isEditing && (
+                            <button onClick={() => setIsEditing(true)} className="btn-primary">
+                                <Edit size={14} className="mr-2" /> Edit Details
+                            </button>
+                        )}
+                        {isEditing && (
+                            <div className="flex gap-2">
+                                <button onClick={() => { setIsEditing(false); loadData(); }} className="btn-secondary">Cancel</button>
+                                <button onClick={handleSubmit} disabled={saving} className="btn-primary">
+                                    {saving ? <LoadingSpinner size="sm" className="mr-2" /> : <Save size={14} className="mr-2" />}
+                                    {saving ? 'Saving...' : 'Save Profile'}
+                                </button>
+                            </div>
                         )}
                     </div>
                 </div>
 
-                <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-                    {/* ... (existing content) ... */}
-                    <div className="border-b border-gray-200 px-6">
-                        <nav className="-mb-px flex space-x-8">
-                            {['overview', 'details', 'other', 'documents'].map((tab) => (
-                                <button
-                                    key={tab}
-                                    onClick={() => setActiveTab(tab)}
-                                    className={`
-                                        whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm capitalize
-                                        ${activeTab === tab
-                                            ? 'border-primary-500 text-primary-600'
-                                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}
-                                    `}
-                                >
-                                    {tab === 'other' ? 'Other Details' : tab}
-                                </button>
-                            ))}
-                        </nav>
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                    {/* Left Sidebar: Navigation & Identification */}
+                    <div className="lg:col-span-1 space-y-6">
+                        <div className="ent-card p-2">
+                            <nav className="flex flex-col gap-1">
+                                {[
+                                    { id: 'overview', label: 'Identity & Core', icon: User },
+                                    { id: 'details', label: 'Financials & Contact', icon: CreditCard },
+                                    { id: 'other', label: 'Skills & Progression', icon: Activity },
+                                    { id: 'documents', label: 'Digital Ledger', icon: Shield }
+                                ].map((tab) => (
+                                    <button
+                                        key={tab.id}
+                                        onClick={() => setActiveTab(tab.id)}
+                                        className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all duration-300
+                                            ${activeTab === tab.id
+                                                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100'
+                                                : 'text-slate-400 hover:bg-slate-50 hover:text-slate-900'}
+                                        `}
+                                    >
+                                        <tab.icon size={14} className={activeTab === tab.id ? 'text-white' : 'text-slate-300'} />
+                                        {tab.label}
+                                    </button>
+                                ))}
+                            </nav>
+                        </div>
+
+                        {/* Quick Stats Card */}
+                        <div className="ent-card p-5 bg-slate-900 text-white relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
+                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Organizational Status</h4>
+                            <div className="space-y-4">
+                                <div>
+                                    <p className="text-[9px] font-bold text-slate-500 uppercase">Employee Code</p>
+                                    <p className="text-sm font-black tracking-tight">{employee.employeeId}</p>
+                                </div>
+                                <div className="pt-3 border-t border-white/5">
+                                    <p className="text-[9px] font-bold text-slate-500 uppercase">Member Since</p>
+                                    <p className="text-sm font-black tracking-tight">
+                                        {employee.dateOfJoining ? new Date(employee.dateOfJoining).toLocaleDateString() : 'N/A'}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
-                    <div className="p-6">
-                        <form onSubmit={handleSubmit}>
-                            {activeTab === 'overview' && renderOverviewTab()}
-                            {activeTab === 'details' && renderDetailsTab()}
-                            {activeTab === 'other' && renderOtherDetailsTab()}
-                            {activeTab === 'documents' && renderDocumentsTab()}
+                    {/* Right Content: Dynamic View/Forms */}
+                    <div className="lg:col-span-3">
+                        <div className="ent-card min-h-[500px] overflow-hidden">
+                            <div className="p-8">
+                                <form onSubmit={handleSubmit}>
+                                    {activeTab === 'overview' && (
+                                        <div className="animate-fade-in space-y-8">
+                                            <div>
+                                                <h3 className="text-sm font-black text-slate-900 border-l-4 border-indigo-600 pl-3 uppercase tracking-widest mb-6">Fundamental Identity</h3>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
+                                                    <div className="ent-form-group">
+                                                        <label className="ent-label">First Name</label>
+                                                        <input type="text" disabled={!isEditing} value={formData.firstName} onChange={(e) => setFormData({ ...formData, firstName: e.target.value })} className="ent-input disabled:bg-slate-50/50" />
+                                                    </div>
+                                                    <div className="ent-form-group">
+                                                        <label className="ent-label">Last Name</label>
+                                                        <input type="text" disabled={!isEditing} value={formData.lastName} onChange={(e) => setFormData({ ...formData, lastName: e.target.value })} className="ent-input disabled:bg-slate-50/50" />
+                                                    </div>
+                                                    <div className="ent-form-group">
+                                                        <label className="ent-label">Professional Email</label>
+                                                        <div className="relative">
+                                                            <Mail size={14} className="absolute left-3.5 top-3.5 text-slate-400" />
+                                                            <input type="email" disabled={!isEditing} value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="ent-input pl-10 disabled:bg-slate-50/50" />
+                                                        </div>
+                                                    </div>
+                                                    <div className="ent-form-group">
+                                                        <label className="ent-label">Contact Handle</label>
+                                                        <div className="relative">
+                                                            <Phone size={14} className="absolute left-3.5 top-3.5 text-slate-400" />
+                                                            <input type="tel" disabled={!isEditing} value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="ent-input pl-10 disabled:bg-slate-50/50" />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
 
-                            {activeTab !== 'documents' && (
-                                <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 mt-6">
-                                    {canEditThisEmployee && !isEditing ? (
-                                        <button
-                                            type="button"
-                                            onClick={() => setIsEditing(true)}
-                                            className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 text-sm font-medium"
-                                        >
-                                            Edit Details
-                                        </button>
-                                    ) : canEditThisEmployee && isEditing ? (
-                                        <>
-                                            <button
-                                                type="button"
-                                                onClick={() => { setIsEditing(false); loadData(); }}
-                                                className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
-                                            >
-                                                Cancel
-                                            </button>
-                                            <button
-                                                type="submit"
-                                                disabled={saving}
-                                                className="inline-flex items-center space-x-2 justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none disabled:opacity-50"
-                                            >
-                                                {saving && <LoadingSpinner size="sm" />}
-                                                <span>{saving ? 'Saving...' : 'Save Changes'}</span>
-                                            </button>
-                                        </>
-                                    ) : null}
-                                </div>
-                            )}
-                        </form>
+                                            <div>
+                                                <h3 className="text-sm font-black text-slate-900 border-l-4 border-indigo-600 pl-3 uppercase tracking-widest mb-6 mt-8">Deployment Details</h3>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
+                                                    <div className="ent-form-group">
+                                                        <label className="ent-label">Joining Protocol Date</label>
+                                                        <input type="date" disabled={!isEditing} value={formData.dateOfJoining} onChange={(e) => setFormData({ ...formData, dateOfJoining: e.target.value })} className="ent-input disabled:bg-slate-50/50" />
+                                                    </div>
+                                                    <div className="ent-form-group">
+                                                        <label className="ent-label">Management Department</label>
+                                                        <select disabled={!isEditing} value={formData.departmentId} onChange={(e) => setFormData({ ...formData, departmentId: e.target.value })} className="ent-select disabled:bg-slate-50/50">
+                                                            <option value="">Select Department</option>
+                                                            {departments.map(dept => <option key={dept.id} value={dept.id}>{dept.name}</option>)}
+                                                        </select>
+                                                    </div>
+                                                    <div className="ent-form-group">
+                                                        <label className="ent-label">Designated Position</label>
+                                                        <select disabled={!isEditing || !formData.departmentId} value={formData.positionId} onChange={(e) => setFormData({ ...formData, positionId: e.target.value })} className="ent-select disabled:bg-slate-50/50">
+                                                            <option value="">Select Position</option>
+                                                            {positions.map(pos => <option key={pos.id} value={pos.id}>{pos.title}</option>)}
+                                                        </select>
+                                                    </div>
+                                                    <div className="ent-form-group">
+                                                        <label className="ent-label">Operational Status</label>
+                                                        <select disabled={!isEditing} value={formData.status} onChange={(e) => setFormData({ ...formData, status: e.target.value })} className="ent-select disabled:bg-slate-50/50">
+                                                            <option value="active">Active Service</option>
+                                                            <option value="inactive">Inactive</option>
+                                                            <option value="on-leave">Authorized Leave</option>
+                                                            <option value="terminated">Separated</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {activeTab === 'details' && (
+                                        <div className="animate-fade-in space-y-10">
+                                            <section>
+                                                <h3 className="text-sm font-black text-slate-900 border-l-4 border-indigo-600 pl-3 uppercase tracking-widest mb-6">Financial Intelligence</h3>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
+                                                    <div className="ent-form-group">
+                                                        <label className="ent-label">Institutional Host (Bank)</label>
+                                                        <input type="text" disabled={!isEditing} value={formData.bankName} onChange={(e) => setFormData({ ...formData, bankName: e.target.value })} className="ent-input" />
+                                                    </div>
+                                                    <div className="ent-form-group">
+                                                        <label className="ent-label">Account Identification</label>
+                                                        <input type="text" disabled={!isEditing} value={formData.accountNumber} onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })} className="ent-input" />
+                                                    </div>
+                                                    <div className="ent-form-group">
+                                                        <label className="ent-label">Clearance Protocol (IFSC)</label>
+                                                        <input type="text" disabled={!isEditing} value={formData.ifscCode} onChange={(e) => setFormData({ ...formData, ifscCode: e.target.value })} className="ent-input font-mono" />
+                                                    </div>
+                                                </div>
+                                            </section>
+
+                                            <section>
+                                                <h3 className="text-sm font-black text-slate-900 border-l-4 border-indigo-600 pl-3 uppercase tracking-widest mb-6">Residential Protocol</h3>
+                                                <div className="grid grid-cols-1 gap-5">
+                                                    <div className="ent-form-group">
+                                                        <label className="ent-label">Primary Address</label>
+                                                        <textarea rows={2} disabled={!isEditing} value={formData.currentAddress} onChange={(e) => setFormData({ ...formData, currentAddress: e.target.value })} className="ent-input" />
+                                                    </div>
+                                                </div>
+                                            </section>
+                                        </div>
+                                    )}
+
+                                    {activeTab === 'other' && (
+                                        <div className="animate-fade-in grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                                            <div className="ent-form-group">
+                                                <label className="ent-label">Engagement Classification</label>
+                                                <select disabled={!isEditing} value={formData.employmentType} onChange={(e) => setFormData({ ...formData, employmentType: e.target.value })} className="ent-select">
+                                                    <option value="">Select Type</option>
+                                                    <option value="Full Time">Direct Full Time</option>
+                                                    <option value="Part Time">Direct Part Time</option>
+                                                    <option value="Contract">Consolidated Contract</option>
+                                                    <option value="Internship">Developmental Intern</option>
+                                                </select>
+                                            </div>
+                                            <div className="ent-form-group">
+                                                <label className="ent-label">Hourly Valuation (USD)</label>
+                                                <input type="number" disabled={!isEditing} value={formData.hourlyRate} onChange={(e) => setFormData({ ...formData, hourlyRate: e.target.value })} className="ent-input" />
+                                            </div>
+                                            <div className="md:col-span-2 ent-form-group">
+                                                <label className="ent-label">Skill Portfolio (Delimited)</label>
+                                                <input type="text" disabled={!isEditing} value={formData.skills} onChange={(e) => setFormData({ ...formData, skills: e.target.value })} className="ent-input" placeholder="e.g. React, Python, Cloud Arch" />
+                                            </div>
+                                            <div className="ent-form-group">
+                                                <label className="ent-label">Probationary Threshold Date</label>
+                                                <input type="date" disabled={!isEditing} value={formData.probationEndDate} onChange={(e) => setFormData({ ...formData, probationEndDate: e.target.value })} className="ent-input" />
+                                            </div>
+                                            <div className="ent-form-group">
+                                                <label className="ent-label">Communication ID (Slack)</label>
+                                                <input type="text" disabled={!isEditing} value={formData.slackMemberId} onChange={(e) => setFormData({ ...formData, slackMemberId: e.target.value })} className="ent-input font-mono" />
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {activeTab === 'documents' && (
+                                        <div className="animate-fade-in space-y-6">
+                                            <div className="flex justify-between items-center mb-6">
+                                                <div>
+                                                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Document Repository</h3>
+                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter mt-1">Secured digital asset management</p>
+                                                </div>
+                                                <div className="relative">
+                                                    <input type="file" onChange={handleFileUpload} className="hidden" id="file-upload" disabled={uploading} />
+                                                    <label htmlFor="file-upload" className={`btn-secondary cursor-pointer ${uploading ? 'opacity-50' : ''}`}>
+                                                        {uploading ? <LoadingSpinner size="sm" className="mr-2" /> : <UploadCloud size={14} className="mr-2" />}
+                                                        Upload Asset
+                                                    </label>
+                                                </div>
+                                            </div>
+
+                                            {employee?.documents && employee.documents.length > 0 ? (
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    {employee.documents.map((doc: Document) => (
+                                                        <div key={doc.id} className="p-4 bg-slate-50/50 border border-slate-100 rounded-2xl flex items-center justify-between group hover:bg-white hover:shadow-xl hover:shadow-indigo-50/50 transition-all duration-500">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="p-2.5 rounded-xl bg-white text-indigo-600 shadow-sm border border-slate-50 group-hover:scale-110 transition-transform">
+                                                                    <FileText size={16} />
+                                                                </div>
+                                                                <div>
+                                                                    <p className="text-xs font-black text-slate-900 tracking-tight leading-none mb-1">{doc.name}</p>
+                                                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                                                                        {doc.type} • {new Date(doc.createdAt).toLocaleDateString()}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                            <a href={doc.filePath} target="_blank" rel="noopener noreferrer" className="p-2 text-slate-400 hover:text-indigo-600 transition-colors" title="Download Asset">
+                                                                <Download size={14} />
+                                                            </a>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <div className="text-center py-20 border-2 border-dashed border-slate-100 rounded-[2rem] bg-slate-50/30">
+                                                    <Shield size={40} className="mx-auto text-slate-200 mb-4" />
+                                                    <p className="text-xs font-black text-slate-400 uppercase tracking-widest">No strategic documents found.</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </form>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

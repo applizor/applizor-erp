@@ -6,11 +6,13 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { Shield, Plus, Users, Lock, ChevronRight, RefreshCw, Key } from 'lucide-react';
 
 export default function RolesPage() {
     const toast = useToast();
     const [roles, setRoles] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [syncing, setSyncing] = useState(false);
     const router = useRouter();
 
     useEffect(() => {
@@ -34,82 +36,124 @@ export default function RolesPage() {
         }
     };
 
+    const handleSync = async () => {
+        setSyncing(true);
+        try {
+            const token = localStorage.getItem('token');
+            await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/roles/sync-permissions`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            toast.info('System Permissions Re-Indexed Successfully');
+        } catch (error) {
+            toast.error('Sync Failed');
+        } finally {
+            setSyncing(false);
+        }
+    };
+
+    if (loading) return (
+        <div className="flex flex-col justify-center items-center h-96">
+            <LoadingSpinner size="lg" />
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-4">Loading Access Matrix...</p>
+        </div>
+    );
+
     return (
-        <div className="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div className="flex justify-between items-center">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Roles & Permissions</h1>
-                    <p className="mt-1 text-sm text-gray-500">Manage user roles and access control</p>
+        <div className="max-w-7xl mx-auto pb-20 space-y-6">
+            <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div className="flex items-center gap-4">
+                    <div className="p-3 bg-indigo-900 rounded-lg shadow-lg">
+                        <Shield className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                        <h1 className="text-xl font-black text-gray-900 tracking-tight leading-none uppercase">Roles & Permissions</h1>
+                        <p className="text-[10px] text-gray-500 font-bold mt-1.5 uppercase tracking-widest flex items-center gap-2">
+                            Access Control & Security Policy
+                        </p>
+                    </div>
                 </div>
-                <Link
-                    href="/settings/roles/create"
-                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700"
-                >
-                    Create New Role
-                </Link>
+                <div className="flex gap-3">
+                    <button
+                        onClick={handleSync}
+                        disabled={syncing}
+                        className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all flex items-center gap-2 disabled:opacity-50"
+                    >
+                        <RefreshCw className={`w-3 h-3 ${syncing ? 'animate-spin' : ''}`} />
+                        Sync Nodes
+                    </button>
+                    <Link
+                        href="/settings/roles/create"
+                        className="px-5 py-2.5 bg-indigo-600 text-white rounded text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all flex items-center gap-2 shadow-lg shadow-indigo-900/20 active:scale-95"
+                    >
+                        <Plus className="w-4 h-4" />
+                        Define Role
+                    </Link>
+                </div>
             </div>
 
-            <div className="bg-white shadow overflow-hidden sm:rounded-md">
-                <ul role="list" className="divide-y divide-gray-200">
+            <div className="ent-card overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
+                    <h3 className="text-xs font-black text-gray-900 uppercase tracking-tight">Access Role Matrix</h3>
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{roles.length} Definitions Found</span>
+                </div>
+
+                <div className="divide-y divide-gray-100">
                     {roles.map((role) => (
-                        <li key={role.id}>
-                            <div className="px-4 py-4 flex items-center sm:px-6">
-                                <div className="min-w-0 flex-1 sm:flex sm:items-center sm:justify-between">
-                                    <div>
-                                        <div className="flex text-sm">
-                                            <p className="font-medium text-primary-600 truncate">{role.name}</p>
-                                            {role.isSystem && (
-                                                <span className="ml-2 flex-shrink-0 inline-block px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-800 rounded-full">
-                                                    System Default
-                                                </span>
-                                            )}
-                                        </div>
-                                        <div className="mt-2 flex">
-                                            <div className="flex items-center text-sm text-gray-500">
-                                                <p className="truncate">{role.description || 'No description'}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="mt-4 flex-shrink-0 sm:mt-0 sm:ml-5">
-                                        <div className="flex overflow-hidden -space-x-1">
-                                            <span className="text-sm text-gray-500">
-                                                {role._count?.userRoles || 0} users assigned
-                                            </span>
-                                        </div>
-                                    </div>
+                        <div key={role.id} className="group hover:bg-gray-50 transition-colors p-4 flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${role.isSystem ? 'bg-amber-100 text-amber-600' : 'bg-indigo-50 text-indigo-600'}`}>
+                                    {role.isSystem ? <Lock size={20} /> : <Key size={20} />}
                                 </div>
-                                <div className="ml-5 flex-shrink-0">
-                                    <Link href={`/settings/roles/${role.id}`} className="text-primary-600 hover:text-primary-900 font-medium">
-                                        Edit
-                                    </Link>
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <h4 className="text-sm font-bold text-gray-900 group-hover:text-indigo-600 transition-colors">
+                                            {role.name}
+                                        </h4>
+                                        {role.isSystem && (
+                                            <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[9px] font-black uppercase tracking-widest rounded">
+                                                System Root
+                                            </span>
+                                        )}
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-0.5 line-clamp-1 max-w-md">
+                                        {role.description || 'No description provided'}
+                                    </p>
                                 </div>
                             </div>
-                        </li>
+
+                            <div className="flex items-center gap-6">
+                                <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 rounded text-gray-500">
+                                    <Users size={12} />
+                                    <span className="text-[10px] font-bold uppercase tracking-wide">
+                                        {role._count?.userRoles || 0} Assignments
+                                    </span>
+                                </div>
+                                <Link
+                                    href={`/settings/roles/${role.id}`}
+                                    className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-all"
+                                >
+                                    <ChevronRight size={18} />
+                                </Link>
+                            </div>
+                        </div>
                     ))}
                     {!loading && roles.length === 0 && (
-                        <li className="px-4 py-8 text-center text-gray-500">
-                            No roles found. Create one to get started.
-                        </li>
+                        <div className="p-12 text-center text-gray-400 font-bold uppercase tracking-widest text-xs">
+                            No Role Definitions Found
+                        </div>
                     )}
-                </ul>
+                </div>
             </div>
 
-            <div className="mt-8 bg-blue-50 p-4 rounded-md">
-                <h3 className="text-blue-800 font-medium">Auto-Sync Permissions</h3>
-                <p className="text-sm text-blue-600 mt-1">If you deployed new modules, click below to sync system permissions.</p>
-                <button
-                    onClick={async () => {
-                        const token = localStorage.getItem('token');
-                        await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/roles/sync-permissions`, {
-                            method: 'POST',
-                            headers: { Authorization: `Bearer ${token}` }
-                        });
-                        toast.info('Permissions Synced!');
-                    }}
-                    className="mt-2 text-sm bg-blue-100 text-blue-700 px-3 py-1 rounded border border-blue-200 hover:bg-blue-200"
-                >
-                    Sync System Permissions
-                </button>
+            <div className="ent-card p-4 border-l-4 border-l-blue-500 bg-blue-50/50 flex items-start gap-3">
+                <RefreshCw className="w-5 h-5 text-blue-600 mt-0.5" />
+                <div>
+                    <h3 className="text-xs font-black text-blue-900 uppercase tracking-tight">Synchronization Protocol</h3>
+                    <p className="text-[10px] text-blue-700 mt-1 leading-relaxed max-w-2xl">
+                        If new modules have been deployed via CD/CI, run the Synchronization to index new permission nodes into the database. This ensures they are selectable when defining roles.
+                    </p>
+                </div>
             </div>
         </div>
     );

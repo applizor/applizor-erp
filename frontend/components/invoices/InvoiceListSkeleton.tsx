@@ -1,50 +1,55 @@
 import React from 'react';
+import { Skeleton } from '../ui/Skeleton';
 
 export function InvoiceListSkeleton() {
     return (
-        <div className="bg-white shadow overflow-hidden sm:rounded-lg animate-pulse">
-            <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                        <tr>
-                            {['Invoice #', 'Client', 'Date', 'Due Date', 'Amount', 'Paid', 'Status', 'Actions'].map((header, i) => (
-                                <th key={i} className="px-6 py-3 text-left">
-                                    <div className="h-4 bg-gray-200 rounded w-20"></div>
-                                </th>
-                            ))}
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                        {[1, 2, 3, 4, 5].map((row) => (
-                            <tr key={row}>
-                                <td className="px-6 py-4">
-                                    <div className="h-4 bg-gray-200 rounded w-24"></div>
-                                </td>
-                                <td className="px-6 py-4">
-                                    <div className="h-4 bg-gray-200 rounded w-32"></div>
-                                </td>
-                                <td className="px-6 py-4">
-                                    <div className="h-4 bg-gray-200 rounded w-24"></div>
-                                </td>
-                                <td className="px-6 py-4">
-                                    <div className="h-4 bg-gray-200 rounded w-24"></div>
-                                </td>
-                                <td className="px-6 py-4">
-                                    <div className="h-4 bg-gray-200 rounded w-28"></div>
-                                </td>
-                                <td className="px-6 py-4">
-                                    <div className="h-4 bg-gray-200 rounded w-24"></div>
-                                </td>
-                                <td className="px-6 py-4">
-                                    <div className="h-6 bg-gray-200 rounded-full w-20"></div>
-                                </td>
-                                <td className="px-6 py-4">
-                                    <div className="h-8 bg-gray-200 rounded w-24"></div>
-                                </td>
+        <div className="space-y-6 animate-pulse">
+            {/* Stats Skeletons */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-3">
+                        <Skeleton className="h-3 w-20" />
+                        <Skeleton className="h-8 w-24" />
+                        <Skeleton className="h-2 w-full" />
+                    </div>
+                ))}
+            </div>
+
+            {/* Table Skeleton */}
+            <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden">
+                <div className="p-8 border-b border-slate-50 flex justify-between items-center">
+                    <Skeleton className="h-8 w-48" />
+                    <div className="flex gap-3">
+                        <Skeleton className="h-10 w-32" />
+                        <Skeleton className="h-10 w-36" />
+                    </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                    <table className="ent-table">
+                        <thead>
+                            <tr>
+                                {['Invoice #', 'Client', 'Date', 'Amount', 'Status', 'Actions'].map((header, i) => (
+                                    <th key={i} className="px-6 py-4">
+                                        <Skeleton className="h-3 w-16" />
+                                    </th>
+                                ))}
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {[1, 2, 3, 4, 5, 6].map((row) => (
+                                <tr key={row}>
+                                    <td className="px-6 py-5"><Skeleton className="h-4 w-24" /></td>
+                                    <td className="px-6 py-5"><Skeleton className="h-4 w-32" /></td>
+                                    <td className="px-6 py-5"><Skeleton className="h-4 w-20" /></td>
+                                    <td className="px-6 py-5"><Skeleton className="h-4 w-24" /></td>
+                                    <td className="px-6 py-5"><Skeleton className="h-6 w-20 rounded-full" /></td>
+                                    <td className="px-6 py-5"><Skeleton className="h-8 w-10 rounded-xl" /></td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     );

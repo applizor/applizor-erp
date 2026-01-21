@@ -60,44 +60,72 @@ export default function InterviewsPage() {
     };
 
     return (
-        <div className="p-6">
-            <h2 className="text-2xl font-bold mb-6">Scheduled Interviews</h2>
+        <div className="animate-fade-in pb-20">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4 px-2">
+                <div className="space-y-0.5">
+                    <h1 className="text-2xl font-black text-slate-900 tracking-tight leading-tight flex items-center gap-3">
+                        Evaluation Schedule
+                        {!loading && interviews.length > 0 && (
+                            <span className="text-[9px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 uppercase font-black tracking-widest">
+                                {interviews.length} SESSIONS
+                            </span>
+                        )}
+                    </h1>
+                    <p className="text-slate-500 font-medium text-sm">
+                        Orchestrating professional assessments and candidate evaluation interactions.
+                    </p>
+                </div>
+            </div>
 
-            <div className="bg-white shadow overflow-hidden sm:rounded-md">
-                <ul className="divide-y divide-gray-200">
-                    {interviews.map((interview) => (
-                        <li key={interview.id} className="px-6 py-4 hover:bg-gray-50 flex justify-between items-center">
-                            <div>
-                                <h3 className="text-lg font-medium text-gray-900">
-                                    {interview.candidate.firstName} {interview.candidate.lastName}
-                                </h3>
-                                <p className="text-sm text-gray-500">
-                                    Round {interview.round}: {interview.type} • {new Date(interview.scheduledAt).toLocaleString()}
-                                </p>
-                                <p className="text-xs text-gray-400">Interviewer: {interview.interviewer}</p>
-                            </div>
-                            <div className="flex items-center space-x-4">
-                                <span className={`px-2 py-1 text-xs rounded-full ${interview.status === 'completed' ? 'bg-green-100 text-green-800' :
-                                        interview.status === 'cancelled' ? 'bg-red-100 text-red-800' :
-                                            'bg-blue-100 text-blue-800'
-                                    }`}>
-                                    {interview.status}
-                                </span>
-                                <Link
-                                    href={`/recruitment/interviews/${interview.id}/scorecard`}
-                                    className="text-primary-600 hover:text-primary-900 text-sm font-medium"
-                                >
-                                    Evaluate / Scorecard
-                                </Link>
-                            </div>
-                        </li>
-                    ))}
-                    {interviews.length === 0 && (
-                        <li className="px-6 py-8 text-center text-gray-500">
-                            No upcoming interviews found. Schedule one from the Kanban Board.
-                        </li>
-                    )}
-                </ul>
+            <div className="mx-2">
+                <div className="ent-card overflow-hidden">
+                    <ul className="divide-y divide-slate-100">
+                        {interviews.map((interview) => (
+                            <li key={interview.id} className="px-6 py-4 hover:bg-slate-50/50 transition-colors group">
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                                    <div className="flex items-center gap-4">
+                                        <div className="h-10 w-10 rounded-2xl bg-indigo-50 flex items-center justify-center text-xs font-black text-indigo-600">
+                                            {interview.candidate.firstName[0]}{interview.candidate.lastName[0]}
+                                        </div>
+                                        <div>
+                                            <h3 className="text-sm font-black text-slate-900 tracking-tight mb-0.5">
+                                                {interview.candidate.firstName} {interview.candidate.lastName}
+                                            </h3>
+                                            <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-tighter">
+                                                <span>Round {interview.round}: {interview.type}</span>
+                                                <span className="w-1 h-1 rounded-full bg-slate-200" />
+                                                <span className="text-indigo-600">{new Date(interview.scheduledAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                                            </div>
+                                            <div className="text-[9px] font-black text-slate-400 mt-1 uppercase tracking-widest flex items-center gap-1.5">
+                                                <span className="w-2 h-2 rounded bg-slate-100 border border-slate-200" />
+                                                Assigned Evaluator: {interview.interviewer}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-4 self-end sm:self-center">
+                                        <span className={`ent-badge ${interview.status === 'completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                                            interview.status === 'cancelled' ? 'bg-rose-50 text-rose-700 border-rose-100' :
+                                                'bg-indigo-50 text-indigo-700 border-indigo-100'
+                                            }`}>
+                                            {interview.status}
+                                        </span>
+                                        <Link
+                                            href={`/recruitment/interviews/${interview.id}/scorecard`}
+                                            className="text-[10px] font-black text-indigo-600 uppercase tracking-widest hover:text-indigo-800 transition-colors bg-indigo-50/50 px-3 py-1.5 rounded-lg border border-indigo-100 opacity-0 group-hover:opacity-100"
+                                        >
+                                            Assess Manifest
+                                        </Link>
+                                    </div>
+                                </div>
+                            </li>
+                        ))}
+                        {interviews.length === 0 && (
+                            <li className="px-6 py-12 text-center">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No evaluation sessions discovered in horizon.</p>
+                            </li>
+                        )}
+                    </ul>
+                </div>
             </div>
         </div>
     );
