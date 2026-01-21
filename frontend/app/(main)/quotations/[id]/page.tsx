@@ -143,13 +143,7 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
                         </Link>
                     )}
 
-                    <Button
-                        onClick={handlePrint}
-                        variant="secondary"
-                        icon={Printer}
-                    >
-                        Print
-                    </Button>
+
 
                     {can('Quotation', 'read') && quotation.clientAcceptedAt && (
                         <Button

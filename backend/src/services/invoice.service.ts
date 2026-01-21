@@ -30,7 +30,13 @@ export class InvoiceService {
      * Create a new invoice with its items
      */
     static async createInvoice(data: CreateInvoiceInput) {
-        const { items, ...invoiceData } = data;
+        // Explicitly remove createdBy if present in the input (even if not in interface)
+        const { items: rawItems, createdBy, ...invoiceData } = data as any;
+        const items = rawItems as InvoiceItemInput[];
+
+        // Ensure dates are valid Date objects
+        const invoiceDate = new Date(invoiceData.invoiceDate);
+        const dueDate = new Date(invoiceData.dueDate);
 
         // Calculate subtotal and totax tax
         let subtotal = 0;
@@ -64,42 +70,49 @@ export class InvoiceService {
 
         const invoiceNumber = `${prefix}-${currentYear}-${String(count + 1).padStart(5, '0')}`;
 
-        return await prisma.$transaction(async (tx) => {
-            const invoice = await tx.invoice.create({
-                data: {
-                    ...invoiceData,
-                    invoiceNumber,
-                    subtotal: new Decimal(subtotal),
-                    tax: new Decimal(totalTax),
-                    total: new Decimal(total),
-                    status: invoiceData.type === 'quotation' ? 'sent' : 'draft',
-                    isRecurring: invoiceData.isRecurring || false,
-                    recurringInterval: invoiceData.recurringInterval,
-                    nextOccurrence: invoiceData.nextOccurrence,
-                    items: {
-                        create: processedItems
+        try {
+            return await prisma.$transaction(async (tx) => {
+                const invoice = await tx.invoice.create({
+                    data: {
+                        ...invoiceData,
+                        invoiceDate, // Use explicitly parsed date
+                        dueDate,     // Use explicitly parsed date
+                        invoiceNumber,
+                        subtotal: new Decimal(subtotal),
+                        tax: new Decimal(totalTax),
+                        total: new Decimal(total),
+                        status: invoiceData.type === 'quotation' ? 'sent' : 'draft',
+                        isRecurring: invoiceData.isRecurring || false,
+                        recurringInterval: invoiceData.recurringInterval,
+                        nextOccurrence: invoiceData.nextOccurrence,
+                        items: {
+                            create: processedItems
+                        }
+                    },
+                    include: {
+                        client: true,
+                        items: true
                     }
-                },
-                include: {
-                    client: true,
-                    items: true
-                }
-            });
+                });
 
-            // Log activity
-            await tx.auditLog.create({
-                data: {
-                    companyId: invoiceData.companyId,
-                    action: 'CREATE',
-                    module: 'INVOICE',
-                    entityType: 'Invoice',
-                    entityId: invoice.id,
-                    details: `Created invoice ${invoiceNumber}`
-                }
-            });
+                // Log activity
+                await tx.auditLog.create({
+                    data: {
+                        companyId: invoiceData.companyId,
+                        action: 'CREATE',
+                        module: 'INVOICE',
+                        entityType: 'Invoice',
+                        entityId: invoice.id,
+                        details: `Created invoice ${invoiceNumber}`
+                    }
+                });
 
-            return invoice;
-        });
+                return invoice;
+            });
+        } catch (error) {
+            console.error('Create Invoice Transaction Failed:', error);
+            throw error;
+        }
     }
 
     /**
@@ -246,38 +259,59 @@ export class InvoiceService {
      * Convert a quotation into a full invoice
      */
     static async convertQuotationToInvoice(quotationId: string) {
-        const quotation = await prisma.invoice.findUnique({
+        // Correctly fetch from Quotation model
+        const quotation = await prisma.quotation.findUnique({
             where: { id: quotationId },
             include: { items: true }
         });
 
-        if (!quotation || quotation.type !== 'quotation') {
+        if (!quotation) {
             throw new Error('Quotation not found');
+        }
+
+        // Return existing invoice if already converted
+        if (quotation.convertedToInvoiceId) {
+            return await prisma.invoice.findUnique({
+                where: { id: quotation.convertedToInvoiceId }
+            });
         }
 
         const invoice = await this.createInvoice({
             companyId: quotation.companyId,
-            clientId: quotation.clientId,
+            clientId: quotation.clientId || '', // Handle optional clientId
             invoiceDate: new Date(),
             dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000), // Default 15 days for converted
-            items: quotation.items.map(item => ({
-                description: item.description,
-                quantity: Number(item.quantity),
-                rate: Number(item.rate),
-                taxRate: Number(item.taxRate),
-                hsnCode: item.hsnCode || undefined
-            })),
+            items: quotation.items.map(item => {
+                const quantity = Number(item.quantity);
+                const rate = Number(item.unitPrice);
+                const taxAmount = Number(item.tax);
+                // Calculate tax rate percentage from tax amount
+                const taxableAmount = quantity * rate;
+                const taxRate = taxableAmount > 0 ? (taxAmount / taxableAmount) * 100 : 0;
+
+                return {
+                    description: item.description,
+                    quantity: quantity,
+                    rate: rate,
+                    taxRate: taxRate,
+                    // hsnCode not present in QuotationItem
+                };
+            }),
             currency: quotation.currency,
             notes: quotation.notes || undefined,
-            terms: quotation.terms || undefined,
+            terms: quotation.paymentTerms || undefined, // Map paymentTerms to terms
             discount: Number(quotation.discount),
             type: 'invoice'
         });
 
-        // Mark quotation as accepted/closed
-        await prisma.invoice.update({
+        // Mark quotation as accepted and link to invoice
+        await prisma.quotation.update({
             where: { id: quotationId },
-            data: { status: 'accepted' }
+            data: {
+                status: 'accepted',
+                convertedToInvoiceId: invoice.id,
+                convertedAt: new Date()
+            }
         });
 
         return invoice;
