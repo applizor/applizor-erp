@@ -170,8 +170,27 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
 
 
 
-    if (loading) return <div className="p-8 text-center">Loading...</div>;
-    if (!employee) return <div className="p-8 text-center">Employee not found</div>;
+    if (loading) return (
+        <div className="flex flex-col items-center justify-center min-h-[60vh]">
+            <LoadingSpinner size="lg" className="text-indigo-600 mb-4" />
+            <p className="text-xs font-black text-slate-400 uppercase tracking-widest animate-pulse">Loading Profile...</p>
+        </div>
+    );
+
+    if (!employee) return (
+        <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
+            <div className="h-20 w-20 bg-slate-50 rounded-full flex items-center justify-center mb-6 shadow-sm border border-slate-100">
+                <User size={32} className="text-slate-300" />
+            </div>
+            <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight mb-2">Employee Not Found</h3>
+            <p className="text-slate-500 text-xs font-medium max-w-xs mx-auto mb-8 leading-relaxed">
+                The employee profile you requested could not be located in the global directory.
+            </p>
+            <Link href="/hrms/employees" className="btn-primary">
+                <ChevronLeft size={14} className="mr-2" /> Back to Directory
+            </Link>
+        </div>
+    );
 
     // State for Document Generation (moved to top)
 
