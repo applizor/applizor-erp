@@ -13,6 +13,7 @@ import { PermissionGuard } from '@/components/PermissionGuard';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { ProfileSkeleton } from '@/components/skeletons/ProfileSkeleton';
 import { useCurrency } from '@/context/CurrencyContext';
+import { ClientQuotationsDialog } from '@/components/clients/ClientQuotationsDialog';
 
 export default function ClientDetailPage() {
     const router = useRouter();
@@ -27,6 +28,7 @@ export default function ClientDetailPage() {
         outstandingBalance: 0
     });
     const [quotationsList, setQuotationsList] = useState<any[]>([]);
+    const [showQuotationsDialog, setShowQuotationsDialog] = useState(false);
     const [loading, setLoading] = useState(true);
     const [deleteDialog, setDeleteDialog] = useState(false);
     const [deleting, setDeleting] = useState(false);
@@ -231,9 +233,12 @@ export default function ClientDetailPage() {
                     <div className="ent-card p-6">
                         <h2 className="text-sm font-black text-gray-900 mb-4 uppercase tracking-tight">Performance Metrics</h2>
                         <div className="space-y-4">
-                            <div className="flex items-center justify-between p-3 bg-indigo-50/50 rounded-lg border border-indigo-100">
-                                <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Quotations Generated</span>
-                                <span className="text-lg font-black text-gray-900">{stats.quotationsCount}</span>
+                            <div
+                                onClick={() => setShowQuotationsDialog(true)}
+                                className="flex items-center justify-between p-3 bg-indigo-50/50 rounded-lg border border-indigo-100 cursor-pointer hover:bg-indigo-50 transition-colors group"
+                            >
+                                <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest group-hover:text-indigo-700 transition-colors">Quotations Generated</span>
+                                <span className="text-lg font-black text-gray-900 group-hover:text-indigo-900 transition-colors">{stats.quotationsCount}</span>
                             </div>
                             <div className="flex items-center justify-between p-3 bg-violet-50/50 rounded-lg border border-violet-100">
                                 <span className="text-[10px] font-black text-violet-600 uppercase tracking-widest">Invoices Issued</span>
@@ -278,34 +283,13 @@ export default function ClientDetailPage() {
                 </div>
             </div>
 
-            {/* DEBUG: Quotations List */}
-            <div className="mt-8 p-6 bg-gray-50 border border-gray-200 rounded-lg">
-                <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-4">Debug: Quotations Data</h3>
-                <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                            <tr>
-                                <th scope="col" className="px-6 py-3 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest">ID</th>
-                                <th scope="col" className="px-6 py-3 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest">Status</th>
-                                <th scope="col" className="px-6 py-3 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest">Total</th>
-                                <th scope="col" className="px-6 py-3 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest">Date</th>
-                            </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                            {quotationsList.map((q: any) => (
-                                <tr key={q.id}>
-                                    <td className="px-6 py-4 whitespace-nowrap text-xs font-mono text-gray-900">{q.id}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-xs font-bold text-gray-900 uppercase">{q.status}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-xs font-bold text-gray-900 font-mono">{formatCurrency(q.total)}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-xs font-bold text-gray-900 font-mono">
-                                        {new Date(q.createdAt).toLocaleDateString()}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+            {/* Client Quotations Dialog */}
+            <ClientQuotationsDialog
+                isOpen={showQuotationsDialog}
+                onClose={() => setShowQuotationsDialog(false)}
+                quotations={quotationsList}
+                clientName={client.name}
+            />
 
             {/* Delete Confirmation Dialog */}
             <ConfirmDialog
