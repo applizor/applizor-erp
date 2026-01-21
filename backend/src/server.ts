@@ -133,6 +133,10 @@ app.use('/api/payroll/structure', salaryStructureRoutes);
 // ... other routes
 app.use('/api/accounting', accountingRoutes);
 
+// Automation/Debug Routes
+import automationRoutes from './routes/automation.routes';
+app.use('/api/automation', automationRoutes);
+
 // Scheduler
 import { SchedulerService } from './services/scheduler.service';
 
