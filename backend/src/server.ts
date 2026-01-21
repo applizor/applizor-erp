@@ -82,7 +82,9 @@ app.use('/api/payments', paymentRoutes);
 
 // Quotation routes
 import quotationRoutes from './routes/quotation.routes';
+import quotationTemplateRoutes from './routes/quotation-template.routes';
 app.use('/api/quotations', quotationRoutes);
+app.use('/api/quotation-templates', quotationTemplateRoutes);
 
 // HRMS Routes
 import departmentRoutes from './routes/department.routes';

@@ -151,6 +151,7 @@ model Company {
   journalEntries  JournalEntry[]
   documentTemplates DocumentTemplate[]
   quotations      Quotation[]
+  quotationTemplates QuotationTemplate[]
 
   @@index([name])
 }
@@ -405,6 +406,42 @@ model QuotationItem {
   quotation     Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
   
   @@index([quotationId])
+}
+
+// Quotation Templates
+model QuotationTemplate {
+  id              String   @id @default(uuid())
+  companyId       String
+  
+  name            String
+  description     String?  @db.Text
+  category        String?  // e.g., "Web Development", "Consulting", "Design"
+  
+  // Template Content
+  title           String
+  templateDescription String @db.Text
+  paymentTerms    String?  @db.Text
+  deliveryTerms   String?  @db.Text
+  notes           String?  @db.Text
+  
+  // Template Items (stored as JSON)
+  items           Json     // Array of {description, quantity, unitPrice, tax, discount}
+  
+  // Metadata
+  isActive        Boolean  @default(true)
+  usageCount      Int      @default(0)
+  
+  // Creator Tracking
+  createdBy       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  @@index([companyId])
+  @@index([category])
+  @@map("quotation_templates")
 }
 
 // Quick Estimates

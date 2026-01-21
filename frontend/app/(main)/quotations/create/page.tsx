@@ -7,7 +7,7 @@ import { useToast } from '@/hooks/useToast';
 import { usePermission } from '@/hooks/usePermission';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useCurrency } from '@/context/CurrencyContext';
-import { Plus, Trash2, Calendar, FileText, ArrowLeft, Info } from 'lucide-react';
+import { Plus, Trash2, Calendar, FileText, ArrowLeft, Info, Save, Copy } from 'lucide-react';
 import ProductSelector from '@/components/quotations/ProductSelector';
 import { quotationsApi } from '@/lib/api/quotations';
 import AccessDenied from '@/components/AccessDenied';
@@ -21,6 +21,10 @@ export default function CreateQuotationPage() {
     const { formatCurrency, currency: globalCurrency } = useCurrency();
     const [saving, setSaving] = useState(false);
     const [leads, setLeads] = useState<any[]>([]);
+    const [templates, setTemplates] = useState<any[]>([]);
+    const [selectedTemplateId, setSelectedTemplateId] = useState('');
+    const [showSaveTemplateDialog, setShowSaveTemplateDialog] = useState(false);
+    const [templateFormData, setTemplateFormData] = useState({ name: '', category: '' });
 
     useEffect(() => {
         // Wait for user to load before checking permissions
@@ -49,6 +53,7 @@ export default function CreateQuotationPage() {
 
     useEffect(() => {
         loadLeads();
+        loadTemplates();
     }, []);
 
     const loadLeads = async () => {
@@ -57,6 +62,81 @@ export default function CreateQuotationPage() {
             setLeads(response.data.leads || []);
         } catch (error) {
             console.error('Failed to load leads');
+        }
+    };
+
+    const loadTemplates = async () => {
+        try {
+            const response = await api.get('/quotation-templates');
+            setTemplates(response.data.templates || []);
+        } catch (error) {
+            console.error('Failed to load templates');
+        }
+    };
+
+    const applyTemplate = async (templateId: string) => {
+        if (!templateId) return;
+
+        try {
+            const response = await api.post(`/quotation-templates/${templateId}/apply`);
+            const template = response.data.template;
+
+            // Auto-fill form with template data
+            setFormData({
+                ...formData,
+                title: template.title,
+                description: template.templateDescription,
+                paymentTerms: template.paymentTerms || formData.paymentTerms,
+                deliveryTerms: template.deliveryTerms || formData.deliveryTerms,
+                notes: template.notes || formData.notes
+            });
+
+            // Auto-fill items
+            if (template.items && Array.isArray(template.items)) {
+                setItems(template.items);
+            }
+
+            toast.success('Template applied successfully');
+        } catch (error: any) {
+            toast.error('Failed to apply template');
+        }
+    };
+
+    const saveAsTemplate = async () => {
+        if (!formData.title) {
+            toast.error('Please enter a quotation title first');
+            return;
+        }
+
+        // Open dialog
+        setTemplateFormData({ name: formData.title, category: '' });
+        setShowSaveTemplateDialog(true);
+    };
+
+    const handleSaveTemplate = async () => {
+        if (!templateFormData.name) {
+            toast.error('Please enter template name');
+            return;
+        }
+
+        try {
+            await api.post('/quotation-templates', {
+                name: templateFormData.name,
+                category: templateFormData.category || undefined,
+                title: formData.title,
+                templateDescription: formData.description,
+                paymentTerms: formData.paymentTerms,
+                deliveryTerms: formData.deliveryTerms,
+                notes: formData.notes,
+                items: items
+            });
+
+            toast.success('Template saved successfully');
+            setShowSaveTemplateDialog(false);
+            setTemplateFormData({ name: '', category: '' });
+            loadTemplates(); // Refresh template list
+        } catch (error: any) {
+            toast.error('Failed to save template');
         }
     };
 
@@ -172,6 +252,31 @@ export default function CreateQuotationPage() {
 
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bold text-gray-900">Create New Quotation</h1>
+                <div className="flex items-center space-x-3">
+                    {templates.length > 0 && (
+                        <select
+                            value={selectedTemplateId}
+                            onChange={(e) => {
+                                setSelectedTemplateId(e.target.value);
+                                applyTemplate(e.target.value);
+                            }}
+                            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                        >
+                            <option value="">Use Template...</option>
+                            {templates.map(t => (
+                                <option key={t.id} value={t.id}>{t.name}</option>
+                            ))}
+                        </select>
+                    )}
+                    <button
+                        type="button"
+                        onClick={saveAsTemplate}
+                        className="px-4 py-2 border border-primary-600 text-primary-600 rounded-lg hover:bg-primary-50 flex items-center"
+                    >
+                        <Save className="w-4 h-4 mr-2" />
+                        Save as Template
+                    </button>
+                </div>
             </div>
 
             <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">

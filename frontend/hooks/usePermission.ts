@@ -10,6 +10,7 @@ export type PermissionModule =
     | 'Lead'
     | 'LeadActivity'
     | 'Quotation'
+    | 'QuotationTemplate'
     | 'Invoice'
     | 'Payment'
     | 'Subscription'
