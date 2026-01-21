@@ -4,6 +4,7 @@
 import React from 'react';
 import { Dialog } from './Dialog';
 import { AlertTriangle, CheckCircle, Info } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
 
 interface ConfirmDialogProps {
     isOpen: boolean;
@@ -59,20 +60,23 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
                 </div>
 
                 <div className="flex w-full space-x-3 pt-4">
-                    <button
+                    <Button
                         onClick={onClose}
                         disabled={isLoading}
-                        className="flex-1 px-4 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors focus:ring-2 focus:ring-offset-2 focus:ring-gray-200"
+                        variant="secondary"
+                        className="flex-1"
                     >
                         {cancelText}
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                         onClick={onConfirm}
                         disabled={isLoading}
-                        className={`flex-1 px-4 py-2.5 text-white rounded-lg font-medium transition-all shadow-md focus:ring-2 focus:ring-offset-2 ${getButtonClass()} ${isLoading ? 'opacity-70 cursor-wait' : ''}`}
+                        isLoading={isLoading}
+                        variant={type === 'danger' ? 'danger' : 'primary'}
+                        className={`flex-1 ${type === 'success' ? 'bg-emerald-600 hover:bg-emerald-700' : ''}`}
                     >
-                        {isLoading ? 'Processing...' : confirmText}
-                    </button>
+                        {confirmText}
+                    </Button>
                 </div>
             </div>
         </Dialog>

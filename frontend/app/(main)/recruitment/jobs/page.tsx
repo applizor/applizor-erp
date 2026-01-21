@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import api from '@/lib/api';
 import { Briefcase, Plus, Edit2, Trash2, Users, X, ChevronRight, Activity, Filter, Search } from 'lucide-react';
 import Link from 'next/link';
+import { CardSkeleton } from '@/components/ui/Skeleton';
 
 interface JobOpening {
     id: string;
@@ -98,7 +99,13 @@ export default function JobsPage() {
 
             {/* Content Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {jobs.map((job) => (
+                {loading && jobs.length === 0 ? (
+                    <>
+                        <CardSkeleton />
+                        <CardSkeleton />
+                        <CardSkeleton />
+                    </>
+                ) : jobs.map((job) => (
                     <div key={job.id} className="ent-card group hover:border-indigo-300 hover:shadow-lg transition-all duration-300 relative overflow-hidden">
                         <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
                             <Briefcase size={80} className="text-indigo-900 transform rotate-12" />

@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/useToast';
 import { usePermission } from '@/hooks/usePermission';
 import { PermissionGuard } from '@/components/PermissionGuard';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { ProfileSkeleton } from '@/components/skeletons/ProfileSkeleton';
 
 export default function ClientDetailPage() {
     const router = useRouter();
@@ -56,8 +56,8 @@ export default function ClientDetailPage() {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-screen">
-                <LoadingSpinner size="lg" />
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <ProfileSkeleton />
             </div>
         );
     }
@@ -66,73 +66,55 @@ export default function ClientDetailPage() {
         return null;
     }
 
-    const getClientTypeBadge = (type: string) => {
-        const styles = {
-            customer: 'bg-blue-100 text-blue-800',
-            vendor: 'bg-purple-100 text-purple-800',
-            partner: 'bg-green-100 text-green-800'
-        };
-        return styles[type as keyof typeof styles] || 'bg-gray-100 text-gray-800';
-    };
-
-    const getStatusBadge = (status: string) => {
-        return status === 'active'
-            ? 'bg-green-100 text-green-800'
-            : 'bg-gray-100 text-gray-800';
-    };
-
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             {/* Header */}
-            <div className="mb-6">
-                <Link
-                    href="/clients"
-                    className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 mb-4"
-                >
-                    <ArrowLeft size={16} className="mr-1" />
-                    Back to Clients
-                </Link>
 
-                <div className="flex items-start justify-between">
-                    <div className="flex items-center">
-                        <div className="flex-shrink-0 h-16 w-16 bg-primary-100 rounded-full flex items-center justify-center">
-                            <span className="text-primary-600 font-bold text-2xl">
-                                {client.name?.charAt(0).toUpperCase() || 'C'}
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-5 rounded-lg border border-gray-200 shadow-sm gap-4 mb-6">
+                <div className="flex items-center gap-4">
+                    <div className="p-4 bg-indigo-900 rounded-lg shadow-xl shadow-indigo-900/20">
+                        <span className="text-white font-black text-2xl">
+                            {client.name?.charAt(0).toUpperCase() || 'C'}
+                        </span>
+                    </div>
+                    <div>
+                        <div className="flex items-center gap-2 mb-1">
+                            <Link
+                                href="/clients"
+                                className="text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-indigo-600 transition-colors flex items-center gap-1"
+                            >
+                                <ArrowLeft size={10} /> Registry
+                            </Link>
+                        </div>
+                        <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none uppercase">{client.name}</h1>
+                        <div className="mt-2 flex items-center gap-2">
+                            <span className={`ent-badge ${client.clientType === 'customer' ? 'ent-badge-primary' : 'ent-badge-neutral'}`}>
+                                {client.clientType}
+                            </span>
+                            <span className={`ent-badge ${client.status === 'active' ? 'ent-badge-success' : 'ent-badge-danger'}`}>
+                                {client.status}
                             </span>
                         </div>
-                        <div className="ml-4">
-                            <h1 className="text-3xl font-bold text-gray-900">{client.name}</h1>
-                            <div className="mt-2 flex items-center gap-2">
-                                <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getClientTypeBadge(client.clientType)}`}>
-                                    {client.clientType}
-                                </span>
-                                <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadge(client.status)}`}>
-                                    {client.status}
-                                </span>
-                            </div>
-                        </div>
                     </div>
+                </div>
 
-                    <div className="flex items-center gap-2">
-                        <PermissionGuard module="Client" action="update">
-                            <Link
-                                href={`/clients/${client.id}/edit`}
-                                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
-                            >
-                                <Edit size={16} className="mr-2" />
-                                Edit
-                            </Link>
-                        </PermissionGuard>
-                        <PermissionGuard module="Client" action="delete">
-                            <button
-                                onClick={() => setDeleteDialog(true)}
-                                className="inline-flex items-center px-4 py-2 border border-red-300 rounded-md shadow-sm text-sm font-medium text-red-700 bg-white hover:bg-red-50 transition-colors"
-                            >
-                                <Trash2 size={16} className="mr-2" />
-                                Delete
-                            </button>
-                        </PermissionGuard>
-                    </div>
+                <div className="flex items-center gap-3">
+                    <PermissionGuard module="Client" action="update">
+                        <Link
+                            href={`/clients/${client.id}/edit`}
+                            className="px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 hover:text-indigo-600 transition-all flex items-center gap-2 shadow-sm"
+                        >
+                            <Edit size={14} /> Modify
+                        </Link>
+                    </PermissionGuard>
+                    <PermissionGuard module="Client" action="delete">
+                        <button
+                            onClick={() => setDeleteDialog(true)}
+                            className="px-4 py-2 bg-white border border-rose-100 text-rose-600 rounded text-[10px] font-black uppercase tracking-widest hover:bg-rose-50 transition-all flex items-center gap-2 shadow-sm"
+                        >
+                            <Trash2 size={14} /> Purge
+                        </button>
+                    </PermissionGuard>
                 </div>
             </div>
 
@@ -141,67 +123,67 @@ export default function ClientDetailPage() {
                 {/* Main Info */}
                 <div className="lg:col-span-2 space-y-6">
                     {/* Contact Information */}
-                    <div className="bg-white shadow rounded-lg p-6">
-                        <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                            <Mail className="mr-2 text-primary-600" size={20} />
-                            Contact Information
+                    <div className="ent-card p-6">
+                        <h2 className="text-sm font-black text-gray-900 mb-6 flex items-center gap-2 uppercase tracking-tight border-b border-gray-100 pb-2">
+                            <Mail className="w-4 h-4 text-indigo-600" />
+                            Communication Protocols
                         </h2>
-                        <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            <div>
-                                <dt className="text-sm font-medium text-gray-500">Email</dt>
-                                <dd className="mt-1 text-sm text-gray-900">{client.email || '-'}</dd>
+                        <dl className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                            <div className="ent-form-group">
+                                <dt className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">Digital Address</dt>
+                                <dd className="text-sm font-bold text-gray-900">{client.email || '-'}</dd>
                             </div>
-                            <div>
-                                <dt className="text-sm font-medium text-gray-500">Phone</dt>
-                                <dd className="mt-1 text-sm text-gray-900">{client.phone || '-'}</dd>
+                            <div className="ent-form-group">
+                                <dt className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">Telephony</dt>
+                                <dd className="text-sm font-bold text-gray-900 font-mono">{client.phone || '-'}</dd>
                             </div>
                         </dl>
                     </div>
 
                     {/* Address */}
-                    <div className="bg-white shadow rounded-lg p-6">
-                        <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                            <MapPin className="mr-2 text-primary-600" size={20} />
-                            Address
+                    <div className="ent-card p-6">
+                        <h2 className="text-sm font-black text-gray-900 mb-6 flex items-center gap-2 uppercase tracking-tight border-b border-gray-100 pb-2">
+                            <MapPin className="w-4 h-4 text-indigo-600" />
+                            Geographic Coordinates
                         </h2>
-                        <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            <div className="sm:col-span-2">
-                                <dt className="text-sm font-medium text-gray-500">Street Address</dt>
-                                <dd className="mt-1 text-sm text-gray-900">{client.address || '-'}</dd>
+                        <dl className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                            <div className="sm:col-span-4 lg:col-span-4">
+                                <dt className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">Street Location</dt>
+                                <dd className="text-sm font-bold text-gray-900">{client.address || '-'}</dd>
                             </div>
                             <div>
-                                <dt className="text-sm font-medium text-gray-500">City</dt>
-                                <dd className="mt-1 text-sm text-gray-900">{client.city || '-'}</dd>
+                                <dt className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">City / Metro</dt>
+                                <dd className="text-sm font-bold text-gray-900">{client.city || '-'}</dd>
                             </div>
                             <div>
-                                <dt className="text-sm font-medium text-gray-500">State</dt>
-                                <dd className="mt-1 text-sm text-gray-900">{client.state || '-'}</dd>
+                                <dt className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">State / Province</dt>
+                                <dd className="text-sm font-bold text-gray-900">{client.state || '-'}</dd>
                             </div>
                             <div>
-                                <dt className="text-sm font-medium text-gray-500">Country</dt>
-                                <dd className="mt-1 text-sm text-gray-900">{client.country || '-'}</dd>
+                                <dt className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">Nation</dt>
+                                <dd className="text-sm font-bold text-gray-900">{client.country || '-'}</dd>
                             </div>
                             <div>
-                                <dt className="text-sm font-medium text-gray-500">Pincode</dt>
-                                <dd className="mt-1 text-sm text-gray-900">{client.pincode || '-'}</dd>
+                                <dt className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">Postal Code</dt>
+                                <dd className="text-sm font-bold text-gray-900 font-mono">{client.pincode || '-'}</dd>
                             </div>
                         </dl>
                     </div>
 
                     {/* Business Details */}
-                    <div className="bg-white shadow rounded-lg p-6">
-                        <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                            <Building2 className="mr-2 text-primary-600" size={20} />
-                            Business Details
+                    <div className="ent-card p-6">
+                        <h2 className="text-sm font-black text-gray-900 mb-6 flex items-center gap-2 uppercase tracking-tight border-b border-gray-100 pb-2">
+                            <Building2 className="w-4 h-4 text-indigo-600" />
+                            Fiscal Identity
                         </h2>
-                        <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <dl className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                             <div>
-                                <dt className="text-sm font-medium text-gray-500">GSTIN</dt>
-                                <dd className="mt-1 text-sm text-gray-900 font-mono">{client.gstin || '-'}</dd>
+                                <dt className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">GSTIN Identifier</dt>
+                                <dd className="text-sm font-bold text-gray-900 font-mono bg-gray-50 px-3 py-1.5 rounded border border-gray-200 inline-block">{client.gstin || 'N/A'}</dd>
                             </div>
                             <div>
-                                <dt className="text-sm font-medium text-gray-500">PAN</dt>
-                                <dd className="mt-1 text-sm text-gray-900 font-mono">{client.pan || '-'}</dd>
+                                <dt className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">PAN Reference</dt>
+                                <dd className="text-sm font-bold text-gray-900 font-mono bg-gray-50 px-3 py-1.5 rounded border border-gray-200 inline-block">{client.pan || 'N/A'}</dd>
                             </div>
                         </dl>
                     </div>
@@ -210,35 +192,35 @@ export default function ClientDetailPage() {
                 {/* Sidebar */}
                 <div className="space-y-6">
                     {/* Quick Stats */}
-                    <div className="bg-white shadow rounded-lg p-6">
-                        <h2 className="text-lg font-medium text-gray-900 mb-4">Quick Stats</h2>
+                    <div className="ent-card p-6">
+                        <h2 className="text-sm font-black text-gray-900 mb-4 uppercase tracking-tight">Performance Metrics</h2>
                         <div className="space-y-4">
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm text-gray-500">Total Quotations</span>
-                                <span className="text-lg font-semibold text-gray-900">0</span>
+                            <div className="flex items-center justify-between p-3 bg-indigo-50/50 rounded-lg border border-indigo-100">
+                                <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Quotations Generated</span>
+                                <span className="text-lg font-black text-gray-900">0</span>
                             </div>
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm text-gray-500">Total Invoices</span>
-                                <span className="text-lg font-semibold text-gray-900">0</span>
+                            <div className="flex items-center justify-between p-3 bg-violet-50/50 rounded-lg border border-violet-100">
+                                <span className="text-[10px] font-black text-violet-600 uppercase tracking-widest">Invoices Issued</span>
+                                <span className="text-lg font-black text-gray-900">0</span>
                             </div>
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm text-gray-500">Outstanding</span>
-                                <span className="text-lg font-semibold text-green-600">₹0</span>
+                            <div className="flex items-center justify-between p-3 bg-emerald-50/50 rounded-lg border border-emerald-100">
+                                <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Outstanding Balance</span>
+                                <span className="text-lg font-black text-emerald-700">₹0</span>
                             </div>
                         </div>
                     </div>
 
                     {/* Metadata */}
-                    <div className="bg-white shadow rounded-lg p-6">
-                        <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                            <Calendar className="mr-2 text-primary-600" size={20} />
-                            Information
+                    <div className="ent-card p-6">
+                        <h2 className="text-sm font-black text-gray-900 mb-4 flex items-center gap-2 uppercase tracking-tight border-b border-gray-100 pb-2">
+                            <Calendar className="w-4 h-4 text-gray-400" />
+                            System Metadata
                         </h2>
-                        <dl className="space-y-3">
+                        <dl className="space-y-4">
                             <div>
-                                <dt className="text-sm font-medium text-gray-500">Created</dt>
-                                <dd className="mt-1 text-sm text-gray-900">
-                                    {new Date(client.createdAt).toLocaleDateString('en-IN', {
+                                <dt className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Record Inception</dt>
+                                <dd className="text-xs font-bold text-gray-900 font-mono">
+                                    {new Date(client.createdAt).toLocaleDateString(undefined, {
                                         year: 'numeric',
                                         month: 'long',
                                         day: 'numeric'
@@ -246,9 +228,9 @@ export default function ClientDetailPage() {
                                 </dd>
                             </div>
                             <div>
-                                <dt className="text-sm font-medium text-gray-500">Last Updated</dt>
-                                <dd className="mt-1 text-sm text-gray-900">
-                                    {new Date(client.updatedAt).toLocaleDateString('en-IN', {
+                                <dt className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1">Last Modification</dt>
+                                <dd className="text-xs font-bold text-gray-900 font-mono">
+                                    {new Date(client.updatedAt).toLocaleDateString(undefined, {
                                         year: 'numeric',
                                         month: 'long',
                                         day: 'numeric'
@@ -258,9 +240,7 @@ export default function ClientDetailPage() {
                         </dl>
                     </div>
                 </div>
-            </div>
-
-            {/* Delete Confirmation Dialog */}
+            </div>     {/* Delete Confirmation Dialog */}
             <ConfirmDialog
                 isOpen={deleteDialog}
                 onClose={() => setDeleteDialog(false)}

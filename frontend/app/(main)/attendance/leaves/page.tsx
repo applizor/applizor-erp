@@ -7,6 +7,8 @@ import { LeaveBalanceCards } from '@/components/attendance/LeaveBalanceCards';
 import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { PermissionGuard } from '@/components/PermissionGuard';
+import { Button } from '@/components/ui/Button';
+import { TableRowSkeleton } from '@/components/ui/Skeleton';
 
 interface LeaveRequest {
     id: string;
@@ -219,13 +221,14 @@ export default function MyLeavesPage() {
                     </h2>
                     <p className="text-xs text-gray-500 font-medium mt-1">Track and manage your leave requests</p>
                 </div>
-                <button
+                <Button
                     onClick={() => setIsModalOpen(true)}
-                    className="flex items-center gap-2 bg-primary-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-primary-700 transition-colors shadow-sm"
+                    variant="primary"
+                    icon={Plus}
+                    className="text-sm font-medium"
                 >
-                    <Plus className="w-4 h-4" />
                     Add Leave
-                </button>
+                </Button>
             </div>
 
             <LeaveBalanceCards balances={balances} loading={loading} />
@@ -250,11 +253,11 @@ export default function MyLeavesPage() {
                         </thead>
                         <tbody className="divide-y divide-gray-50">
                             {loading ? (
-                                [1, 2, 3].map(i => (
-                                    <tr key={i} className="animate-pulse">
-                                        <td colSpan={5} className="py-4 px-4"><div className="h-4 bg-gray-100 rounded"></div></td>
-                                    </tr>
-                                ))
+                                <>
+                                    <TableRowSkeleton columns={5} />
+                                    <TableRowSkeleton columns={5} />
+                                    <TableRowSkeleton columns={5} />
+                                </>
                             ) : leaves.length === 0 ? (
                                 <tr>
                                     <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
@@ -439,20 +442,23 @@ export default function MyLeavesPage() {
                             </div>
 
                             <div className="pt-4 flex items-center justify-end gap-3 border-t border-gray-100">
-                                <button
+                                <Button
                                     type="button"
                                     onClick={() => setIsModalOpen(false)}
-                                    className="px-4 py-2 text-xs font-bold text-gray-500 hover:text-gray-700 uppercase tracking-widest transition-colors"
+                                    variant="secondary"
+                                    className="text-xs"
                                 >
                                     Cancel
-                                </button>
-                                <button
+                                </Button>
+                                <Button
                                     type="submit"
                                     disabled={(proofRequired && !formData.attachmentPath) || insufficientBalance || submitting}
-                                    className="bg-primary-600 text-white px-6 py-2 rounded text-xs font-black uppercase tracking-widest hover:bg-primary-700 shadow-md transition-all active:scale-95 disabled:opacity-50"
+                                    isLoading={submitting}
+                                    variant="primary"
+                                    className="text-xs"
                                 >
-                                    {submitting ? 'Applying...' : 'Submit Request'}
-                                </button>
+                                    Submit Request
+                                </Button>
                             </div>
                         </form>
                     </div>

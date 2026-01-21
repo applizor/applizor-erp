@@ -13,6 +13,7 @@ import ProductSelector from '@/components/quotations/ProductSelector';
 import { quotationsApi } from '@/lib/api/quotations';
 import AccessDenied from '@/components/AccessDenied';
 import RichTextEditor from '@/components/ui/RichTextEditor';
+import { Button } from '@/components/ui/Button';
 
 export default function CreateQuotationPage() {
     const router = useRouter();
@@ -280,14 +281,14 @@ export default function CreateQuotationPage() {
                             </select>
                         </div>
                     )}
-                    <button
+                    <Button
                         type="button"
                         onClick={saveAsTemplate}
-                        className="ent-button-secondary"
+                        variant="secondary"
+                        icon={Save}
                     >
-                        <Save className="w-4 h-4 mr-2" />
                         Save as Template
-                    </button>
+                    </Button>
                 </div>
             </div>
 
@@ -458,13 +459,15 @@ export default function CreateQuotationPage() {
                         </div>
                         <div className="flex items-center space-x-3">
                             <ProductSelector onSelect={handleProductSelect} />
-                            <button
+                            <Button
                                 type="button"
                                 onClick={addItem}
-                                className="ent-button-secondary text-xs"
+                                variant="secondary"
+                                icon={Plus}
+                                className="text-xs"
                             >
-                                <Plus className="w-4 h-4 mr-1" /> Add Manual Item
-                            </button>
+                                Add Manual Item
+                            </Button>
                         </div>
                     </div>
 
@@ -618,31 +621,23 @@ export default function CreateQuotationPage() {
 
                 {/* Footer */}
                 <div className="flex justify-end gap-3 pt-4">
-                    <button
+                    <Button
                         type="button"
+                        variant="secondary"
                         onClick={() => router.back()}
-                        className="ent-button-secondary"
+                        icon={Trash2}
                     >
-                        <Trash2 className="w-4 h-4 mr-2" />
                         Discard Draft
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                         type="submit"
                         disabled={saving}
-                        className="ent-button-primary disabled:opacity-75 disabled:cursor-wait"
+                        isLoading={saving}
+                        variant="primary"
+                        icon={Save}
                     >
-                        {saving ? (
-                            <>
-                                <LoadingSpinner size="sm" className="mr-2" />
-                                Processing...
-                            </>
-                        ) : (
-                            <>
-                                <Save className="w-4 h-4 mr-2" />
-                                Create Proposal
-                            </>
-                        )}
-                    </button>
+                        Create Proposal
+                    </Button>
                 </div>
             </form>
 
@@ -698,20 +693,21 @@ export default function CreateQuotationPage() {
                                 </div>
                             </div>
                             <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse gap-3">
-                                <button
+                                <Button
                                     type="button"
                                     onClick={handleSaveTemplate}
-                                    className="ent-button-primary w-full sm:w-auto text-sm"
+                                    className="w-full sm:w-auto text-sm"
                                 >
                                     Confirm Save
-                                </button>
-                                <button
+                                </Button>
+                                <Button
                                     type="button"
+                                    variant="secondary"
                                     onClick={() => setShowSaveTemplateDialog(false)}
-                                    className="ent-button-secondary w-full sm:w-auto text-sm mt-3 sm:mt-0"
+                                    className="w-full sm:w-auto text-sm mt-3 sm:mt-0"
                                 >
                                     Cancel
-                                </button>
+                                </Button>
                             </div>
                         </div>
                     </div>

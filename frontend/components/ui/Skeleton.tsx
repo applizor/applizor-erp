@@ -10,13 +10,19 @@ export function Skeleton({ className }: SkeletonProps) {
     );
 }
 
-export function TableRowSkeleton({ columns = 5 }: { columns?: number }) {
+export function TableRowSkeleton({ columns = 5, rows = 1 }: { columns?: number; rows?: number }) {
     return (
-        <div className="flex items-center space-x-4 py-4 px-6 border-b border-slate-50">
-            {Array.from({ length: columns }).map((_, i) => (
-                <Skeleton key={i} className={`h-4 ${i === 0 ? 'w-32' : 'w-24'}`} />
+        <>
+            {Array.from({ length: rows }).map((_, r) => (
+                <tr key={r} className="animate-pulse">
+                    {Array.from({ length: columns }).map((_, i) => (
+                        <td key={i} className="px-6 py-4">
+                            <Skeleton className={`h-4 ${i === 0 ? 'w-32' : 'w-24'}`} />
+                        </td>
+                    ))}
+                </tr>
             ))}
-        </div>
+        </>
     );
 }
 

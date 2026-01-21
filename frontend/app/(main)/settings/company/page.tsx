@@ -111,9 +111,20 @@ export default function CompanySettingsPage() {
     };
 
     if (loading) return (
-        <div className="flex flex-col justify-center items-center h-96">
-            <LoadingSpinner size="lg" />
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-4">Loading Configuration...</p>
+        <div className="max-w-7xl mx-auto pb-20 space-y-6">
+            <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4 animate-pulse">
+                <div className="h-10 w-64 bg-slate-100 rounded"></div>
+                <div className="h-10 w-32 bg-slate-100 rounded"></div>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-1 space-y-6">
+                    <div className="ent-card p-6 h-64 animate-pulse"></div>
+                    <div className="ent-card p-6 h-32 animate-pulse"></div>
+                </div>
+                <div className="lg:col-span-2 space-y-6">
+                    <div className="ent-card p-6 h-96 animate-pulse"></div>
+                </div>
+            </div>
         </div>
     );
 

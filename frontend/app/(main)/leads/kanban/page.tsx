@@ -10,6 +10,7 @@ import { PermissionGuard } from '@/components/PermissionGuard';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import Link from 'next/link';
 import { useCurrency } from '@/context/CurrencyContext';
+import { KanbanColumnSkeleton } from '@/components/skeletons/KanbanColumnSkeleton';
 
 const STAGES = [
     { id: 'lead', name: 'Raw Inquiry', color: 'bg-primary-900', icon: '📝' },
@@ -65,12 +66,7 @@ export default function LeadKanbanPage() {
         }
     };
 
-    if (loading) return (
-        <div className="p-20 flex flex-col items-center justify-center animate-pulse">
-            <LoadingSpinner size="lg" />
-            <p className="mt-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Synchronizing Pipeline Intelligence...</p>
-        </div>
-    );
+    if (loading) return <KanbanColumnSkeleton />;
 
     return (
         <div className="space-y-6">
@@ -176,8 +172,8 @@ export default function LeadKanbanPage() {
                                                                     </div>
                                                                     {lead.priority && (
                                                                         <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded border ${lead.priority === 'high' || lead.priority === 'urgent'
-                                                                                ? 'bg-rose-50 text-rose-700 border-rose-100'
-                                                                                : 'bg-primary-50 text-primary-700 border-primary-100'
+                                                                            ? 'bg-rose-50 text-rose-700 border-rose-100'
+                                                                            : 'bg-primary-50 text-primary-700 border-primary-100'
                                                                             }`}>
                                                                             {lead.priority}
                                                                         </span>

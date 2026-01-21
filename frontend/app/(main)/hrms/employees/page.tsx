@@ -11,6 +11,7 @@ import { PermissionGuard } from '@/components/PermissionGuard';
 import { usePermission } from '@/hooks/usePermission';
 import { Plus, Users, Clock, Zap, Search, Filter, Trash2, UserPlus, Fingerprint, Shield } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { EmployeeListSkeleton } from '@/components/hrms/EmployeeListSkeleton';
 
 export default function EmployeesPage() {
     const toast = useToast();
@@ -170,11 +171,7 @@ export default function EmployeesPage() {
             </div>
 
             {loading ? (
-                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
-                        <div key={i} className="h-44 rounded-lg bg-gray-50 animate-pulse border border-gray-100" />
-                    ))}
-                </div>
+                <EmployeeListSkeleton />
             ) : employees.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-24 bg-gray-50/30 rounded-lg border border-dashed border-gray-200">
                     <Users className="w-8 h-8 text-gray-300 mb-3" />

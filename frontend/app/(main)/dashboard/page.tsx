@@ -7,6 +7,7 @@ import { Users, FileText, DollarSign, TrendingUp, Clock, CheckCircle, ChevronRig
 import api from '@/lib/api';
 import { useCurrency } from '@/context/CurrencyContext';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { DashboardSkeleton } from '@/components/skeletons/DashboardSkeleton';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -75,11 +76,7 @@ export default function DashboardPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <LoadingSpinner size="lg" />
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   return (

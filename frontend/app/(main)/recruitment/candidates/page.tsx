@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { candidatesApi, jobOpeningsApi, Candidate, JobOpening } from '@/lib/api/recruitment';
 import { Users, Plus, Filter, Search, ChevronRight, X, Trash2, Mail, Phone, Briefcase, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
+import { TableRowSkeleton } from '@/components/ui/Skeleton';
 
 export default function CandidatesPage() {
     const toast = useToast();
@@ -75,12 +76,7 @@ export default function CandidatesPage() {
         }
     };
 
-    if (loading && candidates.length === 0) return (
-        <div className="p-20 flex flex-col items-center justify-center animate-pulse">
-            <LoadingSpinner size="lg" />
-            <p className="mt-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Retrieving Talent Data...</p>
-        </div>
-    );
+
 
     return (
         <div className="space-y-6 pb-20 max-w-7xl mx-auto">
@@ -151,7 +147,9 @@ export default function CandidatesPage() {
                             </tr>
                         </thead>
                         <tbody>
-                            {candidates.map((candidate) => (
+                            {loading && candidates.length === 0 ? (
+                                <TableRowSkeleton columns={5} rows={5} />
+                            ) : candidates.map((candidate) => (
                                 <tr key={candidate.id} className="group hover:bg-indigo-50/30 transition-colors">
                                     <td className="p-4">
                                         <div className="flex items-center gap-3">
@@ -182,8 +180,8 @@ export default function CandidatesPage() {
                                     </td>
                                     <td className="p-4">
                                         <span className={`ent-badge ${candidate.status === 'hired' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
-                                                candidate.status === 'rejected' ? 'bg-rose-50 text-rose-700 border-rose-100' :
-                                                    'bg-indigo-50 text-indigo-700 border-indigo-100'
+                                            candidate.status === 'rejected' ? 'bg-rose-50 text-rose-700 border-rose-100' :
+                                                'bg-indigo-50 text-indigo-700 border-indigo-100'
                                             }`}>
                                             {candidate.status}
                                         </span>

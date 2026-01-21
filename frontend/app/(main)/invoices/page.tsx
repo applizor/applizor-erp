@@ -13,6 +13,7 @@ import { clientsApi } from '@/lib/api/clients';
 import { useToast } from '@/hooks/useToast';
 import { useCurrency } from '@/context/CurrencyContext';
 import { InvoiceListSkeleton } from '@/components/invoices/InvoiceListSkeleton';
+import { Button } from '@/components/ui/Button';
 
 export default function InvoicesPage() {
   const toast = useToast();
@@ -102,10 +103,10 @@ export default function InvoicesPage() {
         </div>
         <Link
           href="/invoices/create"
-          className="flex items-center gap-2 bg-primary-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-primary-700 transition-colors shadow-sm"
         >
-          <Plus className="w-4 h-4" />
-          Create Invoice
+          <Button variant="primary" icon={Plus} className="text-sm font-medium">
+            Create Invoice
+          </Button>
         </Link>
       </div>
 

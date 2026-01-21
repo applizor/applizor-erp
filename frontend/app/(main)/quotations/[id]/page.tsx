@@ -11,6 +11,7 @@ import { Plus, Trash2, FileText, CheckCircle, Printer, Mail, Download, ArrowLeft
 import Link from 'next/link';
 import { quotationsApi } from '@/lib/api/quotations';
 import { AnalyticsDashboard } from '@/components/quotations/AnalyticsDashboard';
+import { Button } from '@/components/ui/Button';
 
 export default function QuotationDetailPage({ params }: { params: { id: string } }) {
     const router = useRouter();
@@ -135,23 +136,23 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
                     {can('Quotation', 'update') && quotation.status === 'draft' && (
                         <Link
                             href={`/quotations/${quotation.id}/edit`}
-                            className="ent-button-secondary"
                         >
-                            <Edit className="w-4 h-4 mr-2" />
-                            Edit
+                            <Button variant="secondary" icon={Edit}>
+                                Edit
+                            </Button>
                         </Link>
                     )}
 
-                    <button
+                    <Button
                         onClick={handlePrint}
-                        className="ent-button-secondary"
+                        variant="secondary"
+                        icon={Printer}
                     >
-                        <Printer className="w-4 h-4 mr-2" />
                         Print
-                    </button>
+                    </Button>
 
                     {can('Quotation', 'read') && quotation.clientAcceptedAt && (
-                        <button
+                        <Button
                             onClick={async () => {
                                 try {
                                     const response = await api.get(`/quotations/${params.id}/signed-pdf`, {
@@ -169,26 +170,29 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
                                     toast.error(error.response?.data?.error || 'Failed to download signed PDF');
                                 }
                             }}
-                            className="ent-button-primary bg-emerald-600 hover:bg-emerald-700 border-emerald-600"
+                            variant="primary"
+                            className="bg-emerald-600 hover:bg-emerald-700 border-emerald-600"
+                            icon={Download}
                         >
-                            <Download className="w-4 h-4 mr-2" />
                             Signed PDF
-                        </button>
+                        </Button>
                     )}
 
                     {can('Quotation', 'update') && !quotation.isPublicEnabled && (
-                        <button
+                        <Button
                             onClick={handleGenerateLink}
                             disabled={generatingLink}
-                            className="ent-button-primary bg-indigo-600 hover:bg-indigo-700 border-indigo-600"
+                            isLoading={generatingLink}
+                            variant="primary"
+                            className="bg-indigo-600 hover:bg-indigo-700 border-indigo-600"
+                            icon={Globe}
                         >
-                            <Globe className="w-4 h-4 mr-2" />
-                            {generatingLink ? 'Generating...' : 'Public Link'}
-                        </button>
+                            Public Link
+                        </Button>
                     )}
 
                     {can('Quotation', 'update') && quotation.status === 'draft' && (
-                        <button
+                        <Button
                             onClick={async () => {
                                 try {
                                     setGeneratingLink(true);
@@ -202,16 +206,17 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
                                 }
                             }}
                             disabled={generatingLink}
-                            className="ent-button-primary"
+                            isLoading={generatingLink}
+                            variant="primary"
+                            icon={Mail}
                         >
-                            <Mail className="w-4 h-4 mr-2" />
-                            {generatingLink ? 'Sending...' : 'Send to Client'}
-                        </button>
+                            Send to Client
+                        </Button>
                     )}
 
                     {can('Quotation', 'update') && quotation.status === 'accepted' && !quotation.convertedToInvoiceId && (
-                        <button
-                            className="ent-button-primary bg-emerald-600 hover:bg-emerald-700 border-emerald-600"
+                        <Button
+                            className="bg-emerald-600 hover:bg-emerald-700 border-emerald-600"
                             onClick={async () => {
                                 if (!confirm('Convert to Invoice?')) return;
                                 try {
@@ -220,10 +225,11 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
                                     router.push('/invoices');
                                 } catch (e) { toast.error('Conversion failed') }
                             }}
+                            variant="primary"
+                            icon={CheckCircle}
                         >
-                            <CheckCircle className="w-4 h-4 mr-2" />
                             Convert to Invoice
-                        </button>
+                        </Button>
                     )}
                 </div>
             </div>
@@ -233,8 +239,8 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
                 <button
                     onClick={() => setActiveTab('details')}
                     className={`px-4 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider transition-all ${activeTab === 'details'
-                            ? 'bg-white text-primary-700 shadow-sm'
-                            : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'
+                        ? 'bg-white text-primary-700 shadow-sm'
+                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'
                         }`}
                 >
                     Details
@@ -243,8 +249,8 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
                     <button
                         onClick={() => setActiveTab('analytics')}
                         className={`px-4 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 ${activeTab === 'analytics'
-                                ? 'bg-white text-primary-700 shadow-sm'
-                                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'
+                            ? 'bg-white text-primary-700 shadow-sm'
+                            : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'
                             }`}
                     >
                         <Activity size={14} />
