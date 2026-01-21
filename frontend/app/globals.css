@@ -92,12 +92,18 @@
   }
 
   /* Premium Buttons - More Compact */
+  .ent-button-primary,
   .btn-primary {
-    @apply bg-indigo-600 text-white font-black text-[10px] uppercase tracking-widest px-4 py-2.5 rounded-lg hover:bg-indigo-700 active:scale-95 transition-all shadow-lg shadow-indigo-100/50 hover:shadow-indigo-200/50 disabled:opacity-50 disabled:pointer-events-none;
+    @apply bg-indigo-600 text-white font-black text-[10px] uppercase tracking-widest px-4 py-2.5 rounded-lg hover:bg-indigo-700 active:scale-95 transition-all shadow-lg shadow-indigo-100/50 hover:shadow-indigo-200/50 disabled:opacity-50 disabled:pointer-events-none inline-flex items-center justify-center;
   }
 
+  .ent-button-secondary,
   .btn-secondary {
-    @apply bg-white text-slate-700 border border-slate-200 font-black text-[10px] uppercase tracking-widest px-4 py-2.5 rounded-lg hover:bg-slate-50 transition-all active:scale-95;
+    @apply bg-white text-slate-700 border border-slate-200 font-black text-[10px] uppercase tracking-widest px-4 py-2.5 rounded-lg hover:bg-slate-50 transition-all active:scale-95 inline-flex items-center justify-center;
+  }
+
+  .ent-button-danger {
+    @apply bg-white text-rose-600 border border-rose-200 font-black text-[10px] uppercase tracking-widest px-4 py-2.5 rounded-lg hover:bg-rose-50 hover:border-rose-300 transition-all active:scale-95 inline-flex items-center justify-center;
   }
 
   /* Enterprise Badges */

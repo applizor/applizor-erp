@@ -133,7 +133,7 @@ export default function QuotationsPage() {
                 <PermissionGuard module="Quotation" action="create">
                     <Link
                         href="/quotations/create"
-                        className="btn-primary"
+                        className="ent-button-primary"
                     >
                         <Plus size={16} /> Draft Proposal
                     </Link>
