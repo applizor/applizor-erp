@@ -17,7 +17,8 @@ import {
     Activity,
     Edit,
     ChevronRight,
-    Map
+    Map,
+    Search
 } from 'lucide-react';
 
 export default function LocationsPage() {
@@ -69,25 +70,31 @@ export default function LocationsPage() {
     return (
         <div className="animate-fade-in pb-20">
             <div className="max-w-7xl mx-auto px-4 lg:px-8 py-8">
-                <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8 gap-4 px-2">
-                    <div className="space-y-0.5">
-                        <h1 className="text-2xl font-black text-slate-900 tracking-tight leading-tight flex items-center gap-3">
-                            Operational Verticals
-                            {locations.length > 0 && (
-                                <span className="text-[9px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 uppercase font-black tracking-widest">
-                                    {locations.length} BRANCHES
-                                </span>
-                            )}
-                        </h1>
-                        <p className="text-slate-500 font-medium text-sm">
-                            Manage global corporate locations, regional hubs, and branch infrastructure.
-                        </p>
+                {/* Standardized Header */}
+                <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-5 rounded-md border border-gray-200 shadow-sm gap-4 mb-8">
+                    <div className="flex items-center gap-4">
+                        <div className="p-2.5 bg-primary-900 rounded-md shadow-lg">
+                            <MapPin className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                            <h1 className="text-lg font-black text-slate-900 tracking-tight leading-none uppercase">
+                                Operational Verticals
+                                {locations.length > 0 && (
+                                    <span className="ml-3 text-[9px] px-2 py-0.5 rounded-md bg-primary-50 text-primary-700 border border-primary-100 uppercase font-black tracking-widest">
+                                        {locations.length} BRANCHES
+                                    </span>
+                                )}
+                            </h1>
+                            <p className="text-[10px] text-slate-500 font-bold mt-1 uppercase tracking-widest leading-none">
+                                Manage global corporate locations, regional hubs, and branch infrastructure.
+                            </p>
+                        </div>
                     </div>
                     <Link
                         href="/settings/locations/create"
-                        className="btn-primary"
+                        className="btn-primary flex items-center gap-2"
                     >
-                        <Plus size={16} className="mr-2" /> Add Location
+                        <Plus size={14} /> Add Location
                     </Link>
                 </div>
 
@@ -99,11 +106,11 @@ export default function LocationsPage() {
                         <table className="ent-table">
                             <thead>
                                 <tr>
-                                    <th className="rounded-l-xl">Branch Identity</th>
+                                    <th className="rounded-l-md">Branch Identity</th>
                                     <th>Geographic Coordinates</th>
                                     <th>Communication Line</th>
                                     <th>Status</th>
-                                    <th className="text-right rounded-r-xl">Actions</th>
+                                    <th className="text-right rounded-r-md">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -125,7 +132,7 @@ export default function LocationsPage() {
                                         <tr key={location.id} className="group hover:bg-slate-50/50 transition-colors">
                                             <td className="px-4 py-3 whitespace-nowrap">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="h-8 w-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shadow-sm transition-transform group-hover:scale-110">
+                                                    <div className="h-8 w-8 rounded-md bg-primary-50 border border-primary-100 flex items-center justify-center text-primary-600 shadow-sm transition-transform group-hover:scale-110">
                                                         <Building2 size={16} />
                                                     </div>
                                                     <div>
@@ -146,7 +153,7 @@ export default function LocationsPage() {
                                             <td className="px-4 py-3 whitespace-nowrap">
                                                 <div className="space-y-0.5">
                                                     <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-600">
-                                                        <Phone size={10} className="text-indigo-400" />
+                                                        <Phone size={10} className="text-primary-400" />
                                                         {location.phone || 'N/A'}
                                                     </div>
                                                     <div className="flex items-center gap-1.5 text-[9px] font-bold text-slate-400 lowercase">
@@ -163,10 +170,10 @@ export default function LocationsPage() {
                                             </td>
                                             <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
                                                 <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
-                                                    <button className="p-1.5 hover:bg-white hover:shadow-sm rounded-lg text-slate-400 hover:text-indigo-600 border border-transparent hover:border-slate-100 transition-all">
+                                                    <button className="p-1.5 hover:bg-white hover:shadow-sm rounded-md text-slate-400 hover:text-primary-600 border border-transparent hover:border-slate-100 transition-all">
                                                         <Edit size={14} />
                                                     </button>
-                                                    <button onClick={() => handleDelete(location.id)} className="p-1.5 hover:bg-white hover:shadow-sm rounded-lg text-slate-400 hover:text-rose-600 border border-transparent hover:border-slate-100 transition-all">
+                                                    <button onClick={() => handleDelete(location.id)} className="p-1.5 hover:bg-white hover:shadow-sm rounded-md text-slate-400 hover:text-rose-600 border border-transparent hover:border-slate-100 transition-all">
                                                         <Trash2 size={14} />
                                                     </button>
                                                 </div>

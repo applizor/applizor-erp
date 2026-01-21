@@ -99,7 +99,7 @@ export default function CreateRolePage() {
         <div className="max-w-7xl mx-auto pb-20 space-y-6">
             <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div className="flex items-center gap-4">
-                    <div className="p-3 bg-indigo-900 rounded-lg shadow-lg">
+                    <div className="p-3 bg-primary-900 rounded-lg shadow-lg">
                         <Shield className="w-6 h-6 text-white" />
                     </div>
                     <div>
@@ -120,7 +120,7 @@ export default function CreateRolePage() {
                     <button
                         onClick={handleSubmit}
                         disabled={loading}
-                        className="px-5 py-2 bg-indigo-900 text-white rounded text-[10px] font-black uppercase tracking-widest hover:bg-indigo-950 transition-all flex items-center gap-2 shadow-lg shadow-indigo-900/20 active:scale-95 disabled:opacity-50"
+                        className="px-5 py-2 bg-primary-900 text-white rounded text-[10px] font-black uppercase tracking-widest hover:bg-primary-950 transition-all flex items-center gap-2 shadow-lg shadow-primary-900/20 active:scale-95 disabled:opacity-50"
                     >
                         <Save className="w-4 h-4" />
                         {loading ? 'Creating Policy...' : 'Establish Role'}
@@ -131,7 +131,7 @@ export default function CreateRolePage() {
             <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="ent-card p-6">
                     <h2 className="text-sm font-black text-gray-900 mb-6 flex items-center gap-2 uppercase tracking-tight border-b border-gray-100 pb-2">
-                        <Layers className="w-4 h-4 text-indigo-600" />
+                        <Layers className="w-4 h-4 text-primary-600" />
                         Role Definition
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -183,7 +183,7 @@ export default function CreateRolePage() {
                             <tbody className="bg-white divide-y divide-gray-100">
                                 {modules.map((module) => (
                                     <tr key={module} className="hover:bg-gray-50/50 transition-colors">
-                                        <td className="px-6 py-4 whitespace-nowrap text-xs font-bold text-gray-900 capitalize border-l-4 border-l-transparent hover:border-l-indigo-500 transition-all">
+                                        <td className="px-6 py-4 whitespace-nowrap text-xs font-bold text-gray-900 capitalize border-l-4 border-l-transparent hover:border-l-primary-500 transition-all">
                                             {module.replace('-', ' ')}
                                         </td>
                                         {['createLevel', 'readLevel', 'updateLevel', 'deleteLevel'].map(action => {
@@ -197,7 +197,7 @@ export default function CreateRolePage() {
                                                     <select
                                                         value={currentVal}
                                                         onChange={(e) => handleLevelChange(module, action, e.target.value)}
-                                                        className={`block w-full max-w-[180px] rounded border py-1.5 px-2 text-[11px] font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all cursor-pointer ${badgeColor}`}
+                                                        className={`block w-full max-w-[180px] rounded border py-1.5 px-2 text-[11px] font-bold focus:outline-none focus:ring-2 focus:ring-primary-500/20 transition-all cursor-pointer ${badgeColor}`}
                                                     >
                                                         {ACCESS_OPTIONS.map(opt => (
                                                             <option key={opt.value} value={opt.value}>{opt.label}</option>

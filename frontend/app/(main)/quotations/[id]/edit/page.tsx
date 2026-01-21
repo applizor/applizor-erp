@@ -221,7 +221,7 @@ export default function EditQuotationPage({ params }: { params: { id: string } }
                 <h1 className="text-2xl font-bold text-gray-900">Edit Quotation</h1>
             </div>
 
-            <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+            <form onSubmit={handleSubmit} className="bg-white rounded-md shadow-lg border border-gray-100 overflow-hidden">
                 <div className="p-8 space-y-8">
                     {/* Header Section */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

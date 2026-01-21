@@ -9,17 +9,22 @@ module.exports = {
     extend: {
       colors: {
         primary: {
-          50: '#f0f9ff',
-          100: '#e0f2fe',
-          200: '#bae6fd',
-          300: '#7dd3fc',
-          400: '#38bdf8',
-          500: '#0ea5e9',
-          600: '#0284c7',
-          700: '#0369a1',
-          800: '#075985',
-          900: '#0c4a6e',
+          50: '#f0f7f9',
+          100: '#dbeff4',
+          200: '#bce1ea',
+          300: '#8ecbd9',
+          400: '#57abc1',
+          500: '#3a8da1',
+          600: '#0b4d6e', // Base Petrol Blue
+          700: '#093f5a',
+          800: '#08344b',
+          900: '#072b3e',
         },
+        brand: {
+          dark: '#0f172a', // Deep slate for sidebar/menus
+          teal: '#00d2ff', // Cyan for accents
+          blue: '#3a7bd5', // Blue for accents
+        }
       },
     },
   },

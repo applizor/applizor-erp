@@ -5,7 +5,7 @@ export function ProfileSkeleton() {
         <div className="max-w-4xl mx-auto space-y-6 animate-pulse">
             {/* Cover & Avatar */}
             <div className="relative mb-16">
-                <Skeleton className="h-48 w-full rounded-xl" />
+                <Skeleton className="h-48 w-full rounded-md" />
                 <div className="absolute -bottom-12 left-8">
                     <Skeleton className="h-32 w-32 rounded-full border-4 border-white" />
                 </div>

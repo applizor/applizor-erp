@@ -60,15 +60,15 @@ export default function JobsPage() {
     return (
         <div className="space-y-6 pb-20 max-w-7xl mx-auto">
             {/* Header */}
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-5 rounded-lg border border-gray-200 shadow-sm gap-4">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-5 rounded-md border border-gray-200 shadow-sm gap-4">
                 <div className="flex items-center gap-4">
-                    <div className="p-3 bg-indigo-900 rounded-lg shadow-lg">
+                    <div className="p-3 bg-primary-900 rounded-md shadow-lg">
                         <Briefcase className="w-6 h-6 text-white" />
                     </div>
                     <div>
                         <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none uppercase">Talent Acquisition</h2>
                         <p className="text-[10px] text-gray-500 font-bold mt-1.5 uppercase tracking-widest flex items-center gap-2">
-                            Human Capital <ChevronRight size={10} className="text-indigo-600" /> Strategic Vacancies
+                            Human Capital <ChevronRight size={10} className="text-primary-600" /> Strategic Vacancies
                         </p>
                     </div>
                 </div>
@@ -76,7 +76,7 @@ export default function JobsPage() {
                 <div className="flex items-center gap-3">
                     <button
                         onClick={() => setIsModalOpen(true)}
-                        className="px-5 py-2.5 bg-indigo-900 text-white rounded text-[10px] font-black uppercase tracking-widest hover:bg-indigo-950 transition-all flex items-center gap-2 shadow-xl shadow-indigo-900/10 active:scale-95"
+                        className="px-5 py-2.5 bg-primary-900 text-white rounded-md text-[10px] font-black uppercase tracking-widest hover:bg-primary-950 transition-all flex items-center gap-2 shadow-xl shadow-primary-900/10 active:scale-95"
                     >
                         <Plus size={14} /> Initialize Requisition
                     </button>
@@ -84,9 +84,9 @@ export default function JobsPage() {
             </div>
 
             {/* Filter / Search Bar (Horizontal) */}
-            <div className="ent-card p-3 flex items-center gap-4 bg-white/80 backdrop-blur border-indigo-100/50">
+            <div className="ent-card p-3 flex items-center gap-4 bg-white/80 backdrop-blur border-primary-100/50">
                 <div className="flex items-center gap-2 px-2 border-r border-gray-100 min-w-max">
-                    <Search size={14} className="text-indigo-600" />
+                    <Search size={14} className="text-primary-600" />
                     <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">QUERY REGISTER</span>
                 </div>
                 <input
@@ -106,20 +106,20 @@ export default function JobsPage() {
                         <CardSkeleton />
                     </>
                 ) : jobs.map((job) => (
-                    <div key={job.id} className="ent-card group hover:border-indigo-300 hover:shadow-lg transition-all duration-300 relative overflow-hidden">
+                    <div key={job.id} className="ent-card group hover:border-primary-300 hover:shadow-lg transition-all duration-300 relative overflow-hidden">
                         <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
-                            <Briefcase size={80} className="text-indigo-900 transform rotate-12" />
+                            <Briefcase size={80} className="text-primary-900 transform rotate-12" />
                         </div>
 
                         <div className="p-6 relative z-10">
                             <div className="flex justify-between items-start mb-4">
                                 <div className="space-y-1">
                                     <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block">Position Title</span>
-                                    <h3 className="text-sm font-black text-gray-900 tracking-tight leading-tight uppercase group-hover:text-indigo-700 transition-colors">
+                                    <h3 className="text-sm font-black text-gray-900 tracking-tight leading-tight uppercase group-hover:text-primary-700 transition-colors">
                                         {job.title}
                                     </h3>
                                 </div>
-                                <span className={`px-2 py-1 rounded text-[9px] font-black uppercase tracking-widest border ${job.status === 'open' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-gray-50 text-gray-500 border-gray-100'}`}>
+                                <span className={`px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-widest border ${job.status === 'open' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-gray-50 text-gray-500 border-gray-100'}`}>
                                     {job.status}
                                 </span>
                             </div>
@@ -136,7 +136,7 @@ export default function JobsPage() {
                                     href={`/recruitment/candidates?job=${job.id}`}
                                     className="flex items-center gap-2 group/link cursor-pointer"
                                 >
-                                    <div className="p-1.5 rounded-md bg-indigo-50 text-indigo-600 group-hover/link:bg-indigo-600 group-hover/link:text-white transition-colors">
+                                    <div className="p-1.5 rounded-md bg-primary-50 text-primary-600 group-hover/link:bg-primary-600 group-hover/link:text-white transition-colors">
                                         <Users size={14} />
                                     </div>
                                     <div className="flex flex-col">
@@ -146,10 +146,10 @@ export default function JobsPage() {
                                 </Link>
 
                                 <div className="flex gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
-                                    <button className="p-2 hover:bg-gray-50 text-gray-400 hover:text-indigo-600 rounded transition-colors" title="Edit Configuration">
+                                    <button className="p-2 hover:bg-gray-50 text-gray-400 hover:text-primary-600 rounded-md transition-colors" title="Edit Configuration">
                                         <Edit2 size={14} />
                                     </button>
-                                    <button className="p-2 hover:bg-rose-50 text-gray-400 hover:text-rose-600 rounded transition-colors" title="Purge Requisition">
+                                    <button className="p-2 hover:bg-rose-50 text-gray-400 hover:text-rose-600 rounded-md transition-colors" title="Purge Requisition">
                                         <Trash2 size={14} />
                                     </button>
                                 </div>
@@ -162,7 +162,7 @@ export default function JobsPage() {
             {/* Create Modal */}
             {isModalOpen && (
                 <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full animate-in zoom-in-95 duration-200 overflow-hidden flex flex-col max-h-[90vh] border border-gray-200">
+                    <div className="bg-white rounded-md shadow-2xl max-w-2xl w-full animate-in zoom-in-95 duration-200 overflow-hidden flex flex-col max-h-[90vh] border border-gray-200">
                         <div className="px-8 py-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                             <div>
                                 <h3 className="text-lg font-black text-gray-900 tracking-tight uppercase">Initialize Requisition</h3>
@@ -230,7 +230,7 @@ export default function JobsPage() {
                                 >
                                     Abort
                                 </button>
-                                <button type="submit" className="px-6 py-2.5 bg-indigo-900 text-white rounded text-[10px] font-black uppercase tracking-widest hover:bg-indigo-950 transition-all shadow-lg shadow-indigo-900/10">
+                                <button type="submit" className="px-6 py-2.5 bg-primary-900 text-white rounded-md text-[10px] font-black uppercase tracking-widest hover:bg-primary-950 transition-all shadow-lg shadow-primary-900/10">
                                     Execute Deployment
                                 </button>
                             </div>

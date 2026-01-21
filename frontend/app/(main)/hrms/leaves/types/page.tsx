@@ -421,7 +421,7 @@ export default function LeaveTypesPage() {
                                         {type.quarterlyLimit ? (
                                             <div className="flex justify-between">
                                                 <span className="text-gray-500">Quarterly Limit:</span>
-                                                <span className="font-medium text-indigo-600">{type.quarterlyLimit} Days</span>
+                                                <span className="font-medium text-primary-600">{type.quarterlyLimit} Days</span>
                                             </div>
                                         ) : null}
                                         {type.probationQuota ? (
@@ -469,7 +469,7 @@ export default function LeaveTypesPage() {
                                             return (
                                                 <>
                                                     {type.proofRequired && (
-                                                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-primary-50 text-primary-700 border border-primary-100">
                                                             📎 Proof {policy.minDaysForProof ? `> ${policy.minDaysForProof} Days` : 'Req'}
                                                         </span>
                                                     )}

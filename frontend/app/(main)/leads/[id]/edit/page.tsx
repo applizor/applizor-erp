@@ -126,7 +126,7 @@ export default function EditLeadPage() {
             {/* Header */}
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-5 rounded-lg border border-gray-200 shadow-sm gap-4">
                 <div className="flex items-center gap-4">
-                    <div className="p-3 bg-indigo-600 rounded-lg shadow-lg">
+                    <div className="p-3 bg-primary-600 rounded-lg shadow-lg">
                         <Edit className="w-6 h-6 text-white" />
                     </div>
                     <div>
@@ -358,7 +358,7 @@ export default function EditLeadPage() {
                                 <button
                                     type="submit"
                                     disabled={saving}
-                                    className="px-8 py-2.5 bg-indigo-600 text-white rounded text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all flex items-center gap-2 shadow-xl shadow-indigo-900/10 disabled:opacity-50"
+                                    className="px-8 py-2.5 bg-primary-600 text-white rounded text-[10px] font-black uppercase tracking-widest hover:bg-primary-700 transition-all flex items-center gap-2 shadow-xl shadow-primary-900/10 disabled:opacity-50"
                                 >
                                     {saving ? 'SYNCHRONIZING...' : 'Commit Intel Changes'}
                                 </button>

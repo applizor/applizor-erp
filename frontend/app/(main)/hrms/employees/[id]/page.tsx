@@ -172,7 +172,7 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
 
     if (loading) return (
         <div className="flex flex-col items-center justify-center min-h-[60vh]">
-            <LoadingSpinner size="lg" className="text-indigo-600 mb-4" />
+            <LoadingSpinner size="lg" className="text-primary-600 mb-4" />
             <p className="text-xs font-black text-slate-400 uppercase tracking-widest animate-pulse">Loading Profile...</p>
         </div>
     );
@@ -287,12 +287,12 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
                     <div className="flex flex-col">
                         <Link
                             href={hasOwnedAccess ? "/dashboard" : "/hrms/employees"}
-                            className="text-[10px] font-black text-slate-400 hover:text-indigo-600 uppercase tracking-widest flex items-center gap-1 transition-colors mb-2"
+                            className="text-[10px] font-black text-slate-400 hover:text-primary-600 uppercase tracking-widest flex items-center gap-1 transition-colors mb-2"
                         >
                             <ChevronLeft size={10} /> {hasOwnedAccess ? "Dashboard" : "Global Directory"}
                         </Link>
                         <div className="flex items-center gap-4">
-                            <div className="h-14 w-14 bg-gradient-to-tr from-indigo-500 to-indigo-600 rounded-2xl flex items-center justify-center text-white text-xl font-black shadow-lg shadow-indigo-100 ring-4 ring-white">
+                            <div className="h-14 w-14 bg-gradient-to-tr from-primary-500 to-primary-600 rounded-md flex items-center justify-center text-white text-xl font-black shadow-lg shadow-primary-100 ring-4 ring-white">
                                 {employee.firstName.charAt(0)}{employee.lastName.charAt(0)}
                             </div>
                             <div>
@@ -353,9 +353,9 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
                                     <button
                                         key={tab.id}
                                         onClick={() => setActiveTab(tab.id)}
-                                        className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all duration-300
+                                        className={`flex items-center gap-3 px-4 py-2.5 rounded-md text-[11px] font-black uppercase tracking-wider transition-all duration-300
                                             ${activeTab === tab.id
-                                                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100'
+                                                ? 'bg-primary-600 text-white shadow-lg shadow-primary-100'
                                                 : 'text-slate-400 hover:bg-slate-50 hover:text-slate-900'}
                                         `}
                                     >
@@ -393,7 +393,7 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
                                     {activeTab === 'overview' && (
                                         <div className="animate-fade-in space-y-8">
                                             <div>
-                                                <h3 className="text-sm font-black text-slate-900 border-l-4 border-indigo-600 pl-3 uppercase tracking-widest mb-6">Fundamental Identity</h3>
+                                                <h3 className="text-sm font-black text-slate-900 border-l-4 border-primary-600 pl-3 uppercase tracking-widest mb-6">Fundamental Identity</h3>
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
                                                     <div className="ent-form-group">
                                                         <label className="ent-label">First Name</label>
@@ -421,7 +421,7 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
                                             </div>
 
                                             <div>
-                                                <h3 className="text-sm font-black text-slate-900 border-l-4 border-indigo-600 pl-3 uppercase tracking-widest mb-6 mt-8">Deployment & Personal</h3>
+                                                <h3 className="text-sm font-black text-slate-900 border-l-4 border-primary-600 pl-3 uppercase tracking-widest mb-6 mt-8">Deployment & Personal</h3>
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
                                                     <div className="ent-form-group">
                                                         <label className="ent-label">Joining Protocol Date</label>
@@ -472,7 +472,7 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
                                     {activeTab === 'details' && (
                                         <div className="animate-fade-in space-y-10">
                                             <section>
-                                                <h3 className="text-sm font-black text-slate-900 border-l-4 border-indigo-600 pl-3 uppercase tracking-widest mb-6">Financial Intelligence</h3>
+                                                <h3 className="text-sm font-black text-slate-900 border-l-4 border-primary-600 pl-3 uppercase tracking-widest mb-6">Financial Intelligence</h3>
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
                                                     <div className="ent-form-group">
                                                         <label className="ent-label">Institutional Host (Bank)</label>
@@ -499,7 +499,7 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
                                             </section>
 
                                             <section>
-                                                <h3 className="text-sm font-black text-slate-900 border-l-4 border-indigo-600 pl-3 uppercase tracking-widest mb-6">Residential Protocol</h3>
+                                                <h3 className="text-sm font-black text-slate-900 border-l-4 border-primary-600 pl-3 uppercase tracking-widest mb-6">Residential Protocol</h3>
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
                                                     <div className="ent-form-group">
                                                         <label className="ent-label">Primary Address</label>
@@ -564,9 +564,9 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
                                             {employee?.documents && employee.documents.length > 0 ? (
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                     {employee.documents.map((doc: Document) => (
-                                                        <div key={doc.id} className="p-4 bg-slate-50/50 border border-slate-100 rounded-2xl flex items-center justify-between group hover:bg-white hover:shadow-xl hover:shadow-indigo-50/50 transition-all duration-500">
+                                                        <div key={doc.id} className="p-4 bg-slate-50/50 border border-slate-100 rounded-md flex items-center justify-between group hover:bg-white hover:shadow-xl hover:shadow-primary-50/50 transition-all duration-500">
                                                             <div className="flex items-center gap-3">
-                                                                <div className="p-2.5 rounded-xl bg-white text-indigo-600 shadow-sm border border-slate-50 group-hover:scale-110 transition-transform">
+                                                                <div className="p-2.5 rounded-md bg-white text-primary-600 shadow-sm border border-slate-50 group-hover:scale-110 transition-transform">
                                                                     <FileText size={16} />
                                                                 </div>
                                                                 <div>
@@ -576,7 +576,7 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
                                                                     </p>
                                                                 </div>
                                                             </div>
-                                                            <a href={doc.filePath} target="_blank" rel="noopener noreferrer" className="p-2 text-slate-400 hover:text-indigo-600 transition-colors" title="Download Asset">
+                                                            <a href={doc.filePath} target="_blank" rel="noopener noreferrer" className="p-2 text-slate-400 hover:text-primary-600 transition-colors" title="Download Asset">
                                                                 <Download size={14} />
                                                             </a>
                                                         </div>

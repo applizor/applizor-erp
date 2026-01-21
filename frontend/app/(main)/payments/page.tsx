@@ -91,7 +91,7 @@ export default function PaymentsPage() {
           <h1 className="text-2xl font-black text-slate-900 tracking-tight leading-tight flex items-center gap-3">
             Financial Settlement
             {!loading && payments.length > 0 && (
-              <span className="text-[9px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 uppercase font-black tracking-widest">
+              <span className="text-[9px] px-2 py-0.5 rounded-md bg-primary-50 text-primary-700 border border-primary-100 uppercase font-black tracking-widest">
                 {payments.length} TRANSACTIONS
               </span>
             )}
@@ -111,10 +111,10 @@ export default function PaymentsPage() {
       <div className="mx-2">
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[1, 2, 3].map(i => <div key={i} className="h-28 rounded-2xl shimmer" />)}
+            {[1, 2, 3].map(i => <div key={i} className="h-28 rounded-md shimmer" />)}
           </div>
         ) : payments.length === 0 ? (
-          <div className="text-center py-20 glass rounded-[2rem] border-dashed border-2 border-slate-200">
+          <div className="text-center py-20 bg-gray-50 rounded-md border-dashed border-2 border-slate-200">
             <div className="text-3xl mb-4">💳</div>
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No settlement data</p>
           </div>
@@ -122,7 +122,7 @@ export default function PaymentsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {payments.map((payment) => (
               <div key={payment.id} className="ent-card p-4 group relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-16 h-16 bg-slate-50 rounded-bl-[2rem] -mr-4 -mt-4 opacity-50 transition-transform group-hover:scale-110" />
+                <div className="absolute top-0 right-0 w-16 h-16 bg-slate-50 rounded-md -mr-4 -mt-4 opacity-50 transition-transform group-hover:scale-110" />
                 <div className="relative z-10 flex justify-between items-start mb-3">
                   <div className="space-y-1">
                     <h3 className="text-xs font-black text-slate-900 tracking-tight">
@@ -150,7 +150,7 @@ export default function PaymentsPage() {
                 <div className="mt-auto flex items-center justify-between relative z-10 border-t border-slate-50 pt-3">
                   <div className="space-y-0.5">
                     <div className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Mapped Entity</div>
-                    <div className="text-[10px] font-black text-indigo-600">
+                    <div className="text-[10px] font-black text-primary-600">
                       INV-{payment.invoiceId ? payment.invoiceId.slice(0, 8).toUpperCase() : 'ORPHANED'}
                     </div>
                   </div>
@@ -170,7 +170,7 @@ export default function PaymentsPage() {
       {/* Modal - Redesigned for High Density */}
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
-          <div className="relative bg-white rounded-[2rem] shadow-2xl max-w-md w-full animate-in fade-in zoom-in duration-300">
+          <div className="relative bg-white rounded-md shadow-2xl max-w-md w-full animate-in fade-in zoom-in duration-300">
             <div className="p-8">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-xl font-black text-slate-900 tracking-tight">

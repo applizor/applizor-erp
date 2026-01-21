@@ -171,12 +171,12 @@ export default function Sidebar() {
             {/* Mobile Header */}
             <div className="md:hidden bg-white/80 backdrop-blur-md border-b border-slate-100 p-4 flex justify-between items-center fixed w-full z-30 top-0">
                 <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
+                    <div className="w-8 h-8 bg-primary-600 rounded-md flex items-center justify-center">
                         <Building2 size={18} className="text-white" />
                     </div>
-                    <span className="text-lg font-black text-slate-900 tracking-tight">Applizor</span>
+                    <span className="sidebar-logo-text">Applizor</span>
                 </div>
-                <button onClick={toggleMobileMenu} className="p-2 text-slate-600 hover:bg-slate-50 rounded-xl transition-colors">
+                <button onClick={toggleMobileMenu} className="p-2 text-slate-600 hover:bg-slate-50 rounded-md transition-colors">
                     <Menu size={24} />
                 </button>
             </div>
@@ -189,13 +189,13 @@ export default function Sidebar() {
             `}>
                 <div className="flex flex-col h-full">
                     {/* Brand Section */}
-                    <div className="h-16 flex items-center px-6 gap-3 border-b border-slate-800/50">
-                        <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                    <div className="h-16 flex items-center px-6 gap-3 border-b border-slate-800/50 bg-brand-gradient">
+                        <div className="w-8 h-8 bg-white/10 backdrop-blur-md rounded-md flex items-center justify-center border border-white/10">
                             <Building2 size={18} className="text-white" />
                         </div>
                         <div>
-                            <h1 className="text-lg font-black tracking-tight text-white">Applizor</h1>
-                            <p className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest">Enterprise ERP</p>
+                            <h1 className="sidebar-logo-text">Applizor</h1>
+                            <p className="text-[9px] font-black text-primary-300 uppercase tracking-[0.2em]">Softech ERP</p>
                         </div>
                     </div>
 
@@ -231,9 +231,9 @@ export default function Sidebar() {
                                                     href={item.href}
                                                     ref={isActive ? activeLinkRef : null}
                                                     className={`
-                                                        group flex items-center px-4 py-2 text-[11px] font-bold rounded-xl transition-all duration-200 relative
+                                                        group flex items-center px-4 py-2 text-[11px] font-bold rounded-md transition-all duration-200 relative
                                                         ${isActive
-                                                            ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20 translate-x-1'
+                                                            ? 'bg-primary-600 text-white shadow-lg shadow-primary-600/20 translate-x-1'
                                                             : 'text-slate-400 hover:text-white hover:bg-slate-800/50 hover:translate-x-1'}
                                                     `}
                                                     onClick={() => setIsMobileMenuOpen(false)}
@@ -241,7 +241,7 @@ export default function Sidebar() {
                                                     <item.icon className={`mr-3 h-4 w-4 flex-shrink-0 transition-transform group-hover:scale-110 ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-white'}`} />
                                                     {item.name}
                                                     {isActive && (
-                                                        <div className="absolute right-4 w-1 h-1 rounded-full bg-indigo-300 animate-pulse" />
+                                                        <div className="absolute right-4 w-1 h-1 rounded-full bg-primary-300 animate-pulse" />
                                                     )}
                                                 </Link>
                                             );
@@ -254,9 +254,9 @@ export default function Sidebar() {
 
                     {/* User Profile & Footer Section */}
                     <div className="p-3 bg-slate-950/50 border-t border-slate-800/50">
-                        <div className="bg-slate-800/40 rounded-2xl p-2.5 border border-slate-700/30">
+                        <div className="bg-slate-800/40 rounded-md p-2.5 border border-slate-700/30">
                             <div className="flex items-center gap-2.5">
-                                <div className="h-8 w-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-600 flex items-center justify-center text-[10px] font-black text-white shadow-inner">
+                                <div className="h-8 w-8 rounded-md bg-gradient-to-tr from-primary-600 to-primary-800 flex items-center justify-center text-[10px] font-black text-white shadow-inner uppercase">
                                     {user?.firstName?.[0]}{user?.lastName?.[0]}
                                 </div>
                                 <div className="flex-1 min-w-0">
@@ -265,7 +265,7 @@ export default function Sidebar() {
                                 </div>
                                 <button
                                     onClick={handleLogout}
-                                    className="p-1.5 text-slate-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-all"
+                                    className="p-1.5 text-slate-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-md transition-all"
                                     title="Logout"
                                 >
                                     <LogOut size={16} />

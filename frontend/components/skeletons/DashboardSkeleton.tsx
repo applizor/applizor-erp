@@ -36,7 +36,7 @@ export function DashboardSkeleton() {
                             <Skeleton className="h-8 w-20" />
                         </div>
                     </div>
-                    <Skeleton className="h-64 w-full rounded-xl" />
+                    <Skeleton className="h-64 w-full rounded-md" />
                 </div>
                 <div className="ent-card p-6 space-y-4">
                     <Skeleton className="h-6 w-32 mb-4" />

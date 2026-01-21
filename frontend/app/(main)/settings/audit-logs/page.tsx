@@ -51,7 +51,7 @@ export default function AuditLogsPage() {
                         <h1 className="text-2xl font-black text-slate-900 tracking-tight leading-tight flex items-center gap-3">
                             Security Ledger
                             {pagination.total > 0 && (
-                                <span className="text-[9px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 uppercase font-black tracking-widest">
+                                <span className="text-[9px] px-2 py-0.5 rounded-full bg-primary-50 text-primary-700 border border-primary-100 uppercase font-black tracking-widest">
                                     {pagination.total} EVENTS
                                 </span>
                             )}
@@ -119,7 +119,7 @@ export default function AuditLogsPage() {
                                                     ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
                                                     : log.action.includes('DELETE')
                                                         ? 'bg-rose-50 text-rose-700 border-rose-100'
-                                                        : 'bg-indigo-50 text-indigo-700 border-indigo-100'
+                                                        : 'bg-primary-50 text-primary-700 border-primary-100'
                                                     }`}>
                                                     {log.action}
                                                 </span>
@@ -167,13 +167,13 @@ export default function AuditLogsPage() {
                             <button
                                 onClick={() => setPagination({ ...pagination, page: Math.max(1, pagination.page - 1) })}
                                 disabled={pagination.page === 1}
-                                className="p-2 rounded-xl border border-slate-200 bg-white text-slate-400 hover:text-indigo-600 hover:border-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+                                className="p-2 rounded-md border border-slate-200 bg-white text-slate-400 hover:text-primary-600 hover:border-primary-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
                             >
                                 <ChevronLeft size={16} />
                             </button>
 
-                            <div className="flex items-center gap-1 px-3 py-1 bg-white rounded-xl border border-slate-200 shadow-sm">
-                                <span className="text-[10px] font-black text-indigo-600">{pagination.page}</span>
+                            <div className="flex items-center gap-1 px-3 py-1 bg-white rounded-md border border-slate-200 shadow-sm">
+                                <span className="text-[10px] font-black text-primary-600">{pagination.page}</span>
                                 <span className="text-[10px] font-black text-slate-300">/</span>
                                 <span className="text-[10px] font-black text-slate-400">{pagination.pages}</span>
                             </div>
@@ -181,7 +181,7 @@ export default function AuditLogsPage() {
                             <button
                                 onClick={() => setPagination({ ...pagination, page: Math.min(pagination.pages, pagination.page + 1) })}
                                 disabled={pagination.page === pagination.pages}
-                                className="p-2 rounded-xl border border-slate-200 bg-white text-slate-400 hover:text-indigo-600 hover:border-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+                                className="p-2 rounded-md border border-slate-200 bg-white text-slate-400 hover:text-primary-600 hover:border-primary-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
                             >
                                 <ChevronRight size={16} />
                             </button>

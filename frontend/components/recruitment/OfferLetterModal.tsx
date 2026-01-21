@@ -36,7 +36,7 @@ export default function OfferLetterModal({ isOpen, onClose, onSubmit, candidateN
 
     return (
         <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full animate-in zoom-in-95 duration-200 overflow-hidden border border-gray-200">
+            <div className="bg-white rounded-md shadow-2xl max-w-md w-full animate-in zoom-in-95 duration-200 overflow-hidden border border-gray-200">
                 <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                     <div className="flex items-center gap-2">
                         <DollarSign className="w-4 h-4 text-emerald-600" />

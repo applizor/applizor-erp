@@ -97,23 +97,26 @@ export default function MyAttendancePage() {
     };
 
     return (
-        <div className="space-y-4">
-            <div className="flex justify-between items-center bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-                <div>
-                    <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2 leading-none">
-                        <MapPin className="w-5 h-5 text-primary-600" />
-                        Presence Tracking
-                    </h2>
-                    <p className="text-xs text-gray-500 font-medium mt-1">Manage your daily check-in and check-out logs</p>
+        <div className="space-y-6">
+            {/* Standardized Header */}
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-5 rounded-md border border-gray-200 shadow-sm gap-4">
+                <div className="flex items-center gap-4">
+                    <div className="p-2.5 bg-primary-900 rounded-md shadow-lg">
+                        <MapPin className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                        <h2 className="text-lg font-black text-gray-900 tracking-tight leading-none uppercase">Presence Tracking</h2>
+                        <p className="text-[10px] text-gray-500 font-bold mt-1 uppercase tracking-widest leading-none">Manage your daily check-in and check-out logs</p>
+                    </div>
                 </div>
-                <Link href="/attendance/leaves" className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-primary-600 hover:text-primary-700 bg-primary-50 px-3 py-1.5 rounded transition-colors group">
+                <Link href="/attendance/leaves" className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-primary-600 hover:text-primary-700 bg-primary-50 px-3 py-1.5 rounded-md transition-colors group">
                     Leave Management <ArrowRight size={12} className="group-hover:translate-x-1 transition-transform" />
                 </Link>
             </div>
 
             {todayHoliday && (
-                <div className="bg-emerald-50 border border-emerald-100 p-3 rounded-lg flex items-center gap-3 animate-pulse">
-                    <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center">
+                <div className="bg-emerald-50 border border-emerald-100 p-3 rounded-md flex items-center gap-3 animate-pulse">
+                    <div className="w-8 h-8 rounded-md bg-emerald-100 flex items-center justify-center">
                         <Calendar size={16} className="text-emerald-600" />
                     </div>
                     <div>
@@ -124,7 +127,7 @@ export default function MyAttendancePage() {
             )}
 
             {locError && (
-                <div className="p-2.5 bg-rose-50 rounded border border-rose-100 flex items-center gap-2 text-rose-600">
+                <div className="p-2.5 bg-rose-50 rounded-md border border-rose-100 flex items-center gap-2 text-rose-600">
                     <AlertTriangle size={14} />
                     <span className="text-[10px] font-bold uppercase tracking-wide">{locError}</span>
                 </div>
@@ -142,7 +145,7 @@ export default function MyAttendancePage() {
                             </div>
                         </div>
                         {location && (
-                            <div className="flex items-center gap-1 text-emerald-600 bg-emerald-50 px-2 py-1 rounded border border-emerald-100">
+                            <div className="flex items-center gap-1 text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-100">
                                 <CheckCircle size={10} />
                                 <span className="text-[8px] font-black uppercase tracking-widest">Geo-Verified</span>
                             </div>
@@ -150,13 +153,13 @@ export default function MyAttendancePage() {
                     </div>
 
                     <div className="relative z-10 grid grid-cols-2 gap-4 mt-8">
-                        <div className="bg-gray-50 p-3 rounded border border-gray-100">
+                        <div className="bg-gray-50 p-3 rounded-md border border-gray-100">
                             <div className="text-[9px] font-black text-gray-400 uppercase tracking-tighter mb-1">Check-In</div>
                             <div className="text-xl font-black text-gray-900 tracking-tighter">
                                 {todayStatus?.checkInTime ? new Date(todayStatus.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
                             </div>
                         </div>
-                        <div className="bg-gray-50 p-3 rounded border border-gray-100">
+                        <div className="bg-gray-50 p-3 rounded-md border border-gray-100">
                             <div className="text-[9px] font-black text-gray-400 uppercase tracking-tighter mb-1">Check-Out</div>
                             <div className="text-xl font-black text-gray-900 tracking-tighter">
                                 {todayStatus?.checkOutTime ? new Date(todayStatus.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
@@ -170,9 +173,9 @@ export default function MyAttendancePage() {
                         <button
                             onClick={handleCheckIn}
                             disabled={actionLoading}
-                            className="w-36 h-36 rounded-full bg-white border-4 border-gray-100 shadow-xl flex flex-col items-center justify-center group active:scale-95 transition-all duration-300 disabled:opacity-50"
+                            className="w-36 h-36 rounded-md bg-white border-4 border-gray-100 shadow-xl flex flex-col items-center justify-center group active:scale-95 transition-all duration-300 disabled:opacity-50"
                         >
-                            <div className="w-16 h-16 rounded-full bg-primary-600 text-white flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg shadow-primary-200">
+                            <div className="w-16 h-16 rounded-md bg-primary-600 text-white flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg shadow-primary-200">
                                 <LogIn size={24} />
                             </div>
                             <span className="mt-3 text-[10px] font-black text-gray-900 uppercase tracking-widest">
@@ -183,9 +186,9 @@ export default function MyAttendancePage() {
                         <button
                             onClick={handleCheckOut}
                             disabled={actionLoading}
-                            className="w-36 h-36 rounded-full bg-white border-4 border-gray-100 shadow-xl flex flex-col items-center justify-center group active:scale-95 transition-all duration-300 disabled:opacity-50"
+                            className="w-36 h-36 rounded-md bg-white border-4 border-gray-100 shadow-xl flex flex-col items-center justify-center group active:scale-95 transition-all duration-300 disabled:opacity-50"
                         >
-                            <div className="w-16 h-16 rounded-full bg-rose-600 text-white flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg shadow-rose-200">
+                            <div className="w-16 h-16 rounded-md bg-rose-600 text-white flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg shadow-rose-200">
                                 <LogOut size={24} />
                             </div>
                             <span className="mt-3 text-[10px] font-black text-gray-900 uppercase tracking-widest">

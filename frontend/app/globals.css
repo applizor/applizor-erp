@@ -4,9 +4,9 @@
 
 @layer base {
   :root {
-    /* Primary / Brand Colors - Professional Deep Indigo/Blue */
-    --primary: 79 70 229;
-    /* Indigo 600 */
+    /* Primary / Brand Colors - Applizor Petrol Blue */
+    --primary: 11 77 110;
+    /* Petrol Blue 600 */
     --primary-foreground: 255 255 255;
 
     /* Semantic Colors */
@@ -75,40 +75,57 @@
   }
 
   .ent-table thead th {
-    @apply px-4 py-2.5 bg-slate-50/50 border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-[0.15em] first:rounded-tl-xl last:rounded-tr-xl cursor-default;
+    @apply px-4 py-2 bg-slate-50 border-b border-slate-100 text-[9px] font-black text-slate-500 uppercase tracking-[0.15em] first:rounded-tl-md last:rounded-tr-md cursor-default;
   }
 
   .ent-table tbody td {
-    @apply px-4 py-3 border-b border-slate-50 transition-colors text-xs font-medium;
+    @apply px-4 py-1.5 border-b border-slate-50 transition-colors text-[11px] font-bold text-slate-900;
   }
 
   .ent-table tbody tr:hover td {
     @apply bg-slate-50/50;
   }
 
-  /* Enterprise Card - More Compact */
+  /* Enterprise Card - Normalized for Consistency */
   .ent-card {
-    @apply bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300;
+    @apply bg-white border border-slate-100 rounded-md shadow-sm hover:shadow-md transition-all duration-300;
   }
 
-  /* Premium Buttons - More Compact */
+  /* Premium Buttons - Revised for High Density & Brand Styling */
   .ent-button-primary,
   .btn-primary {
-    @apply bg-indigo-600 text-white font-black text-[10px] uppercase tracking-widest px-4 py-2.5 rounded-lg hover:bg-indigo-700 active:scale-95 transition-all shadow-lg shadow-indigo-100/50 hover:shadow-indigo-200/50 disabled:opacity-50 disabled:pointer-events-none inline-flex items-center justify-center;
+    @apply bg-primary-600 text-white font-black text-[10px] uppercase tracking-[0.15em] px-5 py-2.5 rounded-md hover:bg-primary-700 active:scale-95 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:pointer-events-none inline-flex items-center justify-center border border-primary-700/20 whitespace-nowrap;
+    letter-spacing: 0.15em;
+  }
+
+  /* Brand Utilities */
+  .bg-brand-gradient {
+    background: linear-gradient(135deg, #0b4d6e 0%, #072b3e 100%);
+  }
+
+  .text-brand-gradient {
+    background: linear-gradient(to right, #00d2ff, #3a7bd5);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  /* Sidebar Branding Fix */
+  .sidebar-logo-text {
+    @apply text-lg font-black tracking-tighter uppercase italic text-white;
   }
 
   .ent-button-secondary,
   .btn-secondary {
-    @apply bg-white text-slate-700 border border-slate-200 font-black text-[10px] uppercase tracking-widest px-4 py-2.5 rounded-lg hover:bg-slate-50 transition-all active:scale-95 inline-flex items-center justify-center;
+    @apply bg-white text-slate-700 border border-slate-200 font-bold text-[10px] uppercase tracking-widest px-4 py-2 rounded-md hover:bg-slate-50 transition-all active:scale-95 inline-flex items-center justify-center;
   }
 
   .ent-button-danger {
-    @apply bg-white text-rose-600 border border-rose-200 font-black text-[10px] uppercase tracking-widest px-4 py-2.5 rounded-lg hover:bg-rose-50 hover:border-rose-300 transition-all active:scale-95 inline-flex items-center justify-center;
+    @apply bg-white text-rose-600 border border-rose-200 font-bold text-[10px] uppercase tracking-widest px-4 py-2 rounded-md hover:bg-rose-50 hover:border-rose-300 transition-all active:scale-95 inline-flex items-center justify-center;
   }
 
   /* Enterprise Badges */
   .ent-badge {
-    @apply px-2 py-0.5 text-[9px] font-black uppercase tracking-widest rounded-full border;
+    @apply px-2 py-0.5 text-[9px] font-black uppercase tracking-widest rounded border;
   }
 
   .ent-badge-success {
@@ -131,28 +148,28 @@
     @apply bg-slate-50 text-slate-600 border-slate-100;
   }
 
-  /* Premium Stat Typography - More Compact */
+  /* Premium Stat Typography - High Density */
   .stat-value {
-    @apply text-xl font-black text-slate-900 tracking-tight;
+    @apply text-lg font-black text-slate-900 tracking-tight;
   }
 
   .stat-label {
     @apply text-[9px] font-black uppercase tracking-[0.15em] text-slate-400;
   }
 
-  /* Enterprise Form System - New standardized items */
+  /* Enterprise Form System - High Density */
   .ent-form-group {
-    @apply space-y-1.5;
+    @apply space-y-1;
   }
 
   .ent-label {
-    @apply text-[10px] font-black uppercase tracking-widest text-slate-400 block ml-1;
+    @apply text-[9px] font-black uppercase tracking-widest text-slate-400 block ml-0.5;
   }
 
   .ent-input,
   .ent-select,
   .ent-textarea {
-    @apply w-full px-4 py-2.5 bg-slate-50/50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/5 transition-all outline-none placeholder:text-slate-300 placeholder:font-medium;
+    @apply w-full px-3 py-2 bg-white border border-slate-200 rounded-md text-xs font-bold text-slate-900 focus:bg-white focus:border-primary-500/50 focus:ring-4 focus:ring-primary-500/5 transition-all outline-none placeholder:text-slate-300 placeholder:font-medium;
   }
 
   .ent-input-error {

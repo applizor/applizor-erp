@@ -103,9 +103,9 @@ export default function EmployeesPage() {
     return (
         <div className="space-y-6">
             {/* Contextual Header */}
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-4 rounded-lg border border-gray-200 shadow-sm gap-4">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-5 rounded-md border border-gray-200 shadow-sm gap-4">
                 <div className="flex items-center gap-4">
-                    <div className="p-2.5 bg-primary-900 rounded-lg shadow-lg">
+                    <div className="p-2.5 bg-primary-900 rounded-md shadow-lg">
                         <Users className="w-5 h-5 text-white" />
                     </div>
                     <div>
@@ -126,16 +126,16 @@ export default function EmployeesPage() {
                     <PermissionGuard module="Employee" action="create">
                         <Link
                             href="/hrms/employees/new"
-                            className="px-4 py-2 bg-primary-600 text-white rounded text-[10px] font-black uppercase tracking-widest hover:bg-primary-700 shadow-lg shadow-primary-900/10 flex items-center gap-2 transition-all whitespace-nowrap"
+                            className="btn-primary flex items-center gap-2"
                         >
-                            <UserPlus size={14} /> Register Resource
+                            <Plus size={14} /> Register Resource
                         </Link>
                     </PermissionGuard>
                 </div>
             </div>
 
             {/* Logical Filtration Schema */}
-            <div className="flex items-center gap-3 bg-gray-50/50 p-2 rounded-lg border border-gray-100">
+            <div className="flex items-center gap-3 bg-gray-50/50 p-2 rounded-md border border-gray-100">
                 <div className="flex items-center gap-2 px-2 text-gray-400">
                     <Filter size={12} />
                     <span className="text-[9px] font-black uppercase tracking-widest">Refinement:</span>
@@ -143,7 +143,7 @@ export default function EmployeesPage() {
                 <select
                     value={filters.departmentId}
                     onChange={(e) => setFilters({ ...filters, departmentId: e.target.value })}
-                    className="bg-white border border-gray-200 rounded px-3 py-1 text-[10px] font-black uppercase tracking-widest text-gray-900 outline-none focus:ring-1 focus:ring-primary-500 shadow-sm min-w-[140px]"
+                    className="bg-white border border-gray-200 rounded-md px-3 py-1 text-[10px] font-black uppercase tracking-widest text-gray-900 outline-none focus:ring-1 focus:ring-primary-500 shadow-sm min-w-[140px]"
                 >
                     <option value="">Division Schema</option>
                     {departments.map(dept => (
@@ -154,7 +154,7 @@ export default function EmployeesPage() {
                 <select
                     value={filters.status}
                     onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                    className="bg-white border border-gray-200 rounded px-3 py-1 text-[10px] font-black uppercase tracking-widest text-gray-900 outline-none focus:ring-1 focus:ring-primary-500 shadow-sm min-w-[140px]"
+                    className="bg-white border border-gray-200 rounded-md px-3 py-1 text-[10px] font-black uppercase tracking-widest text-gray-900 outline-none focus:ring-1 focus:ring-primary-500 shadow-sm min-w-[140px]"
                 >
                     <option value="">Engagement Status</option>
                     <option value="active">Active Duty</option>
@@ -163,7 +163,7 @@ export default function EmployeesPage() {
                     <option value="terminated">Terminated</option>
                 </select>
 
-                <div className="ml-auto flex items-center gap-2 px-3 py-1 bg-white border border-gray-100 rounded shadow-sm">
+                <div className="ml-auto flex items-center gap-2 px-3 py-1 bg-white border border-gray-100 rounded-md shadow-sm">
                     <Zap className="w-3 h-3 text-amber-500" />
                     <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Active Nodes:</span>
                     <span className="text-[10px] font-black text-primary-600">{employees.filter(e => e.status === 'active').length}</span>
@@ -173,7 +173,7 @@ export default function EmployeesPage() {
             {loading ? (
                 <EmployeeListSkeleton />
             ) : employees.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-24 bg-gray-50/30 rounded-lg border border-dashed border-gray-200">
+                <div className="flex flex-col items-center justify-center py-24 bg-gray-50/30 rounded-md border border-dashed border-gray-200">
                     <Users className="w-8 h-8 text-gray-300 mb-3" />
                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Zero Resources Detected in Lifecycle</p>
                 </div>
@@ -183,7 +183,7 @@ export default function EmployeesPage() {
                         <div key={emp.id} className="ent-card group relative p-4 bg-white hover:border-primary-200 hover:shadow-lg transition-all">
                             {/* Identifier Protocol */}
                             <div className="absolute top-2 right-2 flex flex-col items-end gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
-                                <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border ${emp.status === 'active' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                                <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest border ${emp.status === 'active' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
                                     emp.status === 'on-leave' ? 'bg-amber-50 text-amber-700 border-amber-100' :
                                         'bg-gray-50 text-gray-500 border-gray-200'
                                     }`}>
@@ -192,7 +192,7 @@ export default function EmployeesPage() {
                             </div>
 
                             <div className="flex items-center gap-4 mb-4">
-                                <div className="h-11 w-11 rounded-lg bg-primary-900 flex items-center justify-center text-sm font-black text-white shadow-lg shadow-primary-900/20 group-hover:scale-105 transition-transform uppercase">
+                                <div className="h-11 w-11 rounded-md bg-primary-900 flex items-center justify-center text-sm font-black text-white shadow-lg shadow-primary-900/20 group-hover:scale-105 transition-transform uppercase">
                                     {emp.firstName[0]}{emp.lastName[0]}
                                 </div>
                                 <div className="overflow-hidden">
@@ -205,7 +205,7 @@ export default function EmployeesPage() {
                                 </div>
                             </div>
 
-                            <div className="space-y-2 mb-4 bg-gray-50/50 p-2.5 rounded-lg border border-gray-100/50">
+                            <div className="space-y-2 mb-4 bg-gray-50/50 p-2.5 rounded-md border border-gray-100/50">
                                 <div className="flex items-center justify-between text-[9px] font-bold text-gray-500 uppercase tracking-tight">
                                     <span className="flex items-center gap-1.5"><Shield className="w-2.5 h-2.5" /> Division</span>
                                     <span className="text-gray-900">{emp.department?.name || 'N/A'}</span>
@@ -238,7 +238,7 @@ export default function EmployeesPage() {
                                     )}
                                 </div>
                                 {emp.userId && (
-                                    <div className="p-1 bg-sky-50 rounded text-sky-600 border border-sky-100" title="System Observer Profile Enabled">
+                                    <div className="p-1 bg-sky-50 rounded-md text-sky-600 border border-sky-100" title="System Observer Profile Enabled">
                                         <Shield size={10} />
                                     </div>
                                 )}

@@ -88,9 +88,9 @@ export default function DepartmentsPage() {
     return (
         <div className="space-y-6">
             {/* Semantic Header Component */}
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-4 rounded-lg border border-gray-200 shadow-sm gap-4">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-5 rounded-md border border-gray-200 shadow-sm gap-4">
                 <div className="flex items-center gap-4">
-                    <div className="p-2.5 bg-primary-900 rounded-lg shadow-lg">
+                    <div className="p-2.5 bg-primary-900 rounded-md shadow-lg">
                         <Building2 className="w-5 h-5 text-white" />
                     </div>
                     <div>
@@ -100,13 +100,13 @@ export default function DepartmentsPage() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-gray-50 border border-gray-100 rounded text-[10px] font-black uppercase tracking-widest text-gray-400">
+                    <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-gray-50 border border-gray-100 rounded-md text-[10px] font-black uppercase tracking-widest text-gray-400">
                         <LayoutGrid size={12} />
                         <span>Active Units: {departments.filter(d => d.isActive).length}</span>
                     </div>
                     <button
                         onClick={() => { resetForm(); setShowModal(true); }}
-                        className="px-4 py-2 bg-primary-600 text-white rounded text-[10px] font-black uppercase tracking-widest hover:bg-primary-700 shadow-lg shadow-primary-900/10 flex items-center gap-2 transition-all"
+                        className="px-4 py-2 bg-primary-600 text-white rounded-md text-[10px] font-black uppercase tracking-widest hover:bg-primary-700 shadow-lg shadow-primary-900/10 flex items-center gap-2 transition-all"
                     >
                         <Plus size={14} /> Register Division
                     </button>
@@ -116,10 +116,10 @@ export default function DepartmentsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {loading ? (
                     Array(6).fill(0).map((_, i) => (
-                        <div key={i} className="h-36 rounded-lg bg-gray-50 animate-pulse border border-gray-100" />
+                        <div key={i} className="h-36 rounded-md bg-gray-50 animate-pulse border border-gray-100" />
                     ))
                 ) : departments.length === 0 ? (
-                    <div className="col-span-full py-24 bg-gray-50/30 rounded-lg border border-dashed border-gray-200 flex flex-col items-center">
+                    <div className="col-span-full py-24 bg-gray-50/30 rounded-md border border-dashed border-gray-200 flex flex-col items-center">
                         <Building2 className="w-10 h-10 text-gray-200 mb-3" />
                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Zero Operational Divisions Detected</p>
                     </div>
@@ -128,7 +128,7 @@ export default function DepartmentsPage() {
                         <div key={dept.id} className="ent-card group relative p-4 bg-white hover:border-primary-200 transition-all flex flex-col">
                             {/* Identifier Protocol */}
                             <div className="absolute top-3 right-3 opacity-60 group-hover:opacity-100 transition-opacity">
-                                <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border ${dept.isActive ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-gray-50 text-gray-500 border-gray-200'
+                                <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest border ${dept.isActive ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-gray-50 text-gray-500 border-gray-200'
                                     }`}>
                                     {dept.isActive ? 'OPERATIONAL' : 'DECOMMISSIONED'}
                                 </span>
@@ -158,14 +158,14 @@ export default function DepartmentsPage() {
                                 <div className="flex gap-2">
                                     <button
                                         onClick={() => handleEdit(dept)}
-                                        className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded transition-all"
+                                        className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-md transition-all"
                                         title="Modify Configuration"
                                     >
                                         <Edit size={14} />
                                     </button>
                                     <button
                                         onClick={() => setShowDeleteConfirm(dept.id)}
-                                        className="p-1.5 text-gray-300 hover:text-rose-600 hover:bg-rose-50 rounded transition-all"
+                                        className="p-1.5 text-gray-300 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-all"
                                         title="Execute Termination"
                                     >
                                         <Trash2 size={14} />
@@ -180,7 +180,7 @@ export default function DepartmentsPage() {
             {/* Division Configuration Portal */}
             {showModal && (
                 <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-[2px] z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-lg shadow-2xl max-w-md w-full border border-gray-200 animate-in fade-in zoom-in duration-200">
+                    <div className="bg-white rounded-md shadow-2xl max-w-md w-full border border-gray-200 animate-in fade-in zoom-in duration-200">
                         <div className="p-6">
                             <div className="flex justify-between items-center mb-6">
                                 <div className="flex items-center gap-3">
@@ -224,13 +224,13 @@ export default function DepartmentsPage() {
                                     />
                                 </div>
 
-                                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded border border-gray-100">
+                                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-md border border-gray-100">
                                     <input
                                         id="isActive"
                                         type="checkbox"
                                         checked={currentDept.isActive}
                                         onChange={(e) => setCurrentDept({ ...currentDept, isActive: e.target.checked })}
-                                        className="h-4 w-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                                        className="h-4 w-4 text-primary-600 border-gray-300 rounded-md focus:ring-primary-500"
                                     />
                                     <label htmlFor="isActive" className="text-[9px] font-black text-gray-700 uppercase tracking-widest cursor-pointer">
                                         Current Operational Status (ACTIVE)
@@ -248,7 +248,7 @@ export default function DepartmentsPage() {
                                     <button
                                         type="submit"
                                         disabled={saving}
-                                        className="px-6 py-2 bg-primary-600 text-white rounded text-[10px] font-black uppercase tracking-widest hover:bg-primary-700 transition-all flex items-center gap-2"
+                                        className="px-6 py-2 bg-primary-600 text-white rounded-md text-[10px] font-black uppercase tracking-widest hover:bg-primary-700 transition-all flex items-center gap-2"
                                     >
                                         {saving ? 'SYNCHRONIZING...' : (isEditing ? 'Commit Changes' : 'Execute Creation')}
                                     </button>

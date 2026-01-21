@@ -182,7 +182,7 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
             <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
                 {/* Status Banner */}
                 {isAccepted && (
-                    <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div className="mb-6 bg-green-50 border border-green-200 rounded-md p-4">
                         <div className="flex items-start justify-between">
                             <div className="flex items-center">
                                 <CheckCircle className="w-6 h-6 text-green-600 mr-3" />
@@ -225,7 +225,7 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
                 )}
 
                 {isRejected && (
-                    <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-center">
+                    <div className="mb-6 bg-red-50 border border-red-200 rounded-md p-4 flex items-center">
                         <XCircle className="w-6 h-6 text-red-600 mr-3" />
                         <div>
                             <p className="font-medium text-red-900">Quotation Declined</p>
@@ -237,7 +237,7 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
                 )}
 
                 {/* Quotation Document */}
-                <div className="bg-white shadow-lg rounded-lg overflow-hidden border border-gray-200">
+                <div className="bg-white shadow-lg rounded-md overflow-hidden border border-gray-200">
                     {/* Header */}
                     <div className="px-8 py-10 border-b border-gray-200 flex justify-between items-start">
                         <div>
@@ -272,7 +272,7 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
                                 {quotation.validUntil && (
                                     <p><span className="font-medium">Valid Till:</span> {new Date(quotation.validUntil).toLocaleDateString()}</p>
                                 )}
-                                <span className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-medium ${quotation.status === 'accepted' ? 'bg-green-100 text-green-800' :
+                                <span className={`inline-block mt-2 px-3 py-1 rounded-md text-xs font-medium ${quotation.status === 'accepted' ? 'bg-green-100 text-green-800' :
                                     quotation.status === 'rejected' ? 'bg-red-100 text-red-800' :
                                         quotation.status === 'viewed' ? 'bg-blue-100 text-blue-800' :
                                             'bg-yellow-100 text-yellow-800'
@@ -375,13 +375,13 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
                     <div className="mt-6 flex justify-center space-x-4">
                         <button
                             onClick={() => setShowRejectForm(true)}
-                            className="px-6 py-3 border-2 border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition"
+                            className="px-6 py-3 border-2 border-gray-300 rounded-md text-gray-700 font-medium hover:bg-gray-50 transition"
                         >
                             Decline
                         </button>
                         <button
                             onClick={() => setShowAcceptForm(true)}
-                            className="px-8 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition shadow-lg"
+                            className="px-8 py-3 bg-green-600 text-white rounded-md font-medium hover:bg-green-700 transition shadow-lg"
                         >
                             Accept Quotation
                         </button>
@@ -390,7 +390,7 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
 
                 {/* Accept Form */}
                 {showAcceptForm && canRespond && (
-                    <div className="mt-6 bg-white rounded-lg shadow-lg p-8 border border-gray-200">
+                    <div className="mt-6 bg-white rounded-md shadow-lg p-8 border border-gray-200">
                         <h2 className="text-xl font-bold text-gray-900 mb-6">Accept Quotation</h2>
                         <form onSubmit={handleAccept} className="space-y-6">
                             <div>
@@ -402,7 +402,7 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
                                     required
                                     value={name}
                                     onChange={(e) => setName(e.target.value)}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent"
                                     placeholder="John Doe"
                                 />
                             </div>
@@ -416,7 +416,7 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
                                     required
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent"
                                     placeholder="john@example.com"
                                 />
                             </div>
@@ -436,7 +436,7 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
                                     value={comments}
                                     onChange={(e) => setComments(e.target.value)}
                                     rows={3}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent"
                                     placeholder="Any additional comments..."
                                 />
                             </div>
@@ -459,14 +459,14 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
                                     type="button"
                                     onClick={() => setShowAcceptForm(false)}
                                     disabled={submitting}
-                                    className="flex-1 px-6 py-3 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 disabled:opacity-50"
+                                    className="flex-1 px-6 py-3 border border-gray-300 rounded-md text-gray-700 font-medium hover:bg-gray-50 disabled:opacity-50"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={submitting}
-                                    className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="flex-1 px-6 py-3 bg-green-600 text-white rounded-md font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {submitting ? 'Submitting...' : 'Confirm Acceptance'}
                                 </button>
@@ -477,7 +477,7 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
 
                 {/* Reject Form */}
                 {showRejectForm && canRespond && (
-                    <div className="mt-6 bg-white rounded-lg shadow-lg p-8 border border-gray-200">
+                    <div className="mt-6 bg-white rounded-md shadow-lg p-8 border border-gray-200">
                         <h2 className="text-xl font-bold text-gray-900 mb-6">Decline Quotation</h2>
                         <form onSubmit={handleReject} className="space-y-6">
                             <div>
@@ -489,7 +489,7 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
                                     required
                                     value={name}
                                     onChange={(e) => setName(e.target.value)}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent"
                                     placeholder="John Doe"
                                 />
                             </div>
@@ -503,7 +503,7 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
                                     required
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent"
                                     placeholder="john@example.com"
                                 />
                             </div>
@@ -516,7 +516,7 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
                                     value={comments}
                                     onChange={(e) => setComments(e.target.value)}
                                     rows={4}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent"
                                     placeholder="Please let us know why you're declining..."
                                 />
                             </div>
@@ -526,14 +526,14 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
                                     type="button"
                                     onClick={() => setShowRejectForm(false)}
                                     disabled={submitting}
-                                    className="flex-1 px-6 py-3 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 disabled:opacity-50"
+                                    className="flex-1 px-6 py-3 border border-gray-300 rounded-md text-gray-700 font-medium hover:bg-gray-50 disabled:opacity-50"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={submitting}
-                                    className="flex-1 px-6 py-3 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="flex-1 px-6 py-3 bg-red-600 text-white rounded-md font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {submitting ? 'Submitting...' : 'Confirm Decline'}
                                 </button>

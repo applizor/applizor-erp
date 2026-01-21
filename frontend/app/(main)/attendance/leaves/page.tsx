@@ -213,7 +213,7 @@ export default function MyLeavesPage() {
 
     return (
         <div className="space-y-4">
-            <div className="flex justify-between items-center bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+            <div className="flex justify-between items-center bg-white p-4 rounded-md border border-gray-200 shadow-sm">
                 <div>
                     <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2 leading-none">
                         <Clock className="w-5 h-5 text-primary-600" />
@@ -270,7 +270,7 @@ export default function MyLeavesPage() {
                                     <tr key={leave.id} className="group hover:bg-primary-50/30 transition-colors">
                                         <td className="px-4 py-3">
                                             <div className="flex items-center gap-3">
-                                                <div className={`p-1.5 rounded bg-gray-50 border border-gray-100 ${leave.leaveType?.name?.includes('Sick') ? 'text-rose-600' : 'text-primary-600'}`}>
+                                                <div className={`p-1.5 rounded-md bg-gray-50 border border-gray-100 ${leave.leaveType?.name?.includes('Sick') ? 'text-rose-600' : 'text-primary-600'}`}>
                                                     <Calendar size={14} />
                                                 </div>
                                                 <div>
@@ -298,7 +298,7 @@ export default function MyLeavesPage() {
                                         </td>
                                         <td className="px-4 py-3 text-right">
                                             {leave.status === 'pending' && (
-                                                <button className="p-1 px-2 text-[9px] font-black text-rose-500 uppercase tracking-widest hover:bg-rose-50 rounded transition-all">
+                                                <button className="p-1 px-2 text-[9px] font-black text-rose-500 uppercase tracking-widest hover:bg-rose-50 rounded-md transition-all">
                                                     Cancel
                                                 </button>
                                             )}
@@ -313,13 +313,13 @@ export default function MyLeavesPage() {
 
             {isModalOpen && (
                 <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-xl shadow-2xl max-w-xl w-full border border-gray-200 overflow-hidden flex flex-col max-h-[90vh]">
+                    <div className="bg-white rounded-md shadow-2xl max-w-xl w-full border border-gray-200 overflow-hidden flex flex-col max-h-[90vh]">
                         <div className="flex justify-between items-center p-4 bg-gray-50 border-b border-gray-200">
                             <div>
                                 <h3 className="text-base font-bold text-gray-900">New Leave Application</h3>
                                 <p className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold">Absence Protocol</p>
                             </div>
-                            <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600 p-1 hover:bg-gray-100 rounded-full transition-colors">
+                            <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600 p-1 hover:bg-gray-100 rounded-md transition-colors">
                                 <XCircle size={20} />
                             </button>
                         </div>
@@ -341,7 +341,7 @@ export default function MyLeavesPage() {
                                 </div>
                                 <div className="ent-form-group">
                                     <label className="text-xs font-bold text-gray-700 uppercase mb-1.5 block">Duration</label>
-                                    <div className="flex gap-1 p-1 bg-gray-50 rounded border border-gray-200">
+                                    <div className="flex gap-1 p-1 bg-gray-50 rounded-md border border-gray-200">
                                         {[
                                             { id: 'full', label: 'Day' },
                                             { id: 'multiple', label: 'Multi' },
@@ -352,7 +352,7 @@ export default function MyLeavesPage() {
                                                 key={opt.id}
                                                 type="button"
                                                 onClick={() => setFormData(prev => ({ ...prev, durationType: opt.id as any }))}
-                                                className={`flex-1 py-1 rounded text-[9px] font-black uppercase transition-all ${formData.durationType === opt.id ? 'bg-white text-primary-600 shadow-sm border border-gray-200' : 'text-gray-400 hover:text-gray-600'}`}
+                                                className={`flex-1 py-1 rounded-md text-[9px] font-black uppercase transition-all ${formData.durationType === opt.id ? 'bg-white text-primary-600 shadow-sm border border-gray-200' : 'text-gray-400 hover:text-gray-600'}`}
                                             >
                                                 {opt.label}
                                             </button>
@@ -389,7 +389,7 @@ export default function MyLeavesPage() {
                             </div>
 
                             {formData.startDate && (formData.durationType !== 'multiple' || formData.endDate) && (
-                                <div className="bg-primary-50 border border-primary-100 rounded p-3 flex justify-between items-center shadow-inner">
+                                <div className="bg-primary-50 border border-primary-100 rounded-md p-3 flex justify-between items-center shadow-inner">
                                     <span className="text-[10px] font-black text-primary-700 uppercase tracking-widest">Absence Valuation:</span>
                                     {calculating ? (
                                         <span className="text-[10px] font-black text-primary-400 uppercase animate-pulse">Calculating...</span>
@@ -402,13 +402,13 @@ export default function MyLeavesPage() {
                             {(validationWarnings.length > 0 || lopWarning) && (
                                 <div className="space-y-2">
                                     {validationWarnings.map((warn, i) => (
-                                        <div key={i} className="bg-amber-50 border border-amber-100 rounded px-3 py-2 flex items-center gap-2 text-amber-700 text-[10px] font-bold uppercase">
+                                        <div key={i} className="bg-amber-50 border border-amber-100 rounded-md px-3 py-2 flex items-center gap-2 text-amber-700 text-[10px] font-bold uppercase">
                                             <AlertTriangle size={12} />
                                             {warn}
                                         </div>
                                     ))}
                                     {lopWarning && (
-                                        <div className="bg-rose-50 border border-rose-100 rounded px-3 py-2 flex items-center gap-2 text-rose-700 text-[10px] font-bold uppercase">
+                                        <div className="bg-rose-50 border border-rose-100 rounded-md px-3 py-2 flex items-center gap-2 text-rose-700 text-[10px] font-bold uppercase">
                                             <AlertCircle size={12} />
                                             {lopWarning}
                                         </div>
@@ -430,7 +430,7 @@ export default function MyLeavesPage() {
 
                             <div className="ent-form-group">
                                 <label className="text-xs font-bold text-gray-700 uppercase mb-1.5 block">Attachment {proofRequired && '*'}</label>
-                                <div className="flex items-center gap-3 p-2 bg-gray-50 rounded border border-dashed border-gray-300">
+                                <div className="flex items-center gap-3 p-2 bg-gray-50 rounded-md border border-dashed border-gray-300">
                                     <input
                                         type="file"
                                         onChange={handleFileUpload}

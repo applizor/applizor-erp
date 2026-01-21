@@ -14,7 +14,7 @@ import { KanbanColumnSkeleton } from '@/components/skeletons/KanbanColumnSkeleto
 
 const STAGES = [
     { id: 'lead', name: 'Raw Inquiry', color: 'bg-primary-900', icon: '📝' },
-    { id: 'contacted', name: 'Discovery', color: 'bg-indigo-600', icon: '📞' },
+    { id: 'contacted', name: 'Discovery', color: 'bg-primary-600', icon: '📞' },
     { id: 'qualified', name: 'Assessed', color: 'bg-primary-600', icon: '💎' },
     { id: 'proposal', name: 'Priced', color: 'bg-amber-600', icon: '📄' },
     { id: 'negotiation', name: 'Refining', color: 'bg-violet-600', icon: '🤝' },
@@ -71,9 +71,9 @@ export default function LeadKanbanPage() {
     return (
         <div className="space-y-6">
             {/* Semantic Header Component */}
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-5 rounded-lg border border-gray-200 shadow-sm gap-4">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-5 rounded-md border border-gray-200 shadow-sm gap-4">
                 <div className="flex items-center gap-4">
-                    <div className="p-3 bg-primary-900 rounded-lg shadow-lg">
+                    <div className="p-3 bg-primary-900 rounded-md shadow-lg">
                         <TrendingUp className="w-6 h-6 text-white" />
                     </div>
                     <div>
@@ -85,13 +85,13 @@ export default function LeadKanbanPage() {
                 </div>
 
                 <div className="flex items-center gap-3 w-full lg:w-auto">
-                    <div className="flex bg-gray-100 p-1 rounded font-black text-[9px] uppercase tracking-widest">
-                        <button className="px-4 py-2 bg-white text-primary-600 shadow-sm rounded flex items-center gap-2 border border-gray-200">
+                    <div className="flex bg-gray-100 p-1 rounded-md font-black text-[9px] uppercase tracking-widest">
+                        <button className="px-4 py-2 bg-white text-primary-600 shadow-sm rounded-md flex items-center gap-2 border border-gray-200">
                             Board View
                         </button>
                         <Link
                             href="/leads/list"
-                            className="px-4 py-2 text-gray-400 hover:text-gray-600 rounded flex items-center gap-2 transition-all"
+                            className="px-4 py-2 text-gray-400 hover:text-gray-600 rounded-md flex items-center gap-2 transition-all"
                         >
                             Ledger
                         </Link>
@@ -99,7 +99,7 @@ export default function LeadKanbanPage() {
                     <PermissionGuard module="Lead" action="create">
                         <Link
                             href="/leads/create"
-                            className="px-5 py-2.5 bg-primary-900 text-white rounded text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all flex items-center gap-2 shadow-xl shadow-primary-900/10 active:scale-95"
+                            className="btn-primary flex items-center gap-2"
                         >
                             <Plus size={14} /> Acquire Lead
                         </Link>
@@ -119,7 +119,7 @@ export default function LeadKanbanPage() {
                                 {/* Stage Identifier */}
                                 <div className="mb-4 px-2 flex items-center justify-between">
                                     <div className="flex items-center gap-3">
-                                        <div className={`w-8 h-8 ${stage.color} rounded shadow-lg flex items-center justify-center text-[12px]`}>
+                                        <div className={`w-8 h-8 ${stage.color} rounded-md shadow-lg flex items-center justify-center text-[12px]`}>
                                             <span className="brightness-200">{stage.icon}</span>
                                         </div>
                                         <div>
@@ -144,7 +144,7 @@ export default function LeadKanbanPage() {
                                         <div
                                             ref={provided.innerRef}
                                             {...provided.droppableProps}
-                                            className={`flex-1 rounded-xl p-3 min-h-[600px] space-y-4 transition-all duration-300 border-2 border-dashed ${snapshot.isDraggingOver ? 'bg-primary-50/50 border-primary-200' : 'bg-gray-50/30 border-transparent'}`}
+                                            className={`flex-1 rounded-md p-3 min-h-[600px] space-y-4 transition-all duration-300 border-2 border-dashed ${snapshot.isDraggingOver ? 'bg-primary-50/50 border-primary-200' : 'bg-gray-50/30 border-transparent'}`}
                                         >
                                             {leads.map((lead: any, index: number) => (
                                                 <Draggable key={lead.id} draggableId={lead.id} index={index}>
@@ -171,7 +171,7 @@ export default function LeadKanbanPage() {
                                                                         {formatCurrency(lead.value || 0)}
                                                                     </div>
                                                                     {lead.priority && (
-                                                                        <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded border ${lead.priority === 'high' || lead.priority === 'urgent'
+                                                                        <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded-md border ${lead.priority === 'high' || lead.priority === 'urgent'
                                                                             ? 'bg-rose-50 text-rose-700 border-rose-100'
                                                                             : 'bg-primary-50 text-primary-700 border-primary-100'
                                                                             }`}>
@@ -181,7 +181,7 @@ export default function LeadKanbanPage() {
                                                                 </div>
 
                                                                 {lead.nextFollowUpAt && (
-                                                                    <div className="flex items-center gap-1.5 px-2 py-1 bg-gray-50 rounded border border-gray-100 italic">
+                                                                    <div className="flex items-center gap-1.5 px-2 py-1 bg-gray-50 rounded-md border border-gray-100 italic">
                                                                         <BarChart3 size={10} className="text-gray-400" />
                                                                         <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">
                                                                             SYNC: {new Date(lead.nextFollowUpAt).toLocaleDateString()}

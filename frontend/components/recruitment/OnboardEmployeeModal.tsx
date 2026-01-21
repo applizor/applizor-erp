@@ -117,10 +117,10 @@ export default function OnboardEmployeeModal({ isOpen, onClose, onSubmit, candid
 
     return (
         <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full animate-in zoom-in-95 duration-200 overflow-hidden border border-gray-200 max-h-[90vh] flex flex-col">
+            <div className="bg-white rounded-md shadow-2xl max-w-2xl w-full animate-in zoom-in-95 duration-200 overflow-hidden border border-gray-200 max-h-[90vh] flex flex-col">
                 <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 flex-shrink-0">
                     <div className="flex items-center gap-2">
-                        <UserPlus className="w-5 h-5 text-indigo-600" />
+                        <UserPlus className="w-5 h-5 text-primary-600" />
                         <div>
                             <h3 className="text-sm font-black text-gray-900 tracking-tight uppercase leading-none">Onboard Employee</h3>
                             <p className="text-[9px] text-gray-500 font-bold uppercase tracking-widest mt-0.5">HRMS Intake Protocol</p>
@@ -220,7 +220,7 @@ export default function OnboardEmployeeModal({ isOpen, onClose, onSubmit, candid
                     </div>
 
                     <div className="p-4 bg-slate-50 rounded-lg border border-slate-100">
-                        <h4 className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <h4 className="text-[10px] font-black text-primary-600 uppercase tracking-widest mb-4 flex items-center gap-2">
                             <Shield size={12} /> Access Credentials Setup
                         </h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -266,7 +266,7 @@ export default function OnboardEmployeeModal({ isOpen, onClose, onSubmit, candid
                         <button
                             type="submit"
                             disabled={submitting}
-                            className="px-5 py-2 bg-indigo-900 text-white rounded text-[10px] font-black uppercase tracking-widest hover:bg-indigo-950 transition-all shadow-lg shadow-indigo-900/10 disabled:opacity-50"
+                            className="px-5 py-2 bg-primary-900 text-white rounded text-[10px] font-black uppercase tracking-widest hover:bg-primary-950 transition-all shadow-lg shadow-primary-900/10 disabled:opacity-50"
                         >
                             {submitting ? 'Onboarding...' : 'Execute Onboarding'}
                         </button>

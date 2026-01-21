@@ -31,7 +31,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         const variantClass = variants[variant];
 
         // Spinner color logic
-        const spinnerColor = variant === 'primary' ? 'border-white/30 border-t-white' : 'border-slate-300 border-t-indigo-600';
+        const spinnerColor = variant === 'primary' ? 'border-white/30 border-t-white' : 'border-slate-300 border-t-primary-600';
 
         return (
             <button

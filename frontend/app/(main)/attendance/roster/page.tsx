@@ -47,7 +47,7 @@ const getShiftColor = (name: string) => {
     const n = name.toLowerCase();
     if (n.includes('morning') || n.includes('general')) return 'bg-blue-50 text-blue-700 border-blue-100';
     if (n.includes('evening') || n.includes('afternoon')) return 'bg-amber-50 text-amber-700 border-amber-100';
-    if (n.includes('night')) return 'bg-indigo-50 text-indigo-700 border-indigo-100';
+    if (n.includes('night')) return 'bg-primary-50 text-primary-700 border-primary-100';
     return 'bg-slate-50 text-slate-700 border-slate-200';
 };
 
@@ -400,7 +400,7 @@ export default function RosterPage() {
                         <span className="text-slate-600">EVENING/AFTERNOON</span>
                     </div>
                     <div className="flex items-center gap-1.5">
-                        <span className="w-2.5 h-2.5 bg-indigo-50 border border-indigo-100 rounded-sm"></span>
+                        <span className="w-2.5 h-2.5 bg-primary-50 border border-primary-100 rounded-sm"></span>
                         <span className="text-slate-600">NIGHT OPERATIONS</span>
                     </div>
                     <div className="flex items-center gap-1.5">

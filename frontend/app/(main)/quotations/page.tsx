@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Search, Plus, Eye, Trash2, FileText, Download } from 'lucide-react';
+import { Search, Plus, Eye, Trash2, FileText, Download, Briefcase } from 'lucide-react';
 import api from '@/lib/api';
 import { useToast } from '@/hooks/useToast';
 import { usePermission } from '@/hooks/usePermission';
@@ -114,154 +114,155 @@ export default function QuotationsPage() {
     };
 
     return (
-        <div className="animate-fade-in pb-20">
-            {/* Header */}
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4 px-2">
-                <div className="space-y-0.5">
-                    <h1 className="text-2xl font-black text-slate-900 tracking-tight leading-tight flex items-center gap-3">
-                        Proposal Ledger
-                        {!loading && quotations.length > 0 && (
-                            <span className="text-[9px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 uppercase font-black tracking-widest">
-                                {quotations.length} ENTRIES
-                            </span>
-                        )}
-                    </h1>
-                    <p className="text-slate-500 font-medium text-sm">
-                        Executive management of strategic quotations and business proposals.
-                    </p>
-                </div>
-                <PermissionGuard module="Quotation" action="create">
-                    <Link
-                        href="/quotations/create"
-                        className="ent-button-primary"
-                    >
-                        <Plus size={16} /> Draft Proposal
-                    </Link>
-                </PermissionGuard>
-            </div>
-
-            {/* Global Search & Filtration */}
-            <div className="flex flex-col md:flex-row gap-4 mb-6 mx-2">
-                <div className="flex-1 glass p-1.5 rounded-xl border border-slate-100/50 shadow-sm focus-within:border-indigo-500/50 transition-all">
-                    <div className="relative flex items-center">
-                        <Search size={16} className="absolute left-3.5 text-slate-400" />
-                        <input
-                            type="text"
-                            placeholder="Query by document serial or client identity..."
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 bg-transparent border-none focus:ring-0 text-slate-900 text-xs font-bold placeholder:text-slate-300 placeholder:font-medium"
-                        />
+        <div className="animate-fade-in pb-20 space-y-6">
+            {/* Standardized Header */}
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-5 rounded-md border border-gray-200 shadow-sm gap-4">
+                <div className="flex items-center gap-4">
+                    <div className="p-2.5 bg-primary-900 rounded-md shadow-lg">
+                        <Briefcase className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                        <h2 className="text-lg font-black text-gray-900 tracking-tight leading-none uppercase">Proposal Ledger</h2>
+                        <p className="text-[10px] text-gray-500 font-bold mt-1 uppercase tracking-widest leading-none">Executive management of strategic quotations and business proposals.</p>
                     </div>
                 </div>
+
+                <div className="flex items-center gap-3 w-full lg:w-auto">
+                    <PermissionGuard module="Lead" action="create">
+                        <Link
+                            href="/quotations/create"
+                            className="btn-primary flex items-center gap-2"
+                        >
+                            <Plus size={14} /> Draft Proposal
+                        </Link>
+                    </PermissionGuard>
+                </div>
             </div>
 
-            {/* Filters */}
-            <QuotationFilterBar
-                filters={filters}
-                clients={clients}
-                onFilterChange={handleFilterChange}
-                onClearFilters={handleClearFilters}
-            />
-
-            {/* Content Engine */}
-            <div className="mx-2">
-                {loading ? (
-                    <QuotationListSkeleton />
-                ) : quotations.length === 0 ? (
-                    <QuotationEmptyState />
-                ) : (
-                    <div className="ent-card overflow-hidden">
-                        <div className="overflow-x-auto">
-                            <table className="ent-table">
-                                <thead>
-                                    <tr>
-                                        <th className="rounded-l-xl">Serial ID</th>
-                                        <th>Counterparty</th>
-                                        <th>Issuance</th>
-                                        <th>Expiration</th>
-                                        <th>Financial Value</th>
-                                        <th>Exposure</th>
-                                        <th>Lifecycle State</th>
-                                        <th className="text-right rounded-r-xl">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-50">
-                                    {quotations.map((quotation) => (
-                                        <tr key={quotation.id} className="group hover:bg-slate-50/50 transition-colors">
-                                            <td className="px-4 py-3 whitespace-nowrap">
-                                                <div className="text-xs font-black text-slate-900 tracking-tight">
-                                                    {quotation.quotationNumber}
-                                                </div>
-                                            </td>
-                                            <td className="px-4 py-3 whitespace-nowrap">
-                                                <div className="text-xs font-black text-slate-700">
-                                                    {quotation.lead?.name || quotation.client?.name || '-'}
-                                                </div>
-                                                <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                                                    {quotation.lead ? 'Lead Entity' : 'Client Registry'}
-                                                </div>
-                                            </td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-xs font-bold text-slate-500">
-                                                {new Date(quotation.quotationDate).toLocaleDateString()}
-                                            </td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-xs font-bold text-slate-500">
-                                                {new Date(quotation.validUntil).toLocaleDateString()}
-                                            </td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-sm font-black text-slate-900 tracking-tighter">
-                                                {formatCurrency(quotation.total)}
-                                            </td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-xs font-bold text-slate-500">
-                                                <div className="flex items-center" title={quotation.lastViewedAt ? `Last viewed: ${new Date(quotation.lastViewedAt).toLocaleString()}` : 'No exposure recorded'}>
-                                                    <Eye size={14} className="mr-1.5 text-slate-300 group-hover:text-indigo-500 transition-colors" />
-                                                    <span className="font-black text-slate-600">{quotation.viewCount || 0}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-4 py-3 whitespace-nowrap">
-                                                <span className={`ent-badge ${getStatusBadge(quotation.status)}`}>
-                                                    {quotation.status}
-                                                </span>
-                                            </td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
-                                                <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <Link
-                                                        href={`/quotations/${quotation.id}`}
-                                                        className="p-1.5 bg-white border border-slate-100 text-indigo-600 hover:text-white hover:bg-indigo-600 rounded-lg transition-all shadow-sm"
-                                                        title="Strategic Intelligence"
-                                                    >
-                                                        <Eye size={14} />
-                                                    </Link>
-                                                    <PermissionGuard module="Quotation" action="delete">
-                                                        <button
-                                                            onClick={() => handleDeleteClick(quotation)}
-                                                            className="p-1.5 bg-white border border-slate-100 text-rose-500 hover:text-white hover:bg-rose-500 rounded-lg transition-all shadow-sm"
-                                                            title="Purge Entry"
-                                                        >
-                                                            <Trash2 size={14} />
-                                                        </button>
-                                                    </PermissionGuard>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+            {/* Global Search & Filtration Area */}
+            <div className="space-y-6 px-1">
+                <div className="flex flex-col md:flex-row gap-4">
+                    <div className="flex-1 glass p-1.5 rounded-md border border-slate-100/50 shadow-sm focus-within:border-primary-500/50 transition-all">
+                        <div className="relative flex items-center">
+                            <Search size={16} className="absolute left-3.5 text-slate-400" />
+                            <input
+                                type="text"
+                                placeholder="Query by document serial or client identity..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                className="w-full pl-10 pr-4 py-2 bg-transparent border-none focus:ring-0 text-slate-900 text-xs font-bold placeholder:text-slate-300 placeholder:font-medium"
+                            />
                         </div>
                     </div>
-                )}
+                </div>
 
-                {/* Delete Confirmation Dialog */}
-                <ConfirmDialog
-                    isOpen={deleteDialog.isOpen}
-                    onClose={() => setDeleteDialog({ isOpen: false, quotationId: null, quotationNumber: '' })}
-                    onConfirm={handleDeleteConfirm}
-                    title="Delete Quotation"
-                    message={`Are you sure you want to delete quotation "${deleteDialog.quotationNumber}"? This action cannot be undone.`}
-                    confirmText="Delete"
-                    cancelText="Cancel"
-                    type="danger"
-                    isLoading={deleting}
+                {/* Filters */}
+                <QuotationFilterBar
+                    filters={filters}
+                    clients={clients}
+                    onFilterChange={handleFilterChange}
+                    onClearFilters={handleClearFilters}
                 />
+
+                {/* Content Engine */}
+                <div>
+                    {loading ? (
+                        <QuotationListSkeleton />
+                    ) : quotations.length === 0 ? (
+                        <QuotationEmptyState />
+                    ) : (
+                        <div className="ent-card overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="ent-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Serial ID</th>
+                                            <th>Counterparty</th>
+                                            <th>Issuance</th>
+                                            <th>Expiration</th>
+                                            <th>Financial Value</th>
+                                            <th>Exposure</th>
+                                            <th>Lifecycle State</th>
+                                            <th className="text-right">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-50">
+                                        {quotations.map((quotation) => (
+                                            <tr key={quotation.id} className="group hover:bg-slate-50/50 transition-colors">
+                                                <td className="px-4 py-3 whitespace-nowrap">
+                                                    <div className="text-xs font-black text-slate-900 tracking-tight">
+                                                        {quotation.quotationNumber}
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3 whitespace-nowrap">
+                                                    <div className="text-xs font-black text-slate-700">
+                                                        {quotation.lead?.name || quotation.client?.name || '-'}
+                                                    </div>
+                                                    <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                                                        {quotation.lead ? 'Lead Entity' : 'Client Registry'}
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3 whitespace-nowrap text-xs font-bold text-slate-500">
+                                                    {new Date(quotation.quotationDate).toLocaleDateString()}
+                                                </td>
+                                                <td className="px-4 py-3 whitespace-nowrap text-xs font-bold text-slate-500">
+                                                    {new Date(quotation.validUntil).toLocaleDateString()}
+                                                </td>
+                                                <td className="px-4 py-3 whitespace-nowrap text-sm font-black text-slate-900 tracking-tighter">
+                                                    {formatCurrency(quotation.total)}
+                                                </td>
+                                                <td className="px-4 py-3 whitespace-nowrap text-xs font-bold text-slate-500">
+                                                    <div className="flex items-center" title={quotation.lastViewedAt ? `Last viewed: ${new Date(quotation.lastViewedAt).toLocaleString()}` : 'No exposure recorded'}>
+                                                        <Eye size={14} className="mr-1.5 text-slate-300 group-hover:text-primary-500 transition-colors" />
+                                                        <span className="font-black text-slate-600">{quotation.viewCount || 0}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3 whitespace-nowrap">
+                                                    <span className={`ent-badge ${getStatusBadge(quotation.status)}`}>
+                                                        {quotation.status}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
+                                                    <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <Link
+                                                            href={`/quotations/${quotation.id}`}
+                                                            className="p-1.5 bg-white border border-slate-100 text-primary-600 hover:text-white hover:bg-primary-600 rounded-md transition-all shadow-sm"
+                                                            title="Strategic Intelligence"
+                                                        >
+                                                            <Eye size={14} />
+                                                        </Link>
+                                                        <PermissionGuard module="Quotation" action="delete">
+                                                            <button
+                                                                onClick={() => handleDeleteClick(quotation)}
+                                                                className="p-1.5 bg-white border border-slate-100 text-rose-500 hover:text-white hover:bg-rose-500 rounded-md transition-all shadow-sm"
+                                                                title="Purge Entry"
+                                                            >
+                                                                <Trash2 size={14} />
+                                                            </button>
+                                                        </PermissionGuard>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Delete Confirmation Dialog */}
+                    <ConfirmDialog
+                        isOpen={deleteDialog.isOpen}
+                        onClose={() => setDeleteDialog({ isOpen: false, quotationId: null, quotationNumber: '' })}
+                        onConfirm={handleDeleteConfirm}
+                        title="Delete Quotation"
+                        message={`Are you sure you want to delete quotation "${deleteDialog.quotationNumber}"? This action cannot be undone.`}
+                        confirmText="Delete"
+                        cancelText="Cancel"
+                        type="danger"
+                        isLoading={deleting}
+                    />
+                </div>
             </div>
         </div>
     );

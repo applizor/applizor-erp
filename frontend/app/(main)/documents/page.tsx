@@ -57,13 +57,13 @@ export default function DocumentsPage() {
                 </div>
 
                 <div className="ent-card p-8">
-                    <div className="bg-indigo-50/50 border border-indigo-100 rounded-[1.5rem] p-5 mb-8 flex items-start gap-4">
-                        <div className="p-2 rounded-xl bg-white border border-indigo-100 shadow-sm">
-                            <FileText size={20} className="text-indigo-600" />
+                    <div className="bg-primary-50/50 border border-primary-100 rounded-md p-5 mb-8 flex items-start gap-4">
+                        <div className="p-2 rounded-md bg-white border border-primary-100 shadow-sm">
+                            <FileText size={20} className="text-primary-600" />
                         </div>
                         <div>
-                            <h4 className="text-[10px] font-black text-indigo-900 uppercase tracking-widest mb-1">Template Manifest: Letterhead v2.4</h4>
-                            <p className="text-[10px] font-bold text-indigo-700 leading-relaxed">
+                            <h4 className="text-[10px] font-black text-primary-900 uppercase tracking-widest mb-1">Template Manifest: Letterhead v2.4</h4>
+                            <p className="text-[10px] font-bold text-primary-700 leading-relaxed">
                                 This engine uses the <span className="font-black underline underline-offset-4">Continuation Sheet Controller</span>.
                                 Page headers will strictly transition to abbreviated format from Sheet 02 onwards.
                             </p>

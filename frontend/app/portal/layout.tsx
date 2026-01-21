@@ -48,7 +48,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
                     <div className="flex justify-between h-16">
                         <div className="flex">
                             <div className="flex-shrink-0 flex items-center">
-                                <span className="font-bold text-xl text-indigo-600">Client Portal</span>
+                                <span className="font-bold text-xl text-primary-600">Client Portal</span>
                             </div>
                         </div>
                         <div className="flex items-center">
@@ -69,10 +69,10 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
                                 <Link
                                     key={item.name}
                                     href={item.href}
-                                    className={`group flex items-center px-2 py-2 text-base font-medium rounded-md ${isActive ? 'bg-indigo-50 text-indigo-600' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                                    className={`group flex items-center px-2 py-2 text-base font-medium rounded-md ${isActive ? 'bg-primary-50 text-primary-600' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                                         }`}
                                 >
-                                    <svg className={`mr-4 h-6 w-6 ${isActive ? 'text-indigo-600' : 'text-gray-400 group-hover:text-gray-500'}`}
+                                    <svg className={`mr-4 h-6 w-6 ${isActive ? 'text-primary-600' : 'text-gray-400 group-hover:text-gray-500'}`}
                                         xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
                                     </svg>

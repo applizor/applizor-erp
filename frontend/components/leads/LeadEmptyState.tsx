@@ -5,7 +5,7 @@ import { Users, Plus, Upload, Activity } from 'lucide-react';
 export function LeadEmptyState() {
     return (
         <div className="ent-card p-12 flex flex-col items-center justify-center text-center border-2 border-dashed border-gray-200 bg-gray-50/50">
-            <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mb-6 border border-gray-100">
+            <div className="w-16 h-16 bg-white rounded-md shadow-sm flex items-center justify-center mb-6 border border-gray-100">
                 <Activity className="w-8 h-8 text-primary-200" />
             </div>
 

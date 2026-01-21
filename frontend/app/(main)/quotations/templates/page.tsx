@@ -125,7 +125,7 @@ export default function QuotationTemplatesPage() {
             </div>
 
             {/* Filters */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-1.5 mb-8 flex flex-col md:flex-row gap-2">
+            <div className="bg-white rounded-md shadow-sm border border-gray-200 p-1.5 mb-8 flex flex-col md:flex-row gap-2">
                 <div className="relative flex-1">
                     <Search className="absolute left-3 top-2.5 text-gray-400 w-4 h-4" />
                     <input
@@ -180,7 +180,7 @@ export default function QuotationTemplatesPage() {
                     {templates.map((template) => (
                         <div
                             key={template.id}
-                            className="group bg-white rounded-xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-gray-100 overflow-hidden flex flex-col"
+                            className="group bg-white rounded-md shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-gray-100 overflow-hidden flex flex-col"
                         >
                             <div className="p-6 flex-1">
                                 <div className="flex justify-between items-start mb-4">
@@ -255,7 +255,7 @@ export default function QuotationTemplatesPage() {
 
                         <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
 
-                        <div className="inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-gray-100">
+                        <div className="inline-block align-bottom bg-white rounded-md text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-gray-100">
                             <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                                 <div className="sm:flex sm:items-start">
                                     <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-50 sm:mx-0 sm:h-10 sm:w-10 ring-4 ring-red-50/50">
@@ -284,7 +284,7 @@ export default function QuotationTemplatesPage() {
                                 <button
                                     type="button"
                                     onClick={() => setShowDeleteDialog(false)}
-                                    className="mt-3 w-full inline-flex justify-center rounded-lg border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:w-auto sm:text-sm"
+                                    className="mt-3 w-full inline-flex justify-center rounded-lg border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:mt-0 sm:w-auto sm:text-sm"
                                 >
                                     Cancel
                                 </button>

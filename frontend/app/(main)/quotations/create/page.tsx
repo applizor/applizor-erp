@@ -572,7 +572,7 @@ export default function CreateQuotationPage() {
                 <div className="ent-card">
                     <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-3 bg-gray-50/50">
                         <div className="p-2 bg-white rounded-lg border border-gray-200 shadow-sm">
-                            <FileText className="w-5 h-5 text-indigo-600" />
+                            <FileText className="w-5 h-5 text-primary-600" />
                         </div>
                         <h2 className="text-base font-bold text-gray-900 uppercase tracking-wide">
                             Terms & Conditions
@@ -649,7 +649,7 @@ export default function CreateQuotationPage() {
 
                         <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
 
-                        <div className="inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-gray-100">
+                        <div className="inline-block align-bottom bg-white rounded-md text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-gray-100">
                             <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                                 <div className="sm:flex sm:items-start">
                                     <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-primary-50 sm:mx-0 sm:h-10 sm:w-10">

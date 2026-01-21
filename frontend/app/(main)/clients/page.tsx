@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Search, Plus, MoreVertical, Edit, Trash2, Eye, ChevronRight } from 'lucide-react';
+import { Search, Plus, Users, Filter, ArrowUpRight, CheckCircle2, Clock, AlertCircle, FileText, ChevronRight, MoreVertical, Building2 } from 'lucide-react';
 import { clientsApi } from '@/lib/api/clients';
 import { PermissionGuard } from '@/components/PermissionGuard';
 import { ClientListSkeleton } from '@/components/clients/ClientListSkeleton';
@@ -103,34 +103,38 @@ export default function ClientsPage() {
   return (
     <div className="animate-fade-in pb-20">
       {/* Header */}
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4 px-2">
-        <div className="space-y-0.5">
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight leading-tight flex items-center gap-3">
-            Customer Registry
-            {!loading && clients.length > 0 && (
-              <span className="text-[9px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 uppercase font-black tracking-widest">
-                {pagination.total} ENTITIES
-              </span>
-            )}
-          </h1>
-          <p className="text-slate-500 font-medium text-sm">
-            Manage global client partnerships and billing identities.
-          </p>
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-5 rounded-md border border-gray-200 shadow-sm gap-4 mb-6">
+        <div className="flex items-center gap-4">
+          <div className="p-2.5 bg-primary-900 rounded-md shadow-lg">
+            <Users className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h1 className="text-lg font-black text-slate-900 tracking-tight leading-none uppercase">
+              Customer Registry
+              {!loading && clients.length > 0 && (
+                <span className="ml-3 text-[9px] px-2 py-0.5 rounded-md bg-primary-50 text-primary-700 border border-primary-100 uppercase font-black tracking-widest">
+                  {pagination.total} ENTITIES
+                </span>
+              )}
+            </h1>
+            <p className="text-[10px] text-slate-500 font-bold mt-1 uppercase tracking-widest leading-none">
+              Manage global client partnerships and billing identities.
+            </p>
+          </div>
         </div>
         <PermissionGuard module="Client" action="create">
           <Link
             href="/clients/create"
-            className="btn-primary"
+            className="btn-primary flex items-center gap-2"
           >
-            <Plus size={16} />
-            Onboard Entity
+            <Plus size={14} /> Onboard Entity
           </Link>
         </PermissionGuard>
       </div>
 
       {/* Global Search & Filtration */}
       <div className="flex flex-col md:flex-row gap-4 mb-6 mx-2">
-        <div className="flex-1 glass p-1.5 rounded-xl border border-slate-100/50 shadow-sm focus-within:border-indigo-500/50 transition-all">
+        <div className="flex-1 glass p-1.5 rounded-md border border-slate-100/50 shadow-sm focus-within:border-primary-500/50 transition-all">
           <div className="relative flex items-center">
             <Search size={16} className="absolute left-3.5 text-slate-400" />
             <input
@@ -163,12 +167,12 @@ export default function ClientsPage() {
               <table className="ent-table">
                 <thead>
                   <tr>
-                    <th className="rounded-l-2xl">Identity Portfolio</th>
+                    <th>Identity Portfolio</th>
                     <th>Communication Channel</th>
                     <th>Geographic Region</th>
                     <th>Classification</th>
                     <th>Operational State</th>
-                    <th className="text-right rounded-r-2xl">Ledger Actions</th>
+                    <th className="text-right">Ledger Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
@@ -176,8 +180,8 @@ export default function ClientsPage() {
                     <tr key={client.id} className="group hover:bg-slate-50/50 transition-colors">
                       <td className="px-4 py-3 whitespace-nowrap">
                         <div className="flex items-center">
-                          <div className="flex-shrink-0 h-10 w-10 bg-indigo-50 rounded-xl flex items-center justify-center border border-indigo-100 shadow-sm group-hover:scale-110 transition-transform">
-                            <span className="text-indigo-600 font-black text-base">
+                          <div className="flex-shrink-0 h-10 w-10 bg-primary-50 rounded-md flex items-center justify-center border border-primary-100 shadow-sm group-hover:scale-110 transition-transform">
+                            <span className="text-primary-600 font-black text-base">
                               {client.name.charAt(0).toUpperCase()}
                             </span>
                           </div>
@@ -202,7 +206,7 @@ export default function ClientsPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
-                        <span className={`px-2.5 py-1 inline-flex text-[9px] font-black uppercase tracking-widest rounded-full border ${getClientTypeBadge(client.clientType)}`}>
+                        <span className={`px-2.5 py-1 inline-flex text-[9px] font-black uppercase tracking-widest rounded-md border ${getClientTypeBadge(client.clientType)}`}>
                           {client.clientType}
                         </span>
                       </td>
@@ -218,7 +222,7 @@ export default function ClientsPage() {
                         <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                           <Link
                             href={`/clients/${client.id}`}
-                            className="p-2 bg-white border border-slate-100 text-indigo-600 hover:text-white hover:bg-indigo-600 rounded-lg transition-all shadow-sm"
+                            className="p-2 bg-white border border-slate-100 text-primary-600 hover:text-white hover:bg-primary-600 rounded-md transition-all shadow-sm"
                             title="Intel Overview"
                           >
                             <Eye size={16} />
@@ -226,7 +230,7 @@ export default function ClientsPage() {
                           <PermissionGuard module="Client" action="update">
                             <Link
                               href={`/clients/${client.id}/edit`}
-                              className="p-2 bg-white border border-slate-100 text-sky-600 hover:text-white hover:bg-sky-600 rounded-lg transition-all shadow-sm"
+                              className="p-2 bg-white border border-slate-100 text-sky-600 hover:text-white hover:bg-sky-600 rounded-md transition-all shadow-sm"
                               title="Modify Registry"
                             >
                               <Edit size={16} />
@@ -235,7 +239,7 @@ export default function ClientsPage() {
                           <PermissionGuard module="Client" action="delete">
                             <button
                               onClick={() => handleDeleteClick(client)}
-                              className="p-2 bg-white border border-slate-100 text-rose-500 hover:text-white hover:bg-rose-500 rounded-lg transition-all shadow-sm"
+                              className="p-2 bg-white border border-slate-100 text-rose-500 hover:text-white hover:bg-rose-500 rounded-md transition-all shadow-sm"
                               title="Remove Entry"
                             >
                               <Trash2 size={16} />
@@ -282,17 +286,17 @@ export default function ClientsPage() {
                     <button
                       onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
                       disabled={pagination.page === 1}
-                      className="p-2 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-30 transition-all shadow-sm"
+                      className="p-2 bg-white border border-slate-200 rounded-md text-slate-600 hover:bg-slate-50 disabled:opacity-30 transition-all shadow-sm"
                     >
                       <ChevronRight size={16} className="rotate-180" />
                     </button>
-                    <div className="px-4 py-1.5 bg-white border border-slate-200 rounded-lg text-[10px] font-black text-slate-900">
+                    <div className="px-4 py-1.5 bg-white border border-slate-200 rounded-md text-[10px] font-black text-slate-900">
                       {pagination.page} / {pagination.totalPages}
                     </div>
                     <button
                       onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
                       disabled={pagination.page === pagination.totalPages}
-                      className="p-2 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-30 transition-all shadow-sm"
+                      className="p-2 bg-white border border-slate-200 rounded-md text-slate-600 hover:bg-slate-50 disabled:opacity-30 transition-all shadow-sm"
                     >
                       <ChevronRight size={16} />
                     </button>

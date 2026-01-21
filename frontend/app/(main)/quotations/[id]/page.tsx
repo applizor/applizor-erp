@@ -181,7 +181,7 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
                             disabled={generatingLink}
                             isLoading={generatingLink}
                             variant="primary"
-                            className="bg-indigo-600 hover:bg-indigo-700 border-indigo-600"
+                            className="bg-primary-600 hover:bg-primary-700 border-primary-600"
                             icon={Globe}
                         >
                             Public Link
@@ -263,7 +263,7 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
                     {/* Main Document Column */}
                     <div className="lg:col-span-2 space-y-6">
                         {/* Quotation Document */}
-                        <div className="bg-white shadow-xl shadow-slate-200/50 rounded-xl overflow-hidden border border-gray-100 print:shadow-none print:border-0 print:rounded-none">
+                        <div className="bg-white shadow-xl shadow-slate-200/50 rounded-md overflow-hidden border border-gray-100 print:shadow-none print:border-0 print:rounded-none">
                             {/* Branding Header */}
                             <div className="px-8 py-10 border-b border-gray-100 flex justify-between bg-gradient-to-b from-gray-50/50 to-white">
                                 <div>
@@ -418,16 +418,16 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
 
                         {/* Public Link Section */}
                         {quotation.isPublicEnabled && quotation.publicToken && (
-                            <div className="ent-card border-indigo-100 bg-indigo-50/30 overflow-hidden">
-                                <div className="p-4 border-b border-indigo-100 bg-indigo-50/50 flex items-center justify-between">
-                                    <h3 className="text-xs font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-2">
-                                        <Globe size={14} className="text-indigo-600" />
+                            <div className="ent-card border-primary-100 bg-primary-50/30 overflow-hidden">
+                                <div className="p-4 border-b border-primary-100 bg-primary-50/50 flex items-center justify-between">
+                                    <h3 className="text-xs font-bold text-primary-900 uppercase tracking-wider flex items-center gap-2">
+                                        <Globe size={14} className="text-primary-600" />
                                         Public Link Active
                                     </h3>
-                                    <div className="h-2 w-2 rounded-full bg-indigo-500 animate-pulse"></div>
+                                    <div className="h-2 w-2 rounded-full bg-primary-500 animate-pulse"></div>
                                 </div>
                                 <div className="p-4">
-                                    <p className="text-xs text-indigo-700 font-medium mb-3">
+                                    <p className="text-xs text-primary-700 font-medium mb-3">
                                         Anyone with this link can view the quotation.
                                         {quotation.publicExpiresAt && (
                                             <span className="block mt-1 opacity-75">
@@ -441,11 +441,11 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
                                                 type="text"
                                                 readOnly
                                                 value={`${window.location.origin}/public/quotations/${quotation.publicToken}`}
-                                                className="flex-1 px-3 py-1.5 border border-indigo-200 rounded text-xs bg-white text-indigo-900 font-medium focus:ring-2 focus:ring-indigo-500"
+                                                className="flex-1 px-3 py-1.5 border border-primary-200 rounded text-xs bg-white text-primary-900 font-medium focus:ring-2 focus:ring-primary-500"
                                             />
                                             <button
                                                 onClick={handleCopyLink}
-                                                className="p-1.5 bg-white border border-indigo-200 rounded hover:bg-indigo-50 text-indigo-700 transition-colors"
+                                                className="p-1.5 bg-white border border-primary-200 rounded hover:bg-primary-50 text-primary-700 transition-colors"
                                                 title="Copy to clipboard"
                                             >
                                                 <Copy size={14} />
@@ -461,7 +461,7 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
                                         )}
                                     </div>
                                     {quotation.clientViewedAt && (
-                                        <div className="mt-4 flex items-center justify-center text-[10px] font-bold text-indigo-400 uppercase tracking-widest bg-white/50 py-1 rounded">
+                                        <div className="mt-4 flex items-center justify-center text-[10px] font-bold text-primary-400 uppercase tracking-widest bg-white/50 py-1 rounded">
                                             Viewed by Client: {new Date(quotation.clientViewedAt).toLocaleDateString()}
                                         </div>
                                     )}

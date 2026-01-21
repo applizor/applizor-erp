@@ -161,7 +161,7 @@ export default function CandidateDetailsPage({ params }: { params: { id: string 
             {/* Header */}
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-5 rounded-lg border border-gray-200 shadow-sm gap-4">
                 <div className="flex items-center gap-4">
-                    <div className="p-3 bg-indigo-900 rounded-lg shadow-lg">
+                    <div className="p-3 bg-primary-900 rounded-lg shadow-lg">
                         <User className="w-6 h-6 text-white" />
                     </div>
                     <div>
@@ -169,7 +169,7 @@ export default function CandidateDetailsPage({ params }: { params: { id: string 
                             {candidate.firstName} {candidate.lastName}
                         </h2>
                         <p className="text-[10px] text-gray-500 font-bold mt-1.5 uppercase tracking-widest flex items-center gap-2">
-                            Target: {candidate.jobOpening?.title || 'General Pool'} <ChevronRight size={10} className="text-indigo-600" /> {candidate.currentStage || 'Screening'}
+                            Target: {candidate.jobOpening?.title || 'General Pool'} <ChevronRight size={10} className="text-primary-600" /> {candidate.currentStage || 'Screening'}
                         </p>
                     </div>
                 </div>
@@ -178,7 +178,7 @@ export default function CandidateDetailsPage({ params }: { params: { id: string 
                     <div className="flex bg-gray-100 p-1 rounded font-black text-[9px] uppercase tracking-widest">
                         <Link
                             href="/recruitment/candidates"
-                            className="px-4 py-2 text-gray-600 hover:text-gray-900 rounded flex items-center gap-2 transition-all bg-white text-indigo-600 shadow-sm border border-gray-200"
+                            className="px-4 py-2 text-gray-600 hover:text-gray-900 rounded flex items-center gap-2 transition-all bg-white text-primary-600 shadow-sm border border-gray-200"
                         >
                             <ArrowLeft size={12} /> Return to Reservoir
                         </Link>
@@ -204,7 +204,7 @@ export default function CandidateDetailsPage({ params }: { params: { id: string 
                         <div className="flex justify-between items-start mb-6 border-b border-gray-100 pb-4">
                             <div>
                                 <h3 className="text-sm font-black text-gray-900 tracking-tight leading-none uppercase flex items-center gap-2">
-                                    <FileText size={14} className="text-indigo-600" /> Application Dossier
+                                    <FileText size={14} className="text-primary-600" /> Application Dossier
                                 </h3>
                                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">
                                     Submitted: {new Date(candidate.createdAt).toLocaleDateString()}
@@ -212,7 +212,7 @@ export default function CandidateDetailsPage({ params }: { params: { id: string 
                             </div>
                             <span className={`ent-badge ${candidate.status === 'hired' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
                                 candidate.status === 'rejected' ? 'bg-rose-50 text-rose-700 border-rose-100' :
-                                    'bg-indigo-50 text-indigo-700 border-indigo-100'
+                                    'bg-primary-50 text-primary-700 border-primary-100'
                                 }`}>
                                 STATUS: {candidate.status}
                             </span>
@@ -224,12 +224,12 @@ export default function CandidateDetailsPage({ params }: { params: { id: string 
                                     <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">Contact Protocol</span>
                                     <div className="flex flex-col gap-1.5">
                                         {candidate.email && (
-                                            <a href={`mailto:${candidate.email}`} className="text-[11px] font-bold text-gray-700 hover:text-indigo-600 flex items-center gap-2 transition-colors">
+                                            <a href={`mailto:${candidate.email}`} className="text-[11px] font-bold text-gray-700 hover:text-primary-600 flex items-center gap-2 transition-colors">
                                                 <Mail size={12} className="text-gray-400" /> {candidate.email}
                                             </a>
                                         )}
                                         {candidate.phone && (
-                                            <a href={`tel:${candidate.phone}`} className="text-[11px] font-bold text-gray-700 hover:text-indigo-600 flex items-center gap-2 transition-colors">
+                                            <a href={`tel:${candidate.phone}`} className="text-[11px] font-bold text-gray-700 hover:text-primary-600 flex items-center gap-2 transition-colors">
                                                 <Phone size={12} className="text-gray-400" /> {candidate.phone}
                                             </a>
                                         )}
@@ -256,11 +256,11 @@ export default function CandidateDetailsPage({ params }: { params: { id: string 
                     <div className="ent-card overflow-hidden">
                         <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                             <h3 className="text-sm font-black text-gray-900 tracking-tight leading-none uppercase flex items-center gap-2">
-                                <Clock size={14} className="text-indigo-600" /> Interview Log
+                                <Clock size={14} className="text-primary-600" /> Interview Log
                             </h3>
                             <button
                                 onClick={() => setIsInterviewModalOpen(true)}
-                                className="text-[9px] font-black text-indigo-600 hover:text-indigo-700 uppercase tracking-widest flex items-center gap-1 border border-indigo-100 bg-white px-3 py-1.5 rounded shadow-sm hover:shadow transition-all"
+                                className="text-[9px] font-black text-primary-600 hover:text-primary-700 uppercase tracking-widest flex items-center gap-1 border border-primary-100 bg-white px-3 py-1.5 rounded shadow-sm hover:shadow transition-all"
                             >
                                 + Schedule
                             </button>
@@ -311,7 +311,7 @@ export default function CandidateDetailsPage({ params }: { params: { id: string 
                                                 <div className="mt-3 ml-11">
                                                     <button
                                                         onClick={() => updateInterviewFeedback(interview.id)}
-                                                        className="text-[9px] font-black text-indigo-600 uppercase tracking-widest hover:underline flex items-center gap-1"
+                                                        className="text-[9px] font-black text-primary-600 uppercase tracking-widest hover:underline flex items-center gap-1"
                                                     >
                                                         <CheckCircle size={10} /> Record Feedback & Close
                                                     </button>
@@ -409,9 +409,9 @@ export default function CandidateDetailsPage({ params }: { params: { id: string 
 
                 {/* Sidebar Actions */}
                 <div className="lg:col-span-1 space-y-6">
-                    <div className="ent-card p-6 bg-white border-t-4 border-t-indigo-500">
+                    <div className="ent-card p-6 bg-white border-t-4 border-t-primary-500">
                         <h3 className="text-sm font-black text-gray-900 uppercase tracking-tight mb-4 flex items-center gap-2">
-                            <Activity size={14} className="text-indigo-500" /> Status Protocol
+                            <Activity size={14} className="text-primary-500" /> Status Protocol
                         </h3>
                         <form onSubmit={handleUpdateStatus} className="space-y-4">
                             <div className="ent-form-group">

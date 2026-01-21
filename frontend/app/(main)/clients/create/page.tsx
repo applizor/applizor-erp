@@ -113,7 +113,7 @@ export default function CreateClientPage() {
                 <div className="space-y-0.5">
                     <button
                         onClick={() => router.back()}
-                        className="flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-indigo-600 transition-colors mb-2 uppercase tracking-wide"
+                        className="flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-primary-600 transition-colors mb-2 uppercase tracking-wide"
                     >
                         <ArrowLeft size={14} />
                         Abort Onboarding
@@ -146,8 +146,8 @@ export default function CreateClientPage() {
             <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Basic Identity */}
                 <div className="ent-card p-6">
-                    <h3 className="text-xs font-black text-indigo-900 uppercase tracking-widest mb-6 flex items-center gap-2 border-b border-indigo-50 pb-2">
-                        <Building2 size={16} className="text-indigo-500" />
+                    <h3 className="text-xs font-black text-primary-900 uppercase tracking-widest mb-6 flex items-center gap-2 border-b border-primary-50 pb-2">
+                        <Building2 size={16} className="text-primary-500" />
                         Corporate Identity
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -225,8 +225,8 @@ export default function CreateClientPage() {
 
                 {/* Fiscal & Billing */}
                 <div className="ent-card p-6">
-                    <h3 className="text-xs font-black text-indigo-900 uppercase tracking-widest mb-6 flex items-center gap-2 border-b border-indigo-50 pb-2">
-                        <CreditCard size={16} className="text-indigo-500" />
+                    <h3 className="text-xs font-black text-primary-900 uppercase tracking-widest mb-6 flex items-center gap-2 border-b border-primary-50 pb-2">
+                        <CreditCard size={16} className="text-primary-500" />
                         Fiscal & Billing Data
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

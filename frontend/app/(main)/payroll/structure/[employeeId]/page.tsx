@@ -160,13 +160,13 @@ export default function SalaryStructurePage({ params }: { params: { employeeId: 
                                 type="number"
                                 value={ctc}
                                 onChange={(e) => setCtc(Number(e.target.value))}
-                                className="ent-input w-full pl-24 h-14 text-2xl font-black tracking-tighter border-2 border-gray-200 focus:border-primary-500 transition-all rounded-xl shadow-inner bg-white/50"
+                                className="ent-input w-full pl-24 h-14 text-2xl font-black tracking-tighter border-2 border-gray-200 focus:border-primary-500 transition-all rounded-md shadow-inner bg-white/50"
                                 placeholder="0.00"
                             />
                         </div>
                         <button
                             onClick={handleAutoCalculate}
-                            className="px-8 bg-white border border-gray-200 rounded-xl font-black text-[10px] uppercase tracking-widest hover:border-primary-500 hover:text-primary-600 text-gray-500 shadow-sm transition-all flex items-center gap-3 active:scale-95"
+                            className="px-8 bg-white border border-gray-200 rounded-md font-black text-[10px] uppercase tracking-widest hover:border-primary-500 hover:text-primary-600 text-gray-500 shadow-sm transition-all flex items-center gap-3 active:scale-95"
                         >
                             <Calculator size={16} /> Intelligent Auto-Allocation
                         </button>
@@ -215,7 +215,7 @@ export default function SalaryStructurePage({ params }: { params: { employeeId: 
                     </div>
                 </div>
 
-                <div className="mt-14 bg-primary-900 rounded-2xl border border-black p-8 flex flex-col md:flex-row justify-between items-center gap-8 shadow-2xl shadow-primary-900/20">
+                <div className="mt-14 bg-primary-900 rounded-md border border-black p-8 flex flex-col md:flex-row justify-between items-center gap-8 shadow-2xl shadow-primary-900/20">
                     <div className="flex gap-12">
                         <div className="space-y-1">
                             <p className="text-[9px] font-black text-primary-400 uppercase tracking-[0.2em]">Gross Value (Monthly)</p>
@@ -239,7 +239,7 @@ export default function SalaryStructurePage({ params }: { params: { employeeId: 
                     <button
                         onClick={handleSave}
                         disabled={saving}
-                        className="bg-white text-primary-900 px-12 h-14 rounded-xl font-black text-[11px] uppercase tracking-widest hover:bg-emerald-400 hover:text-white transition-all shadow-xl active:scale-95 disabled:opacity-50 flex items-center gap-3"
+                        className="bg-white text-primary-900 px-12 h-14 rounded-md font-black text-[11px] uppercase tracking-widest hover:bg-emerald-400 hover:text-white transition-all shadow-xl active:scale-95 disabled:opacity-50 flex items-center gap-3"
                     >
                         {saving ? (
                             <>

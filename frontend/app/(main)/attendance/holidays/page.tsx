@@ -135,11 +135,11 @@ export default function HolidaysPage() {
                         setViewMode('single-month');
                     }
                 }}
-                className={`ent-card p-4 transition-all duration-300 ${isInteractive ? 'cursor-pointer hover:border-indigo-300 hover:shadow-md' : 'border-indigo-100 shadow-sm'} ${hasHolidays && isInteractive ? 'ring-1 ring-indigo-50 bg-indigo-50/10' : ''}`}
+                className={`ent-card p-4 transition-all duration-300 ${isInteractive ? 'cursor-pointer hover:border-primary-300 hover:shadow-md' : 'border-primary-100 shadow-sm'} ${hasHolidays && isInteractive ? 'ring-1 ring-primary-50 bg-primary-50/10' : ''}`}
             >
                 <div className="flex justify-between items-center mb-4">
                     <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">{monthName}</h3>
-                    {hasHolidays && <div className="h-1.5 w-1.5 rounded-full bg-indigo-500"></div>}
+                    {hasHolidays && <div className="h-1.5 w-1.5 rounded-full bg-primary-500"></div>}
                 </div>
 
                 <div className="grid grid-cols-7 gap-1 text-center mb-2">
@@ -188,7 +188,7 @@ export default function HolidaysPage() {
         return (
             <div className="animate-fade-in max-w-5xl mx-auto">
                 <div className="flex items-center justify-between mb-8">
-                    <button onClick={() => setViewMode('calendar')} className="text-xs font-bold text-slate-500 hover:text-indigo-600 flex items-center gap-1 uppercase tracking-wider transition-colors">
+                    <button onClick={() => setViewMode('calendar')} className="text-xs font-bold text-slate-500 hover:text-primary-600 flex items-center gap-1 uppercase tracking-wider transition-colors">
                         <ChevronLeft className="w-4 h-4" /> Back to Year View
                     </button>
 
@@ -210,7 +210,7 @@ export default function HolidaysPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div className="lg:col-span-2">
                         {/* Render larger month calendar */}
-                        <div className="ent-card p-8 bg-white shadow-xl shadow-indigo-50/50">
+                        <div className="ent-card p-8 bg-white shadow-xl shadow-primary-50/50">
                             {/* Custom Large Grid Logic inline or reuse */}
                             <div className="grid grid-cols-7 gap-4 text-center mb-6">
                                 {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map(d => (
@@ -230,7 +230,7 @@ export default function HolidaysPage() {
                                         const holiday = holidays.find(h => h.date === dateStr);
 
                                         grid.push(
-                                            <div key={day} className={`h-14 lg:h-20 border rounded-xl flex flex-col items-center justify-start py-2 relative transition-all duration-300
+                                            <div key={day} className={`h-14 lg:h-20 border rounded-md flex flex-col items-center justify-start py-2 relative transition-all duration-300
                                                 ${holiday
                                                     ? (holiday.type === 'national' ? 'bg-blue-50 border-blue-200'
                                                         : holiday.type === 'regional' ? 'bg-amber-50 border-amber-200'
@@ -260,14 +260,14 @@ export default function HolidaysPage() {
                     <div className="lg:col-span-1">
                         <div className="ent-card p-6 h-full bg-slate-50/50 border-slate-200">
                             <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6 flex items-center gap-2">
-                                <Calendar className="w-4 h-4 text-indigo-500" />
+                                <Calendar className="w-4 h-4 text-primary-500" />
                                 Events this Month
                             </h3>
 
                             {monthHolidays.length > 0 ? (
                                 <div className="space-y-4">
                                     {monthHolidays.map(holiday => (
-                                        <div key={holiday.id} className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-all group">
+                                        <div key={holiday.id} className="bg-white p-4 rounded-md border border-slate-100 shadow-sm hover:shadow-md transition-all group">
                                             <div className="flex items-start justify-between mb-2">
                                                 <div className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded border
                                                     ${holiday.type === 'national' ? 'bg-blue-50 text-blue-700 border-blue-100'
@@ -280,7 +280,7 @@ export default function HolidaysPage() {
                                                     {new Date(holiday.date).getDate()}
                                                 </span>
                                             </div>
-                                            <h4 className="text-sm font-bold text-slate-900 leading-tight group-hover:text-indigo-600 transition-colors">{holiday.name}</h4>
+                                            <h4 className="text-sm font-bold text-slate-900 leading-tight group-hover:text-primary-600 transition-colors">{holiday.name}</h4>
                                             <p className="text-xs text-slate-400 mt-1 font-medium italic">
                                                 {new Date(holiday.date).toLocaleDateString(undefined, { weekday: 'long' })}
                                             </p>
@@ -306,10 +306,10 @@ export default function HolidaysPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-2xl border border-gray-200 shadow-sm">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-md border border-gray-200 shadow-sm">
                 <div>
                     <h2 className="text-xl font-black text-slate-900 flex items-center gap-2 tracking-tight">
-                        <Calendar className="w-6 h-6 text-indigo-600" />
+                        <Calendar className="w-6 h-6 text-primary-600" />
                         Holiday Calendar ({new Date().getFullYear()})
                     </h2>
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
@@ -322,7 +322,7 @@ export default function HolidaysPage() {
                         <button
                             onClick={() => setViewMode('list')}
                             className={`px-3 py-1.5 rounded-md text-xs font-black uppercase tracking-wider transition-all ${viewMode === 'list'
-                                ? 'bg-white text-indigo-600 shadow-sm'
+                                ? 'bg-white text-primary-600 shadow-sm'
                                 : 'text-slate-500 hover:text-slate-700'
                                 }`}
                         >
@@ -331,7 +331,7 @@ export default function HolidaysPage() {
                         <button
                             onClick={() => setViewMode('calendar')}
                             className={`px-3 py-1.5 rounded-md text-xs font-black uppercase tracking-wider transition-all ${viewMode === 'calendar'
-                                ? 'bg-white text-indigo-600 shadow-sm'
+                                ? 'bg-white text-primary-600 shadow-sm'
                                 : 'text-slate-500 hover:text-slate-700'
                                 }`}
                         >
@@ -354,7 +354,7 @@ export default function HolidaysPage() {
             {viewMode === 'list' ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 animate-fade-in">
                     {holidays.map((holiday) => (
-                        <div key={holiday.id} className="ent-card flex flex-col justify-between group hover:border-indigo-300 transition-all p-4">
+                        <div key={holiday.id} className="ent-card flex flex-col justify-between group hover:border-primary-300 transition-all p-4">
                             <div>
                                 <div className="flex justify-between items-start">
                                     <span className={`ent-badge flex items-center gap-1.5 ${holiday.type === 'national' ? 'ent-badge-info' :
@@ -376,7 +376,7 @@ export default function HolidaysPage() {
                                 </div>
                                 <div className="mt-4">
                                     <h3 className="text-sm font-black text-slate-900 truncate" title={holiday.name}>{holiday.name}</h3>
-                                    <div className="mt-2 flex items-baseline gap-1 text-indigo-600">
+                                    <div className="mt-2 flex items-baseline gap-1 text-primary-600">
                                         <span className="text-3xl font-black tracking-tighter">
                                             {new Date(holiday.date).getDate()}
                                         </span>
@@ -390,7 +390,7 @@ export default function HolidaysPage() {
                     ))}
 
                     {holidays.length === 0 && (
-                        <div className="col-span-full py-12 text-center bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
+                        <div className="col-span-full py-12 text-center bg-slate-50 rounded-md border-2 border-dashed border-slate-200">
                             <Calendar className="w-10 h-10 text-slate-300 mx-auto mb-2" />
                             <p className="text-xs font-black text-slate-400 uppercase tracking-widest">No holidays scheduled for this cycle.</p>
                         </div>
@@ -404,7 +404,7 @@ export default function HolidaysPage() {
 
             {isModalOpen && (
                 <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-xl shadow-2xl max-w-md w-full border border-gray-200 overflow-hidden">
+                    <div className="bg-white rounded-md shadow-2xl max-w-md w-full border border-gray-200 overflow-hidden">
                         <div className="flex justify-between items-center p-4 bg-gray-50 border-b border-gray-200">
                             <div>
                                 <h3 className="text-base font-bold text-gray-900">Add Holiday</h3>

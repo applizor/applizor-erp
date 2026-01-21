@@ -7,7 +7,7 @@ export function InvoiceListSkeleton() {
             {/* Stats Skeletons */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 {[1, 2, 3, 4].map((i) => (
-                    <div key={i} className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-3">
+                    <div key={i} className="bg-white p-6 rounded-md border border-slate-100 shadow-sm space-y-3">
                         <Skeleton className="h-3 w-20" />
                         <Skeleton className="h-8 w-24" />
                         <Skeleton className="h-2 w-full" />
@@ -44,7 +44,7 @@ export function InvoiceListSkeleton() {
                                     <td className="px-6 py-5"><Skeleton className="h-4 w-20" /></td>
                                     <td className="px-6 py-5"><Skeleton className="h-4 w-24" /></td>
                                     <td className="px-6 py-5"><Skeleton className="h-6 w-20 rounded-full" /></td>
-                                    <td className="px-6 py-5"><Skeleton className="h-8 w-10 rounded-xl" /></td>
+                                    <td className="px-6 py-5"><Skeleton className="h-8 w-10 rounded-md" /></td>
                                 </tr>
                             ))}
                         </tbody>

@@ -154,14 +154,14 @@ export default function EditClientPage() {
             {/* Header Card */}
             <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
-                    <div className="p-3 bg-indigo-50 text-indigo-600 rounded-lg border border-indigo-100 shadow-sm">
+                    <div className="p-3 bg-primary-50 text-primary-600 rounded-lg border border-primary-100 shadow-sm">
                         <Building2 size={24} />
                     </div>
                     <div>
                         <div className="flex items-center gap-2 mb-1">
                             <Link
                                 href={`/clients/${params.id}`}
-                                className="text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-indigo-600 transition-colors flex items-center gap-1"
+                                className="text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-primary-600 transition-colors flex items-center gap-1"
                             >
                                 <ArrowLeft size={10} /> Back to Registry
                             </Link>
@@ -185,7 +185,7 @@ export default function EditClientPage() {
                     <button
                         onClick={handleSubmit}
                         disabled={saving}
-                        className="ent-button-primary text-xs uppercase tracking-wider font-bold shadow-indigo-100"
+                        className="ent-button-primary text-xs uppercase tracking-wider font-bold shadow-primary-100"
                     >
                         {saving ? (
                             <>
@@ -206,7 +206,7 @@ export default function EditClientPage() {
                 {/* Organization Identity */}
                 <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
                     <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-3 bg-gray-50/50">
-                        <div className="p-1.5 bg-white rounded border border-gray-200 shadow-sm text-indigo-600">
+                        <div className="p-1.5 bg-white rounded border border-gray-200 shadow-sm text-primary-600">
                             <Activity size={14} />
                         </div>
                         <h2 className="text-xs font-black text-gray-900 uppercase tracking-widest">

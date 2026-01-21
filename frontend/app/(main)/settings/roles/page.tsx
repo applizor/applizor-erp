@@ -61,13 +61,13 @@ export default function RolesPage() {
 
     return (
         <div className="max-w-7xl mx-auto pb-20 space-y-6">
-            <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="bg-white p-5 rounded-md border border-gray-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div className="flex items-center gap-4">
-                    <div className="p-3 bg-indigo-900 rounded-lg shadow-lg">
-                        <Shield className="w-6 h-6 text-white" />
+                    <div className="p-2.5 bg-primary-900 rounded-md shadow-lg">
+                        <Shield className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                        <h1 className="text-xl font-black text-gray-900 tracking-tight leading-none uppercase">Roles & Permissions</h1>
+                        <h1 className="text-lg font-black text-gray-900 tracking-tight leading-none uppercase">Roles & Permissions</h1>
                         <p className="text-[10px] text-gray-500 font-bold mt-1.5 uppercase tracking-widest flex items-center gap-2">
                             Access Control & Security Policy
                         </p>
@@ -77,14 +77,14 @@ export default function RolesPage() {
                     <button
                         onClick={handleSync}
                         disabled={syncing}
-                        className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all flex items-center gap-2 disabled:opacity-50"
+                        className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-md text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all flex items-center gap-2 disabled:opacity-50"
                     >
                         <RefreshCw className={`w-3 h-3 ${syncing ? 'animate-spin' : ''}`} />
                         Sync Nodes
                     </button>
                     <Link
                         href="/settings/roles/create"
-                        className="px-5 py-2.5 bg-indigo-600 text-white rounded text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all flex items-center gap-2 shadow-lg shadow-indigo-900/20 active:scale-95"
+                        className="px-5 py-2.5 bg-primary-600 text-white rounded-md text-[10px] font-black uppercase tracking-widest hover:bg-primary-700 transition-all flex items-center gap-2 shadow-lg shadow-primary-900/20 active:scale-95"
                     >
                         <Plus className="w-4 h-4" />
                         Define Role
@@ -102,16 +102,16 @@ export default function RolesPage() {
                     {roles.map((role) => (
                         <div key={role.id} className="group hover:bg-gray-50 transition-colors p-4 flex items-center justify-between">
                             <div className="flex items-center gap-4">
-                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${role.isSystem ? 'bg-amber-100 text-amber-600' : 'bg-indigo-50 text-indigo-600'}`}>
+                                <div className={`w-10 h-10 rounded-md flex items-center justify-center ${role.isSystem ? 'bg-amber-100 text-amber-600' : 'bg-primary-50 text-primary-600'}`}>
                                     {role.isSystem ? <Lock size={20} /> : <Key size={20} />}
                                 </div>
                                 <div>
                                     <div className="flex items-center gap-2">
-                                        <h4 className="text-sm font-bold text-gray-900 group-hover:text-indigo-600 transition-colors">
+                                        <h4 className="text-sm font-bold text-gray-900 group-hover:text-primary-600 transition-colors">
                                             {role.name}
                                         </h4>
                                         {role.isSystem && (
-                                            <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[9px] font-black uppercase tracking-widest rounded">
+                                            <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[9px] font-black uppercase tracking-widest rounded-md">
                                                 System Root
                                             </span>
                                         )}
@@ -123,7 +123,7 @@ export default function RolesPage() {
                             </div>
 
                             <div className="flex items-center gap-6">
-                                <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 rounded text-gray-500">
+                                <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 rounded-md text-gray-500">
                                     <Users size={12} />
                                     <span className="text-[10px] font-bold uppercase tracking-wide">
                                         {role._count?.userRoles || 0} Assignments
@@ -131,7 +131,7 @@ export default function RolesPage() {
                                 </div>
                                 <Link
                                     href={`/settings/roles/${role.id}`}
-                                    className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-all"
+                                    className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-full transition-all"
                                 >
                                     <ChevronRight size={18} />
                                 </Link>

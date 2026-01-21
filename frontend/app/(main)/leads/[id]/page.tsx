@@ -212,9 +212,9 @@ export default function LeadDetailPage() {
     return (
         <div className="space-y-6 max-w-7xl mx-auto pb-20">
             {/* Header / Command Bar */}
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-5 rounded-lg border border-gray-200 shadow-sm gap-4">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-5 rounded-md border border-gray-200 shadow-sm gap-4">
                 <div className="flex items-center gap-4">
-                    <div className="p-3 bg-primary-900 rounded-lg shadow-lg">
+                    <div className="p-3 bg-primary-900 rounded-md shadow-lg">
                         <TrendingUp className="w-6 h-6 text-white" />
                     </div>
                     <div>
@@ -223,7 +223,7 @@ export default function LeadDetailPage() {
                             Revenue Pipeline <ChevronRight size={10} className="text-primary-600" /> Opportunity Discovery
                         </p>
                     </div>
-                    <div className={`ml-4 px-3 py-1 border rounded font-black text-[9px] uppercase tracking-widest ${getStatusStyles(lead.status)}`}>
+                    <div className={`ml-4 px-3 py-1 border rounded-md font-black text-[9px] uppercase tracking-widest ${getStatusStyles(lead.status)}`}>
                         {getStatusLabel(lead.status)}
                     </div>
                 </div>
@@ -233,7 +233,7 @@ export default function LeadDetailPage() {
                         <button
                             onClick={() => setConvertDialog(true)}
                             disabled={converting || lead.status === 'won'}
-                            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase tracking-widest flex items-center gap-2 rounded transition-all disabled:opacity-50"
+                            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase tracking-widest flex items-center gap-2 rounded-md transition-all disabled:opacity-50"
                         >
                             <UserPlus size={14} /> {converting ? 'PROTOCOL IN PROGRESS...' : 'Commit to Client Registry'}
                         </button>
@@ -241,7 +241,7 @@ export default function LeadDetailPage() {
                     <PermissionGuard module="Lead" action="update">
                         <Link
                             href={`/leads/${lead.id}/edit`}
-                            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-black text-[10px] uppercase tracking-widest flex items-center gap-2 rounded transition-all"
+                            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-black text-[10px] uppercase tracking-widest flex items-center gap-2 rounded-md transition-all"
                         >
                             <Edit size={14} /> Reconfigure
                         </Link>
@@ -249,7 +249,7 @@ export default function LeadDetailPage() {
                     <PermissionGuard module="Lead" action="delete">
                         <button
                             onClick={() => setDeleteDialog(true)}
-                            className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 font-black text-[10px] uppercase tracking-widest flex items-center gap-2 rounded transition-all"
+                            className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 font-black text-[10px] uppercase tracking-widest flex items-center gap-2 rounded-md transition-all"
                         >
                             <Trash2 size={14} /> Purge
                         </button>
@@ -285,7 +285,7 @@ export default function LeadDetailPage() {
                                 </div>
 
                                 <div className="space-y-4">
-                                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
+                                    <div className="bg-gray-50 p-4 rounded-md border border-gray-100">
                                         <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 block mb-3">Communication Protocols</label>
                                         <div className="space-y-2">
                                             <div className="flex items-center gap-3 text-sm text-gray-600">
@@ -298,7 +298,7 @@ export default function LeadDetailPage() {
                                             </div>
                                             {lead.website && (
                                                 <div className="flex items-center gap-3 text-sm text-gray-600">
-                                                    <Globe size={14} className="text-indigo-500" />
+                                                    <Globe size={14} className="text-primary-500" />
                                                     <a href={lead.website} target="_blank" className="text-primary-600 hover:underline font-bold truncate">{lead.website}</a>
                                                 </div>
                                             )}
@@ -325,7 +325,7 @@ export default function LeadDetailPage() {
                                 </div>
                                 <div>
                                     <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 block mb-1">Criticality Level</label>
-                                    <div className={`text-[10px] font-black px-2 py-0.5 rounded-sm inline-block border ${lead.priority === 'high' ? 'bg-rose-50 text-rose-600 border-rose-100' : 'bg-gray-100 text-gray-500 border-gray-200'}`}>
+                                    <div className={`text-[10px] font-black px-2 py-0.5 rounded-md inline-block border ${lead.priority === 'high' ? 'bg-rose-50 text-rose-600 border-rose-100' : 'bg-gray-100 text-gray-500 border-gray-200'}`}>
                                         {lead.priority?.toUpperCase()}
                                     </div>
                                 </div>
@@ -335,7 +335,7 @@ export default function LeadDetailPage() {
                                 </div>
                             </div>
 
-                            <div className="bg-primary-50/30 p-6 rounded-xl border border-primary-100/50">
+                            <div className="bg-primary-50/30 p-6 rounded-md border border-primary-100/50">
                                 <label className="text-[9px] font-black uppercase tracking-widest text-primary-400 block mb-4">Intelligence Notes</label>
                                 <p className="text-sm text-primary-900/80 leading-relaxed font-medium whitespace-pre-wrap">{lead.notes || 'NO_CONTEXTUAL_INTEL_RECORDED_FOR_THIS_OPPORTUNITY'}</p>
                             </div>
@@ -345,7 +345,7 @@ export default function LeadDetailPage() {
                                     <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 block mb-3">Protocol Tags</label>
                                     <div className="flex flex-wrap gap-2">
                                         {lead.tags.map((tag: string, i: number) => (
-                                            <span key={i} className="px-2 py-1 bg-white border border-gray-100 text-[9px] font-black text-gray-500 rounded uppercase tracking-widest flex items-center gap-1.5 shadow-sm">
+                                            <span key={i} className="px-2 py-1 bg-white border border-gray-100 text-[9px] font-black text-gray-500 rounded-md uppercase tracking-widest flex items-center gap-1.5 shadow-sm">
                                                 <Tag size={10} className="text-primary-400" /> {tag}
                                             </span>
                                         ))}
@@ -369,7 +369,7 @@ export default function LeadDetailPage() {
                                 <p className="text-[9px] text-primary-300 font-black uppercase tracking-widest">Pipeline Weight</p>
                                 <p className="text-lg font-black">{lead.probability || 0}%</p>
                             </div>
-                            <div className="w-12 h-12 bg-primary-800 rounded-lg flex items-center justify-center">
+                            <div className="w-12 h-12 bg-primary-800 rounded-md flex items-center justify-center">
                                 <TrendingUp size={20} className="text-primary-400" />
                             </div>
                         </div>
@@ -404,21 +404,21 @@ export default function LeadDetailPage() {
                                                         <span className="text-[9px] font-black text-gray-400 uppercase tracking-tighter flex items-center gap-1">
                                                             <Calendar size={10} /> {new Date(activity.createdAt).toLocaleDateString()}
                                                         </span>
-                                                        <span className="text-[9px] font-black text-primary-600 uppercase tracking-tight bg-primary-50 px-1.5 py-0.5 rounded-sm">
+                                                        <span className="text-[9px] font-black text-primary-600 uppercase tracking-tight bg-primary-50 px-1.5 py-0.5 rounded-md">
                                                             {activity.type}
                                                         </span>
                                                     </div>
                                                 </div>
                                                 <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                     {activity.status === 'pending' && (
-                                                        <button onClick={() => handleCompleteActivity(activity.id)} className="p-1.5 bg-emerald-50 text-emerald-600 rounded hover:bg-emerald-600 hover:text-white transition-all">
+                                                        <button onClick={() => handleCompleteActivity(activity.id)} className="p-1.5 bg-emerald-50 text-emerald-600 rounded-md hover:bg-emerald-600 hover:text-white transition-all">
                                                             <CheckCircle size={10} />
                                                         </button>
                                                     )}
-                                                    <button onClick={() => handleEditActivity(activity)} className="p-1.5 bg-blue-50 text-blue-600 rounded hover:bg-blue-600 hover:text-white transition-all">
+                                                    <button onClick={() => handleEditActivity(activity)} className="p-1.5 bg-blue-50 text-blue-600 rounded-md hover:bg-blue-600 hover:text-white transition-all">
                                                         <Edit size={10} />
                                                     </button>
-                                                    <button onClick={() => handleDeleteActivity(activity.id)} className="p-1.5 bg-rose-50 text-rose-600 rounded hover:bg-rose-600 hover:text-white transition-all">
+                                                    <button onClick={() => handleDeleteActivity(activity.id)} className="p-1.5 bg-rose-50 text-rose-600 rounded-md hover:bg-rose-600 hover:text-white transition-all">
                                                         <Trash2 size={10} />
                                                     </button>
                                                 </div>
@@ -455,7 +455,7 @@ export default function LeadDetailPage() {
             {/* Modals & Dialogs */}
             {showActivityModal && (
                 <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-8 animate-in zoom-in-95 duration-200">
+                    <div className="bg-white rounded-md shadow-2xl max-w-lg w-full p-8 animate-in zoom-in-95 duration-200">
                         <div className="flex items-center justify-between mb-8">
                             <div>
                                 <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">{editingActivity ? 'Modify Movement' : 'Record Strategic Action'}</h3>
@@ -493,7 +493,7 @@ export default function LeadDetailPage() {
                             </div>
                             <div className="flex justify-end gap-3 pt-6 border-t border-gray-100">
                                 <button type="button" onClick={() => setShowActivityModal(false)} className="px-6 py-2 text-[10px] font-black uppercase tracking-widest text-gray-400">Abort</button>
-                                <button type="submit" disabled={savingActivity} className="px-6 py-2 bg-primary-900 text-white text-[10px] font-black uppercase tracking-widest rounded shadow-xl shadow-primary-900/10">
+                                <button type="submit" disabled={savingActivity} className="px-6 py-2 bg-primary-900 text-white text-[10px] font-black uppercase tracking-widest rounded-md shadow-xl shadow-primary-900/10">
                                     {savingActivity ? 'SYNCING...' : 'Commit to Log'}
                                 </button>
                             </div>

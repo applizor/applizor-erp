@@ -7,7 +7,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useState, useEffect } from 'react';
 import { leaveTypesApi, LeaveType } from '@/lib/api/attendance';
 import { departmentsApi, positionsApi } from '@/lib/api/hrms';
-import { Trash2, Edit, Plus, Info, Check, X, Settings, ShieldAlert, Calendar, XCircle, AlertCircle, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
+import { Trash2, Edit, Plus, Info, Check, X, Settings, ShieldAlert, Calendar, XCircle, AlertCircle, AlertTriangle, CheckCircle, Clock, Search, Filter, MapPin, Building2, Shield, Briefcase } from 'lucide-react';
 
 export default function LeaveTypesPage() {
     const toast = useToast();
@@ -147,25 +147,31 @@ export default function LeaveTypesPage() {
     return (
         <div className="animate-fade-in pb-20">
             <div className="max-w-7xl mx-auto px-4 lg:px-8 py-8">
-                <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8 gap-4 px-2">
-                    <div className="space-y-0.5">
-                        <h1 className="text-2xl font-black text-slate-900 tracking-tight leading-tight flex items-center gap-3">
-                            Absence Configuration
-                            {!loading && leaveTypes.length > 0 && (
-                                <span className="text-[9px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 uppercase font-black tracking-widest">
-                                    {leaveTypes.length} POLICIES
-                                </span>
-                            )}
-                        </h1>
-                        <p className="text-slate-500 font-medium text-sm">
-                            Statutory settings for leave entitlements, carry-forward rules, and accrual logic.
-                        </p>
+                {/* Standardized Header */}
+                <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-5 rounded-md border border-gray-200 shadow-sm gap-4 mb-8">
+                    <div className="flex items-center gap-4">
+                        <div className="p-2.5 bg-primary-900 rounded-md shadow-lg">
+                            <Calendar className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                            <h1 className="text-lg font-black text-slate-900 tracking-tight leading-none uppercase">
+                                Absence Configuration
+                                {!loading && leaveTypes.length > 0 && (
+                                    <span className="ml-3 text-[9px] px-2 py-0.5 rounded-md bg-primary-50 text-primary-700 border border-primary-100 uppercase font-black tracking-widest">
+                                        {leaveTypes.length} POLICIES
+                                    </span>
+                                )}
+                            </h1>
+                            <p className="text-[10px] text-slate-500 font-bold mt-1 uppercase tracking-widest leading-none">
+                                Statutory settings for leave entitlements, carry-forward rules, and accrual logic.
+                            </p>
+                        </div>
                     </div>
                     <button
                         onClick={() => { resetForm(); setIsModalOpen(true); }}
-                        className="btn-primary"
+                        className="btn-primary flex items-center gap-2"
                     >
-                        <Plus size={16} className="mr-2" /> Initialise Policy
+                        <Plus size={14} /> Add Policy
                     </button>
                 </div>
 
@@ -177,11 +183,11 @@ export default function LeaveTypesPage() {
                         <table className="ent-table">
                             <thead>
                                 <tr>
-                                    <th className="rounded-l-xl">Manifest Identity</th>
+                                    <th className="rounded-l-md">Manifest Identity</th>
                                     <th className="text-center">Statutory Entitlement</th>
                                     <th className="text-center">Functional Scope</th>
                                     <th className="text-center">Constraints</th>
-                                    <th className="text-right rounded-r-xl">Actions</th>
+                                    <th className="text-right rounded-r-md">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -224,7 +230,7 @@ export default function LeaveTypesPage() {
                                                     ) : (
                                                         <>
                                                             {type.departmentIds && type.departmentIds.length > 0 && (
-                                                                <span className="ent-badge bg-indigo-50 text-indigo-700 border-indigo-100">
+                                                                <span className="ent-badge bg-primary-50 text-primary-700 border-primary-100">
                                                                     {type.departmentIds.length === departments.length ? 'ALL DEPARTMENTS' : `${type.departmentIds.length} DEPARTMENTS`}
                                                                 </span>
                                                             )}
@@ -241,16 +247,16 @@ export default function LeaveTypesPage() {
                                                 <div className="flex flex-col gap-1 text-[10px] font-bold uppercase tracking-tight text-slate-500">
                                                     {type.sandwichRule && <span className="flex items-center gap-1"><ShieldAlert size={10} className="text-rose-500" /> Sandwich Rule</span>}
                                                     {type.maxConsecutiveDays > 0 && <span className="flex items-center gap-1"><Calendar size={10} className="text-amber-500" /> Max {type.maxConsecutiveDays} Seq</span>}
-                                                    {type.proofRequired && <span className="flex items-center gap-1"><Info size={10} className="text-indigo-500" /> Proof Enforced</span>}
+                                                    {type.proofRequired && <span className="flex items-center gap-1"><Info size={10} className="text-primary-500" /> Proof Enforced</span>}
                                                     {!type.sandwichRule && !type.maxConsecutiveDays && !type.proofRequired && <span className="text-slate-300 text-center">-</span>}
                                                 </div>
                                             </td>
                                             <td className="px-4 py-3 whitespace-nowrap text-right">
                                                 <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <button onClick={() => handleEdit(type)} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-indigo-600 transition-colors">
+                                                    <button onClick={() => handleEdit(type)} className="p-1.5 hover:bg-slate-100 rounded-md text-slate-400 hover:text-primary-600 transition-colors">
                                                         <Edit size={14} />
                                                     </button>
-                                                    <button onClick={() => handleDelete(type.id)} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-rose-600 transition-colors">
+                                                    <button onClick={() => handleDelete(type.id)} className="p-1.5 hover:bg-slate-100 rounded-md text-slate-400 hover:text-rose-600 transition-colors">
                                                         <Trash2 size={14} />
                                                     </button>
                                                 </div>
@@ -265,7 +271,7 @@ export default function LeaveTypesPage() {
 
                 {isModalOpen && (
                     <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
-                        <div className="relative bg-white rounded-[2rem] shadow-2xl max-w-lg w-full flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in duration-300">
+                        <div className="relative bg-white rounded-md shadow-2xl max-w-lg w-full flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in duration-300">
                             <div className="p-8 border-b border-slate-50">
                                 <div className="flex justify-between items-center">
                                     <div>
@@ -279,7 +285,7 @@ export default function LeaveTypesPage() {
                             </div>
 
                             {/* Tabs Header - Standardized for High Density */}
-                            <div className="flex bg-slate-50/50 p-1 mx-8 mt-6 rounded-xl border border-slate-100">
+                            <div className="flex bg-slate-50/50 p-1 mx-8 mt-6 rounded-md border border-slate-100">
                                 {[
                                     { id: 'general', label: 'Identity' },
                                     { id: 'entitlement', label: 'Valuation' },
@@ -289,7 +295,7 @@ export default function LeaveTypesPage() {
                                     <button
                                         key={tab.id}
                                         onClick={() => setActiveTab(tab.id as any)}
-                                        className={`flex-1 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all ${activeTab === tab.id ? 'bg-white text-indigo-600 shadow-sm border border-slate-100' : 'text-slate-400 hover:text-slate-600'}`}
+                                        className={`flex-1 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-md transition-all ${activeTab === tab.id ? 'bg-white text-primary-600 shadow-sm border border-slate-100' : 'text-slate-400 hover:text-slate-600'}`}
                                     >
                                         {tab.label}
                                     </button>
@@ -315,12 +321,12 @@ export default function LeaveTypesPage() {
                                             </div>
                                             <div className="ent-form-group">
                                                 <label className="ent-label">Visual Taxonomy (Color)</label>
-                                                <div className="flex items-center gap-3 p-1 bg-slate-50 rounded-xl border border-slate-100">
+                                                <div className="flex items-center gap-3 p-1 bg-slate-50 rounded-md border border-slate-100">
                                                     <input
                                                         type="color"
                                                         value={formData.color}
                                                         onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                                                        className="h-8 w-14 rounded-lg cursor-pointer border-none bg-transparent"
+                                                        className="h-8 w-14 rounded-md cursor-pointer border-none bg-transparent"
                                                     />
                                                     <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{formData.color}</span>
                                                 </div>
@@ -335,14 +341,14 @@ export default function LeaveTypesPage() {
                                                     placeholder="Standardised policy guidelines..."
                                                 ></textarea>
                                             </div>
-                                            <div className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                                            <div className="flex items-center justify-between p-3 bg-slate-50 rounded-md border border-slate-100">
                                                 <div>
                                                     <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest block">Monetary Valuation</span>
                                                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Count as Statutory Paid Leave?</span>
                                                 </div>
                                                 <label className="relative inline-flex items-center cursor-pointer">
                                                     <input type="checkbox" checked={formData.isPaid} onChange={(e) => setFormData({ ...formData, isPaid: e.target.checked })} className="sr-only peer" />
-                                                    <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                                                    <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary-600"></div>
                                                 </label>
                                             </div>
                                         </div>
@@ -381,7 +387,7 @@ export default function LeaveTypesPage() {
                                                 </div>
                                             </div>
 
-                                            <div className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                                            <div className="flex items-center justify-between p-3 bg-slate-50 rounded-md border border-slate-100">
                                                 <div>
                                                     <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest block">Encashment Manifest</span>
                                                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Allow unit-to-currency conversion?</span>
@@ -473,7 +479,7 @@ export default function LeaveTypesPage() {
                                             </div>
 
                                             <div className="space-y-3">
-                                                <div className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                                                <div className="flex items-center justify-between p-3 bg-slate-50 rounded-md border border-slate-100">
                                                     <div>
                                                         <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest block">Sandwich Protocol</span>
                                                         <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Count weekends between leaves?</span>
@@ -484,14 +490,14 @@ export default function LeaveTypesPage() {
                                                     </label>
                                                 </div>
 
-                                                <div className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                                                <div className="flex items-center justify-between p-3 bg-slate-50 rounded-md border border-slate-100">
                                                     <div>
                                                         <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest block">Evidence Enforcement</span>
                                                         <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Require document upload?</span>
                                                     </div>
                                                     <label className="relative inline-flex items-center cursor-pointer">
                                                         <input type="checkbox" checked={formData.proofRequired} onChange={(e) => setFormData({ ...formData, proofRequired: e.target.checked })} className="sr-only peer" />
-                                                        <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                                                        <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary-600"></div>
                                                     </label>
                                                 </div>
                                             </div>
@@ -522,14 +528,14 @@ export default function LeaveTypesPage() {
                                                     </div>
                                                 </div>
 
-                                                <div className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                                                <div className="flex items-center justify-between p-3 bg-slate-50 rounded-md border border-slate-100">
                                                     <div>
                                                         <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest block">Statutory Calendar Logic</span>
                                                         <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Count holidays/weekends as leave?</span>
                                                     </div>
                                                     <label className="relative inline-flex items-center cursor-pointer">
                                                         <input type="checkbox" checked={formData.includeNonWorkingDays} onChange={(e) => setFormData({ ...formData, includeNonWorkingDays: e.target.checked })} className="sr-only peer" />
-                                                        <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                                                        <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary-600"></div>
                                                     </label>
                                                 </div>
                                             </div>
@@ -542,16 +548,16 @@ export default function LeaveTypesPage() {
                                             <div className="ent-form-group">
                                                 <label className="ent-label">Applicable Departmental Domain</label>
                                                 <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight mb-3">Null selection implies global enterprise scope</p>
-                                                <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                                                <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-3 bg-slate-50 rounded-md border border-slate-100">
                                                     {departments.map(dept => (
-                                                        <label key={dept.id} className="group flex items-center gap-2 p-2 rounded-xl border border-transparent hover:border-indigo-100 hover:bg-white transition-all cursor-pointer">
+                                                        <label key={dept.id} className="group flex items-center gap-2 p-2 rounded-md border border-transparent hover:border-primary-100 hover:bg-white transition-all cursor-pointer">
                                                             <input
                                                                 type="checkbox"
                                                                 checked={formData.departmentIds?.includes(dept.id)}
                                                                 onChange={() => toggleSelection(dept.id, 'departmentIds')}
-                                                                className="rounded border-slate-200 text-indigo-600 focus:ring-indigo-500"
+                                                                className="rounded border-slate-200 text-primary-600 focus:ring-primary-500"
                                                             />
-                                                            <span className="text-[10px] font-black text-slate-600 uppercase tracking-tight group-hover:text-indigo-600 transition-colors">{dept.name}</span>
+                                                            <span className="text-[10px] font-black text-slate-600 uppercase tracking-tight group-hover:text-primary-600 transition-colors">{dept.name}</span>
                                                         </label>
                                                     ))}
                                                 </div>
@@ -560,9 +566,9 @@ export default function LeaveTypesPage() {
                                             <div className="ent-form-group">
                                                 <label className="ent-label">Target Functional Positions</label>
                                                 <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight mb-3">Null selection implies all positions in scope</p>
-                                                <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                                                <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-3 bg-slate-50 rounded-md border border-slate-100">
                                                     {positions.map(pos => (
-                                                        <label key={pos.id} className="group flex items-center gap-2 p-2 rounded-xl border border-transparent hover:border-purple-100 hover:bg-white transition-all cursor-pointer">
+                                                        <label key={pos.id} className="group flex items-center gap-2 p-2 rounded-md border border-transparent hover:border-purple-100 hover:bg-white transition-all cursor-pointer">
                                                             <input
                                                                 type="checkbox"
                                                                 checked={formData.positionIds?.includes(pos.id)}

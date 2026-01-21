@@ -230,7 +230,7 @@ export default function ShiftsPage() {
                 ))}
 
                 {shifts.length === 0 && (
-                    <div className="col-span-full py-20 text-center bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                    <div className="col-span-full py-20 text-center bg-gray-50 rounded-md border-2 border-dashed border-gray-200">
                         <Settings2 className="w-12 h-12 text-gray-200 mx-auto mb-3" />
                         <h4 className="text-sm font-bold text-gray-900">No shift protocols defined</h4>
                         <p className="text-xs text-gray-500 mt-1 max-w-xs mx-auto">Create your first operational shift (e.g. Day Shift) to begin workforce scheduling.</p>
@@ -240,7 +240,7 @@ export default function ShiftsPage() {
 
             {showModal && (
                 <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-xl shadow-2xl max-w-md w-full border border-gray-200 overflow-hidden">
+                    <div className="bg-white rounded-md shadow-2xl max-w-md w-full border border-gray-200 overflow-hidden">
                         <div className="flex justify-between items-center p-4 bg-gray-50 border-b border-gray-200">
                             <div>
                                 <h3 className="text-base font-bold text-gray-900">{isEditing ? 'Modify Shift' : 'New Shift Protocol'}</h3>

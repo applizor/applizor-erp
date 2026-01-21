@@ -83,8 +83,8 @@ export function ClientQuotationsDialog({ isOpen, onClose, quotations, clientName
                                     >
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="flex items-center gap-3">
-                                                <div className="p-2 bg-indigo-50 rounded-lg group-hover:bg-indigo-100 transition-colors">
-                                                    <FileText className="w-4 h-4 text-indigo-600" />
+                                                <div className="p-2 bg-primary-50 rounded-lg group-hover:bg-primary-100 transition-colors">
+                                                    <FileText className="w-4 h-4 text-primary-600" />
                                                 </div>
                                                 <div>
                                                     <div className="text-xs font-bold text-gray-900 font-mono">

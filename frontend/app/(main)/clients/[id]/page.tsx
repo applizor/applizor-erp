@@ -108,9 +108,9 @@ export default function ClientDetailPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             {/* Header */}
 
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-5 rounded-lg border border-gray-200 shadow-sm gap-4 mb-6">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-5 rounded-md border border-gray-200 shadow-sm gap-4 mb-6">
                 <div className="flex items-center gap-4">
-                    <div className="p-4 bg-indigo-900 rounded-lg shadow-xl shadow-indigo-900/20">
+                    <div className="p-4 bg-primary-900 rounded-md shadow-xl shadow-primary-900/20">
                         <span className="text-white font-black text-2xl">
                             {client.name?.charAt(0).toUpperCase() || 'C'}
                         </span>
@@ -119,7 +119,7 @@ export default function ClientDetailPage() {
                         <div className="flex items-center gap-2 mb-1">
                             <Link
                                 href="/clients"
-                                className="text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-indigo-600 transition-colors flex items-center gap-1"
+                                className="text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-primary-600 transition-colors flex items-center gap-1"
                             >
                                 <ArrowLeft size={10} /> Registry
                             </Link>
@@ -140,7 +140,7 @@ export default function ClientDetailPage() {
                     <PermissionGuard module="Client" action="update">
                         <Link
                             href={`/clients/${client.id}/edit`}
-                            className="px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 hover:text-indigo-600 transition-all flex items-center gap-2 shadow-sm"
+                            className="px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-md text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 hover:text-primary-600 transition-all flex items-center gap-2 shadow-sm"
                         >
                             <Edit size={14} /> Modify
                         </Link>
@@ -148,7 +148,7 @@ export default function ClientDetailPage() {
                     <PermissionGuard module="Client" action="delete">
                         <button
                             onClick={() => setDeleteDialog(true)}
-                            className="px-4 py-2 bg-white border border-rose-100 text-rose-600 rounded text-[10px] font-black uppercase tracking-widest hover:bg-rose-50 transition-all flex items-center gap-2 shadow-sm"
+                            className="px-4 py-2 bg-white border border-rose-100 text-rose-600 rounded-md text-[10px] font-black uppercase tracking-widest hover:bg-rose-50 transition-all flex items-center gap-2 shadow-sm"
                         >
                             <Trash2 size={14} /> Purge
                         </button>
@@ -163,7 +163,7 @@ export default function ClientDetailPage() {
                     {/* Contact Information */}
                     <div className="ent-card p-6">
                         <h2 className="text-sm font-black text-gray-900 mb-6 flex items-center gap-2 uppercase tracking-tight border-b border-gray-100 pb-2">
-                            <Mail className="w-4 h-4 text-indigo-600" />
+                            <Mail className="w-4 h-4 text-primary-600" />
                             Communication Protocols
                         </h2>
                         <dl className="grid grid-cols-1 gap-6 sm:grid-cols-2">
@@ -181,7 +181,7 @@ export default function ClientDetailPage() {
                     {/* Address */}
                     <div className="ent-card p-6">
                         <h2 className="text-sm font-black text-gray-900 mb-6 flex items-center gap-2 uppercase tracking-tight border-b border-gray-100 pb-2">
-                            <MapPin className="w-4 h-4 text-indigo-600" />
+                            <MapPin className="w-4 h-4 text-primary-600" />
                             Geographic Coordinates
                         </h2>
                         <dl className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -211,17 +211,17 @@ export default function ClientDetailPage() {
                     {/* Business Details */}
                     <div className="ent-card p-6">
                         <h2 className="text-sm font-black text-gray-900 mb-6 flex items-center gap-2 uppercase tracking-tight border-b border-gray-100 pb-2">
-                            <Building2 className="w-4 h-4 text-indigo-600" />
+                            <Building2 className="w-4 h-4 text-primary-600" />
                             Fiscal Identity
                         </h2>
                         <dl className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                             <div>
                                 <dt className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">GSTIN Identifier</dt>
-                                <dd className="text-sm font-bold text-gray-900 font-mono bg-gray-50 px-3 py-1.5 rounded border border-gray-200 inline-block">{client.gstin || 'N/A'}</dd>
+                                <dd className="text-sm font-bold text-gray-900 font-mono bg-gray-50 px-3 py-1.5 rounded-md border border-gray-200 inline-block">{client.gstin || 'N/A'}</dd>
                             </div>
                             <div>
                                 <dt className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">PAN Reference</dt>
-                                <dd className="text-sm font-bold text-gray-900 font-mono bg-gray-50 px-3 py-1.5 rounded border border-gray-200 inline-block">{client.pan || 'N/A'}</dd>
+                                <dd className="text-sm font-bold text-gray-900 font-mono bg-gray-50 px-3 py-1.5 rounded-md border border-gray-200 inline-block">{client.pan || 'N/A'}</dd>
                             </div>
                         </dl>
                     </div>
@@ -235,16 +235,16 @@ export default function ClientDetailPage() {
                         <div className="space-y-4">
                             <div
                                 onClick={() => setShowQuotationsDialog(true)}
-                                className="flex items-center justify-between p-3 bg-indigo-50/50 rounded-lg border border-indigo-100 cursor-pointer hover:bg-indigo-50 transition-colors group"
+                                className="flex items-center justify-between p-3 bg-primary-50/50 rounded-md border border-primary-100 cursor-pointer hover:bg-primary-50 transition-colors group"
                             >
-                                <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest group-hover:text-indigo-700 transition-colors">Quotations Generated</span>
-                                <span className="text-lg font-black text-gray-900 group-hover:text-indigo-900 transition-colors">{stats.quotationsCount}</span>
+                                <span className="text-[10px] font-black text-primary-600 uppercase tracking-widest group-hover:text-primary-700 transition-colors">Quotations Generated</span>
+                                <span className="text-lg font-black text-gray-900 group-hover:text-primary-900 transition-colors">{stats.quotationsCount}</span>
                             </div>
-                            <div className="flex items-center justify-between p-3 bg-violet-50/50 rounded-lg border border-violet-100">
+                            <div className="flex items-center justify-between p-3 bg-violet-50/50 rounded-md border border-violet-100">
                                 <span className="text-[10px] font-black text-violet-600 uppercase tracking-widest">Invoices Issued</span>
                                 <span className="text-lg font-black text-gray-900">{stats.invoicesCount}</span>
                             </div>
-                            <div className="flex items-center justify-between p-3 bg-emerald-50/50 rounded-lg border border-emerald-100">
+                            <div className="flex items-center justify-between p-3 bg-emerald-50/50 rounded-md border border-emerald-100">
                                 <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Outstanding Balance</span>
                                 <span className="text-lg font-black text-emerald-700">{formatCurrency(stats.outstandingBalance)}</span>
                             </div>

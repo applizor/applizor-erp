@@ -283,7 +283,7 @@ export default function LeaveApprovalsPage() {
 
             {isAssignModalOpen && (
                 <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-xl shadow-2xl max-w-xl w-full border border-gray-200 overflow-hidden flex flex-col max-h-[90vh]">
+                    <div className="bg-white rounded-md shadow-2xl max-w-xl w-full border border-gray-200 overflow-hidden flex flex-col max-h-[90vh]">
                         <div className="flex justify-between items-center p-4 bg-gray-50 border-b border-gray-200">
                             <div>
                                 <h3 className="text-base font-bold text-gray-900">Assign Absence</h3>

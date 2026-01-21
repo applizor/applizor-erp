@@ -106,7 +106,7 @@ export default function SalaryComponentsPage() {
                 </button>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="bg-white rounded-md shadow-sm border border-gray-100 overflow-hidden">
                 <table className="w-full text-left border-collapse">
                     <thead>
                         <tr className="bg-gray-50 border-b border-gray-200">
@@ -182,7 +182,7 @@ export default function SalaryComponentsPage() {
             {/* Modal */}
             {isModalOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-xl animate-scale-in">
+                    <div className="bg-white rounded-md w-full max-w-md p-6 shadow-xl animate-scale-in">
                         <h2 className="text-xl font-bold mb-4">
                             {editingComponent ? 'Edit Component' : 'New Component'}
                         </h2>

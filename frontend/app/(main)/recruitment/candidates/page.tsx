@@ -83,15 +83,15 @@ export default function CandidatesPage() {
     return (
         <div className="space-y-6 pb-20 max-w-7xl mx-auto">
             {/* Header */}
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-5 rounded-lg border border-gray-200 shadow-sm gap-4">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-5 rounded-md border border-gray-200 shadow-sm gap-4">
                 <div className="flex items-center gap-4">
-                    <div className="p-3 bg-indigo-900 rounded-lg shadow-lg">
+                    <div className="p-3 bg-primary-900 rounded-md shadow-lg">
                         <Users className="w-6 h-6 text-white" />
                     </div>
                     <div>
                         <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none uppercase">Talent Reservoir</h2>
                         <p className="text-[10px] text-gray-500 font-bold mt-1.5 uppercase tracking-widest flex items-center gap-2">
-                            Recruitment Ops <ChevronRight size={10} className="text-indigo-600" /> Candidate Pipeline
+                            Recruitment Ops <ChevronRight size={10} className="text-primary-600" /> Candidate Pipeline
                         </p>
                     </div>
                 </div>
@@ -99,7 +99,7 @@ export default function CandidatesPage() {
                 <div className="flex items-center gap-3">
                     <button
                         onClick={() => setIsModalOpen(true)}
-                        className="px-5 py-2.5 bg-indigo-900 text-white rounded text-[10px] font-black uppercase tracking-widest hover:bg-indigo-950 transition-all flex items-center gap-2 shadow-xl shadow-indigo-900/10 active:scale-95"
+                        className="px-5 py-2.5 bg-primary-900 text-white rounded-md text-[10px] font-black uppercase tracking-widest hover:bg-primary-950 transition-all flex items-center gap-2 shadow-xl shadow-primary-900/10 active:scale-95"
                     >
                         <Plus size={14} /> Intake Candidate
                     </button>
@@ -107,9 +107,9 @@ export default function CandidatesPage() {
             </div>
 
             {/* Filter / Search Tool */}
-            <div className="ent-card p-3 flex flex-col md:flex-row items-center gap-3 bg-white/80 backdrop-blur border-indigo-100/50">
+            <div className="ent-card p-3 flex flex-col md:flex-row items-center gap-3 bg-white/80 backdrop-blur border-primary-100/50">
                 <div className="flex items-center gap-2 px-2 border-r border-gray-100 min-w-max">
-                    <Filter size={14} className="text-indigo-600" />
+                    <Filter size={14} className="text-primary-600" />
                     <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">FILTERS</span>
                 </div>
 
@@ -152,20 +152,20 @@ export default function CandidatesPage() {
                             {loading && candidates.length === 0 ? (
                                 <TableRowSkeleton columns={5} rows={5} />
                             ) : candidates.map((candidate) => (
-                                <tr key={candidate.id} className="group hover:bg-indigo-50/30 transition-colors">
+                                <tr key={candidate.id} className="group hover:bg-primary-50/30 transition-colors">
                                     <td className="p-4">
                                         <div className="flex items-center gap-3">
-                                            <div className="h-9 w-9 rounded-lg bg-indigo-50 flex items-center justify-center text-[11px] font-black text-indigo-700 border border-indigo-100 shadow-sm">
+                                            <div className="h-9 w-9 rounded-md bg-primary-50 flex items-center justify-center text-[11px] font-black text-primary-700 border border-primary-100 shadow-sm">
                                                 {candidate.firstName[0]}
                                             </div>
                                             <div>
-                                                <div className="text-[13px] font-black text-gray-900 tracking-tight leading-none uppercase group-hover:text-indigo-700 transition-colors">
+                                                <div className="text-[13px] font-black text-gray-900 tracking-tight leading-none uppercase group-hover:text-primary-700 transition-colors">
                                                     {candidate.firstName} {candidate.lastName}
                                                 </div>
                                                 <div className="flex items-center gap-2 mt-1">
                                                     {candidate.email && (
                                                         <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tight flex items-center gap-1">
-                                                            <Mail size={10} className="text-indigo-400" /> {candidate.email}
+                                                            <Mail size={10} className="text-primary-400" /> {candidate.email}
                                                         </span>
                                                     )}
                                                 </div>
@@ -183,7 +183,7 @@ export default function CandidatesPage() {
                                     <td className="p-4">
                                         <span className={`ent-badge ${candidate.status === 'hired' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
                                             candidate.status === 'rejected' ? 'bg-rose-50 text-rose-700 border-rose-100' :
-                                                'bg-indigo-50 text-indigo-700 border-indigo-100'
+                                                'bg-primary-50 text-primary-700 border-primary-100'
                                             }`}>
                                             {candidate.status}
                                         </span>
@@ -195,7 +195,7 @@ export default function CandidatesPage() {
                                     </td>
                                     <td className="p-4 text-right">
                                         <div className="flex justify-end gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
-                                            <button onClick={() => handleDelete(candidate.id)} className="p-2 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-all" title="Purge Record">
+                                            <button onClick={() => handleDelete(candidate.id)} className="p-2 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-all" title="Purge Record">
                                                 <Trash2 size={14} />
                                             </button>
                                         </div>
@@ -205,7 +205,7 @@ export default function CandidatesPage() {
                             {candidates.length === 0 && (
                                 <tr>
                                     <td colSpan={5} className="p-12 text-center">
-                                        <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-gray-100">
+                                        <div className="w-16 h-16 bg-gray-50 rounded-md flex items-center justify-center mx-auto mb-4 border border-gray-100">
                                             <Users className="w-8 h-8 text-gray-300" />
                                         </div>
                                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Reservoir Empty. Initiate Intake.</p>
@@ -219,7 +219,7 @@ export default function CandidatesPage() {
 
             {isModalOpen && (
                 <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full animate-in zoom-in-95 duration-200 overflow-hidden border border-gray-200">
+                    <div className="bg-white rounded-md shadow-2xl max-w-lg w-full animate-in zoom-in-95 duration-200 overflow-hidden border border-gray-200">
                         <div className="px-8 py-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                             <div>
                                 <h3 className="text-lg font-black text-gray-900 tracking-tight uppercase">Intake New Professional</h3>
@@ -307,7 +307,7 @@ export default function CandidatesPage() {
                                 </button>
                                 <button
                                     type="submit"
-                                    className="px-6 py-2.5 bg-indigo-900 text-white rounded text-[10px] font-black uppercase tracking-widest hover:bg-indigo-950 transition-all shadow-lg shadow-indigo-900/10"
+                                    className="px-6 py-2.5 bg-primary-900 text-white rounded-md text-[10px] font-black uppercase tracking-widest hover:bg-primary-950 transition-all shadow-lg shadow-primary-900/10"
                                 >
                                     Authorize Intake
                                 </button>

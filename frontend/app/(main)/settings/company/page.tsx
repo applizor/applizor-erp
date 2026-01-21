@@ -112,9 +112,9 @@ export default function CompanySettingsPage() {
 
     if (loading) return (
         <div className="max-w-7xl mx-auto pb-20 space-y-6">
-            <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4 animate-pulse">
-                <div className="h-10 w-64 bg-slate-100 rounded"></div>
-                <div className="h-10 w-32 bg-slate-100 rounded"></div>
+            <div className="bg-white p-5 rounded-md border border-gray-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4 animate-pulse">
+                <div className="h-10 w-64 bg-slate-100 rounded-md"></div>
+                <div className="h-10 w-32 bg-slate-100 rounded-md"></div>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-1 space-y-6">
@@ -132,13 +132,13 @@ export default function CompanySettingsPage() {
 
     return (
         <div className="max-w-7xl mx-auto pb-20 space-y-6">
-            <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="bg-white p-5 rounded-md border border-gray-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div className="flex items-center gap-4">
-                    <div className="p-3 bg-indigo-900 rounded-lg shadow-lg">
-                        <Building className="w-6 h-6 text-white" />
+                    <div className="p-2.5 bg-primary-900 rounded-md shadow-lg">
+                        <Building className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                        <h1 className="text-xl font-black text-gray-900 tracking-tight leading-none uppercase">Company Identity</h1>
+                        <h1 className="text-lg font-black text-gray-900 tracking-tight leading-none uppercase">Company Identity</h1>
                         <p className="text-[10px] text-gray-500 font-bold mt-1.5 uppercase tracking-widest flex items-center gap-2">
                             System Configuration & branding
                         </p>
@@ -147,7 +147,7 @@ export default function CompanySettingsPage() {
                 <button
                     onClick={handleUpdateProfile}
                     disabled={saving}
-                    className="px-5 py-2.5 bg-gray-900 text-white rounded text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all flex items-center gap-2 shadow-xl shadow-gray-900/10 active:scale-95 disabled:opacity-50"
+                    className="px-5 py-2.5 bg-gray-900 text-white rounded-md text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all flex items-center gap-2 shadow-xl shadow-gray-900/10 active:scale-95 disabled:opacity-50"
                 >
                     {saving ? <Loader2 className="animate-spin w-4 h-4" /> : <Save className="w-4 h-4" />}
                     {saving ? 'Synchronizing...' : 'Save Configuration'}
@@ -165,7 +165,7 @@ export default function CompanySettingsPage() {
                         </h2>
 
                         <div className="flex flex-col items-center">
-                            <div className="h-40 w-40 border-2 border-dashed border-gray-200 rounded-xl overflow-hidden flex items-center justify-center bg-gray-50 mb-6 relative group">
+                            <div className="h-40 w-40 border-2 border-dashed border-gray-200 rounded-md overflow-hidden flex items-center justify-center bg-gray-50 mb-6 relative group">
                                 {logoPreview ? (
                                     <img src={logoPreview} alt="Company Logo" className="h-full w-full object-contain p-4" />
                                 ) : (
@@ -184,10 +184,10 @@ export default function CompanySettingsPage() {
                                     onChange={handleLogoChange}
                                     className="block w-full text-[10px] text-gray-500 font-bold uppercase
                                     file:mr-4 file:py-2 file:px-4
-                                    file:rounded file:border-0
+                                    file:rounded-md file:border-0
                                     file:text-[9px] file:font-black file:uppercase file:tracking-widest
-                                    file:bg-indigo-50 file:text-indigo-700
-                                    hover:file:bg-indigo-100 cursor-pointer"
+                                    file:bg-primary-50 file:text-primary-700
+                                    hover:file:bg-primary-100 cursor-pointer"
                                 />
                             </label>
 
@@ -195,7 +195,7 @@ export default function CompanySettingsPage() {
                                 <button
                                     onClick={handleLogoUpload}
                                     disabled={uploadingLogo}
-                                    className="w-full px-4 py-2 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded hover:bg-indigo-700 transition-all shadow-md active:scale-95 disabled:opacity-50"
+                                    className="w-full px-4 py-2 bg-primary-600 text-white text-[10px] font-black uppercase tracking-widest rounded-md hover:bg-primary-700 transition-all shadow-md active:scale-95 disabled:opacity-50"
                                 >
                                     {uploadingLogo ? 'Uploading...' : 'Confirm Upload'}
                                 </button>
@@ -218,7 +218,7 @@ export default function CompanySettingsPage() {
                         {/* Section 1: Basic Information */}
                         <div className="ent-card p-6">
                             <h2 className="text-sm font-black text-gray-900 mb-6 flex items-center gap-2 uppercase tracking-tight border-b border-gray-100 pb-2">
-                                <Building className="w-4 h-4 text-indigo-600" />
+                                <Building className="w-4 h-4 text-primary-600" />
                                 Organization Profile
                             </h2>
                             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
@@ -269,7 +269,7 @@ export default function CompanySettingsPage() {
                         {/* Section 2: Location */}
                         <div className="ent-card p-6">
                             <h2 className="text-sm font-black text-gray-900 mb-6 flex items-center gap-2 uppercase tracking-tight border-b border-gray-100 pb-2">
-                                <MapPin className="w-4 h-4 text-indigo-600" />
+                                <MapPin className="w-4 h-4 text-primary-600" />
                                 Headquarters Location
                             </h2>
                             <div className="space-y-6">
@@ -326,7 +326,7 @@ export default function CompanySettingsPage() {
                         {/* Section 3: Business Details */}
                         <div className="ent-card p-6">
                             <h2 className="text-sm font-black text-gray-900 mb-6 flex items-center gap-2 uppercase tracking-tight border-b border-gray-100 pb-2">
-                                <Globe className="w-4 h-4 text-indigo-600" />
+                                <Globe className="w-4 h-4 text-primary-600" />
                                 Fiscal & Statutory
                             </h2>
                             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">

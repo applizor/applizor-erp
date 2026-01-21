@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { attendanceApi, holidaysApi, rostersApi } from '@/lib/api/attendance';
 import api from '@/lib/api'; // For employees
-import { Calendar, ChevronLeft, ChevronRight, Download, Filter } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, Download, Filter, Users } from 'lucide-react';
 
 interface Employee {
     id: string;
@@ -179,13 +179,13 @@ export default function AdminAttendancePage() {
 
     const getStatusIcon = (status?: string) => {
         switch (status) {
-            case 'present': return <div className="w-6 h-6 rounded flex items-center justify-center bg-green-100 text-green-700 text-xs font-bold" title="Present">P</div>;
-            case 'absent': return <div className="w-6 h-6 rounded flex items-center justify-center bg-red-100 text-red-700 text-xs font-bold" title="Absent">A</div>;
-            case 'half-day': return <div className="w-6 h-6 rounded flex items-center justify-center bg-yellow-100 text-yellow-700 text-xs font-bold" title="Half Day">HD</div>;
-            case 'late': return <div className="w-6 h-6 rounded flex items-center justify-center bg-orange-100 text-orange-700 text-xs font-bold" title="Late">L</div>;
-            case 'on-leave': return <div className="w-6 h-6 rounded flex items-center justify-center bg-blue-100 text-blue-700 text-xs font-bold" title="On Leave">OL</div>;
-            case 'holiday': return <div className="w-6 h-6 rounded flex items-center justify-center bg-purple-100 text-purple-700 text-xs font-bold" title="Holiday">H</div>;
-            default: return <div className="w-6 h-6 rounded flex items-center justify-center text-gray-300 text-xs font-bold">-</div>;
+            case 'present': return <div className="w-6 h-6 rounded-md flex items-center justify-center bg-green-100 text-green-700 text-xs font-bold" title="Present">P</div>;
+            case 'absent': return <div className="w-6 h-6 rounded-md flex items-center justify-center bg-red-100 text-red-700 text-xs font-bold" title="Absent">A</div>;
+            case 'half-day': return <div className="w-6 h-6 rounded-md flex items-center justify-center bg-yellow-100 text-yellow-700 text-xs font-bold" title="Half Day">HD</div>;
+            case 'late': return <div className="w-6 h-6 rounded-md flex items-center justify-center bg-orange-100 text-orange-700 text-xs font-bold" title="Late">L</div>;
+            case 'on-leave': return <div className="w-6 h-6 rounded-md flex items-center justify-center bg-blue-100 text-blue-700 text-xs font-bold" title="On Leave">OL</div>;
+            case 'holiday': return <div className="w-6 h-6 rounded-md flex items-center justify-center bg-purple-100 text-purple-700 text-xs font-bold" title="Holiday">H</div>;
+            default: return <div className="w-6 h-6 rounded-md flex items-center justify-center text-gray-300 text-xs font-bold">-</div>;
         }
     };
 
@@ -209,19 +209,23 @@ export default function AdminAttendancePage() {
 
     return (
         <div className="p-6 h-[calc(100vh-64px)] overflow-hidden flex flex-col">
-            {/* Header Controls */}
-            <div className="flex justify-between items-center mb-6 flex-shrink-0">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Attendance Register</h1>
-                    <p className="text-sm text-gray-500">Monthly Muster Roll</p>
+            {/* Standardized Header */}
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-5 rounded-md border border-gray-200 shadow-sm gap-4 mb-6 flex-shrink-0">
+                <div className="flex items-center gap-4">
+                    <div className="p-2.5 bg-primary-900 rounded-md shadow-lg">
+                        <Users className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                        <h2 className="text-lg font-black text-gray-900 tracking-tight leading-none uppercase">Attendance Register</h2>
+                        <p className="text-[10px] text-gray-500 font-bold mt-1 uppercase tracking-widest leading-none">Monthly Muster Roll</p>
+                    </div>
                 </div>
-                <div className="flex items-center space-x-4">
-
+                <div className="flex items-center gap-4">
                     <div className="flex items-center bg-white rounded-md shadow-sm border border-gray-300">
                         <button onClick={handlePreviousMonth} className="p-2 hover:bg-gray-50 border-r">
                             <ChevronLeft size={20} />
                         </button>
-                        <div className="px-4 py-2 font-medium min-w-[150px] text-center">
+                        <div className="px-4 py-2 font-medium min-w-[150px] text-center text-sm">
                             {new Date(selectedYear, selectedMonth).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                         </div>
                         <button onClick={handleNextMonth} className="p-2 hover:bg-gray-50 border-l">
@@ -229,13 +233,13 @@ export default function AdminAttendancePage() {
                         </button>
                     </div>
 
-                    <div className="flex space-x-2">
-                        <button className="flex items-center space-x-2 px-3 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 text-gray-700 text-sm">
-                            <Filter size={16} />
+                    <div className="flex gap-2">
+                        <button className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 text-gray-700 text-[10px] font-black uppercase tracking-widest">
+                            <Filter size={14} />
                             <span>Filter</span>
                         </button>
-                        <button className="flex items-center space-x-2 px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm shadow-sm">
-                            <Download size={16} />
+                        <button className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-[10px] font-black uppercase tracking-widest shadow-sm">
+                            <Download size={14} />
                             <span>Export</span>
                         </button>
                     </div>
@@ -244,16 +248,16 @@ export default function AdminAttendancePage() {
 
             {/* Legend */}
             <div className="flex flex-wrap gap-4 mb-4 px-1">
-                <div className="flex items-center text-xs text-gray-600"><span className="w-5 h-5 rounded bg-green-100 text-green-700 flex items-center justify-center font-bold mr-2">P</span> Present</div>
-                <div className="flex items-center text-xs text-gray-600"><span className="w-5 h-5 rounded bg-orange-100 text-orange-700 flex items-center justify-center font-bold mr-2">L</span> Late</div>
-                <div className="flex items-center text-xs text-gray-600"><span className="w-5 h-5 rounded bg-red-100 text-red-700 flex items-center justify-center font-bold mr-2">A</span> Absent</div>
-                <div className="flex items-center text-xs text-gray-600"><span className="w-5 h-5 rounded bg-blue-100 text-blue-700 flex items-center justify-center font-bold mr-2">OL</span> On Leave</div>
-                <div className="flex items-center text-xs text-gray-600"><span className="w-5 h-5 rounded bg-purple-100 text-purple-700 flex items-center justify-center font-bold mr-2">H</span> Holiday</div>
-                <div className="flex items-center text-xs text-gray-600"><span className="w-5 h-5 rounded bg-yellow-100 text-yellow-700 flex items-center justify-center font-bold mr-2">HD</span> Half Day</div>
+                <div className="flex items-center text-xs text-gray-600"><span className="w-5 h-5 rounded-md bg-green-100 text-green-700 flex items-center justify-center font-bold mr-2">P</span> Present</div>
+                <div className="flex items-center text-xs text-gray-600"><span className="w-5 h-5 rounded-md bg-orange-100 text-orange-700 flex items-center justify-center font-bold mr-2">L</span> Late</div>
+                <div className="flex items-center text-xs text-gray-600"><span className="w-5 h-5 rounded-md bg-red-100 text-red-700 flex items-center justify-center font-bold mr-2">A</span> Absent</div>
+                <div className="flex items-center text-xs text-gray-600"><span className="w-5 h-5 rounded-md bg-blue-100 text-blue-700 flex items-center justify-center font-bold mr-2">OL</span> On Leave</div>
+                <div className="flex items-center text-xs text-gray-600"><span className="w-5 h-5 rounded-md bg-purple-100 text-purple-700 flex items-center justify-center font-bold mr-2">H</span> Holiday</div>
+                <div className="flex items-center text-xs text-gray-600"><span className="w-5 h-5 rounded-md bg-yellow-100 text-yellow-700 flex items-center justify-center font-bold mr-2">HD</span> Half Day</div>
             </div>
 
             {/* Grid Container */}
-            <div className="bg-white shadow rounded-lg border flex-grow overflow-auto relative">
+            <div className="bg-white shadow rounded-md border flex-grow overflow-auto relative">
                 <table className="min-w-full divide-y divide-gray-200 border-separate border-spacing-0">
                     <thead className="bg-gray-50 sticky top-0 z-20 shadow-sm">
                         <tr>
@@ -277,11 +281,11 @@ export default function AdminAttendancePage() {
                         {loading ? (
                             Array.from({ length: 10 }).map((_, i) => (
                                 <tr key={i} className="animate-pulse">
-                                    <td className="px-4 py-3 sticky left-0 bg-white border-r"><div className="h-4 bg-gray-200 rounded w-32"></div></td>
+                                    <td className="px-4 py-3 sticky left-0 bg-white border-r"><div className="h-4 bg-gray-200 rounded-md w-32"></div></td>
                                     {Array.from({ length: 30 }).map((_, j) => (
-                                        <td key={j} className="px-1 py-2"><div className="h-4 w-4 bg-gray-100 rounded mx-auto"></div></td>
+                                        <td key={j} className="px-1 py-2"><div className="h-4 w-4 bg-gray-100 rounded-md mx-auto"></div></td>
                                     ))}
-                                    <td className="px-4 py-3"><div className="h-4 bg-gray-200 rounded w-8 mx-auto"></div></td>
+                                    <td className="px-4 py-3"><div className="h-4 bg-gray-200 rounded-md w-8 mx-auto"></div></td>
                                 </tr>
                             ))
                         ) : employees.map(emp => {
@@ -292,7 +296,7 @@ export default function AdminAttendancePage() {
                                 <tr key={emp.id} className="hover:bg-gray-50">
                                     <td className="px-4 py-3 whitespace-nowrap sticky left-0 bg-white z-10 border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
                                         <div className="flex items-center">
-                                            <div className="flex-shrink-0 h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold text-xs">
+                                            <div className="flex-shrink-0 h-8 w-8 rounded-md bg-primary-100 flex items-center justify-center text-primary-700 font-bold text-xs">
                                                 {emp.firstName[0]}{emp.lastName[0]}
                                             </div>
                                             <div className="ml-3">
@@ -320,7 +324,7 @@ export default function AdminAttendancePage() {
                                         );
                                     })}
                                     <td className="px-4 py-3 whitespace-nowrap sticky right-0 bg-white z-10 border-l text-center">
-                                        <span className="text-xs font-bold text-gray-700 bg-gray-100 px-2 py-1 rounded-full">{presentCount} Days</span>
+                                        <span className="text-xs font-bold text-gray-700 bg-gray-100 px-2 py-1 rounded-md">{presentCount} Days</span>
                                     </td>
                                 </tr>
                             );

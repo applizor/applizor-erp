@@ -28,7 +28,7 @@ export default function PortalInvoices() {
                         invoices.map((inv) => (
                             <li key={inv.id} className="px-6 py-4 flex items-center justify-between">
                                 <div>
-                                    <p className="text-sm font-medium text-indigo-600 truncate">{inv.invoiceNumber}</p>
+                                    <p className="text-sm font-medium text-primary-600 truncate">{inv.invoiceNumber}</p>
                                     <p className="text-sm text-gray-500">
                                         Date: {new Date(inv.invoiceDate).toLocaleDateString()}
                                     </p>

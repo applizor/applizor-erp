@@ -14,7 +14,7 @@ export function KanbanColumnSkeleton() {
                             </div>
                         </div>
                     </div>
-                    <div className="flex-1 rounded-xl p-3 min-h-[600px] bg-gray-50/30 border border-gray-100 space-y-4">
+                    <div className="flex-1 rounded-md p-3 min-h-[600px] bg-gray-50/30 border border-gray-100 space-y-4">
                         {[1, 2, 3].map(card => (
                             <div key={card} className="ent-card p-4 space-y-3">
                                 <Skeleton className="h-4 w-3/4" />

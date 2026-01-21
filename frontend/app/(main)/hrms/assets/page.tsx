@@ -1,5 +1,6 @@
 'use client';
 
+import { Plus, Briefcase } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useConfirm } from '@/context/ConfirmationContext';
@@ -119,13 +120,22 @@ export default function AssetsPage() {
 
     return (
         <div>
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-lg font-medium text-gray-900">Asset Management</h2>
+            {/* Standardized Header */}
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-5 rounded-md border border-gray-200 shadow-sm gap-4 mb-6">
+                <div className="flex items-center gap-4">
+                    <div className="p-2.5 bg-primary-900 rounded-md shadow-lg">
+                        <Briefcase className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                        <h2 className="text-lg font-black text-gray-900 tracking-tight leading-none uppercase">Asset Management</h2>
+                        <p className="text-[10px] text-gray-500 font-bold mt-1 uppercase tracking-widest leading-none">Global Resource & Inventory Ledger</p>
+                    </div>
+                </div>
                 <button
                     onClick={() => { resetForm(); setShowModal(true); }}
-                    className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 text-sm"
+                    className="btn-primary flex items-center gap-2"
                 >
-                    + Add New Asset
+                    <Plus size={14} /> Add New Asset
                 </button>
             </div>
 

@@ -93,7 +93,7 @@ export default function KanbanBoardPage() {
                     <h1 className="text-2xl font-black text-slate-900 tracking-tight leading-tight flex items-center gap-3">
                         Acquisition Pipeline
                         {!loading && STAGES.length > 0 && (
-                            <span className="text-[9px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 uppercase font-black tracking-widest">
+                            <span className="text-[9px] px-2 py-0.5 rounded-full bg-primary-50 text-primary-700 border border-primary-100 uppercase font-black tracking-widest">
                                 {STAGES.length} STAGES
                             </span>
                         )}
@@ -114,7 +114,7 @@ export default function KanbanBoardPage() {
                             <div key={stage} className="flex flex-col w-72 bg-slate-50/50 rounded-[1.5rem] border border-slate-100 h-full max-h-full transition-all hover:bg-slate-50">
                                 <div className="p-4 flex items-center justify-between border-b border-white/50">
                                     <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">{stage}</span>
-                                    <span className="h-5 w-5 rounded-lg bg-white border border-slate-100 flex items-center justify-center text-[10px] font-black text-indigo-600 shadow-sm">
+                                    <span className="h-5 w-5 rounded-lg bg-white border border-slate-100 flex items-center justify-center text-[10px] font-black text-primary-600 shadow-sm">
                                         {columns[stage]?.length || 0}
                                     </span>
                                 </div>
@@ -124,7 +124,7 @@ export default function KanbanBoardPage() {
                                         <div
                                             ref={provided.innerRef}
                                             {...provided.droppableProps}
-                                            className={`flex-1 p-3 overflow-y-auto transition-all scrollbar-thin scrollbar-thumb-slate-200 ${snapshot.isDraggingOver ? 'bg-indigo-50/40' : ''}`}
+                                            className={`flex-1 p-3 overflow-y-auto transition-all scrollbar-thin scrollbar-thumb-slate-200 ${snapshot.isDraggingOver ? 'bg-primary-50/40' : ''}`}
                                         >
                                             {columns[stage]?.map((candidate, index) => (
                                                 <Draggable
@@ -138,20 +138,20 @@ export default function KanbanBoardPage() {
                                                             {...provided.draggableProps}
                                                             {...provided.dragHandleProps}
                                                             className={`
-                                                                bg-white p-3.5 mb-3 rounded-2xl border border-slate-100 shadow-sm
+                                                                bg-white p-3.5 mb-3 rounded-md border border-slate-100 shadow-sm
                                                                 transition-all duration-200 group relative overflow-hidden
-                                                                ${snapshot.isDragging ? 'shadow-2xl ring-2 ring-indigo-500/20 scale-[1.02] rotate-1 z-50' : 'hover:shadow-md hover:border-indigo-100'}
+                                                                ${snapshot.isDragging ? 'shadow-2xl ring-2 ring-primary-500/20 scale-[1.02] rotate-1 z-50' : 'hover:shadow-md hover:border-primary-100'}
                                                             `}
                                                             style={provided.draggableProps.style}
                                                         >
                                                             {/* Accent Bar */}
                                                             <div className={`absolute top-0 left-0 bottom-0 w-1 ${candidate.status === 'rejected' ? 'bg-rose-400' :
                                                                 candidate.status === 'hired' ? 'bg-emerald-400' :
-                                                                    'bg-indigo-400'
+                                                                    'bg-primary-400'
                                                                 }`} />
 
                                                             <div>
-                                                                <div className="text-xs font-black text-slate-900 tracking-tight leading-none mb-1 group-hover:text-indigo-600 transition-colors">
+                                                                <div className="text-xs font-black text-slate-900 tracking-tight leading-none mb-1 group-hover:text-primary-600 transition-colors">
                                                                     {candidate.firstName} {candidate.lastName}
                                                                 </div>
                                                                 <div className="text-[9px] font-bold text-slate-500 flex items-center gap-1.5 uppercase tracking-tighter">
@@ -168,7 +168,7 @@ export default function KanbanBoardPage() {
                                                                     {candidate.status}
                                                                 </span>
                                                                 <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                    <div className="h-5 w-5 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center hover:bg-indigo-100 cursor-pointer">
+                                                                    <div className="h-5 w-5 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center hover:bg-primary-100 cursor-pointer">
                                                                         <span className="text-[10px] font-black">→</span>
                                                                     </div>
                                                                 </div>

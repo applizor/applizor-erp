@@ -66,7 +66,7 @@ export default function InterviewsPage() {
                     <h1 className="text-2xl font-black text-slate-900 tracking-tight leading-tight flex items-center gap-3">
                         Evaluation Schedule
                         {!loading && interviews.length > 0 && (
-                            <span className="text-[9px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 uppercase font-black tracking-widest">
+                            <span className="text-[9px] px-2 py-0.5 rounded-full bg-primary-50 text-primary-700 border border-primary-100 uppercase font-black tracking-widest">
                                 {interviews.length} SESSIONS
                             </span>
                         )}
@@ -84,7 +84,7 @@ export default function InterviewsPage() {
                             <li key={interview.id} className="px-6 py-4 hover:bg-slate-50/50 transition-colors group">
                                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                                     <div className="flex items-center gap-4">
-                                        <div className="h-10 w-10 rounded-2xl bg-indigo-50 flex items-center justify-center text-xs font-black text-indigo-600">
+                                        <div className="h-10 w-10 rounded-md bg-primary-50 flex items-center justify-center text-xs font-black text-primary-600">
                                             {interview.candidate.firstName[0]}{interview.candidate.lastName[0]}
                                         </div>
                                         <div>
@@ -94,7 +94,7 @@ export default function InterviewsPage() {
                                             <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-tighter">
                                                 <span>Round {interview.round}: {interview.type}</span>
                                                 <span className="w-1 h-1 rounded-full bg-slate-200" />
-                                                <span className="text-indigo-600">{new Date(interview.scheduledAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                                                <span className="text-primary-600">{new Date(interview.scheduledAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                                             </div>
                                             <div className="text-[9px] font-black text-slate-400 mt-1 uppercase tracking-widest flex items-center gap-1.5">
                                                 <span className="w-2 h-2 rounded bg-slate-100 border border-slate-200" />
@@ -105,13 +105,13 @@ export default function InterviewsPage() {
                                     <div className="flex items-center gap-4 self-end sm:self-center">
                                         <span className={`ent-badge ${interview.status === 'completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
                                             interview.status === 'cancelled' ? 'bg-rose-50 text-rose-700 border-rose-100' :
-                                                'bg-indigo-50 text-indigo-700 border-indigo-100'
+                                                'bg-primary-50 text-primary-700 border-primary-100'
                                             }`}>
                                             {interview.status}
                                         </span>
                                         <Link
                                             href={`/recruitment/interviews/${interview.id}/scorecard`}
-                                            className="text-[10px] font-black text-indigo-600 uppercase tracking-widest hover:text-indigo-800 transition-colors bg-indigo-50/50 px-3 py-1.5 rounded-lg border border-indigo-100 opacity-0 group-hover:opacity-100"
+                                            className="text-[10px] font-black text-primary-600 uppercase tracking-widest hover:text-primary-800 transition-colors bg-primary-50/50 px-3 py-1.5 rounded-lg border border-primary-100 opacity-0 group-hover:opacity-100"
                                         >
                                             Assess Manifest
                                         </Link>

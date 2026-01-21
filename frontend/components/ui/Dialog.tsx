@@ -59,7 +59,7 @@ export const Dialog: React.FC<DialogProps> = ({
 
             {/* Modal Content */}
             <div
-                className={`relative w-full ${maxWidthClasses[maxWidth]} bg-white rounded-xl shadow-2xl ring-1 ring-gray-200 transform transition-all scale-100 opacity-100`}
+                className={`relative w-full ${maxWidthClasses[maxWidth]} bg-white rounded-md shadow-2xl ring-1 ring-gray-200 transform transition-all scale-100 opacity-100`}
                 role="dialog"
                 aria-modal="true"
             >

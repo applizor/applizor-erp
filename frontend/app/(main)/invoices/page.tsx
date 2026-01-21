@@ -83,7 +83,7 @@ export default function InvoicesPage() {
           <h3 className="text-xl font-black text-gray-900 leading-tight">{value}</h3>
           {subValue && <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">{subValue}</p>}
         </div>
-        <div className={`p-2 rounded-lg ${colorClass} bg-opacity-10 text-${colorClass.split('-')[1]}-600 shadow-sm transition-transform group-hover:scale-105`}>
+        <div className={`p-2 rounded-md ${colorClass} bg-opacity-10 text-${colorClass.split('-')[1]}-600 shadow-sm transition-transform group-hover:scale-105`}>
           {icon}
         </div>
       </div>
@@ -92,19 +92,21 @@ export default function InvoicesPage() {
 
   return (
     <div className="space-y-4">
-      {/* Dynamic Header */}
-      <div className="flex justify-between items-center bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-        <div>
-          <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2 leading-none">
-            <Receipt className="w-5 h-5 text-primary-600" />
-            Commercial Ledger
-          </h2>
-          <p className="text-xs text-gray-500 font-medium mt-1">Operational view of revenue generation and collections</p>
+      {/* Standardized Header */}
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-5 rounded-md border border-gray-200 shadow-sm gap-4">
+        <div className="flex items-center gap-4">
+          <div className="p-2.5 bg-primary-900 rounded-md shadow-lg">
+            <Receipt className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h2 className="text-lg font-black text-gray-900 tracking-tight leading-none uppercase">Commercial Ledger</h2>
+            <p className="text-[10px] text-gray-500 font-bold mt-1 uppercase tracking-widest leading-none">Operational view of revenue generation and collections</p>
+          </div>
         </div>
         <Link
           href="/invoices/create"
         >
-          <Button variant="primary" icon={Plus} className="text-sm font-medium">
+          <Button variant="primary" icon={Plus} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest px-4 py-2">
             Create Invoice
           </Button>
         </Link>
@@ -127,14 +129,14 @@ export default function InvoicesPage() {
             placeholder="Search documents, entities or financial markers..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded text-xs font-bold focus:ring-1 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all shadow-sm"
+            className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-md text-xs font-bold focus:ring-1 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all shadow-sm"
           />
         </div>
         <div className="flex items-center gap-2 w-full lg:w-auto">
           <select
             value={filters.status}
             onChange={e => setFilters({ ...filters, status: e.target.value })}
-            className="flex-1 lg:flex-none py-2 px-3 border border-gray-200 bg-white rounded text-[10px] font-black text-gray-600 uppercase tracking-widest cursor-pointer outline-none focus:border-primary-500"
+            className="flex-1 lg:flex-none py-2 px-3 border border-gray-200 bg-white rounded-md text-[10px] font-black text-gray-600 uppercase tracking-widest cursor-pointer outline-none focus:border-primary-500"
           >
             <option value="">All Statuses</option>
             {Object.keys(statusStyles).map(s => <option key={s} value={s}>{s.toUpperCase()}</option>)}
@@ -142,12 +144,12 @@ export default function InvoicesPage() {
           <select
             value={filters.clientId}
             onChange={e => setFilters({ ...filters, clientId: e.target.value })}
-            className="flex-1 lg:flex-none py-2 px-3 border border-gray-200 bg-white rounded text-[10px] font-black text-gray-600 uppercase tracking-widest cursor-pointer outline-none focus:border-primary-500"
+            className="flex-1 lg:flex-none py-2 px-3 border border-gray-200 bg-white rounded-md text-[10px] font-black text-gray-600 uppercase tracking-widest cursor-pointer outline-none focus:border-primary-500"
           >
             <option value="">All Consumers</option>
             {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
-          <button className="p-2 bg-white border border-gray-200 rounded hover:bg-gray-100 text-gray-400">
+          <button className="p-2 bg-white border border-gray-200 rounded-md hover:bg-gray-100 text-gray-400">
             <Filter size={14} />
           </button>
         </div>
@@ -159,7 +161,7 @@ export default function InvoicesPage() {
           <InvoiceListSkeleton />
         ) : invoices.length === 0 ? (
           <div className="py-20 flex flex-col items-center justify-center text-center">
-            <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
+            <div className="w-16 h-16 bg-gray-50 rounded-md flex items-center justify-center mb-4">
               <FileText size={32} className="text-gray-200" />
             </div>
             <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">No Documents Found</h3>
@@ -200,12 +202,12 @@ export default function InvoicesPage() {
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => setSelectedIds(prev => prev.includes(invoice.id) ? prev.filter(i => i !== invoice.id) : [...prev, invoice.id])}
-                          className="rounded border-gray-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
+                          className="rounded-md border-gray-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
                         />
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded bg-gray-100 flex items-center justify-center font-black text-[10px] ${invoice.type === 'quotation' ? 'text-amber-600' : 'text-primary-600'}`}>
+                          <div className={`w-8 h-8 rounded-md bg-gray-100 flex items-center justify-center font-black text-[10px] ${invoice.type === 'quotation' ? 'text-amber-600' : 'text-primary-600'}`}>
                             {invoice.type === 'quotation' ? 'QT' : 'IN'}
                           </div>
                           <div>
@@ -249,7 +251,7 @@ export default function InvoicesPage() {
                         <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <Link
                             href={`/invoices/${invoice.id}`}
-                            className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-gray-50 rounded transition-all"
+                            className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-gray-50 rounded-md transition-all"
                             title="Analytics View"
                           >
                             <Eye size={14} />
@@ -267,7 +269,7 @@ export default function InvoicesPage() {
                                 toast.success('Transfer complete');
                               } catch (e) { toast.error('Transfer failed'); }
                             }}
-                            className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-gray-50 rounded transition-all"
+                            className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-gray-50 rounded-md transition-all"
                             title="Generate PDF"
                           >
                             <Download size={14} />
@@ -285,7 +287,7 @@ export default function InvoicesPage() {
 
       {/* Bulk Override System */}
       {selectedIds.length > 0 && (
-        <div className="fixed bottom-6 right-6 left-6 md:left-auto md:w-auto bg-slate-900/95 backdrop-blur-md text-white p-3 rounded-xl shadow-2xl flex items-center gap-4 animate-in slide-in-from-bottom-4 z-50 border border-white/10">
+        <div className="fixed bottom-6 right-6 left-6 md:left-auto md:w-auto bg-slate-900/95 backdrop-blur-md text-white p-3 rounded-md shadow-2xl flex items-center gap-4 animate-in slide-in-from-bottom-4 z-50 border border-white/10">
           <div className="flex items-center gap-2 pl-2 pr-4 border-r border-white/10">
             <div className="w-8 h-8 rounded bg-primary-600 flex items-center justify-center font-black text-xs">
               {selectedIds.length}

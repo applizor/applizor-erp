@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Search, Plus, Eye, Edit, Trash2, LayoutGrid, ChevronRight, ArrowLeft, ArrowRight, Activity, Filter, FileText } from 'lucide-react';
+import { Search, Plus, Eye, Edit, Trash2, LayoutGrid, ChevronRight, ArrowLeft, ArrowRight, Activity, Filter, FileText, TrendingUp } from 'lucide-react';
 import api from '@/lib/api';
 import { usePermission } from '@/hooks/usePermission';
 import { PermissionGuard } from '@/components/PermissionGuard';
@@ -113,13 +113,13 @@ export default function LeadsListPage() {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-5 rounded-lg border border-gray-200 shadow-sm gap-4">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-5 rounded-md border border-gray-200 shadow-sm gap-4">
                 <div className="flex items-center gap-4">
-                    <div className="p-3 bg-primary-900 rounded-lg shadow-lg">
-                        <FileText className="w-6 h-6 text-white" />
+                    <div className="p-2.5 bg-primary-900 rounded-md shadow-lg">
+                        <TrendingUp className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                        <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none uppercase">Opportunities Ledger</h2>
+                        <h2 className="text-lg font-black text-gray-900 tracking-tight leading-none uppercase">Opportunity Pipeline</h2>
                         <p className="text-[10px] text-gray-500 font-bold mt-1.5 uppercase tracking-widest flex items-center gap-2">
                             Revenue Acquisition Stream <ChevronRight size={10} className="text-primary-600" /> Registry Management
                         </p>
@@ -127,21 +127,21 @@ export default function LeadsListPage() {
                 </div>
 
                 <div className="flex items-center gap-3 w-full lg:w-auto">
-                    <div className="flex bg-gray-100 p-1 rounded font-black text-[9px] uppercase tracking-widest">
+                    <div className="flex bg-gray-100 p-1 rounded-md font-black text-[9px] uppercase tracking-widest">
                         <Link
                             href="/leads/kanban"
-                            className="px-4 py-2 text-gray-400 hover:text-gray-600 rounded flex items-center gap-2 transition-all"
+                            className="px-4 py-2 text-gray-400 hover:text-gray-600 rounded-md flex items-center gap-2 transition-all"
                         >
                             Board View
                         </Link>
-                        <button className="px-4 py-2 bg-white text-primary-600 shadow-sm rounded flex items-center gap-2 border border-gray-200">
+                        <button className="px-4 py-2 bg-white text-primary-600 shadow-sm rounded-md flex items-center gap-2 border border-gray-200">
                             Ledger
                         </button>
                     </div>
                     <PermissionGuard module="Lead" action="create">
                         <Link
                             href="/leads/create"
-                            className="px-5 py-2.5 bg-primary-900 text-white rounded text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all flex items-center gap-2 shadow-xl shadow-primary-900/10 active:scale-95"
+                            className="btn-primary flex items-center gap-2"
                         >
                             <Plus size={14} /> Acquire Lead
                         </Link>
@@ -164,7 +164,7 @@ export default function LeadsListPage() {
                     </div>
                 </div>
 
-                <div className="bg-white/50 rounded-lg p-1">
+                <div className="bg-white/50 rounded-md p-1">
                     <LeadFilterBar
                         filters={filters}
                         onFilterChange={handleFilterChange}
@@ -199,7 +199,7 @@ export default function LeadsListPage() {
                                     {leads.map((lead) => (
                                         <tr key={lead.id}>
                                             <td className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center font-black text-[10px] text-gray-500 border border-gray-200 uppercase">
+                                                <div className="w-8 h-8 rounded-md bg-gray-100 flex items-center justify-center font-black text-[10px] text-gray-500 border border-gray-200 uppercase">
                                                     {lead.name?.charAt(0).toUpperCase() || 'L'}
                                                 </div>
                                                 <div>
@@ -240,7 +240,7 @@ export default function LeadsListPage() {
                                                 <div className="flex justify-end gap-2 px-2">
                                                     <Link
                                                         href={`/leads/${lead.id}`}
-                                                        className="p-2 text-gray-400 hover:text-primary-600 transition-all rounded hover:bg-gray-50"
+                                                        className="p-2 text-gray-400 hover:text-primary-600 transition-all rounded-md hover:bg-gray-50"
                                                         title="Discovery"
                                                     >
                                                         <Eye size={14} />
@@ -248,7 +248,7 @@ export default function LeadsListPage() {
                                                     <PermissionGuard module="Lead" action="update">
                                                         <Link
                                                             href={`/leads/${lead.id}/edit`}
-                                                            className="p-2 text-gray-400 hover:text-indigo-600 transition-all rounded hover:bg-gray-50"
+                                                            className="p-2 text-gray-400 hover:text-primary-600 transition-all rounded-md hover:bg-gray-50"
                                                             title="Edit Intel"
                                                         >
                                                             <Edit size={14} />
@@ -257,7 +257,7 @@ export default function LeadsListPage() {
                                                     <PermissionGuard module="Lead" action="delete">
                                                         <button
                                                             onClick={() => handleDeleteClick(lead)}
-                                                            className="p-2 text-gray-400 hover:text-rose-600 transition-all rounded hover:bg-gray-50"
+                                                            className="p-2 text-gray-400 hover:text-rose-600 transition-all rounded-md hover:bg-gray-50"
                                                             title="Terminate"
                                                         >
                                                             <Trash2 size={14} />
@@ -281,17 +281,17 @@ export default function LeadsListPage() {
                                     <button
                                         onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
                                         disabled={pagination.page === 1}
-                                        className="p-2 bg-white border border-gray-200 rounded text-gray-600 hover:bg-gray-50 disabled:opacity-30 transition-all shadow-sm active:scale-95"
+                                        className="p-2 bg-white border border-gray-200 rounded-md text-gray-600 hover:bg-gray-50 disabled:opacity-30 transition-all shadow-sm active:scale-95"
                                     >
                                         <ArrowLeft size={16} />
                                     </button>
-                                    <div className="px-4 py-1.5 bg-white border border-gray-200 rounded text-[10px] font-black text-gray-900 uppercase">
+                                    <div className="px-4 py-1.5 bg-white border border-gray-200 rounded-md text-[10px] font-black text-gray-900 uppercase">
                                         Page {pagination.page} / {pagination.totalPages}
                                     </div>
                                     <button
                                         onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
                                         disabled={pagination.page === pagination.totalPages}
-                                        className="p-2 bg-white border border-gray-200 rounded text-gray-600 hover:bg-gray-50 disabled:opacity-30 transition-all shadow-sm active:scale-95"
+                                        className="p-2 bg-white border border-gray-200 rounded-md text-gray-600 hover:bg-gray-50 disabled:opacity-30 transition-all shadow-sm active:scale-95"
                                     >
                                         <ArrowRight size={16} />
                                     </button>

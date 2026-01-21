@@ -36,10 +36,10 @@ export default function ScheduleInterviewModal({ isOpen, onClose, onSubmit }: Sc
 
     return (
         <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full animate-in zoom-in-95 duration-200 overflow-hidden border border-gray-200">
+            <div className="bg-white rounded-md shadow-2xl max-w-md w-full animate-in zoom-in-95 duration-200 overflow-hidden border border-gray-200">
                 <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                     <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-indigo-600" />
+                        <Calendar className="w-4 h-4 text-primary-600" />
                         <div>
                             <h3 className="text-sm font-black text-gray-900 tracking-tight uppercase leading-none">Schedule Session</h3>
                             <p className="text-[9px] text-gray-500 font-bold uppercase tracking-widest mt-0.5">Interview Protocol</p>
@@ -118,7 +118,7 @@ export default function ScheduleInterviewModal({ isOpen, onClose, onSubmit }: Sc
                         <button
                             type="submit"
                             disabled={submitting}
-                            className="px-5 py-2 bg-indigo-900 text-white rounded text-[10px] font-black uppercase tracking-widest hover:bg-indigo-950 transition-all shadow-lg shadow-indigo-900/10 disabled:opacity-50"
+                            className="px-5 py-2 bg-primary-900 text-white rounded text-[10px] font-black uppercase tracking-widest hover:bg-primary-950 transition-all shadow-lg shadow-primary-900/10 disabled:opacity-50"
                         >
                             {submitting ? 'Scheudling...' : 'Confirm Schedule'}
                         </button>

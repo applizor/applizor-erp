@@ -41,13 +41,13 @@ export default function RunPayrollPage() {
     return (
         <div className="space-y-6">
             {/* Semantic Header Component */}
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-5 rounded-lg border border-gray-200 shadow-sm gap-4">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-5 rounded-md border border-gray-200 shadow-sm gap-4">
                 <div className="flex items-center gap-4">
-                    <div className="p-3 bg-primary-900 rounded-lg shadow-lg">
-                        <DollarSign className="w-6 h-6 text-white" />
+                    <div className="p-2.5 bg-primary-900 rounded-md shadow-lg">
+                        <DollarSign className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                        <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none uppercase">Payroll Engine</h2>
+                        <h2 className="text-lg font-black text-gray-900 tracking-tight leading-none uppercase">Payroll Engine</h2>
                         <p className="text-[10px] text-gray-500 font-bold mt-1.5 uppercase tracking-widest flex items-center gap-2">
                             Global Computation Protocol <ChevronRight size={10} className="text-primary-600" /> Batch Processing Console
                         </p>
@@ -55,7 +55,7 @@ export default function RunPayrollPage() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-gray-50 border border-gray-100 rounded text-[10px] font-black uppercase tracking-widest text-gray-400">
+                    <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-gray-50 border border-gray-100 rounded-md text-[10px] font-black uppercase tracking-widest text-gray-400">
                         <Activity size={12} />
                         <span>Calculated: {result?.payrolls.length || 0} Entities</span>
                     </div>
@@ -65,7 +65,7 @@ export default function RunPayrollPage() {
             <div className="mx-2 mb-8">
                 <div className="ent-card p-6 border-primary-100/50 bg-gradient-to-br from-white to-gray-50/50">
                     <div className="flex items-start gap-4 mb-6">
-                        <div className="p-2.5 rounded bg-primary-900 text-white">
+                        <div className="p-2.5 rounded-md bg-primary-900 text-white">
                             <Clock size={16} />
                         </div>
                         <div>
@@ -107,7 +107,7 @@ export default function RunPayrollPage() {
                                 <button
                                     onClick={handleProcess}
                                     disabled={loading}
-                                    className="w-full h-[41px] bg-primary-900 text-white rounded font-black text-[11px] uppercase tracking-widest hover:bg-black transition-all flex items-center justify-center gap-3 shadow-xl shadow-primary-900/10 active:scale-95 disabled:opacity-50"
+                                    className="w-full h-[41px] bg-primary-900 text-white rounded-md font-black text-[11px] uppercase tracking-widest hover:bg-black transition-all flex items-center justify-center gap-3 shadow-xl shadow-primary-900/10 active:scale-95 disabled:opacity-50"
                                 >
                                     {loading ? (
                                         <>
@@ -135,7 +135,7 @@ export default function RunPayrollPage() {
                                 <Activity size={12} className="text-primary-600" />
                                 Execution Summary: {result.payrolls.length} Recognized Entities
                             </h3>
-                            <span className="text-[9px] font-black text-emerald-700 bg-emerald-50 px-3 py-1 rounded border border-emerald-100 flex items-center gap-2 uppercase tracking-widest">
+                            <span className="text-[9px] font-black text-emerald-700 bg-emerald-50 px-3 py-1 rounded-md border border-emerald-100 flex items-center gap-2 uppercase tracking-widest">
                                 <CheckCircle size={14} />
                                 Protocol Verified
                             </span>
@@ -155,7 +155,7 @@ export default function RunPayrollPage() {
                                     {result.payrolls.map((payroll: any) => (
                                         <tr key={payroll.id}>
                                             <td className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center font-black text-[10px] text-gray-400 border border-gray-200 uppercase">
+                                                <div className="w-8 h-8 rounded-md bg-gray-100 flex items-center justify-center font-black text-[10px] text-gray-400 border border-gray-200 uppercase">
                                                     ID
                                                 </div>
                                                 <div>
@@ -171,7 +171,7 @@ export default function RunPayrollPage() {
                                                 </div>
                                             </td>
                                             <td>
-                                                <div className="text-[10px] font-black text-rose-500 bg-rose-50 px-2 py-0.5 rounded border border-rose-100 inline-block uppercase">
+                                                <div className="text-[10px] font-black text-rose-500 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-100 inline-block uppercase">
                                                     -{new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(Number(payroll.deductions))}
                                                 </div>
                                             </td>
