@@ -8,6 +8,8 @@ import AccessDenied from '@/components/AccessDenied';
 import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useConfirm } from '@/context/ConfirmationContext';
+import PageHeader from '@/components/ui/PageHeader';
+import { Settings, Sliders } from 'lucide-react';
 
 export default function LeaveTypesPage() {
     const { can, user } = usePermission();
@@ -168,21 +170,22 @@ export default function LeaveTypesPage() {
     };
 
     return (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div className="flex justify-between items-center mb-6">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Leave Configuration</h1>
-                    <p className="text-sm text-gray-500">Define leave policies, quotas, and rules.</p>
-                </div>
-                <PermissionGuard module="LeaveType" action="create">
-                    <button
-                        onClick={handleCreate}
-                        className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 shadow-sm"
-                    >
-                        + Add Leave Type
-                    </button>
-                </PermissionGuard>
-            </div>
+        <div className="flex flex-col gap-6">
+            <PageHeader
+                title="Leave Configuration"
+                subtitle="Define leave policies, quotas, and rules"
+                icon={Settings}
+                actions={
+                    <PermissionGuard module="LeaveType" action="create">
+                        <button
+                            onClick={handleCreate}
+                            className="ent-button-primary"
+                        >
+                            + Add Leave Type
+                        </button>
+                    </PermissionGuard>
+                }
+            />
 
             {showForm && (
                 <div className="bg-white rounded-lg shadow-lg border border-gray-200 mb-8 overflow-hidden">
@@ -367,19 +370,19 @@ export default function LeaveTypesPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {types.map(type => (
-                    <div key={type.id} className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow relative overflow-hidden">
-                        <div className="h-2 w-full absolute top-0" style={{ backgroundColor: type.color }}></div>
-                        <div className="p-5">
-                            <div className="flex justify-between items-start mb-3">
+                    <div key={type.id} className="ent-card p-5 relative overflow-hidden group hover:border-primary-200">
+                        <div className="h-1.5 w-full absolute top-0 left-0" style={{ backgroundColor: type.color }}></div>
+                        <div>
+                            <div className="flex justify-between items-start mb-4">
                                 <div>
-                                    <h3 className="text-xl font-bold text-gray-900">{type.name}</h3>
-                                    <p className="text-sm text-gray-500 mt-0.5">{type.days} Days / {type.frequency}</p>
+                                    <h3 className="text-lg font-black text-gray-900 tracking-tight">{type.name}</h3>
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1.5">{type.days} Days / {type.frequency}</p>
                                 </div>
-                                <div className="flex flex-col items-end space-y-1">
-                                    <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${type.isPaid ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-red-100 text-red-800 border border-red-200'}`}>
+                                <div className="flex flex-col items-end gap-1.5">
+                                    <span className={`ent-badge ${type.isPaid ? 'ent-badge-success' : 'ent-badge-danger'}`}>
                                         {type.isPaid ? 'Paid' : 'Unpaid'}
                                     </span>
-                                    <span className="text-[10px] text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200 uppercase tracking-wide">
+                                    <span className="ent-badge bg-gray-100 text-gray-500 border-gray-200">
                                         {type.accrualType}
                                     </span>
                                 </div>
