@@ -1,16 +1,26 @@
 import express from 'express';
 import { login } from '../controllers/client.auth.controller';
-import { getDashboardStats, getMyInvoices, getMyProjects } from '../controllers/portal.controller';
-import { authenticate } from '../middleware/auth'; // We assume this works for any valid token user
+import {
+    getDashboardStats,
+    getMyInvoices,
+    getMyProjects,
+    getInvoiceDetails,
+    getInvoicePdf,
+    exportInvoices
+} from '../controllers/portal.controller';
+import { authenticateClient } from '../middleware/client.auth';
 
 const router = express.Router();
 
 // Public routes
-router.post('/auth/login', login);
+router.post('/login', login);
 
 // Protected routes
-router.get('/dashboard', authenticate, getDashboardStats);
-router.get('/invoices', authenticate, getMyInvoices);
-router.get('/projects', authenticate, getMyProjects);
+router.get('/dashboard', authenticateClient, getDashboardStats);
+router.get('/invoices', authenticateClient, getMyInvoices);
+router.get('/invoices/export', authenticateClient, exportInvoices); // Must be before /:id
+router.get('/invoices/:id', authenticateClient, getInvoiceDetails);
+router.get('/invoices/:id/pdf', authenticateClient, getInvoicePdf);
+router.get('/projects', authenticateClient, getMyProjects);
 
 export default router;

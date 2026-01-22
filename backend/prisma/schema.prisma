@@ -532,6 +532,7 @@ model Project {
   tasks       Task[]
   timesheets  Timesheet[]
   documents   Document[]
+  invoices    Invoice[]
 
   @@index([companyId])
   @@index([clientId])
@@ -1069,6 +1070,7 @@ model Invoice {
   recurringId       String?
   notes             String?  @db.Text
   pdfPath         String?
+  projectId       String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -1078,6 +1080,7 @@ model Invoice {
   items           InvoiceItem[]
   payments        Payment[]
   documents       Document[]
+  project         Project?     @relation(fields: [projectId], references: [id])
 
   @@unique([companyId, invoiceNumber])
   @@index([companyId])
@@ -1086,6 +1089,7 @@ model Invoice {
   @@index([status])
   @@index([invoiceDate])
   @@index([type])
+  @@index([projectId])
 }
 
 model InvoiceItem {

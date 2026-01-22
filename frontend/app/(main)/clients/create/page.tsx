@@ -4,7 +4,7 @@ import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Building2, User, Phone, Mail, MapPin, CreditCard, Hash, Globe, Save } from 'lucide-react';
+import { ArrowLeft, Building2, User, Phone, Mail, MapPin, CreditCard, Hash, Globe, Save, Lock } from 'lucide-react';
 import { z } from 'zod';
 import { clientsApi } from '@/lib/api/clients';
 import { usePermission } from '@/hooks/usePermission';
@@ -23,7 +23,17 @@ const clientSchema = z.object({
     gstin: z.string().regex(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/, "Invalid GSTIN format").optional().or(z.literal('')),
     pan: z.string().regex(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, "Invalid PAN format").optional().or(z.literal('')),
     clientType: z.enum(['customer', 'vendor', 'partner']),
-    status: z.enum(['active', 'inactive'])
+    status: z.enum(['active', 'inactive']),
+    portalAccess: z.boolean().default(false),
+    password: z.string().optional()
+}).refine(data => {
+    if (data.portalAccess && (!data.password || data.password.length < 6)) {
+        return false;
+    }
+    return true;
+}, {
+    message: "Password is required (min 6 chars) when Portal Access is enabled",
+    path: ["password"]
 });
 
 type ClientFormData = z.infer<typeof clientSchema>;
@@ -50,8 +60,11 @@ export default function CreateClientPage() {
         pincode: '',
         gstin: '',
         pan: '',
+        pan: '',
         clientType: 'customer',
-        status: 'active'
+        status: 'active',
+        portalAccess: false,
+        password: ''
     });
 
     const validateField = (field: keyof ClientFormData, value: any) => {
@@ -302,6 +315,52 @@ export default function CreateClientPage() {
                                 className="ent-input"
                             />
                         </div>
+                    </div>
+                </div>
+
+                {/* Client Portal Access */}
+                <div className="ent-card p-6">
+                    <h3 className="text-xs font-black text-primary-900 uppercase tracking-widest mb-6 flex items-center gap-2 border-b border-primary-50 pb-2">
+                        <Lock size={16} className="text-primary-500" />
+                        Portal Access Control
+                    </h3>
+
+                    <div className="flex flex-col gap-6">
+                        <div className="flex items-center justify-between p-4 bg-primary-50/50 rounded-lg border border-primary-100">
+                            <div>
+                                <h4 className="text-sm font-bold text-slate-900">Enable Client Portal Access</h4>
+                                <p className="text-xs text-slate-500 mt-1">Allow this entity to login, view invoices, and make payments.</p>
+                            </div>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    className="sr-only peer"
+                                    checked={formData.portalAccess}
+                                    onChange={e => handleChange('portalAccess', e.target.checked as any)}
+                                />
+                                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+                            </label>
+                        </div>
+
+                        {formData.portalAccess && (
+                            <div className="ent-form-group animate-in fade-in slide-in-from-top-2">
+                                <label className="ent-label">Set Login Password <span className="text-rose-500">*</span></label>
+                                <div className="relative">
+                                    <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                    <input
+                                        type="password"
+                                        value={formData.password}
+                                        onChange={e => handleChange('password', e.target.value)}
+                                        className={`ent-input pl-10 ${errors.password ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-500' : ''}`}
+                                        placeholder="Min 6 characters"
+                                    />
+                                </div>
+                                {errors.password && <p className="text-[10px] font-bold text-rose-500 mt-1 uppercase tracking-wide">{errors.password}</p>}
+                                <p className="text-[10px] text-slate-400 mt-2 font-medium">
+                                    Credentials will be emailed to <span className="text-slate-900 font-bold">{formData.email || 'the provided email'}</span> upon registration.
+                                </p>
+                            </div>
+                        )}
                     </div>
                 </div>
             </form>

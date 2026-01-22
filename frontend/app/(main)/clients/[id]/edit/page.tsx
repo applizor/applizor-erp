@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Save, X, Building2, Mail, Phone, MapPin, Globe, FileText, CreditCard, Tag, Activity } from 'lucide-react';
+import { ArrowLeft, Save, X, Building2, Mail, Phone, MapPin, Globe, FileText, CreditCard, Tag, Activity, Lock } from 'lucide-react';
 import { z } from 'zod';
 import { clientsApi } from '@/lib/api/clients';
 import { useToast } from '@/hooks/useToast';
@@ -24,7 +24,12 @@ const clientSchema = z.object({
     gstin: z.string().regex(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/, "Invalid GSTIN format").optional().or(z.literal('')),
     pan: z.string().regex(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, "Invalid PAN format").optional().or(z.literal('')),
     clientType: z.enum(['customer', 'vendor', 'partner']),
-    status: z.enum(['active', 'inactive'])
+    status: z.enum(['active', 'inactive']),
+    portalAccess: z.boolean().default(false),
+    password: z.string().optional()
+}).refine(data => {
+    // For Edit: Password is optional even if portal enabled (if they don't want to change it)
+    return true;
 });
 
 type ClientFormData = z.infer<typeof clientSchema>;
@@ -49,7 +54,9 @@ export default function EditClientPage() {
         gstin: '',
         pan: '',
         clientType: 'customer',
-        status: 'active'
+        status: 'active',
+        portalAccess: false,
+        password: ''
     });
 
     // Page Level Security
@@ -80,7 +87,9 @@ export default function EditClientPage() {
                 gstin: data.gstin || '',
                 pan: data.pan || '',
                 clientType: data.clientType || 'customer',
-                status: data.status || 'active'
+                status: data.status || 'active',
+                portalAccess: data.portalAccess || false,
+                password: ''
             });
         } catch (error: any) {
             toast.error(error.response?.data?.error || 'Failed to load client');
@@ -437,6 +446,57 @@ export default function EditClientPage() {
                         </div>
                     </div>
                 </div>
+                {/* Client Portal Access */}
+                <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+                    <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-3 bg-gray-50/50">
+                        <div className="p-1.5 bg-white rounded border border-gray-200 shadow-sm text-primary-600">
+                            <Lock size={14} />
+                        </div>
+                        <h2 className="text-xs font-black text-gray-900 uppercase tracking-widest">
+                            Portal Access Control
+                        </h2>
+                    </div>
+
+                    <div className="p-6 flex flex-col gap-6">
+                        <div className="flex items-center justify-between p-4 bg-primary-50/50 rounded-lg border border-primary-100">
+                            <div>
+                                <h4 className="text-sm font-bold text-slate-900">Enable Client Portal Access</h4>
+                                <p className="text-xs text-slate-500 mt-1">Allow this entity to login, view invoices, and make payments.</p>
+                            </div>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    className="sr-only peer"
+                                    checked={formData.portalAccess}
+                                    onChange={e => handleChange('portalAccess', e.target.checked as any)}
+                                />
+                                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+                            </label>
+                        </div>
+
+                        {formData.portalAccess && (
+                            <div className="ent-form-group animate-in fade-in slide-in-from-top-2">
+                                <label className="ent-label">Update Login Password <span className="text-slate-400 font-normal normal-case">(Leave blank to keep current)</span></label>
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <Lock size={14} className="text-gray-400" />
+                                    </div>
+                                    <input
+                                        type="password"
+                                        value={formData.password}
+                                        onChange={e => handleChange('password', e.target.value)}
+                                        className="ent-input pl-10"
+                                        placeholder="Enter new password to change"
+                                    />
+                                </div>
+                                <p className="text-[10px] text-slate-400 mt-2 font-medium">
+                                    Credentials will be emailed to <span className="text-slate-900 font-bold">{formData.email || 'the provided email'}</span> upon update.
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
             </form>
         </div>
     );

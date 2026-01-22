@@ -2,6 +2,7 @@ import { Response } from 'express';
 import prisma from '../prisma/client';
 import { AuthRequest } from '../middleware/auth';
 import { PermissionService } from '../services/permission.service';
+import bcrypt from 'bcryptjs';
 
 export const createClient = async (req: AuthRequest, res: Response) => {
   try {
@@ -34,10 +35,17 @@ export const createClient = async (req: AuthRequest, res: Response) => {
       gstin,
       pan,
       clientType = 'customer',
+      portalAccess = false,
+      password,
     } = req.body;
 
     if (!name) {
       return res.status(400).json({ error: 'Client name is required' });
+    }
+
+    let hashedPassword = null;
+    if (portalAccess && password) {
+      hashedPassword = await bcrypt.hash(password, 10);
     }
 
     const client = await prisma.client.create({
@@ -55,8 +63,12 @@ export const createClient = async (req: AuthRequest, res: Response) => {
         pan,
         clientType,
         status: 'active',
+        portalAccess: Boolean(portalAccess),
+        password: hashedPassword,
       },
     });
+
+    // TODO: Send Welcome Email with credentials if portalAccess is true
 
     res.status(201).json({
       message: 'Client created successfully',
@@ -199,24 +211,33 @@ export const updateClient = async (req: AuthRequest, res: Response) => {
       pan,
       status,
       clientType,
+      portalAccess,
+      password,
     } = req.body;
+
+    const data: any = {
+      name,
+      email,
+      phone,
+      address,
+      city,
+      state,
+      country,
+      pincode,
+      gstin,
+      pan,
+      status,
+      clientType,
+      portalAccess: portalAccess !== undefined ? Boolean(portalAccess) : undefined,
+    };
+
+    if (password) {
+      data.password = await bcrypt.hash(password, 10);
+    }
 
     const client = await prisma.client.update({
       where: { id },
-      data: {
-        name,
-        email,
-        phone,
-        address,
-        city,
-        state,
-        country,
-        pincode,
-        gstin,
-        pan,
-        status,
-        clientType,
-      },
+      data,
     });
 
     res.json({
