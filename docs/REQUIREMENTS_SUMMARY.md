@@ -8,7 +8,9 @@ This document is the FINAL, COMPLETE, and SINGLE SOURCE OF TRUTH for the custom 
 2. Complete Module List (Nothing Excluded)
 •	CRM & Sales Management
 •	Client Portal
-•	Projects & Task Management
+•	Client Portal
+•	Projects (Milestones, Gantt, Expenses, Files, Wiki)
+•	Contracts & Retainers
 •	Timesheets & Utilization Tracking
 •	Recruitment / ATS
 •	HRMS (Departments, Positions, Roles)
@@ -19,6 +21,7 @@ This document is the FINAL, COMPLETE, and SINGLE SOURCE OF TRUTH for the custom 
 •	Centralized Document Management System (DMS)
 •	Advanced Analytics / BI Dashboards
 •	Payments & Integrations
+•	Support Tickets & Helpdesk
 •	Roles, Permissions & Module Customization
 3. CRM & Sales Module
 •	Lead management
@@ -122,3 +125,23 @@ This document is the FINAL, COMPLETE, and SINGLE SOURCE OF TRUTH for the custom 
 •	No ERP shortcuts
 •	No assumption-based development
 •	Document engine is the core system
+
+18. Enterprise Enhancements (Based on Reference UI)
+•	Project Dashboard:
+	•	Circular Progress Indicators (Time vs Task Completion).
+	•	Dedicated Project Financials: Budget vs Actuals (Earnings, Expenses, Profit).
+	•	"Members" Tab: Visual team assignment with roles.
+•	Advanced Project Tools:
+	•	Milestones: Key deliverables with dates and status.
+	•	Gantt Chart: Visual timeline of tasks and dependencies.
+	•	Files Tab: Dedicated isolated storage for project assets.
+	•	Wiki / Notes: Rich text documentation for project internally.
+•	Contracts Module:
+	•	Create legal contracts linked to Clients/Projects.
+	•	Track Start/End dates and Values.
+	•	Status tracking (Active, Expired, Renewed).
+•	Support Tickets:
+	•	Client-raised issues linked to Projects.
+	•	Internal Ticket tracking board.
+•	Events & Calendar:
+	•	Project deadlines, meetings, and milestones on a unified calendar.
