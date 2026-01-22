@@ -188,44 +188,45 @@ export default function LeaveTypesPage() {
             />
 
             {showForm && (
-                <div className="bg-white rounded-lg shadow-lg border border-gray-200 mb-8 overflow-hidden">
-                    <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-                        <h3 className="text-lg font-medium text-gray-900">
-                            {editingType ? 'Edit Leave Type' : 'New Leave Type'}
+                <div className="bg-white rounded-lg shadow-lg border border-gray-200 mb-8 overflow-hidden animate-in fade-in slide-in-from-top-4 duration-300">
+                    <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                        <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest flex items-center gap-2">
+                            {editingType ? <Settings size={16} /> : <Sliders size={16} />}
+                            {editingType ? 'Edit Configuration' : 'New Leave Policy'}
                         </h3>
                     </div>
                     <form onSubmit={handleSubmit} className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
 
                         {/* Basic Info */}
                         <div className="md:col-span-3">
-                            <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Basic Information</h4>
+                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4 border-b border-gray-100 pb-2">Basic Information</h4>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">Name</label>
-                                    <input type="text" required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm" placeholder="e.g. Annual Leave" />
+                                <div className="ent-form-group">
+                                    <label className="ent-label">Policy Name</label>
+                                    <input type="text" required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="ent-input" placeholder="e.g. Annual Leave" />
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">Quota (Days)</label>
-                                    <input type="number" required value={formData.days} onChange={e => setFormData({ ...formData, days: parseInt(e.target.value) })} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm" />
+                                <div className="ent-form-group">
+                                    <label className="ent-label">Annual Quota</label>
+                                    <input type="number" required value={formData.days} onChange={e => setFormData({ ...formData, days: parseInt(e.target.value) })} className="ent-input" />
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">UI Color</label>
-                                    <input type="color" value={formData.color} onChange={e => setFormData({ ...formData, color: e.target.value })} className="mt-1 block w-full h-9 border-gray-300 rounded-md shadow-sm" />
+                                <div className="ent-form-group">
+                                    <label className="ent-label">UI Color Tag</label>
+                                    <input type="color" value={formData.color} onChange={e => setFormData({ ...formData, color: e.target.value })} className="mt-1 block w-full h-9 border-gray-200 rounded-md cursor-pointer" />
                                 </div>
-                                <div className="md:col-span-3">
-                                    <label className="block text-sm font-medium text-gray-700">Description</label>
-                                    <input type="text" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm" />
+                                <div className="md:col-span-3 ent-form-group">
+                                    <label className="ent-label">Description</label>
+                                    <input type="text" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} className="ent-input" placeholder="Brief description of this leave policy..." />
                                 </div>
                             </div>
                         </div>
 
                         {/* Rules */}
-                        <div className="md:col-span-3 border-t border-gray-100 pt-4">
-                            <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Accrual & Limits</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">Accrual Type</label>
-                                    <select value={formData.accrualType} onChange={e => setFormData({ ...formData, accrualType: e.target.value as any })} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
+                        <div className="md:col-span-3 pt-2">
+                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4 border-b border-gray-100 pb-2">Accrual & Limits</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                                <div className="ent-form-group">
+                                    <label className="ent-label">Accrual Type</label>
+                                    <select value={formData.accrualType} onChange={e => setFormData({ ...formData, accrualType: e.target.value as any })} className="ent-select">
                                         <option value="yearly">Yearly (Lump sum)</option>
                                         <option value="monthly">Monthly Accrual</option>
                                         <option value="daily">Daily Accrual</option>
@@ -233,60 +234,66 @@ export default function LeaveTypesPage() {
                                 </div>
                                 {formData.accrualType !== 'yearly' && (
                                     <>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700">Accrual Rate</label>
+                                        <div className="ent-form-group">
+                                            <label className="ent-label">Accrual Rate</label>
                                             <div className="relative">
-                                                <input type="number" step="0.01" value={formData.accrualRate} onChange={e => setFormData({ ...formData, accrualRate: parseFloat(e.target.value) })} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm" />
-                                                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-400 text-xs">
-                                                    /{formData.accrualType === 'monthly' ? 'Mo' : 'Day'}
+                                                <input type="number" step="0.01" value={formData.accrualRate} onChange={e => setFormData({ ...formData, accrualRate: parseFloat(e.target.value) })} className="ent-input" />
+                                                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-400 text-[10px] font-bold">
+                                                    /{formData.accrualType === 'monthly' ? 'MO' : 'DAY'}
                                                 </div>
                                             </div>
                                         </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700">Max Accrual</label>
-                                            <input type="number" value={formData.maxAccrual} onChange={e => setFormData({ ...formData, maxAccrual: parseInt(e.target.value) })} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm" placeholder="0 = Unlimited" />
+                                        <div className="ent-form-group">
+                                            <label className="ent-label">Max Accrual Cap</label>
+                                            <input type="number" value={formData.maxAccrual} onChange={e => setFormData({ ...formData, maxAccrual: parseInt(e.target.value) })} className="ent-input" placeholder="0 = Unlimited" />
                                         </div>
                                     </>
                                 )}
-                                <div className="flex items-center mt-6">
+
+                                <div className="bg-gray-50/50 p-3 rounded-md border border-gray-100 flex items-center gap-3">
                                     <input type="checkbox" checked={formData.carryForward} onChange={e => setFormData({ ...formData, carryForward: e.target.checked })} className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded" />
-                                    <label className="ml-2 block text-sm text-gray-900">Allow Carry Forward</label>
+                                    <div>
+                                        <label className="ent-label mb-0 cursor-pointer" onClick={() => setFormData({ ...formData, carryForward: !formData.carryForward })}>Allow Carry Forward</label>
+                                        <p className="text-[9px] text-gray-400">Transfer unused balance to next cycle</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">Max Carry Forward</label>
-                                    <input type="number" disabled={!formData.carryForward} value={formData.maxCarryForward} onChange={e => setFormData({ ...formData, maxCarryForward: parseInt(e.target.value) })} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm disabled:bg-gray-100" />
+
+                                <div className="ent-form-group">
+                                    <label className="ent-label">Max Carry Forward</label>
+                                    <input type="number" disabled={!formData.carryForward} value={formData.maxCarryForward} onChange={e => setFormData({ ...formData, maxCarryForward: parseInt(e.target.value) })} className="ent-input disabled:bg-gray-50 disabled:text-gray-400" />
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">Monthly Usage Limit</label>
-                                    <input type="number" value={formData.monthlyLimit} onChange={e => setFormData({ ...formData, monthlyLimit: parseInt(e.target.value) })} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm" placeholder="0 = Unlimited" />
-                                    <p className="text-xs text-gray-500">Max days allowed per month</p>
+                                <div className="ent-form-group">
+                                    <label className="ent-label">Monthly Usage Limit</label>
+                                    <input type="number" value={formData.monthlyLimit} onChange={e => setFormData({ ...formData, monthlyLimit: parseInt(e.target.value) })} className="ent-input" placeholder="0 = Unlimited" />
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">Consecutive Days Limit</label>
-                                    <input type="number" value={formData.maxConsecutiveDays} onChange={e => setFormData({ ...formData, maxConsecutiveDays: parseInt(e.target.value) })} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm" placeholder="0 = Unlimited" />
+                                <div className="ent-form-group">
+                                    <label className="ent-label">Consecutive Days Limit</label>
+                                    <input type="number" value={formData.maxConsecutiveDays} onChange={e => setFormData({ ...formData, maxConsecutiveDays: parseInt(e.target.value) })} className="ent-input" placeholder="0 = Unlimited" />
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">Min Service (Days)</label>
-                                    <input type="number" value={formData.minServiceDays} onChange={e => setFormData({ ...formData, minServiceDays: parseInt(e.target.value) })} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm" />
-                                    <p className="text-xs text-gray-500">Wait period before eligible</p>
+                                <div className="ent-form-group">
+                                    <label className="ent-label">Min Service Required</label>
+                                    <div className="relative">
+                                        <input type="number" value={formData.minServiceDays} onChange={e => setFormData({ ...formData, minServiceDays: parseInt(e.target.value) })} className="ent-input" />
+                                        <span className="absolute right-3 top-2 text-[10px] text-gray-400 font-bold">DAYS</span>
+                                    </div>
                                 </div>
-                                <div className="border-t border-gray-100 md:col-span-3 mt-2 pt-2">
-                                    <h5 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Probation & Confirmation</h5>
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700">Probation Quota</label>
-                                            <input type="number" step="0.5" value={formData.probationQuota} onChange={e => setFormData({ ...formData, probationQuota: parseFloat(e.target.value) })} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm" />
-                                            <p className="text-xs text-gray-500">Leaves allowed during probation</p>
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700">Confirmation Bonus</label>
-                                            <input type="number" step="0.5" value={formData.confirmationBonus} onChange={e => setFormData({ ...formData, confirmationBonus: parseFloat(e.target.value) })} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm text-primary-600 font-bold" />
-                                            <p className="text-xs text-gray-500">Auto-added after probation ends</p>
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700">Quarterly Limit</label>
-                                            <input type="number" value={formData.quarterlyLimit} onChange={e => setFormData({ ...formData, quarterlyLimit: parseInt(e.target.value) })} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm" />
-                                            <p className="text-xs text-gray-500">Max days per quarter (CL/SL)</p>
+
+                                <div className="md:col-span-3 mt-2">
+                                    <div className="bg-primary-50/30 rounded-md border border-primary-100/50 p-4">
+                                        <h5 className="text-[10px] font-black text-primary-700 uppercase tracking-widest mb-3">Probation & Confirmation Rules</h5>
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                            <div className="ent-form-group">
+                                                <label className="ent-label text-primary-600">Probation Quota</label>
+                                                <input type="number" step="0.5" value={formData.probationQuota} onChange={e => setFormData({ ...formData, probationQuota: parseFloat(e.target.value) })} className="ent-input border-primary-200 focus:border-primary-400" />
+                                            </div>
+                                            <div className="ent-form-group">
+                                                <label className="ent-label text-primary-600">Confirmation Bonus</label>
+                                                <input type="number" step="0.5" value={formData.confirmationBonus} onChange={e => setFormData({ ...formData, confirmationBonus: parseFloat(e.target.value) })} className="ent-input border-primary-200 focus:border-primary-400 font-bold text-primary-700" />
+                                            </div>
+                                            <div className="ent-form-group">
+                                                <label className="ent-label text-primary-600">Quarterly Limit</label>
+                                                <input type="number" value={formData.quarterlyLimit} onChange={e => setFormData({ ...formData, quarterlyLimit: parseInt(e.target.value) })} className="ent-input border-primary-200 focus:border-primary-400" />
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -294,72 +301,82 @@ export default function LeaveTypesPage() {
                         </div>
 
                         {/* Special Rules */}
-                        <div className="md:col-span-3 border-t border-gray-100 pt-4">
-                            <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Advanced Policies</h4>
+                        <div className="md:col-span-3 pt-2">
+                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4 border-b border-gray-100 pb-2">Boolean Policies</h4>
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                <label className="flex items-start">
-                                    <input type="checkbox" checked={formData.isPaid} onChange={e => setFormData({ ...formData, isPaid: e.target.checked })} className="mt-1 h-4 w-4 text-primary-600 border-gray-300 rounded" />
+                                <label className="flex items-start p-3 bg-gray-50 rounded-md border border-gray-200 cursor-pointer hover:bg-white hover:border-gray-300 transition-all">
+                                    <input type="checkbox" checked={formData.isPaid} onChange={e => setFormData({ ...formData, isPaid: e.target.checked })} className="mt-0.5 h-4 w-4 text-primary-600 border-gray-300 rounded" />
                                     <span className="ml-2">
-                                        <span className="block text-sm font-medium text-gray-900">Paid Leave</span>
-                                        <span className="block text-xs text-gray-500">Salary is not deducted</span>
+                                        <span className="block text-xs font-bold text-gray-900 uppercase">Paid Leave</span>
+                                        <span className="block text-[10px] text-gray-500 mt-0.5">Salary is not deducted</span>
                                     </span>
                                 </label>
-                                <label className="flex items-start">
-                                    <input type="checkbox" checked={formData.sandwichRule} onChange={e => setFormData({ ...formData, sandwichRule: e.target.checked })} className="mt-1 h-4 w-4 text-primary-600 border-gray-300 rounded" />
+                                <label className="flex items-start p-3 bg-gray-50 rounded-md border border-gray-200 cursor-pointer hover:bg-white hover:border-gray-300 transition-all">
+                                    <input type="checkbox" checked={formData.sandwichRule} onChange={e => setFormData({ ...formData, sandwichRule: e.target.checked })} className="mt-0.5 h-4 w-4 text-primary-600 border-gray-300 rounded" />
                                     <span className="ml-2">
-                                        <span className="block text-sm font-medium text-gray-900">Sandwich Rule</span>
-                                        <span className="block text-xs text-gray-500">Includes weekends/holidays if leave taken around them</span>
+                                        <span className="block text-xs font-bold text-gray-900 uppercase">Sandwich Rule</span>
+                                        <span className="block text-[10px] text-gray-500 mt-0.5">Include weekends gaps</span>
                                     </span>
                                 </label>
-                                <label className="flex items-start">
-                                    <input type="checkbox" checked={formData.encashable} onChange={e => setFormData({ ...formData, encashable: e.target.checked })} className="mt-1 h-4 w-4 text-primary-600 border-gray-300 rounded" />
+                                <label className="flex items-start p-3 bg-gray-50 rounded-md border border-gray-200 cursor-pointer hover:bg-white hover:border-gray-300 transition-all">
+                                    <input type="checkbox" checked={formData.encashable} onChange={e => setFormData({ ...formData, encashable: e.target.checked })} className="mt-0.5 h-4 w-4 text-primary-600 border-gray-300 rounded" />
                                     <span className="ml-2">
-                                        <span className="block text-sm font-medium text-gray-900">Encashable</span>
-                                        <span className="block text-xs text-gray-500">Unused days can be paid out</span>
+                                        <span className="block text-xs font-bold text-gray-900 uppercase">Encashable</span>
+                                        <span className="block text-[10px] text-gray-500 mt-0.5">Pay out unused days</span>
                                     </span>
                                 </label>
-                                <label className="flex items-start">
-                                    <input type="checkbox" checked={formData.proofRequired} onChange={e => setFormData({ ...formData, proofRequired: e.target.checked })} className="mt-1 h-4 w-4 text-primary-600 border-gray-300 rounded" />
+                                <label className="flex items-start p-3 bg-gray-50 rounded-md border border-gray-200 cursor-pointer hover:bg-white hover:border-gray-300 transition-all">
+                                    <input type="checkbox" checked={formData.proofRequired} onChange={e => setFormData({ ...formData, proofRequired: e.target.checked })} className="mt-0.5 h-4 w-4 text-primary-600 border-gray-300 rounded" />
                                     <span className="ml-2">
-                                        <span className="block text-sm font-medium text-gray-900">Proof Required</span>
-                                        <span className="block text-xs text-gray-500">Must upload document</span>
+                                        <span className="block text-xs font-bold text-gray-900 uppercase">Proof Required</span>
+                                        <span className="block text-[10px] text-gray-500 mt-0.5">Must upload document</span>
                                     </span>
                                 </label>
                             </div>
                         </div>
 
                         {/* Dynamic Rules Section */}
-                        <div className="md:col-span-3 border-t border-gray-100 pt-4">
-                            <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Advanced Conditions</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">Advance Notice (Days)</label>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <input type="number" min="0" value={formData.noticePeriod} onChange={e => setFormData({ ...formData, noticePeriod: parseInt(e.target.value) })} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm" placeholder="Notice Days" />
-                                        <input type="number" min="0" value={formData.minDaysForNotice} onChange={e => setFormData({ ...formData, minDaysForNotice: parseInt(e.target.value) })} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm" placeholder="If Leave > X" />
+                        <div className="md:col-span-3 pt-2">
+                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4 border-b border-gray-100 pb-2">Advanced Conditions</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="bg-gray-50/30 p-4 rounded-md border border-gray-100">
+                                    <label className="ent-label mb-2">Advance Notice Policy</label>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <span className="text-[9px] font-bold text-gray-400 uppercase block mb-1">Min Notice (Days)</span>
+                                            <input type="number" min="0" value={formData.noticePeriod} onChange={e => setFormData({ ...formData, noticePeriod: parseInt(e.target.value) })} className="ent-input" />
+                                        </div>
+                                        <div>
+                                            <span className="text-[9px] font-bold text-gray-400 uppercase block mb-1">If Duration &gt; X</span>
+                                            <input type="number" min="0" value={formData.minDaysForNotice} onChange={e => setFormData({ ...formData, minDaysForNotice: parseInt(e.target.value) })} className="ent-input" />
+                                        </div>
                                     </div>
-                                    <p className="text-xs text-gray-500 mt-1">E.g. Require 14 days notice if leave greater than 4 days.</p>
+                                    <p className="text-[9px] text-gray-400 mt-2 font-medium">Example: Require 14 days notice if leave duration exceeds 4 days.</p>
                                 </div>
 
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">Proof Required Threshold</label>
-                                    <input type="number" min="0" value={formData.minDaysForProof} onChange={e => setFormData({ ...formData, minDaysForProof: parseInt(e.target.value) })} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm" placeholder="0 = Always" />
-                                    <p className="text-xs text-gray-500 mt-1">Require proof only if leave exceeds X days.</p>
-                                </div>
+                                <div className="bg-gray-50/30 p-4 rounded-md border border-gray-100">
+                                    <div className="ent-form-group mb-4">
+                                        <label className="ent-label">Proof Threshold</label>
+                                        <div className="flex items-center gap-3">
+                                            <input type="number" min="0" value={formData.minDaysForProof} onChange={e => setFormData({ ...formData, minDaysForProof: parseInt(e.target.value) })} className="ent-input w-24" placeholder="0 = Always" />
+                                            <span className="text-[10px] text-gray-400 font-bold uppercase">Days</span>
+                                        </div>
+                                        <p className="text-[9px] text-gray-400 mt-1.5 font-medium">Require proof only if leave exceeds this many days.</p>
+                                    </div>
 
-                                <div className="flex items-center pt-6">
-                                    <input type="checkbox" checked={formData.includeNonWorkingDays} onChange={e => setFormData({ ...formData, includeNonWorkingDays: e.target.checked })} className="h-4 w-4 text-primary-600 border-gray-300 rounded" />
-                                    <label className="ml-2 block text-sm text-gray-900">
-                                        Detailed Calendar Days
-                                        <span className="block text-xs text-gray-500">Count Holidays & Weekends as Leave (e.g. Bereavement)</span>
-                                    </label>
+                                    <div className="flex items-center pt-2 border-t border-gray-200/50">
+                                        <input type="checkbox" checked={formData.includeNonWorkingDays} onChange={e => setFormData({ ...formData, includeNonWorkingDays: e.target.checked })} className="h-4 w-4 text-primary-600 border-gray-300 rounded" />
+                                        <label className="ml-2 block text-xs font-bold text-gray-900 uppercase">
+                                            Include Non-Working Days
+                                        </label>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="md:col-span-3 flex justify-end space-x-3 pt-4 border-t border-gray-200">
-                            <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">Cancel</button>
-                            <button type="submit" disabled={saving} className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 flex items-center space-x-2">
+                        <div className="md:col-span-3 flex justify-end space-x-3 pt-6 border-t border-gray-100 mt-2">
+                            <button type="button" onClick={() => setShowForm(false)} className="ent-button-secondary">Cancel</button>
+                            <button type="submit" disabled={saving} className="ent-button-primary flex items-center gap-2">
                                 {saving && <LoadingSpinner size="sm" />}
                                 <span>{saving ? 'Saving...' : 'Save Configuration'}</span>
                             </button>
@@ -394,72 +411,70 @@ export default function LeaveTypesPage() {
 
                             <div className="space-y-4">
                                 {/* Section 1: Limits & Accrual */}
-                                <div>
-                                    <h4 className="text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-2">Policy Limits</h4>
-                                    <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-sm">
-                                        <div className="flex justify-between">
-                                            <span className="text-gray-500">Monthly Limit:</span>
-                                            <span className="font-medium text-gray-900">{type.monthlyLimit > 0 ? `${type.monthlyLimit} Days` : 'Unlimited'}</span>
+                                <div className="bg-gray-50/50 rounded-md p-3 border border-gray-100">
+                                    <h4 className="text-[10px] uppercase tracking-wider font-black text-gray-400 mb-2 flex items-center gap-1.5">
+                                        <div className="h-1 w-1 rounded-full bg-gray-300"></div>
+                                        Policy Limits
+                                    </h4>
+                                    <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-xs">
+                                        <div className="flex justify-between items-center group/item hover:bg-white p-1 rounded transition-colors">
+                                            <span className="text-gray-500 font-medium">Monthly Limit</span>
+                                            <span className="font-bold text-gray-900 tabular-nums">{type.monthlyLimit > 0 ? `${type.monthlyLimit} Days` : '∞'}</span>
                                         </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-gray-500">Consecutive:</span>
-                                            <span className="font-medium text-gray-900">{type.maxConsecutiveDays > 0 ? `${type.maxConsecutiveDays} Days` : 'Unlimited'}</span>
+                                        <div className="flex justify-between items-center group/item hover:bg-white p-1 rounded transition-colors">
+                                            <span className="text-gray-500 font-medium">Consecutive</span>
+                                            <span className="font-bold text-gray-900 tabular-nums">{type.maxConsecutiveDays > 0 ? `${type.maxConsecutiveDays} Days` : '∞'}</span>
                                         </div>
                                         {type.accrualType !== 'yearly' && (
                                             <>
-                                                <div className="flex justify-between">
-                                                    <span className="text-gray-500">Accrual Rate:</span>
-                                                    <span className="font-medium text-gray-900">{type.accrualRate || 0}/{type.accrualType === 'monthly' ? 'Mo' : 'Day'}</span>
+                                                <div className="flex justify-between items-center group/item hover:bg-white p-1 rounded transition-colors">
+                                                    <span className="text-gray-500 font-medium">Accrual Rate</span>
+                                                    <span className="font-bold text-gray-900 tabular-nums">{type.accrualRate || 0}/{type.accrualType === 'monthly' ? 'Mo' : 'Day'}</span>
                                                 </div>
-                                                <div className="flex justify-between">
-                                                    <span className="text-gray-500">Max Accrual:</span>
-                                                    <span className="font-medium text-gray-900">{(type.maxAccrual ?? 0) > 0 ? type.maxAccrual : '∞'}</span>
+                                                <div className="flex justify-between items-center group/item hover:bg-white p-1 rounded transition-colors">
+                                                    <span className="text-gray-500 font-medium">Max Accrual</span>
+                                                    <span className="font-bold text-gray-900 tabular-nums">{(type.maxAccrual ?? 0) > 0 ? type.maxAccrual : '∞'}</span>
                                                 </div>
                                             </>
                                         )}
-                                        <div className="flex justify-between">
-                                            <span className="text-gray-500">Min Service:</span>
-                                            <span className="font-medium text-gray-900">{type.minServiceDays} Days</span>
+                                        <div className="flex justify-between items-center group/item hover:bg-white p-1 rounded transition-colors">
+                                            <span className="text-gray-500 font-medium">Min Service</span>
+                                            <span className="font-bold text-gray-900 tabular-nums">{type.minServiceDays} Days</span>
                                         </div>
                                         {type.quarterlyLimit ? (
-                                            <div className="flex justify-between">
-                                                <span className="text-gray-500">Quarterly Limit:</span>
-                                                <span className="font-medium text-primary-600">{type.quarterlyLimit} Days</span>
+                                            <div className="flex justify-between items-center group/item hover:bg-white p-1 rounded transition-colors">
+                                                <span className="text-gray-500 font-medium">Quarterly Limit</span>
+                                                <span className="font-bold text-primary-700 tabular-nums">{type.quarterlyLimit} Days</span>
                                             </div>
                                         ) : null}
                                         {type.probationQuota ? (
-                                            <div className="flex justify-between border-t border-dashed border-gray-100 mt-1 pt-1">
-                                                <span className="text-gray-500 text-[11px]">Probation Quota:</span>
-                                                <span className="font-medium text-gray-900 text-[11px]">{type.probationQuota} Days</span>
+                                            <div className="col-span-2 border-t border-dashed border-gray-200 mt-1 pt-1 flex justify-between items-center">
+                                                <span className="text-gray-400 font-medium text-[10px]">Probation Quota</span>
+                                                <span className="font-bold text-gray-700 text-[10px] tabular-nums">{type.probationQuota} Days</span>
                                             </div>
                                         ) : null}
                                     </div>
                                 </div>
 
                                 {/* Section 2: Boolean Rules */}
-                                <div className="pt-3 border-t border-gray-100">
-                                    <h4 className="text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-2">Rules & Settings</h4>
+                                <div>
                                     <div className="flex flex-wrap gap-2">
                                         {/* Existing Rules */}
                                         {type.carryForward ? (
-                                            <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
-                                                ✅ Carry Fwd (Max {type.maxCarryForward})
+                                            <span className="inline-flex items-center px-2 py-1 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-100 uppercase tracking-wide">
+                                                Carry Fwd ({type.maxCarryForward})
                                             </span>
-                                        ) : (
-                                            <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-50 text-gray-500 border border-gray-200">
-                                                ❌ No Carry Fwd
-                                            </span>
-                                        )}
+                                        ) : null}
 
                                         {type.sandwichRule && (
-                                            <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-amber-50 text-amber-700 border border-amber-100">
-                                                🥪 Sandwich Rule
+                                            <span className="inline-flex items-center px-2 py-1 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-100 uppercase tracking-wide">
+                                                Sandwich Rule
                                             </span>
                                         )}
 
                                         {type.encashable && (
-                                            <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-purple-50 text-purple-700 border border-purple-100">
-                                                💰 Encashable
+                                            <span className="inline-flex items-center px-2 py-1 rounded text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-100 uppercase tracking-wide">
+                                                Encashable
                                             </span>
                                         )}
 
@@ -472,26 +487,20 @@ export default function LeaveTypesPage() {
                                             return (
                                                 <>
                                                     {type.proofRequired && (
-                                                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-primary-50 text-primary-700 border border-primary-100">
-                                                            📎 Proof {policy.minDaysForProof ? `> ${policy.minDaysForProof} Days` : 'Req'}
+                                                        <span className="inline-flex items-center px-2 py-1 rounded text-[10px] font-bold bg-gray-100 text-gray-600 border border-gray-200 uppercase tracking-wide">
+                                                            Proof {policy.minDaysForProof ? `> ${policy.minDaysForProof} Days` : 'Req'}
                                                         </span>
                                                     )}
 
                                                     {type.confirmationBonus ? (
-                                                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-100 animate-pulse">
-                                                            🎁 Bonus: +{type.confirmationBonus} Days
+                                                        <span className="inline-flex items-center px-2 py-1 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100 uppercase tracking-wide">
+                                                            + {type.confirmationBonus} Days Bonus
                                                         </span>
                                                     ) : null}
 
                                                     {policy.noticePeriod > 0 && (
-                                                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-orange-50 text-orange-700 border border-orange-100">
-                                                            ⏳ Notice: {policy.noticePeriod} Days
-                                                        </span>
-                                                    )}
-
-                                                    {policy.includeNonWorkingDays && (
-                                                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-rose-50 text-rose-700 border border-rose-100">
-                                                            📅 Calendar Days
+                                                        <span className="inline-flex items-center px-2 py-1 rounded text-[10px] font-bold bg-orange-50 text-orange-700 border border-orange-100 uppercase tracking-wide">
+                                                            Notice {policy.noticePeriod} Days
                                                         </span>
                                                     )}
                                                 </>
@@ -501,15 +510,20 @@ export default function LeaveTypesPage() {
                                 </div>
                             </div>
 
-                            <div className="mt-5 pt-4 border-t border-gray-100 flex justify-end space-x-3">
-                                <PermissionGuard module="LeaveType" action="update">
-                                    <button onClick={() => handleEdit(type)} className="text-primary-600 hover:text-primary-800 text-sm font-semibold flex items-center">
-                                        Edit Policy
-                                    </button>
-                                </PermissionGuard>
-                                <PermissionGuard module="LeaveType" action="delete">
-                                    <button onClick={() => handleDelete(type.id)} className="text-red-500 hover:text-red-700 text-sm font-semibold">Delete</button>
-                                </PermissionGuard>
+                            <div className="mt-5 pt-4 border-t border-gray-100 flex items-center justify-between">
+                                <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest group-hover:text-primary-300 transition-colors">ID: {type.id.toString().slice(0, 4)}</span>
+                                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                    <PermissionGuard module="LeaveType" action="update">
+                                        <button onClick={() => handleEdit(type)} className="text-xs font-bold text-gray-600 hover:text-primary-600 px-3 py-1.5 rounded bg-gray-50 hover:bg-white border border-transparent hover:border-gray-200 transition-all shadow-sm">
+                                            Edit Policy
+                                        </button>
+                                    </PermissionGuard>
+                                    <PermissionGuard module="LeaveType" action="delete">
+                                        <button onClick={() => handleDelete(type.id)} className="text-xs font-bold text-red-500 hover:text-red-600 px-3 py-1.5 rounded bg-red-50 hover:bg-red-100 border border-transparent transition-all">
+                                            Delete
+                                        </button>
+                                    </PermissionGuard>
+                                </div>
                             </div>
                         </div>
                     </div>
