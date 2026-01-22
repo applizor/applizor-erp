@@ -4,6 +4,7 @@ import { useToast } from '@/hooks/useToast';
 import { useState, useEffect } from 'react';
 import { Building, MapPin, Globe, CreditCard, Save, Upload, Loader2, Link as LinkIcon, Phone, Mail } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import PageHeader from '@/components/ui/PageHeader';
 
 export default function CompanySettingsPage() {
     const toast = useToast();
@@ -132,27 +133,21 @@ export default function CompanySettingsPage() {
 
     return (
         <div className="max-w-7xl mx-auto pb-20 space-y-6">
-            <div className="bg-white p-5 rounded-md border border-gray-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div className="flex items-center gap-4">
-                    <div className="p-2.5 bg-primary-900 rounded-md shadow-lg">
-                        <Building className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                        <h1 className="text-lg font-black text-gray-900 tracking-tight leading-none uppercase">Company Identity</h1>
-                        <p className="text-[10px] text-gray-500 font-bold mt-1.5 uppercase tracking-widest flex items-center gap-2">
-                            System Configuration & branding
-                        </p>
-                    </div>
-                </div>
-                <button
-                    onClick={handleUpdateProfile}
-                    disabled={saving}
-                    className="px-5 py-2.5 bg-gray-900 text-white rounded-md text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all flex items-center gap-2 shadow-xl shadow-gray-900/10 active:scale-95 disabled:opacity-50"
-                >
-                    {saving ? <Loader2 className="animate-spin w-4 h-4" /> : <Save className="w-4 h-4" />}
-                    {saving ? 'Synchronizing...' : 'Save Configuration'}
-                </button>
-            </div>
+            <PageHeader
+                title="Company Identity"
+                subtitle="System Configuration & Branding"
+                icon={Building}
+                actions={
+                    <button
+                        onClick={handleUpdateProfile}
+                        disabled={saving}
+                        className="px-5 py-2.5 bg-gray-900 text-white rounded-md text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all flex items-center gap-2 shadow-xl shadow-gray-900/10 active:scale-95 disabled:opacity-50"
+                    >
+                        {saving ? <Loader2 className="animate-spin w-4 h-4" /> : <Save className="w-4 h-4" />}
+                        {saving ? 'Synchronizing...' : 'Save Configuration'}
+                    </button>
+                }
+            />
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Left Column: Logo & Basic Info */}

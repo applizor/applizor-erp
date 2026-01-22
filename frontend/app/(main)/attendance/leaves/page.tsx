@@ -9,6 +9,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { PermissionGuard } from '@/components/PermissionGuard';
 import { Button } from '@/components/ui/Button';
 import { TableRowSkeleton } from '@/components/ui/Skeleton';
+import PageHeader from '@/components/ui/PageHeader';
 
 interface LeaveRequest {
     id: string;
@@ -213,23 +214,21 @@ export default function MyLeavesPage() {
 
     return (
         <div className="space-y-4">
-            <div className="flex justify-between items-center bg-white p-4 rounded-md border border-gray-200 shadow-sm">
-                <div>
-                    <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2 leading-none">
-                        <Clock className="w-5 h-5 text-primary-600" />
-                        Absence Ledger
-                    </h2>
-                    <p className="text-xs text-gray-500 font-medium mt-1">Track and manage your leave requests</p>
-                </div>
-                <Button
-                    onClick={() => setIsModalOpen(true)}
-                    variant="primary"
-                    icon={Plus}
-                    className="text-sm font-medium"
-                >
-                    Add Leave
-                </Button>
-            </div>
+            <PageHeader
+                title="Absence Ledger"
+                subtitle="Track and manage your leave requests"
+                icon={Clock}
+                actions={
+                    <Button
+                        onClick={() => setIsModalOpen(true)}
+                        variant="primary"
+                        icon={Plus}
+                        className="text-sm font-medium"
+                    >
+                        Add Leave
+                    </Button>
+                }
+            />
 
             <LeaveBalanceCards balances={balances} loading={loading} />
 

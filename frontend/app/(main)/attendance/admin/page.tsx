@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { attendanceApi, holidaysApi, rostersApi } from '@/lib/api/attendance';
 import api from '@/lib/api'; // For employees
 import { Calendar, ChevronLeft, ChevronRight, Download, Filter, Users } from 'lucide-react';
+import PageHeader from '@/components/ui/PageHeader';
 
 interface Employee {
     id: string;
@@ -210,41 +211,38 @@ export default function AdminAttendancePage() {
     return (
         <div className="p-6 h-[calc(100vh-64px)] overflow-hidden flex flex-col">
             {/* Standardized Header */}
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-5 rounded-md border border-gray-200 shadow-sm gap-4 mb-6 flex-shrink-0">
-                <div className="flex items-center gap-4">
-                    <div className="p-2.5 bg-primary-900 rounded-md shadow-lg">
-                        <Users className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                        <h2 className="text-lg font-black text-gray-900 tracking-tight leading-none uppercase">Attendance Register</h2>
-                        <p className="text-[10px] text-gray-500 font-bold mt-1 uppercase tracking-widest leading-none">Monthly Muster Roll</p>
-                    </div>
-                </div>
-                <div className="flex items-center gap-4">
-                    <div className="flex items-center bg-white rounded-md shadow-sm border border-gray-300">
-                        <button onClick={handlePreviousMonth} className="p-2 hover:bg-gray-50 border-r">
-                            <ChevronLeft size={20} />
-                        </button>
-                        <div className="px-4 py-2 font-medium min-w-[150px] text-center text-sm">
-                            {new Date(selectedYear, selectedMonth).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+            {/* Standardized Header */}
+            <PageHeader
+                title="Attendance Register"
+                subtitle="Monthly Muster Roll"
+                icon={Users}
+                actions={
+                    <div className="flex items-center gap-4">
+                        <div className="flex items-center bg-white rounded-md shadow-sm border border-gray-300">
+                            <button onClick={handlePreviousMonth} className="p-2 hover:bg-gray-50 border-r">
+                                <ChevronLeft size={20} />
+                            </button>
+                            <div className="px-4 py-2 font-medium min-w-[150px] text-center text-sm">
+                                {new Date(selectedYear, selectedMonth).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                            </div>
+                            <button onClick={handleNextMonth} className="p-2 hover:bg-gray-50 border-l">
+                                <ChevronRight size={20} />
+                            </button>
                         </div>
-                        <button onClick={handleNextMonth} className="p-2 hover:bg-gray-50 border-l">
-                            <ChevronRight size={20} />
-                        </button>
-                    </div>
 
-                    <div className="flex gap-2">
-                        <button className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 text-gray-700 text-[10px] font-black uppercase tracking-widest">
-                            <Filter size={14} />
-                            <span>Filter</span>
-                        </button>
-                        <button className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-[10px] font-black uppercase tracking-widest shadow-sm">
-                            <Download size={14} />
-                            <span>Export</span>
-                        </button>
+                        <div className="flex gap-2">
+                            <button className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 text-gray-700 text-[10px] font-black uppercase tracking-widest">
+                                <Filter size={14} />
+                                <span>Filter</span>
+                            </button>
+                            <button className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-[10px] font-black uppercase tracking-widest shadow-sm">
+                                <Download size={14} />
+                                <span>Export</span>
+                            </button>
+                        </div>
                     </div>
-                </div>
-            </div>
+                }
+            />
 
             {/* Legend */}
             <div className="flex flex-wrap gap-4 mb-4 px-1">

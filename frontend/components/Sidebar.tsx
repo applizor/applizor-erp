@@ -26,7 +26,8 @@ import {
     Building2,
     Receipt,
     ChevronDown,
-    ChevronRight
+    ChevronRight,
+    ChevronLeft
 } from 'lucide-react';
 import { auth, useAuth } from '@/lib/auth';
 import { useState, useEffect, useRef } from 'react';
@@ -36,6 +37,7 @@ export default function Sidebar() {
     const pathname = usePathname();
     const { user } = useAuth();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [isCollapsed, setIsCollapsed] = useState(false);
 
     // State for expanded categories
     const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
@@ -89,6 +91,7 @@ export default function Sidebar() {
     ];
 
     const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
+    const toggleSidebar = () => setIsCollapsed(!isCollapsed);
 
     const { can } = usePermission();
 
@@ -174,36 +177,44 @@ export default function Sidebar() {
                     <div className="w-8 h-8 bg-primary-600 rounded-md flex items-center justify-center">
                         <Building2 size={18} className="text-white" />
                     </div>
-                    <span className="sidebar-logo-text">Applizor</span>
+                    <span className="sidebar-logo-text !text-primary-900">Applizor</span>
                 </div>
                 <button onClick={toggleMobileMenu} className="p-2 text-slate-600 hover:bg-slate-50 rounded-md transition-colors">
                     <Menu size={24} />
                 </button>
             </div>
 
-            {/* Sidebar Container - Reduced width from w-72 to w-64 */}
+            {/* Sidebar Container */}
             <div className={`
-                fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white transform transition-all duration-300 ease-in-out border-r border-slate-800/50 shadow-2xl
+                fixed inset-y-0 left-0 z-40 bg-slate-900 text-white transform transition-all duration-300 ease-in-out border-r border-slate-800/50 shadow-2xl flex flex-col
                 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
                 md:translate-x-0 md:sticky md:top-0 md:h-screen
+                ${isCollapsed ? 'w-20' : 'w-64'}
             `}>
-                <div className="flex flex-col h-full">
-                    {/* Brand Section */}
-                    <div className="h-16 flex items-center px-6 gap-3 border-b border-slate-800/50 bg-brand-gradient">
-                        <div className="w-8 h-8 bg-white/10 backdrop-blur-md rounded-md flex items-center justify-center border border-white/10">
-                            <Building2 size={18} className="text-white" />
-                        </div>
-                        <div>
-                            <h1 className="sidebar-logo-text">Applizor</h1>
+
+                {/* Brand Section */}
+                <div className={`h-16 flex items-center border-b border-slate-800/50 bg-brand-gradient transition-all duration-300 ${isCollapsed ? 'justify-center px-0' : 'px-6 gap-3'}`}>
+                    <div className="w-8 h-8 bg-white/10 backdrop-blur-md rounded-md flex items-center justify-center border border-white/10 flex-shrink-0">
+                        <Building2 size={18} className="text-white" />
+                    </div>
+                    {!isCollapsed && (
+                        <div className="overflow-hidden whitespace-nowrap">
+                            <h1 className="sidebar-logo-text text-sm">Applizor</h1>
                             <p className="text-[9px] font-black text-primary-300 uppercase tracking-[0.2em]">Softech ERP</p>
                         </div>
-                    </div>
+                    )}
+                </div>
 
-                    {/* Navigation Section */}
-                    <div className="flex-1 overflow-y-auto py-4 no-scrollbar">
-                        {Object.entries(groupedNav).map(([category, items]) => (
-                            <div key={category} className="mb-2 px-3">
-                                {category !== 'Main' ? (
+                {/* Navigation Section */}
+                <div className="flex-1 overflow-y-auto py-4 no-scrollbar">
+                    {Object.entries(groupedNav).map(([category, items]) => (
+                        <div key={category} className={`mb-2 ${isCollapsed ? 'px-2' : 'px-3'}`}>
+
+                            {/* Category Header */}
+                            {category !== 'Main' && (
+                                isCollapsed ? (
+                                    <div className="h-px bg-slate-800 mx-2 my-3" title={category} />
+                                ) : (
                                     <button
                                         onClick={() => toggleCategory(category)}
                                         className="w-full flex items-center justify-between px-3 py-2 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1 hover:text-slate-300 transition-colors"
@@ -211,67 +222,63 @@ export default function Sidebar() {
                                         <span>{category}</span>
                                         {expandedCategories[category] ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
                                     </button>
-                                ) : (
-                                    <h3 className="px-3 py-2 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">
-                                        {category}
-                                    </h3>
-                                )}
+                                )
+                            )}
 
-                                {/* Collapsible Content */}
-                                <div className={`space-y-1 transition-all duration-300 ease-in-out overflow-hidden ${category === 'Main' || expandedCategories[category] ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'
-                                    }`}>
-                                    <nav className="space-y-1">
-                                        {items.map((item) => {
-                                            const isActive = pathname === item.href ||
-                                                (item.href !== '/dashboard' && pathname?.startsWith(item.href + '/'));
+                            {/* When collapsed, Main category needs no header/separator if it's top of list */}
+                            {category === 'Main' && !isCollapsed && (
+                                <h3 className="px-3 py-2 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">
+                                    {category}
+                                </h3>
+                            )}
 
-                                            return (
-                                                <Link
-                                                    key={item.name}
-                                                    href={item.href}
-                                                    ref={isActive ? activeLinkRef : null}
-                                                    className={`
-                                                        group flex items-center px-4 py-2 text-[11px] font-bold rounded-md transition-all duration-200 relative
-                                                        ${isActive
-                                                            ? 'bg-primary-600 text-white shadow-lg shadow-primary-600/20 translate-x-1'
-                                                            : 'text-slate-400 hover:text-white hover:bg-slate-800/50 hover:translate-x-1'}
-                                                    `}
-                                                    onClick={() => setIsMobileMenuOpen(false)}
-                                                >
-                                                    <item.icon className={`mr-3 h-4 w-4 flex-shrink-0 transition-transform group-hover:scale-110 ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-white'}`} />
-                                                    {item.name}
-                                                    {isActive && (
-                                                        <div className="absolute right-4 w-1 h-1 rounded-full bg-primary-300 animate-pulse" />
-                                                    )}
-                                                </Link>
-                                            );
-                                        })}
-                                    </nav>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+                            {/* Collapsible Content */}
+                            <div className={`space-y-1 transition-all duration-300 ease-in-out overflow-hidden
+                                ${isCollapsed ? 'max-h-[2000px] opacity-100' : (category === 'Main' || expandedCategories[category] ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0')}
+                            `}>
+                                <nav className="space-y-1">
+                                    {items.map((item) => {
+                                        const isActive = pathname === item.href ||
+                                            (item.href !== '/dashboard' && pathname?.startsWith(item.href + '/'));
 
-                    {/* User Profile & Footer Section */}
-                    <div className="p-3 bg-slate-950/50 border-t border-slate-800/50">
-                        <div className="bg-slate-800/40 rounded-md p-2.5 border border-slate-700/30">
-                            <div className="flex items-center gap-2.5">
-                                <div className="h-8 w-8 rounded-md bg-gradient-to-tr from-primary-600 to-primary-800 flex items-center justify-center text-[10px] font-black text-white shadow-inner uppercase">
-                                    {user?.firstName?.[0]}{user?.lastName?.[0]}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-[11px] font-black text-white truncate">{user?.firstName} {user?.lastName}</p>
-                                    <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest truncate">Premium</p>
-                                </div>
-                                <button
-                                    onClick={handleLogout}
-                                    className="p-1.5 text-slate-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-md transition-all"
-                                    title="Logout"
-                                >
-                                    <LogOut size={16} />
-                                </button>
+                                        return (
+                                            <Link
+                                                key={item.name}
+                                                href={item.href}
+                                                ref={isActive ? activeLinkRef : null}
+                                                title={isCollapsed ? item.name : undefined}
+                                                className={`
+                                                    group flex items-center text-[11px] font-bold rounded-md transition-all duration-200 relative
+                                                    ${isCollapsed ? 'justify-center p-2' : 'px-4 py-2'}
+                                                    ${isActive
+                                                        ? 'bg-primary-600 text-white shadow-lg shadow-primary-600/20'
+                                                        : 'text-slate-400 hover:text-white hover:bg-slate-800/50'}
+                                                `}
+                                                onClick={() => setIsMobileMenuOpen(false)}
+                                            >
+                                                <item.icon className={`${isCollapsed ? 'mr-0' : 'mr-3'} h-4 w-4 flex-shrink-0 transition-transform group-hover:scale-110 ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-white'}`} />
+                                                {!isCollapsed && item.name}
+                                                {isActive && (
+                                                    <div className={`absolute rounded-full bg-primary-300 animate-pulse ${isCollapsed ? 'bottom-1 w-1 h-1' : 'right-4 w-1 h-1'}`} />
+                                                )}
+                                            </Link>
+                                        );
+                                    })}
+                                </nav>
                             </div>
                         </div>
+                    ))}
+                </div>
+
+                {/* Footer Section: Toggle Only */}
+                <div className="bg-slate-950/50 border-t border-slate-800/50">
+                    <div className="hidden md:flex justify-end p-2">
+                        <button
+                            onClick={toggleSidebar}
+                            className="p-1.5 text-slate-500 hover:text-white hover:bg-slate-800 rounded-md transition-colors"
+                        >
+                            {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+                        </button>
                     </div>
                 </div>
             </div>

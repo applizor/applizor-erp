@@ -13,12 +13,8 @@ export default function HRMSLayout({
     const pathname = usePathname();
 
     return (
-        <div className="px-4 py-6 sm:px-0">
-            <div className="mt-6">
-                <Suspense fallback={<div>Loading...</div>}>
-                    {children}
-                </Suspense>
-            </div>
-        </div>
+        <Suspense fallback={<div>Loading...</div>}>
+            {children}
+        </Suspense>
     );
 }

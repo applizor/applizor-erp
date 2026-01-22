@@ -4,6 +4,7 @@ import { Plus, Briefcase } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useConfirm } from '@/context/ConfirmationContext';
+import PageHeader from '@/components/ui/PageHeader';
 
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
@@ -119,25 +120,22 @@ export default function AssetsPage() {
     };
 
     return (
-        <div>
+        <div className="flex flex-col gap-6">
             {/* Standardized Header */}
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-5 rounded-md border border-gray-200 shadow-sm gap-4 mb-6">
-                <div className="flex items-center gap-4">
-                    <div className="p-2.5 bg-primary-900 rounded-md shadow-lg">
-                        <Briefcase className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                        <h2 className="text-lg font-black text-gray-900 tracking-tight leading-none uppercase">Asset Management</h2>
-                        <p className="text-[10px] text-gray-500 font-bold mt-1 uppercase tracking-widest leading-none">Global Resource & Inventory Ledger</p>
-                    </div>
-                </div>
-                <button
-                    onClick={() => { resetForm(); setShowModal(true); }}
-                    className="btn-primary flex items-center gap-2"
-                >
-                    <Plus size={14} /> Add New Asset
-                </button>
-            </div>
+            {/* Standardized Header */}
+            <PageHeader
+                title="Asset Management"
+                subtitle="Global Resource & Inventory Ledger"
+                icon={Briefcase}
+                actions={
+                    <button
+                        onClick={() => { resetForm(); setShowModal(true); }}
+                        className="btn-primary flex items-center gap-2"
+                    >
+                        <Plus size={14} /> Add New Asset
+                    </button>
+                }
+            />
 
             {loading ? (
                 <div className="text-center py-8">Loading...</div>

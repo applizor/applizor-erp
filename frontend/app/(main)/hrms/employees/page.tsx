@@ -12,6 +12,7 @@ import { usePermission } from '@/hooks/usePermission';
 import { Plus, Users, Clock, Zap, Search, Filter, Trash2, UserPlus, Fingerprint, Shield } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { EmployeeListSkeleton } from '@/components/hrms/EmployeeListSkeleton';
+import PageHeader from '@/components/ui/PageHeader';
 
 export default function EmployeesPage() {
     const toast = useToast();
@@ -101,38 +102,33 @@ export default function EmployeesPage() {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="flex flex-col gap-6">
             {/* Contextual Header */}
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-5 rounded-md border border-gray-200 shadow-sm gap-4">
-                <div className="flex items-center gap-4">
-                    <div className="p-2.5 bg-primary-900 rounded-md shadow-lg">
-                        <Users className="w-5 h-5 text-white" />
+            <PageHeader
+                title="Resource Directory"
+                subtitle="Global Human Capital Intelligence Matrix"
+                icon={Users}
+                actions={
+                    <div className="flex items-center gap-2 w-full lg:w-auto">
+                        <div className="flex-1 lg:w-64 relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                            <input
+                                type="text"
+                                placeholder="QUERY RESOURCE..."
+                                className="ent-input w-full pl-9 py-1.5 text-[10px] font-black tracking-widest"
+                            />
+                        </div>
+                        <PermissionGuard module="Employee" action="create">
+                            <Link
+                                href="/hrms/employees/new"
+                                className="btn-primary flex items-center gap-2"
+                            >
+                                <Plus size={14} /> Register Resource
+                            </Link>
+                        </PermissionGuard>
                     </div>
-                    <div>
-                        <h2 className="text-lg font-black text-gray-900 tracking-tight leading-none uppercase">Resource Directory</h2>
-                        <p className="text-[10px] text-gray-500 font-bold mt-1 uppercase tracking-widest leading-none">Global Human Capital Intelligence Matrix</p>
-                    </div>
-                </div>
-
-                <div className="flex items-center gap-2 w-full lg:w-auto">
-                    <div className="flex-1 lg:w-64 relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-                        <input
-                            type="text"
-                            placeholder="QUERY RESOURCE..."
-                            className="ent-input w-full pl-9 py-1.5 text-[10px] font-black tracking-widest"
-                        />
-                    </div>
-                    <PermissionGuard module="Employee" action="create">
-                        <Link
-                            href="/hrms/employees/new"
-                            className="btn-primary flex items-center gap-2"
-                        >
-                            <Plus size={14} /> Register Resource
-                        </Link>
-                    </PermissionGuard>
-                </div>
-            </div>
+                }
+            />
 
             {/* Logical Filtration Schema */}
             <div className="flex items-center gap-3 bg-gray-50/50 p-2 rounded-md border border-gray-100">

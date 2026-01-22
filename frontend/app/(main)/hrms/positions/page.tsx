@@ -7,6 +7,7 @@ import { departmentsApi, positionsApi, Position, Department } from '@/lib/api/hr
 import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import PageHeader from '@/components/ui/PageHeader';
 
 export default function PositionsPage() {
     const router = useRouter();
@@ -93,48 +94,43 @@ export default function PositionsPage() {
     };
 
     return (
-        <div className="space-y-6">
+        <div className="flex flex-col gap-6">
             {/* Semantic Header Component */}
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-5 rounded-md border border-gray-200 shadow-sm gap-4">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-4 flex-1">
-                    <div className="flex items-center gap-4">
-                        <div className="p-2.5 bg-primary-900 rounded-md shadow-lg">
-                            <Briefcase className="w-5 h-5 text-white" />
+            {/* Semantic Header Component */}
+            <PageHeader
+                title="Designation Nodes"
+                subtitle="Professional Talent Hierarchy Matrix"
+                icon={Briefcase}
+                actions={
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-4 w-full lg:w-auto">
+                        <div className="flex items-center gap-2 px-3 py-1 bg-gray-50 border border-gray-100 rounded-md focus-within:ring-1 focus-within:ring-primary-500/20 transition-all">
+                            <Filter size={12} className="text-gray-400" />
+                            <select
+                                value={filterDept}
+                                onChange={(e) => setFilterDept(e.target.value)}
+                                className="bg-transparent border-none focus:ring-0 text-[10px] font-black uppercase tracking-widest text-gray-600 py-1.5 cursor-pointer"
+                            >
+                                <option value="">All Divisions</option>
+                                {departments.map(dept => (
+                                    <option key={dept.id} value={dept.id}>{dept.name}</option>
+                                ))}
+                            </select>
                         </div>
-                        <div>
-                            <h2 className="text-lg font-black text-gray-900 tracking-tight leading-none uppercase">Designation Nodes</h2>
-                            <p className="text-[10px] text-gray-500 font-bold mt-1 uppercase tracking-widest leading-none">Professional Talent Hierarchy Matrix</p>
+                        <div className="flex items-center gap-3">
+                            <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-gray-50 border border-gray-100 rounded-md text-[10px] font-black uppercase tracking-widest text-gray-400">
+                                <LayoutGrid size={12} />
+                                <span>Active Nodes: {positions.filter(p => p.isActive).length}</span>
+                            </div>
+                            <button
+                                onClick={() => { resetForm(); setShowModal(true); }}
+                                className="px-4 py-2 bg-primary-600 text-white rounded-md text-[10px] font-black uppercase tracking-widest hover:bg-primary-700 shadow-lg shadow-primary-900/10 flex items-center gap-2 transition-all"
+                            >
+                                <Plus size={14} /> Register Designation
+                            </button>
                         </div>
                     </div>
-
-                    <div className="flex items-center gap-2 px-3 py-1 bg-gray-50 border border-gray-100 rounded-md focus-within:ring-1 focus-within:ring-primary-500/20 transition-all ml-0 sm:ml-4">
-                        <Filter size={12} className="text-gray-400" />
-                        <select
-                            value={filterDept}
-                            onChange={(e) => setFilterDept(e.target.value)}
-                            className="bg-transparent border-none focus:ring-0 text-[10px] font-black uppercase tracking-widest text-gray-600 pr-8 py-1.5 cursor-pointer"
-                        >
-                            <option value="">All Divisions</option>
-                            {departments.map(dept => (
-                                <option key={dept.id} value={dept.id}>{dept.name}</option>
-                            ))}
-                        </select>
-                    </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                    <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-gray-50 border border-gray-100 rounded-md text-[10px] font-black uppercase tracking-widest text-gray-400">
-                        <LayoutGrid size={12} />
-                        <span>Active Nodes: {positions.filter(p => p.isActive).length}</span>
-                    </div>
-                    <button
-                        onClick={() => { resetForm(); setShowModal(true); }}
-                        className="px-4 py-2 bg-primary-600 text-white rounded-md text-[10px] font-black uppercase tracking-widest hover:bg-primary-700 shadow-lg shadow-primary-900/10 flex items-center gap-2 transition-all"
-                    >
-                        <Plus size={14} /> Register Designation
-                    </button>
-                </div>
-            </div>
+                }
+            />
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {loading ? (

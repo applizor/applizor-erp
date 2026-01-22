@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/useToast';
 import { useCurrency } from '@/context/CurrencyContext';
 import { InvoiceListSkeleton } from '@/components/invoices/InvoiceListSkeleton';
 import { Button } from '@/components/ui/Button';
+import PageHeader from '@/components/ui/PageHeader';
 
 export default function InvoicesPage() {
   const toast = useToast();
@@ -93,24 +94,18 @@ export default function InvoicesPage() {
   return (
     <div className="space-y-4">
       {/* Standardized Header */}
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-5 rounded-md border border-gray-200 shadow-sm gap-4">
-        <div className="flex items-center gap-4">
-          <div className="p-2.5 bg-primary-900 rounded-md shadow-lg">
-            <Receipt className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h2 className="text-lg font-black text-gray-900 tracking-tight leading-none uppercase">Commercial Ledger</h2>
-            <p className="text-[10px] text-gray-500 font-bold mt-1 uppercase tracking-widest leading-none">Operational view of revenue generation and collections</p>
-          </div>
-        </div>
-        <Link
-          href="/invoices/create"
-        >
-          <Button variant="primary" icon={Plus} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest px-4 py-2">
-            Create Invoice
-          </Button>
-        </Link>
-      </div>
+      <PageHeader
+        title="Commercial Ledger"
+        subtitle="Operational view of revenue generation and collections"
+        icon={Receipt}
+        actions={
+          <Link href="/invoices/create">
+            <Button variant="primary" icon={Plus} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest px-4 py-2">
+              Create Invoice
+            </Button>
+          </Link>
+        }
+      />
 
       {/* Global Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

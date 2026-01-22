@@ -7,6 +7,7 @@ import { departmentsApi, Department } from '@/lib/api/hrms';
 import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import PageHeader from '@/components/ui/PageHeader';
 
 export default function DepartmentsPage() {
     const router = useRouter();
@@ -86,32 +87,28 @@ export default function DepartmentsPage() {
     };
 
     return (
-        <div className="space-y-6">
+        <div className="flex flex-col gap-6">
             {/* Semantic Header Component */}
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-5 rounded-md border border-gray-200 shadow-sm gap-4">
-                <div className="flex items-center gap-4">
-                    <div className="p-2.5 bg-primary-900 rounded-md shadow-lg">
-                        <Building2 className="w-5 h-5 text-white" />
+            {/* Semantic Header Component */}
+            <PageHeader
+                title="Division Schema"
+                subtitle="Global Organizational Structure Matrix"
+                icon={Building2}
+                actions={
+                    <div className="flex items-center gap-3">
+                        <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-gray-50 border border-gray-100 rounded-md text-[10px] font-black uppercase tracking-widest text-gray-400">
+                            <LayoutGrid size={12} />
+                            <span>Active Units: {departments.filter(d => d.isActive).length}</span>
+                        </div>
+                        <button
+                            onClick={() => { resetForm(); setShowModal(true); }}
+                            className="px-4 py-2 bg-primary-600 text-white rounded-md text-[10px] font-black uppercase tracking-widest hover:bg-primary-700 shadow-lg shadow-primary-900/10 flex items-center gap-2 transition-all"
+                        >
+                            <Plus size={14} /> Register Division
+                        </button>
                     </div>
-                    <div>
-                        <h2 className="text-lg font-black text-gray-900 tracking-tight leading-none uppercase">Division Schema</h2>
-                        <p className="text-[10px] text-gray-500 font-bold mt-1 uppercase tracking-widest leading-none">Global Organizational Structure Matrix</p>
-                    </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                    <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-gray-50 border border-gray-100 rounded-md text-[10px] font-black uppercase tracking-widest text-gray-400">
-                        <LayoutGrid size={12} />
-                        <span>Active Units: {departments.filter(d => d.isActive).length}</span>
-                    </div>
-                    <button
-                        onClick={() => { resetForm(); setShowModal(true); }}
-                        className="px-4 py-2 bg-primary-600 text-white rounded-md text-[10px] font-black uppercase tracking-widest hover:bg-primary-700 shadow-lg shadow-primary-900/10 flex items-center gap-2 transition-all"
-                    >
-                        <Plus size={14} /> Register Division
-                    </button>
-                </div>
-            </div>
+                }
+            />
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {loading ? (

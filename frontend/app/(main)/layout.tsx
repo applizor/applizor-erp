@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { CurrencyProvider } from '@/context/CurrencyContext';
 import { auth } from '@/lib/auth';
 import Sidebar from '@/components/Sidebar';
+import TopHeader from '@/components/TopHeader';
 
 export default function MainLayout({
     children,
@@ -28,7 +29,8 @@ export default function MainLayout({
             <div className="flex min-h-screen bg-slate-50 font-sans text-slate-900">
                 <Sidebar />
                 <div className="flex-1 flex flex-col min-w-0">
-                    <main className="flex-1 p-4 md:p-10 mt-14 md:mt-0 max-w-[1600px] mx-auto w-full">
+                    <TopHeader />
+                    <main className="flex-1 px-4 pt-1 pb-6 md:px-8 md:pt-2 md:pb-8 max-w-[1600px] mx-auto w-full">
                         {children}
                     </main>
                 </div>

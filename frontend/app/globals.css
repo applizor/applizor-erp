@@ -175,6 +175,32 @@
   .ent-input-error {
     @apply border-rose-500/50 focus:border-rose-500/50 focus:ring-rose-500/5;
   }
+
+  /* Enterprise Page Header Standard */
+  .ent-page-header-container {
+    @apply bg-white p-5 rounded-md border border-gray-200 shadow-sm flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6 mt-0 transition-all duration-300;
+  }
+
+  .ent-page-title {
+    @apply text-lg font-black text-gray-900 tracking-tight leading-none uppercase;
+  }
+
+  .ent-page-subtitle {
+    @apply text-[10px] text-gray-500 font-bold mt-1 uppercase tracking-widest leading-none;
+  }
+
+  .ent-icon-box {
+    @apply p-2.5 bg-primary-900 rounded-md shadow-lg flex items-center justify-center text-white;
+  }
+
+  /* Sidebar collapsed transition utilities */
+  .sidebar-expanded {
+    @apply w-64;
+  }
+
+  .sidebar-collapsed {
+    @apply w-20;
+  }
 }
 
 @keyframes shimmer {

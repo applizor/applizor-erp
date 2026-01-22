@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/useToast';
 import { usePermission } from '@/hooks/usePermission';
 import { Plus, Search, Edit, Trash2, Copy, TrendingUp, LayoutTemplate, Filter, FileText } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import PageHeader from '@/components/ui/PageHeader';
 
 interface Template {
     id: string;
@@ -96,36 +97,27 @@ export default function QuotationTemplatesPage() {
     }
 
     return (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            {/* Header */}
-            <div className="flex justify-between items-center mb-6">
-                <div>
-                    <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Configuration</span>
-                        <span className="text-gray-300">/</span>
-                        <span className="text-xs font-bold text-gray-900 tracking-wide">Templates</span>
-                    </div>
-                    <h1 className="text-2xl font-black text-gray-900 tracking-tight uppercase flex items-center gap-3">
-                        <LayoutTemplate className="text-primary-600" size={28} />
-                        Quotation Templates
-                    </h1>
-                    <p className="text-sm text-gray-500 mt-1 font-medium max-w-2xl">
-                        Manage and organize reusable quotation structures to accelerate your sales workflow.
-                    </p>
-                </div>
-                {can('Quotation', 'create') && (
-                    <button
-                        onClick={() => router.push('/quotations/create')}
-                        className="ent-button-primary shadow-lg shadow-primary-500/20"
-                    >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Create New Quote
-                    </button>
-                )}
-            </div>
+        <div className="flex flex-col gap-6">
+            {/* Standardized Header */}
+            <PageHeader
+                title="Quotation Templates"
+                subtitle="Manage and organize reusable quotation structures"
+                icon={LayoutTemplate}
+                actions={
+                    can('Quotation', 'create') && (
+                        <button
+                            onClick={() => router.push('/quotations/create')}
+                            className="ent-button-primary shadow-lg shadow-primary-500/20"
+                        >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Create New Quote
+                        </button>
+                    )
+                }
+            />
 
             {/* Filters */}
-            <div className="bg-white rounded-md shadow-sm border border-gray-200 p-1.5 mb-8 flex flex-col md:flex-row gap-2">
+            <div className="bg-white rounded-md shadow-sm border border-gray-200 p-1.5 flex flex-col md:flex-row gap-2">
                 <div className="relative flex-1">
                     <Search className="absolute left-3 top-2.5 text-gray-400 w-4 h-4" />
                     <input

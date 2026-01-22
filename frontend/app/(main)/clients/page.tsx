@@ -10,6 +10,7 @@ import { ClientEmptyState } from '@/components/clients/ClientEmptyState';
 import { ClientFilterBar } from '@/components/clients/ClientFilterBar';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/hooks/useToast';
+import PageHeader from '@/components/ui/PageHeader';
 
 export default function ClientsPage() {
   const toast = useToast();
@@ -103,34 +104,21 @@ export default function ClientsPage() {
   return (
     <div className="animate-fade-in pb-20">
       {/* Header */}
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-5 rounded-md border border-gray-200 shadow-sm gap-4 mb-6">
-        <div className="flex items-center gap-4">
-          <div className="p-2.5 bg-primary-900 rounded-md shadow-lg">
-            <Users className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h1 className="text-lg font-black text-slate-900 tracking-tight leading-none uppercase">
-              Customer Registry
-              {!loading && clients.length > 0 && (
-                <span className="ml-3 text-[9px] px-2 py-0.5 rounded-md bg-primary-50 text-primary-700 border border-primary-100 uppercase font-black tracking-widest">
-                  {pagination.total} ENTITIES
-                </span>
-              )}
-            </h1>
-            <p className="text-[10px] text-slate-500 font-bold mt-1 uppercase tracking-widest leading-none">
-              Manage global client partnerships and billing identities.
-            </p>
-          </div>
-        </div>
-        <PermissionGuard module="Client" action="create">
-          <Link
-            href="/clients/create"
-            className="btn-primary flex items-center gap-2"
-          >
-            <Plus size={14} /> Onboard Entity
-          </Link>
-        </PermissionGuard>
-      </div>
+      <PageHeader
+        title={loading || clients.length === 0 ? "Customer Registry" : `Customer Registry (${pagination.total} ENTITIES)`}
+        subtitle="Manage global client partnerships and billing identities."
+        icon={Users}
+        actions={
+          <PermissionGuard module="Client" action="create">
+            <Link
+              href="/clients/create"
+              className="btn-primary flex items-center gap-2"
+            >
+              <Plus size={14} /> Onboard Entity
+            </Link>
+          </PermissionGuard>
+        }
+      />
 
       {/* Global Search & Filtration */}
       <div className="flex flex-col md:flex-row gap-4 mb-6 mx-2">

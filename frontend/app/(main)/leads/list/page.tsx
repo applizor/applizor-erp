@@ -13,6 +13,7 @@ import { LeadFilterBar } from '@/components/leads/LeadFilterBar';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useToast } from '@/hooks/useToast';
 import { useCurrency } from '@/context/CurrencyContext';
+import PageHeader from '@/components/ui/PageHeader';
 
 export default function LeadsListPage() {
     const router = useRouter();
@@ -113,41 +114,35 @@ export default function LeadsListPage() {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-5 rounded-md border border-gray-200 shadow-sm gap-4">
-                <div className="flex items-center gap-4">
-                    <div className="p-2.5 bg-primary-900 rounded-md shadow-lg">
-                        <TrendingUp className="w-5 h-5 text-white" />
+            {/* Header */}
+            <PageHeader
+                title="Opportunity Pipeline"
+                subtitle="Revenue Acquisition Stream > Registry Management"
+                icon={TrendingUp}
+                actions={
+                    <div className="flex items-center gap-3 w-full lg:w-auto">
+                        <div className="flex bg-gray-100 p-1 rounded-md font-black text-[9px] uppercase tracking-widest">
+                            <Link
+                                href="/leads/kanban"
+                                className="px-4 py-2 text-gray-400 hover:text-gray-600 rounded-md flex items-center gap-2 transition-all"
+                            >
+                                Board View
+                            </Link>
+                            <button className="px-4 py-2 bg-white text-primary-600 shadow-sm rounded-md flex items-center gap-2 border border-gray-200">
+                                Ledger
+                            </button>
+                        </div>
+                        <PermissionGuard module="Lead" action="create">
+                            <Link
+                                href="/leads/create"
+                                className="btn-primary flex items-center gap-2"
+                            >
+                                <Plus size={14} /> Acquire Lead
+                            </Link>
+                        </PermissionGuard>
                     </div>
-                    <div>
-                        <h2 className="text-lg font-black text-gray-900 tracking-tight leading-none uppercase">Opportunity Pipeline</h2>
-                        <p className="text-[10px] text-gray-500 font-bold mt-1.5 uppercase tracking-widest flex items-center gap-2">
-                            Revenue Acquisition Stream <ChevronRight size={10} className="text-primary-600" /> Registry Management
-                        </p>
-                    </div>
-                </div>
-
-                <div className="flex items-center gap-3 w-full lg:w-auto">
-                    <div className="flex bg-gray-100 p-1 rounded-md font-black text-[9px] uppercase tracking-widest">
-                        <Link
-                            href="/leads/kanban"
-                            className="px-4 py-2 text-gray-400 hover:text-gray-600 rounded-md flex items-center gap-2 transition-all"
-                        >
-                            Board View
-                        </Link>
-                        <button className="px-4 py-2 bg-white text-primary-600 shadow-sm rounded-md flex items-center gap-2 border border-gray-200">
-                            Ledger
-                        </button>
-                    </div>
-                    <PermissionGuard module="Lead" action="create">
-                        <Link
-                            href="/leads/create"
-                            className="btn-primary flex items-center gap-2"
-                        >
-                            <Plus size={14} /> Acquire Lead
-                        </Link>
-                    </PermissionGuard>
-                </div>
-            </div>
+                }
+            />
 
             {/* Global Search & Filtration */}
             <div className="mx-2 space-y-4">
