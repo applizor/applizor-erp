@@ -26,12 +26,18 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
         const userData = localStorage.getItem('user');
         const portalType = localStorage.getItem('portalType');
 
-        if (!token || !userData || portalType !== 'client') {
+        if (!token || !userData || userData === 'undefined' || portalType !== 'client') {
             router.push('/portal/login');
             return;
         }
 
-        setUser(JSON.parse(userData));
+        try {
+            setUser(JSON.parse(userData));
+        } catch (e) {
+            console.error('Failed to parse user data', e);
+            localStorage.clear();
+            router.push('/portal/login');
+        }
     }, []);
 
     if (pathname === '/portal/login') {

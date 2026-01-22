@@ -22,6 +22,10 @@ export default function ClientLoginPage() {
         try {
             const res = await api.post('/portal/login', { email, password });
             localStorage.setItem('token', res.data.token);
+            if (res.data.user) {
+                localStorage.setItem('user', JSON.stringify(res.data.user));
+            }
+            localStorage.setItem('portalType', 'client');
             router.push('/portal/dashboard');
         } catch (err: any) {
             setError(err.response?.data?.error || 'Login failed');
