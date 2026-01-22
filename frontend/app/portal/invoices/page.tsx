@@ -5,6 +5,7 @@ import Link from 'next/link';
 import api from '@/lib/api';
 import PageHeader from '@/components/ui/PageHeader';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { FileText, Download, Filter, Search } from 'lucide-react';
 
 export default function PortalInvoices() {
@@ -82,11 +83,15 @@ export default function PortalInvoices() {
         }
     };
 
-    if (loading) return <div>Loading invoices...</div>;
-
     if (loading) return (
-        <div className="h-[60vh] flex items-center justify-center">
-            <LoadingSpinner size="lg" />
+        <div className="animate-pulse space-y-6">
+            <div className="h-20 bg-slate-100 rounded-lg w-full"></div>
+            <div className="space-y-4">
+                <div className="h-12 bg-slate-100 rounded-lg w-full"></div>
+                {[1, 2, 3, 4, 5].map((i) => (
+                    <div key={i} className="h-16 bg-slate-50/50 rounded-lg w-full border border-slate-100"></div>
+                ))}
+            </div>
         </div>
     );
 

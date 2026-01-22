@@ -41,8 +41,17 @@ export default function InvoiceDetails({ params }: { params: { id: string } }) {
     };
 
     if (loading) return (
-        <div className="h-[60vh] flex items-center justify-center">
-            <LoadingSpinner size="lg" />
+        <div className="animate-pulse space-y-6">
+            <div className="h-8 w-32 bg-slate-100 rounded mb-4"></div>
+            <div className="flex flex-col md:flex-row gap-6">
+                <div className="flex-1 space-y-6">
+                    <div className="h-96 bg-slate-100 rounded-lg w-full"></div>
+                </div>
+                <div className="w-full md:w-80 space-y-6">
+                    <div className="h-32 bg-slate-100 rounded-lg w-full"></div>
+                    <div className="h-64 bg-slate-100 rounded-lg w-full"></div>
+                </div>
+            </div>
         </div>
     );
 
@@ -173,8 +182,8 @@ export default function InvoiceDetails({ params }: { params: { id: string } }) {
                             {timeline.map((event: any, idx: number) => (
                                 <div key={idx} className="relative flex items-start gap-4">
                                     <div className={`relative z-10 w-7 h-7 rounded-full flex items-center justify-center border-2 ${event.completed
-                                            ? 'bg-emerald-100 border-emerald-500 text-emerald-600'
-                                            : 'bg-white border-slate-200 text-slate-300'
+                                        ? 'bg-emerald-100 border-emerald-500 text-emerald-600'
+                                        : 'bg-white border-slate-200 text-slate-300'
                                         }`}>
                                         {event.status === 'Paid' ? <CreditCard size={12} /> :
                                             event.status === 'Sent' ? <Send size={12} /> :
