@@ -11,7 +11,8 @@ import {
     Menu,
     X,
     Bell,
-    User
+    User,
+    Building2
 } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
 
@@ -60,12 +61,19 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
     return (
         <div className="min-h-screen bg-slate-50 flex">
             {/* Sidebar */}
-            <div className="fixed inset-y-0 left-0 w-64 bg-[#0F172A] text-white z-30 flex flex-col transition-transform duration-300 ease-in-out md:translate-x-0 -translate-x-full">
-                <div className="h-16 flex items-center px-6 border-b border-slate-700/50">
-                    <span className="text-lg font-black tracking-tight text-white uppercase">Client Portal</span>
+            <div className="fixed inset-y-0 left-0 w-64 bg-slate-900 text-white z-30 flex flex-col transition-transform duration-300 ease-in-out md:translate-x-0 -translate-x-full border-r border-slate-800/50 shadow-2xl">
+                {/* Brand Section */}
+                <div className="h-16 flex items-center px-6 gap-3 border-b border-slate-800/50 bg-brand-gradient">
+                    <div className="w-8 h-8 bg-white/10 backdrop-blur-md rounded-md flex items-center justify-center border border-white/10 flex-shrink-0">
+                        <Building2 size={18} className="text-white" />
+                    </div>
+                    <div className="overflow-hidden whitespace-nowrap">
+                        <h1 className="sidebar-logo-text text-sm">Applizor</h1>
+                        <p className="text-[9px] font-black text-primary-300 uppercase tracking-[0.2em]">Client Portal</p>
+                    </div>
                 </div>
 
-                <nav className="flex-1 px-3 py-4 space-y-1">
+                <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto no-scrollbar">
                     {menuItems.map((item) => {
                         const isActive = pathname === item.href;
                         const Icon = item.icon;
@@ -73,21 +81,26 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
                             <Link
                                 key={item.name}
                                 href={item.href}
-                                className={`group flex items-center px-4 py-3 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 ${isActive
-                                    ? 'bg-primary-600 text-white shadow-lg shadow-primary-900/20'
-                                    : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-                                    }`}
+                                className={`
+                                    group flex items-center px-4 py-2 text-[11px] font-bold rounded-md transition-all duration-200 relative
+                                    ${isActive
+                                        ? 'bg-primary-600 text-white shadow-lg shadow-primary-600/20'
+                                        : 'text-slate-400 hover:text-white hover:bg-slate-800/50'}
+                                `}
                             >
-                                <Icon size={18} className={`mr-3 ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-white'}`} />
+                                <Icon className={`mr-3 h-4 w-4 flex-shrink-0 transition-transform group-hover:scale-110 ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-white'}`} />
                                 {item.name}
+                                {isActive && (
+                                    <div className="absolute right-4 w-1 h-1 rounded-full bg-primary-300 animate-pulse" />
+                                )}
                             </Link>
                         );
                     })}
                 </nav>
 
-                <div className="p-4 border-t border-slate-700/50">
-                    <div className="flex items-center gap-3 px-2 py-3 mb-2">
-                        <div className="w-8 h-8 rounded-full bg-primary-500 flex items-center justify-center text-white font-bold text-xs">
+                <div className="p-4 border-t border-slate-800/50 bg-slate-950/30">
+                    <div className="flex items-center gap-3 px-2 py-3 mb-2 bg-slate-900/50 rounded-lg border border-slate-800">
+                        <div className="w-8 h-8 rounded-md bg-gradient-to-br from-primary-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xs shadow-inner">
                             {user?.name?.charAt(0) || 'C'}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -97,7 +110,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
                     </div>
                     <button
                         onClick={handleLogout}
-                        className="w-full flex items-center justify-center px-4 py-2 text-xs font-bold uppercase tracking-wider text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 rounded-lg transition-colors"
+                        className="w-full flex items-center justify-center px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 rounded-md transition-all border border-rose-500/20 hover:border-rose-500/40"
                     >
                         <LogOut size={14} className="mr-2" />
                         Sign Out
