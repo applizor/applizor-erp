@@ -470,10 +470,12 @@ export class PDFService {
     <div class="signatures">
         <div class="signature-block">
             <div class="sign-area">
-                <!-- Company Signature Placeholder or Image if available -->
+                ${data.companySignature ? `<img src="${data.companySignature}" class="sign-img">` : ''}
             </div>
             <div class="sign-label">For ${data.company.name}</div>
-            <div style="font-size: 12px;">Authorized Signatory</div>
+            <div style="font-size: 12px; color: #666;">
+                ${data.companySignedAt ? `Authorized Signatory<br>Date: ${new Date(data.companySignedAt).toLocaleString()}` : 'Authorized Signatory'}
+            </div>
         </div>
 
         <div class="signature-block">

@@ -15,30 +15,30 @@ datasource db {
 // ============================================
 
 model User {
-  id            String   @id @default(uuid())
-  email         String   @unique
-  password      String
-  firstName     String
-  lastName      String
-  phone         String?
-  isActive      Boolean  @default(true)
-  lastLogin     DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  resetToken    String?
+  id               String    @id @default(uuid())
+  email            String    @unique
+  password         String
+  firstName        String
+  lastName         String
+  phone            String?
+  isActive         Boolean   @default(true)
+  lastLogin        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  resetToken       String?
   resetTokenExpiry DateTime?
 
   // Relations
-  companyId     String?
-  company       Company? @relation(fields: [companyId], references: [id])
-  roles         UserRole[]
-  auditLogs     AuditLog[]
-  createdTasks  Task[]   @relation("TaskCreator")
-  assignedTasks Task[]   @relation("TaskAssignee")
-  employee      Employee?
-  createdEmployees Employee[] @relation("EmployeeCreator")
-  assignedLeads Lead[]   @relation("LeadAssignee")
-  createdLeads  Lead[]   @relation("LeadCreator")
+  companyId          String?
+  company            Company?    @relation(fields: [companyId], references: [id])
+  roles              UserRole[]
+  auditLogs          AuditLog[]
+  createdTasks       Task[]      @relation("TaskCreator")
+  assignedTasks      Task[]      @relation("TaskAssignee")
+  employee           Employee?
+  createdEmployees   Employee[]  @relation("EmployeeCreator")
+  assignedLeads      Lead[]      @relation("LeadAssignee")
+  createdLeads       Lead[]      @relation("LeadCreator")
   assignedQuotations Quotation[] @relation("QuotationAssignee")
   createdQuotations  Quotation[] @relation("QuotationCreator")
   createdContracts   Contract[]  @relation("ContractCreator")
@@ -68,8 +68,8 @@ model UserRole {
   roleId    String
   createdAt DateTime @default(now())
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
   @@unique([userId, roleId])
   @@index([userId])
@@ -78,19 +78,19 @@ model UserRole {
 
 // RolePermission now stores the Matrix values directly
 model RolePermission {
-  id           String   @id @default(uuid())
-  roleId       String
-  module       String   // e.g. "Assets", "Payroll", "Employees"
-  
+  id     String @id @default(uuid())
+  roleId String
+  module String // e.g. "Assets", "Payroll", "Employees"
+
   // Access Levels: "none", "all", "added", "owned", "both"
-  createLevel  String   @default("none")
-  readLevel    String   @default("none")
-  updateLevel  String   @default("none")
-  deleteLevel  String   @default("none")
+  createLevel String @default("none")
+  readLevel   String @default("none")
+  updateLevel String @default("none")
+  deleteLevel String @default("none")
 
-  createdAt    DateTime @default(now())
+  createdAt DateTime @default(now())
 
-  role         Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
   @@unique([roleId, module])
   @@index([roleId])
@@ -101,57 +101,57 @@ model RolePermission {
 // ============================================
 
 model Company {
-  id              String   @id @default(uuid())
-  name            String
-  legalName       String?
-  email           String?
-  phone           String?
-  address         String?
-  city            String?
-  state           String?
-  country         String   @default("India")
-  currency        String   @default("USD") // USD, INR
-  pincode         String?
-  gstin           String?
-  pan             String?
-  tan             String?
-  logo            String?
-  letterheadDoc   String?  // Path to letterhead DOCX template
-  
+  id            String  @id @default(uuid())
+  name          String
+  legalName     String?
+  email         String?
+  phone         String?
+  address       String?
+  city          String?
+  state         String?
+  country       String  @default("India")
+  currency      String  @default("USD") // USD, INR
+  pincode       String?
+  gstin         String?
+  pan           String?
+  tan           String?
+  logo          String?
+  letterheadDoc String? // Path to letterhead DOCX template
+
   // Attendance Settings
-  allowedIPs      String?  // Comma separated IPs
-  latitude        Float?
-  longitude       Float?
-  radius          Int      @default(100) // in meters
-  
-  isActive        Boolean  @default(true)
-  enabledModules  Json?    // ["HRMS", "CRM", "PAYROLL", "PROJECTS"]
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  allowedIPs String? // Comma separated IPs
+  latitude   Float?
+  longitude  Float?
+  radius     Int     @default(100) // in meters
+
+  isActive       Boolean  @default(true)
+  enabledModules Json? // ["HRMS", "CRM", "PAYROLL", "PROJECTS"]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   // Relations
-  users           User[]
-  clients         Client[]
-  leads           Lead[]
-  projects        Project[]
-  employees       Employee[]
-  departments     Department[]
-  invoices        Invoice[]
-  documents       Document[]
-  subscriptions   Subscription[]
-  shifts          Shift[]
-  assets          Asset[]
-  jobOpenings     JobOpening[]
-  candidates      Candidate[]
-  auditLogs       AuditLog[]
-  emailTemplates  EmailTemplate[]
-  salaryComponents SalaryComponent[]
-  salesTargets    SalesTarget[]
-  branches        Branch[]
-  accounts        LedgerAccount[]
-  journalEntries  JournalEntry[]
-  documentTemplates DocumentTemplate[]
-  quotations      Quotation[]
+  users              User[]
+  clients            Client[]
+  leads              Lead[]
+  projects           Project[]
+  employees          Employee[]
+  departments        Department[]
+  invoices           Invoice[]
+  documents          Document[]
+  subscriptions      Subscription[]
+  shifts             Shift[]
+  assets             Asset[]
+  jobOpenings        JobOpening[]
+  candidates         Candidate[]
+  auditLogs          AuditLog[]
+  emailTemplates     EmailTemplate[]
+  salaryComponents   SalaryComponent[]
+  salesTargets       SalesTarget[]
+  branches           Branch[]
+  accounts           LedgerAccount[]
+  journalEntries     JournalEntry[]
+  documentTemplates  DocumentTemplate[]
+  quotations         Quotation[]
   quotationTemplates QuotationTemplate[]
   contracts          Contract[]
   contractTemplates  ContractTemplate[]
@@ -160,22 +160,22 @@ model Company {
 }
 
 model Branch {
-  id          String   @id @default(uuid())
-  companyId   String
-  name        String
-  code        String?
-  address     String?
-  city        String?
-  state       String?
-  country     String   @default("India")
-  pincode     String?
-  phone       String?
-  email       String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(uuid())
+  companyId String
+  name      String
+  code      String?
+  address   String?
+  city      String?
+  state     String?
+  country   String   @default("India")
+  pincode   String?
+  phone     String?
+  email     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -186,35 +186,35 @@ model Branch {
 // ============================================
 
 model Client {
-  id              String   @id @default(uuid())
-  companyId       String
-  name            String
-  email           String?
-  phone           String?
-  address         String?
-  city            String?
-  state           String?
-  country         String   @default("India")
-  pincode         String?
-  gstin           String?
-  pan             String?
-  status          String   @default("active") // active, inactive, blocked
-  clientType      String   @default("customer") // customer, prospect, lead
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id         String   @id @default(uuid())
+  companyId  String
+  name       String
+  email      String?
+  phone      String?
+  address    String?
+  city       String?
+  state      String?
+  country    String   @default("India")
+  pincode    String?
+  gstin      String?
+  pan        String?
+  status     String   @default("active") // active, inactive, blocked
+  clientType String   @default("customer") // customer, prospect, lead
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   // Relations
-  company         Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  projects        Project[]
-  invoices        Invoice[]
-  subscriptions   Subscription[]
-  documents       Document[]
-  contracts       Contract[]
-  
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  projects      Project[]
+  invoices      Invoice[]
+  subscriptions Subscription[]
+  documents     Document[]
+  contracts     Contract[]
+
   // Portal Access
-  password        String?  // Hashed password
-  portalAccess    Boolean  @default(false)
-  lastLogin       DateTime?
+  password     String? // Hashed password
+  portalAccess Boolean   @default(false)
+  lastLogin    DateTime?
 
   @@index([companyId])
   @@index([email])
@@ -222,60 +222,60 @@ model Client {
 }
 
 model Lead {
-  id          String   @id @default(uuid())
-  companyId   String
-  name        String
-  email       String?
-  phone       String?
-  company     String?
-  
+  id        String  @id @default(uuid())
+  companyId String
+  name      String
+  email     String?
+  phone     String?
+  company   String?
+
   // Enhanced Fields
-  jobTitle    String?
-  website     String?
-  industry    String?
-  
+  jobTitle String?
+  website  String?
+  industry String?
+
   // Lead Source
-  source      String?  // website, referral, cold-call, linkedin, etc.
+  source        String? // website, referral, cold-call, linkedin, etc.
   sourceDetails String? // Specific campaign, referrer name, etc.
-  
+
   // Sales Pipeline
-  status      String   @default("new") // new, contacted, qualified, proposal, negotiation, won, lost
-  stage       String   @default("lead") // lead, contacted, qualified, proposal, negotiation, closed
-  
+  status String @default("new") // new, contacted, qualified, proposal, negotiation, won, lost
+  stage  String @default("lead") // lead, contacted, qualified, proposal, negotiation, closed
+
   // Value & Priority
   value       Decimal? @db.Decimal(12, 2)
   probability Int      @default(0) // 0-100%
   priority    String   @default("medium") // low, medium, high, urgent
-  
+
   // Assignment
-  assignedTo  String?
-  assignedAt  DateTime?
-  
+  assignedTo String?
+  assignedAt DateTime?
+
   // Creator Tracking (for permissions)
-  createdBy   String?
-  
+  createdBy String?
+
   // Tracking
   lastContactedAt DateTime?
   nextFollowUpAt  DateTime?
-  
+
   // Conversion
   convertedToClientId String?
   convertedAt         DateTime?
-  
+
   // Notes & Tags
-  notes       String?  @db.Text
-  tags        String[] @default([])
-  
+  notes String?  @db.Text
+  tags  String[] @default([])
+
   // Metadata
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Relations
-  companyRel  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  assignedUser User?   @relation("LeadAssignee", fields: [assignedTo], references: [id])
-  creator     User?    @relation("LeadCreator", fields: [createdBy], references: [id])
-  activities  LeadActivity[]
-  quotations  Quotation[]
+  companyRel   Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  assignedUser User?          @relation("LeadAssignee", fields: [assignedTo], references: [id])
+  creator      User?          @relation("LeadCreator", fields: [createdBy], references: [id])
+  activities   LeadActivity[]
+  quotations   Quotation[]
 
   @@index([companyId])
   @@index([status])
@@ -287,34 +287,34 @@ model Lead {
 
 // Lead Activity Tracking
 model LeadActivity {
-  id          String   @id @default(uuid())
+  id          String  @id @default(uuid())
   leadId      String
-  type        String   // call, email, meeting, note, status_change, follow_up
+  type        String // call, email, meeting, note, status_change, follow_up
   title       String
-  description String?  @db.Text
-  
+  description String? @db.Text
+
   // Follow-up Specific
-  outcome     String?  // successful, unsuccessful, no_answer, rescheduled, completed
+  outcome     String? // successful, unsuccessful, no_answer, rescheduled, completed
   scheduledAt DateTime? // When follow-up is scheduled
   completedAt DateTime? // When follow-up was completed
   dueDate     DateTime? // Follow-up due date
-  
+
   // Reminder Settings
-  reminderSent Boolean  @default(false)
+  reminderSent Boolean   @default(false)
   reminderTime DateTime? // When to send reminder
-  
+
   // Assignment
-  assignedTo  String?  // User ID
-  createdBy   String
-  
+  assignedTo String? // User ID
+  createdBy  String
+
   // Status
-  status      String   @default("pending") // pending, completed, cancelled, overdue
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  lead        Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  
+  status String @default("pending") // pending, completed, cancelled, overdue
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
   @@index([leadId])
   @@index([type])
   @@index([scheduledAt])
@@ -325,85 +325,85 @@ model LeadActivity {
 
 // Quotations/Proposals
 model Quotation {
-  id              String   @id @default(uuid())
-  companyId       String
-  leadId          String?
-  clientId        String?
-  
-  quotationNumber String   @unique
+  id        String  @id @default(uuid())
+  companyId String
+  leadId    String?
+  clientId  String?
+
+  quotationNumber String  @unique
   title           String
-  description     String?  @db.Text
-  
+  description     String? @db.Text
+
   // Dates
-  quotationDate   DateTime @db.Date
-  validUntil      DateTime @db.Date
-  
+  quotationDate DateTime @db.Date
+  validUntil    DateTime @db.Date
+
   // Status
-  status          String   @default("draft") // draft, sent, accepted, rejected, expired
-  
+  status String @default("draft") // draft, sent, accepted, rejected, expired
+
   // Amounts
-  subtotal        Decimal  @db.Decimal(12, 2)
-  tax             Decimal  @default(0) @db.Decimal(12, 2)
-  discount        Decimal  @default(0) @db.Decimal(12, 2)
-  total           Decimal  @db.Decimal(12, 2)
-  currency        String   @default("INR") // Currency at time of creation (INR, USD, etc.)
-  
+  subtotal Decimal @db.Decimal(12, 2)
+  tax      Decimal @default(0) @db.Decimal(12, 2)
+  discount Decimal @default(0) @db.Decimal(12, 2)
+  total    Decimal @db.Decimal(12, 2)
+  currency String  @default("INR") // Currency at time of creation (INR, USD, etc.)
+
   // Terms
-  paymentTerms    String?  @db.Text
-  deliveryTerms   String?  @db.Text
-  notes           String?  @db.Text
-  
+  paymentTerms  String? @db.Text
+  deliveryTerms String? @db.Text
+  notes         String? @db.Text
+
   // Document
-  pdfPath         String?
-  templateId      String?
-  
+  pdfPath    String?
+  templateId String?
+
   // Public Sharing
-  publicToken       String?   @unique
-  publicExpiresAt   DateTime?
-  isPublicEnabled   Boolean   @default(false)
-  
+  publicToken     String?   @unique
+  publicExpiresAt DateTime?
+  isPublicEnabled Boolean   @default(false)
+
   // Client Acceptance
-  clientViewedAt    DateTime?
-  clientAcceptedAt  DateTime?
-  clientRejectedAt  DateTime?
-  clientSignature   String?   @db.Text  // Base64 signature image
-  clientEmail       String?
-  clientName        String?
-  clientComments    String?   @db.Text
-  signedPdfPath     String?
-  
+  clientViewedAt   DateTime?
+  clientAcceptedAt DateTime?
+  clientRejectedAt DateTime?
+  clientSignature  String?   @db.Text // Base64 signature image
+  clientEmail      String?
+  clientName       String?
+  clientComments   String?   @db.Text
+  signedPdfPath    String?
+
   // Conversion
   convertedToInvoiceId String?
   convertedAt          DateTime?
-  
+
   // Creator Tracking (for permissions)
-  createdBy       String?
-  assignedTo      String?
+  createdBy  String?
+  assignedTo String?
 
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Relations
-  lead            Lead?    @relation(fields: [leadId], references: [id])
-  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  creator         User?    @relation("QuotationCreator", fields: [createdBy], references: [id])
-  assignedUser    User?    @relation("QuotationAssignee", fields: [assignedTo], references: [id])
+  lead         Lead?   @relation(fields: [leadId], references: [id])
+  company      Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  creator      User?   @relation("QuotationCreator", fields: [createdBy], references: [id])
+  assignedUser User?   @relation("QuotationAssignee", fields: [assignedTo], references: [id])
 
-  items           QuotationItem[]
-  activities      QuotationActivity[]
+  items      QuotationItem[]
+  activities QuotationActivity[]
 
   // Analytics
-  viewCount       Int       @default(0)
-  lastViewedAt    DateTime?
-  emailOpens      Int       @default(0)
+  viewCount         Int       @default(0)
+  lastViewedAt      DateTime?
+  emailOpens        Int       @default(0)
   lastEmailOpenedAt DateTime?
 
   // Auto-Reminders
-  reminderFrequency String?   // DAILY, WEEKLY, CUSTOM
-  nextReminderAt  DateTime?
-  reminderCount   Int       @default(0)
-  maxReminders    Int       @default(3)
-  
+  reminderFrequency String? // DAILY, WEEKLY, CUSTOM
+  nextReminderAt    DateTime?
+  reminderCount     Int       @default(0)
+  maxReminders      Int       @default(3)
+
   @@unique([companyId, quotationNumber])
   @@index([companyId])
   @@index([leadId])
@@ -412,40 +412,40 @@ model Quotation {
 }
 
 model QuotationItem {
-  id            String   @id @default(uuid())
-  quotationId   String
-  description   String
-  quantity      Decimal  @db.Decimal(10, 2)
-  unitPrice     Decimal  @db.Decimal(12, 2)
-  tax           Decimal  @default(0) @db.Decimal(5, 2)
-  discount      Decimal  @default(0) @db.Decimal(5, 2)
-  total         Decimal  @db.Decimal(12, 2)
-  
-  quotation     Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
-  
+  id          String  @id @default(uuid())
+  quotationId String
+  description String
+  quantity    Decimal @db.Decimal(10, 2)
+  unitPrice   Decimal @db.Decimal(12, 2)
+  tax         Decimal @default(0) @db.Decimal(5, 2)
+  discount    Decimal @default(0) @db.Decimal(5, 2)
+  total       Decimal @db.Decimal(12, 2)
+
+  quotation Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+
   @@index([quotationId])
 }
 
 // Analytics & Activity Log
 model QuotationActivity {
-  id          String   @id @default(uuid())
+  id          String @id @default(uuid())
   quotationId String
-  type        String   // VIEWED, DOWNLOADED, EMAIL_OPENED, LINK_CLICKED, STATUS_CHANGE
-  
+  type        String // VIEWED, DOWNLOADED, EMAIL_OPENED, LINK_CLICKED, STATUS_CHANGE
+
   // Detailed Tracking
-  ipAddress   String?
-  userAgent   String?
-  location    String?
-  deviceType  String?  // Mobile, Desktop, Tablet
-  browser     String?
-  os          String?
-  
+  ipAddress  String?
+  userAgent  String?
+  location   String?
+  deviceType String? // Mobile, Desktop, Tablet
+  browser    String?
+  os         String?
+
   // Metadata
-  metadata    Json?    // Any extra data
-  createdAt   DateTime @default(now())
-  
-  quotation   Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
-  
+  metadata  Json? // Any extra data
+  createdAt DateTime @default(now())
+
+  quotation Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+
   @@index([quotationId])
   @@index([type])
   @@index([createdAt])
@@ -453,35 +453,35 @@ model QuotationActivity {
 
 // Quotation Templates
 model QuotationTemplate {
-  id              String   @id @default(uuid())
-  companyId       String
-  
-  name            String
-  description     String?  @db.Text
-  category        String?  // e.g., "Web Development", "Consulting", "Design"
-  
+  id        String @id @default(uuid())
+  companyId String
+
+  name        String
+  description String? @db.Text
+  category    String? // e.g., "Web Development", "Consulting", "Design"
+
   // Template Content
-  title           String
-  templateDescription String @db.Text
-  paymentTerms    String?  @db.Text
-  deliveryTerms   String?  @db.Text
-  notes           String?  @db.Text
-  
+  title               String
+  templateDescription String  @db.Text
+  paymentTerms        String? @db.Text
+  deliveryTerms       String? @db.Text
+  notes               String? @db.Text
+
   // Template Items (stored as JSON)
-  items           Json     // Array of {description, quantity, unitPrice, tax, discount}
-  
+  items Json // Array of {description, quantity, unitPrice, tax, discount}
+
   // Metadata
-  isActive        Boolean  @default(true)
-  usageCount      Int      @default(0)
-  
+  isActive   Boolean @default(true)
+  usageCount Int     @default(0)
+
   // Creator Tracking
-  createdBy       String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Relations
-  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
   @@index([companyId])
   @@index([category])
   @@map("quotation_templates")
@@ -489,25 +489,25 @@ model QuotationTemplate {
 
 // Quick Estimates
 model Estimate {
-  id          String   @id @default(uuid())
+  id          String  @id @default(uuid())
   companyId   String
   leadId      String?
   title       String
-  description String?  @db.Text
-  
+  description String? @db.Text
+
   // Quick Estimate
   estimatedValue Decimal @db.Decimal(12, 2)
   timeframe      String? // "2-3 weeks", "1 month", etc.
-  
+
   // Status
-  status      String   @default("draft") // draft, shared, accepted, rejected
-  
+  status String @default("draft") // draft, shared, accepted, rejected
+
   // Conversion
   convertedToQuotationId String?
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([companyId])
   @@index([leadId])
 }
@@ -517,27 +517,27 @@ model Estimate {
 // ============================================
 
 model Project {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   companyId   String
   clientId    String?
   name        String
-  description String?  @db.Text
-  status      String   @default("planning") // planning, active, on-hold, completed, cancelled
+  description String?   @db.Text
+  status      String    @default("planning") // planning, active, on-hold, completed, cancelled
   startDate   DateTime?
   endDate     DateTime?
-  budget      Decimal? @db.Decimal(12, 2)
-  isBillable  Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  budget      Decimal?  @db.Decimal(12, 2)
+  isBillable  Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   // Relations
-  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  client      Client?  @relation(fields: [clientId], references: [id])
-  tasks       Task[]
-  timesheets  Timesheet[]
-  documents   Document[]
-  invoices    Invoice[]
-  contracts   Contract[]
+  company    Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  client     Client?     @relation(fields: [clientId], references: [id])
+  tasks      Task[]
+  timesheets Timesheet[]
+  documents  Document[]
+  invoices   Invoice[]
+  contracts  Contract[]
 
   @@index([companyId])
   @@index([clientId])
@@ -545,22 +545,22 @@ model Project {
 }
 
 model Task {
-  id          String   @id @default(uuid())
-  projectId   String
-  title       String
-  description String?  @db.Text
-  status      String   @default("todo") // todo, in-progress, review, done
-  priority    String   @default("medium") // low, medium, high, urgent
-  dueDate     DateTime?
-  createdById String
+  id           String    @id @default(uuid())
+  projectId    String
+  title        String
+  description  String?   @db.Text
+  status       String    @default("todo") // todo, in-progress, review, done
+  priority     String    @default("medium") // low, medium, high, urgent
+  dueDate      DateTime?
+  createdById  String
   assignedToId String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   // Relations
-  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  creator     User     @relation("TaskCreator", fields: [createdById], references: [id])
-  assignee    User?    @relation("TaskAssignee", fields: [assignedToId], references: [id])
+  project  Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  creator  User    @relation("TaskCreator", fields: [createdById], references: [id])
+  assignee User?   @relation("TaskAssignee", fields: [assignedToId], references: [id])
 
   @@index([projectId])
   @@index([status])
@@ -584,8 +584,8 @@ model Timesheet {
   updatedAt   DateTime @updatedAt
 
   // Relations
-  project     Project? @relation(fields: [projectId], references: [id])
-  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  project  Project? @relation(fields: [projectId], references: [id])
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@unique([employeeId, projectId, date])
   @@index([companyId])
@@ -608,9 +608,9 @@ model Department {
   updatedAt   DateTime @updatedAt
 
   // Relations
-  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  employees   Employee[]
-  positions   Position[]
+  company   Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employees Employee[]
+  positions Position[]
 
   @@unique([companyId, name])
   @@index([companyId])
@@ -626,87 +626,87 @@ model Position {
   updatedAt    DateTime @updatedAt
 
   // Relations
-  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
-  employees    Employee[]
+  department Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  employees  Employee[]
 
   @@unique([departmentId, title])
   @@index([departmentId])
 }
 
 model Employee {
-  id            String   @id @default(uuid())
-  companyId     String
-  userId        String?  @unique
-  employeeId    String   // Employee ID/Code
-  firstName     String
-  lastName      String
-  email         String   @unique
-  phone         String?
-  
+  id         String  @id @default(uuid())
+  companyId  String
+  userId     String? @unique
+  employeeId String // Employee ID/Code
+  firstName  String
+  lastName   String
+  email      String  @unique
+  phone      String?
+
   // Personal Info
-  gender        String?  // Male, Female, Other
+  gender        String? // Male, Female, Other
   bloodGroup    String?
-  maritalStatus String?  // Single, Married
-  
+  maritalStatus String? // Single, Married
+
   // Dates
   dateOfBirth   DateTime?
   dateOfJoining DateTime
-  
+
   // Addresses
   currentAddress   String? @db.Text
   permanentAddress String? @db.Text
-  
+
   // Emergency Contact
-  emergencyContact Json?   // { name: "...", relation: "...", phone: "..." }
+  emergencyContact Json? // { name: "...", relation: "...", phone: "..." }
 
   // Bank & Statutory
-  bankName         String?
-  accountNumber    String?
-  ifscCode         String?
-  panNumber        String?
-  aadhaarNumber    String?
-  
-  departmentId  String?
-  positionId    String?
-  shiftId       String?
-  salary        Decimal? @db.Decimal(12, 2) // CTC or Gross
-  hourlyRate    Decimal? @db.Decimal(10, 2) 
-  salaryStructure Json?  // { basic: 50%, hra: 40%, ... }
-  
+  bankName      String?
+  accountNumber String?
+  ifscCode      String?
+  panNumber     String?
+  aadhaarNumber String?
+
+  departmentId    String?
+  positionId      String?
+  shiftId         String?
+  salary          Decimal? @db.Decimal(12, 2) // CTC or Gross
+  hourlyRate      Decimal? @db.Decimal(10, 2)
+  salaryStructure Json? // { basic: 50%, hra: 40%, ... }
+
   // Employment Details
-  employmentType String?   // Full Time, Part Time, Contract, Internship, Trainee
-  skills         Json?     // ["React", "Node"]
+  employmentType String? // Full Time, Part Time, Contract, Internship, Trainee
+  skills         Json? // ["React", "Node"]
   slackMemberId  String?
-  
+
   // Probation & Notice
   probationEndDate      DateTime?
   noticePeriodStartDate DateTime?
   noticePeriodEndDate   DateTime?
-  
-  status        String   @default("active") // active, inactive, terminated, on-leave
-  probationProcessed Boolean @default(false)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+
+  status             String   @default("active") // active, inactive, terminated, on-leave
+  probationProcessed Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   // Relations
-  company       Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  user          User?      @relation(fields: [userId], references: [id])
-  creator       User?      @relation("EmployeeCreator", fields: [createdById], references: [id])
-  createdById   String?
-  department    Department? @relation(fields: [departmentId], references: [id])
-  position      Position?  @relation(fields: [positionId], references: [id])
-  shift         Shift?     @relation(fields: [shiftId], references: [id])
-  documents     Document[] // Documents uploaded by/for this employee
-  timesheets    Timesheet[]
-  attendances   Attendance[]
-  leaveRequests LeaveRequest[]
-  leaveBalances EmployeeLeaveBalance[]
-  leaveAccruals LeaveAccrual[]
-  payrolls      Payroll[]
-  assets        Asset[]
-  salesTargets  SalesTarget[]
+  company                Company                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user                   User?                    @relation(fields: [userId], references: [id])
+  creator                User?                    @relation("EmployeeCreator", fields: [createdById], references: [id])
+  createdById            String?
+  department             Department?              @relation(fields: [departmentId], references: [id])
+  position               Position?                @relation(fields: [positionId], references: [id])
+  shift                  Shift?                   @relation(fields: [shiftId], references: [id])
+  documents              Document[] // Documents uploaded by/for this employee
+  timesheets             Timesheet[]
+  attendances            Attendance[]
+  leaveRequests          LeaveRequest[]
+  leaveBalances          EmployeeLeaveBalance[]
+  leaveAccruals          LeaveAccrual[]
+  payrolls               Payroll[]
+  assets                 Asset[]
+  salesTargets           SalesTarget[]
   salaryStructureDetails EmployeeSalaryStructure?
-  shiftRosters  ShiftRoster[]
+  shiftRosters           ShiftRoster[]
 
   @@unique([companyId, employeeId])
   @@index([companyId])
@@ -721,27 +721,26 @@ model Employee {
 // ============================================
 
 model Attendance {
-  id          String   @id @default(uuid())
-  employeeId  String
-  date        DateTime @db.Date
-  checkIn     DateTime?
-  checkOut    DateTime?
-  status      String   @default("present") // present, absent, half-day, leave
-  ipAddress   String?
-  location    String?  // Lat,Long
-  notes       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String    @id @default(uuid())
+  employeeId String
+  date       DateTime  @db.Date
+  checkIn    DateTime?
+  checkOut   DateTime?
+  status     String    @default("present") // present, absent, half-day, leave
+  ipAddress  String?
+  location   String? // Lat,Long
+  notes      String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   // Relations
-  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   // Allow multiple sessions per day
   @@index([employeeId, date])
   @@index([employeeId])
   @@index([date])
 }
-
 
 model LeaveType {
   id          String   @id @default(uuid())
@@ -756,123 +755,122 @@ model LeaveType {
   balances      EmployeeLeaveBalance[]
   accruals      LeaveAccrual[]
 
-  frequency   String   @default("yearly") // yearly, monthly
-  carryForward Boolean @default(true)
-  maxCarryForward Int  @default(0) // Max days that can be carried forward
-  monthlyLimit Int     @default(0) // 0 means no monthly limit
-  
+  frequency       String  @default("yearly") // yearly, monthly
+  carryForward    Boolean @default(true)
+  maxCarryForward Int     @default(0) // Max days that can be carried forward
+  monthlyLimit    Int     @default(0) // 0 means no monthly limit
+
   // Accrual Settings
-  accrualType     String  @default("yearly") // yearly, monthly, daily
-  accrualRate     Float   @default(0)        // e.g., 1.5 for monthly accrual
-  accrualStartMonth Int   @default(1)        // Month when accrual starts (1-12)
-  maxAccrual      Float   @default(0)        // Max days that can be accrued (0 = no limit)
-  
+  accrualType       String @default("yearly") // yearly, monthly, daily
+  accrualRate       Float  @default(0) // e.g., 1.5 for monthly accrual
+  accrualStartMonth Int    @default(1) // Month when accrual starts (1-12)
+  maxAccrual        Float  @default(0) // Max days that can be accrued (0 = no limit)
+
   // Advanced Constraints
-  maxConsecutiveDays Int @default(0) // 0 means no limit
-  minServiceDays     Int @default(0) // Probation period interaction
+  maxConsecutiveDays Int     @default(0) // 0 means no limit
+  minServiceDays     Int     @default(0) // Probation period interaction
   sandwichRule       Boolean @default(false) // If leave is taken on Fri & Mon, Sat/Sun count?
   encashable         Boolean @default(false)
   proofRequired      Boolean @default(false)
-  
+
   // Dynamic Policy Storage (Stores timestamps, thresholds, specific rules)
-  policySettings     Json?   // e.g. { "noticePeriod": 14, "minDaysForProof": 3, "includeHolidays": true }
-  
+  policySettings Json? // e.g. { "noticePeriod": 14, "minDaysForProof": 3, "includeHolidays": true }
+
   // UI
-  
+
   // UI
-  color              String  @default("#3B82F6") // Hex color for calendar
+  color String @default("#3B82F6") // Hex color for calendar
 
   // Enterprise Scoping
-  departmentIds      String[] @default([]) // Empty = All Departments
-  positionIds        String[] @default([]) // Empty = All Positions
-  employmentStatus   String[] @default([]) // Empty = All (Probation, Permanent)
+  departmentIds    String[] @default([]) // Empty = All Departments
+  positionIds      String[] @default([]) // Empty = All Positions
+  employmentStatus String[] @default([]) // Empty = All (Probation, Permanent)
 
   // Quarterly & Probation Management
-  quarterlyLimit     Int     @default(0)   // Max days per quarter (0 = no limit)
-  probationQuota     Float   @default(0)   // Leave quota during probation (0 = not allowed)
-  confirmationBonus  Float   @default(0)   // Days added after probation confirmation
+  quarterlyLimit    Int   @default(0) // Max days per quarter (0 = no limit)
+  probationQuota    Float @default(0) // Leave quota during probation (0 = not allowed)
+  confirmationBonus Float @default(0) // Days added after probation confirmation
 
   @@index([name])
 }
 
 model EmployeeLeaveBalance {
-  id          String   @id @default(uuid())
+  id          String @id @default(uuid())
   employeeId  String
   leaveTypeId String
-  year        Int      // e.g., 2024
-  
-  allocated   Float    @default(0) // Initial + Encashment + Manual adjustments
-  carriedOver Float    @default(0) // From previous year
-  used        Float    @default(0) // Consumed
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  year        Int // e.g., 2024
 
-  employee    Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  leaveType   LeaveType @relation(fields: [leaveTypeId], references: [id], onDelete: Cascade)
+  allocated   Float @default(0) // Initial + Encashment + Manual adjustments
+  carriedOver Float @default(0) // From previous year
+  used        Float @default(0) // Consumed
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  employee  Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType LeaveType @relation(fields: [leaveTypeId], references: [id], onDelete: Cascade)
 
   @@unique([employeeId, leaveTypeId, year])
   @@index([employeeId])
 }
 
 model LeaveAccrual {
-  id              String   @id @default(uuid())
-  employeeId      String
-  leaveTypeId     String
-  year            Int
-  month           Int      // 1-12
-  accruedDays     Float    // Days accrued this month
-  totalAccrued    Float    // Cumulative for the year
-  createdAt       DateTime @default(now())
-  
-  employee        Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  leaveType       LeaveType @relation(fields: [leaveTypeId], references: [id], onDelete: Cascade)
-  
+  id           String   @id @default(uuid())
+  employeeId   String
+  leaveTypeId  String
+  year         Int
+  month        Int // 1-12
+  accruedDays  Float // Days accrued this month
+  totalAccrued Float // Cumulative for the year
+  createdAt    DateTime @default(now())
+
+  employee  Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType LeaveType @relation(fields: [leaveTypeId], references: [id], onDelete: Cascade)
+
   @@unique([employeeId, leaveTypeId, year, month])
   @@index([employeeId, year])
   @@index([leaveTypeId])
 }
 
-
 model Shift {
-  id          String   @id @default(uuid())
-  companyId   String
-  name        String   // General, Morning, Night
-  startTime   String   // "09:00"
-  endTime     String   // "18:00"
-  breakDuration Int    @default(60) // in minutes
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String   @id @default(uuid())
+  companyId     String
+  name          String // General, Morning, Night
+  startTime     String // "09:00"
+  endTime       String // "18:00"
+  breakDuration Int      @default(60) // in minutes
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  employees   Employee[]
-  rosters     ShiftRoster[]
+  company   Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employees Employee[]
+  rosters   ShiftRoster[]
 
-  workDays    Json? // ["monday", "tuesday", "wednesday", "thursday", "friday"]
+  workDays Json? // ["monday", "tuesday", "wednesday", "thursday", "friday"]
 
   @@index([companyId])
 }
 
 model Asset {
-  id            String    @id @default(uuid())
-  companyId     String
-  name          String
-  type          String    // Laptop, Phone, License, etc.
-  serialNumber  String?
-  status        String    @default("Available") // Available, Assigned, Maintenance, Retired
-  purchaseDate  DateTime?
-  price         Float?
-  
-  // Assignment
-  employeeId    String?
-  assignedDate  DateTime?
-  
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id           String    @id @default(uuid())
+  companyId    String
+  name         String
+  type         String // Laptop, Phone, License, etc.
+  serialNumber String?
+  status       String    @default("Available") // Available, Assigned, Maintenance, Retired
+  purchaseDate DateTime?
+  price        Float?
 
-  company       Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  employee      Employee? @relation(fields: [employeeId], references: [id])
+  // Assignment
+  employeeId   String?
+  assignedDate DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employee Employee? @relation(fields: [employeeId], references: [id])
 
   @@unique([companyId, serialNumber])
   @@index([companyId])
@@ -880,30 +878,30 @@ model Asset {
 }
 
 model LeaveRequest {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   employeeId  String
   leaveTypeId String
-  startDate   DateTime @db.Date
-  endDate     DateTime @db.Date
-  days        Float    // Changed to Float to support half-days (0.5)
-  reason      String?  @db.Text
-  status      String   @default("pending") // pending, approved, rejected, cancelled
+  startDate   DateTime  @db.Date
+  endDate     DateTime  @db.Date
+  days        Float // Changed to Float to support half-days (0.5)
+  reason      String?   @db.Text
+  status      String    @default("pending") // pending, approved, rejected, cancelled
   approvedBy  String?
   approvedAt  DateTime?
-  
+
   // Advanced Features
-  durationType    String   @default("full")  // full, multiple, first_half, second_half
-  attachmentPath  String?                    // Path to uploaded document
-  assignedBy      String?                    // If admin assigns leave
-  category        String?                    // Specific category (e.g., Sick, Casual) for generic Leave Types
-  lopDays         Float    @default(0)       // Days marked as Loss of Pay
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  durationType   String  @default("full") // full, multiple, first_half, second_half
+  attachmentPath String? // Path to uploaded document
+  assignedBy     String? // If admin assigns leave
+  category       String? // Specific category (e.g., Sick, Casual) for generic Leave Types
+  lopDays        Float   @default(0) // Days marked as Loss of Pay
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  leaveType   LeaveType @relation(fields: [leaveTypeId], references: [id])
+  employee  Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType LeaveType @relation(fields: [leaveTypeId], references: [id])
 
   @@index([employeeId])
   @@index([status])
@@ -911,29 +909,29 @@ model LeaveRequest {
 }
 
 model Holiday {
-  id          String   @id @default(uuid())
-  name        String
-  date        DateTime @db.Date
-  type        String   @default("national") // national, regional, company
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(uuid())
+  name      String
+  date      DateTime @db.Date
+  type      String   @default("national") // national, regional, company
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([date])
   @@index([date])
 }
 
 model ShiftRoster {
-  id          String   @id @default(uuid())
-  employeeId  String
-  shiftId     String
-  date        DateTime @db.Date
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  shift       Shift    @relation(fields: [shiftId], references: [id])
-  
+  id         String   @id @default(uuid())
+  employeeId String
+  shiftId    String
+  date       DateTime @db.Date
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  shift    Shift    @relation(fields: [shiftId], references: [id])
+
   @@unique([employeeId, date])
   @@index([employeeId])
   @@index([date])
@@ -944,24 +942,24 @@ model ShiftRoster {
 // ============================================
 
 model Payroll {
-  id              String   @id @default(uuid())
-  employeeId      String
-  month           Int      // 1-12
-  year            Int
-  basicSalary     Decimal  @db.Decimal(12, 2)
-  allowances      Decimal  @default(0) @db.Decimal(12, 2)
-  deductions      Decimal  @default(0) @db.Decimal(12, 2)
-  earningsBreakdown Json?  // { basic: 5000, hra: 2000, ... }
+  id                  String    @id @default(uuid())
+  employeeId          String
+  month               Int // 1-12
+  year                Int
+  basicSalary         Decimal   @db.Decimal(12, 2)
+  allowances          Decimal   @default(0) @db.Decimal(12, 2)
+  deductions          Decimal   @default(0) @db.Decimal(12, 2)
+  earningsBreakdown   Json? // { basic: 5000, hra: 2000, ... }
   deductionsBreakdown Json? // { pf: 500, tax: 200, ... }
-  grossSalary     Decimal  @db.Decimal(12, 2)
-  netSalary       Decimal  @db.Decimal(12, 2)
-  status          String   @default("draft") // draft, processed, paid
-  processedAt     DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  grossSalary         Decimal   @db.Decimal(12, 2)
+  netSalary           Decimal   @db.Decimal(12, 2)
+  status              String    @default("draft") // draft, processed, paid
+  processedAt         DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   // Relations
-  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@index([year, month])
 }
@@ -969,60 +967,58 @@ model Payroll {
 model SalaryComponent {
   id              String   @id @default(uuid())
   companyId       String
-  name            String   // Basic, HRA, Travel Allowance, PF, Tax
-  type            String   // earning, deduction
-  calculationType String   // flat, percentage_basic
+  name            String // Basic, HRA, Travel Allowance, PF, Tax
+  type            String // earning, deduction
+  calculationType String // flat, percentage_basic
   defaultValue    Decimal  @default(0) @db.Decimal(12, 2)
   isActive        Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company            Company                   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   employeeComponents EmployeeSalaryComponent[]
 
   @@index([companyId])
 }
 
 model EmployeeSalaryStructure {
-  id          String   @id @default(uuid())
-  employeeId  String   @unique
-  netSalary   Decimal  @db.Decimal(12, 2) // Monthly Net
-  ctc         Decimal  @db.Decimal(12, 2) // Annual CTC
+  id            String   @id @default(uuid())
+  employeeId    String   @unique
+  netSalary     Decimal  @db.Decimal(12, 2) // Monthly Net
+  ctc           Decimal  @db.Decimal(12, 2) // Annual CTC
   effectiveDate DateTime @default(now())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  components  EmployeeSalaryComponent[]
+  employee   Employee                  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  components EmployeeSalaryComponent[]
 }
 
 model EmployeeSalaryComponent {
-  id                  String   @id @default(uuid())
-  structureId         String
-  componentId         String
-  monthlyAmount       Decimal  @db.Decimal(12, 2)
-  
-  structure           EmployeeSalaryStructure @relation(fields: [structureId], references: [id], onDelete: Cascade)
-  component           SalaryComponent         @relation(fields: [componentId], references: [id])
+  id            String  @id @default(uuid())
+  structureId   String
+  componentId   String
+  monthlyAmount Decimal @db.Decimal(12, 2)
+
+  structure EmployeeSalaryStructure @relation(fields: [structureId], references: [id], onDelete: Cascade)
+  component SalaryComponent         @relation(fields: [componentId], references: [id])
 
   @@unique([structureId, componentId])
 }
-
-
 
 // ============================================
 // ACCOUNTING & FINANCE
 // ============================================
 
 model Account {
-  id          String   @id @default(uuid())
-  code        String   @unique
-  name        String
-  type        String   // asset, liability, equity, income, expense
-  parentId    String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(uuid())
+  code      String   @unique
+  name      String
+  type      String // asset, liability, equity, income, expense
+  parentId  String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
   transactions Transaction[]
@@ -1035,14 +1031,14 @@ model Transaction {
   id          String   @id @default(uuid())
   accountId   String
   date        DateTime @db.Date
-  type        String   // debit, credit
+  type        String // debit, credit
   amount      Decimal  @db.Decimal(12, 2)
   description String?  @db.Text
-  reference   String?  // Invoice ID, Payment ID, etc.
+  reference   String? // Invoice ID, Payment ID, etc.
   createdAt   DateTime @default(now())
 
   // Relations
-  account     Account  @relation(fields: [accountId], references: [id])
+  account Account @relation(fields: [accountId], references: [id])
 
   @@index([accountId])
   @@index([date])
@@ -1054,38 +1050,38 @@ model Transaction {
 // ============================================
 
 model Invoice {
-  id              String   @id @default(uuid())
-  companyId       String
-  clientId        String
-  invoiceNumber   String   @unique
-  invoiceDate     DateTime @db.Date
-  dueDate         DateTime @db.Date
-  status          String   @default("draft") // draft, sent, paid, overdue, cancelled
-  type            String   @default("invoice") // invoice, quotation, proforma
-  currency        String   @default("USD")
-  terms           String?  @db.Text
-  subtotal        Decimal  @db.Decimal(12, 2)
-  tax             Decimal  @default(0) @db.Decimal(12, 2)
-  discount        Decimal  @default(0) @db.Decimal(12, 2)
-  total           Decimal  @db.Decimal(12, 2)
-  paidAmount      Decimal  @default(0) @db.Decimal(12, 2)
-  isRecurring       Boolean  @default(false)
-  recurringInterval String?   // daily, weekly, monthly, yearly
+  id                String    @id @default(uuid())
+  companyId         String
+  clientId          String
+  invoiceNumber     String    @unique
+  invoiceDate       DateTime  @db.Date
+  dueDate           DateTime  @db.Date
+  status            String    @default("draft") // draft, sent, paid, overdue, cancelled
+  type              String    @default("invoice") // invoice, quotation, proforma
+  currency          String    @default("USD")
+  terms             String?   @db.Text
+  subtotal          Decimal   @db.Decimal(12, 2)
+  tax               Decimal   @default(0) @db.Decimal(12, 2)
+  discount          Decimal   @default(0) @db.Decimal(12, 2)
+  total             Decimal   @db.Decimal(12, 2)
+  paidAmount        Decimal   @default(0) @db.Decimal(12, 2)
+  isRecurring       Boolean   @default(false)
+  recurringInterval String? // daily, weekly, monthly, yearly
   nextOccurrence    DateTime?
   recurringId       String?
-  notes             String?  @db.Text
-  pdfPath         String?
-  projectId       String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  notes             String?   @db.Text
+  pdfPath           String?
+  projectId         String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   // Relations
-  company         Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  client          Client       @relation(fields: [clientId], references: [id])
-  items           InvoiceItem[]
-  payments        Payment[]
-  documents       Document[]
-  project         Project?     @relation(fields: [projectId], references: [id])
+  company   Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  client    Client        @relation(fields: [clientId], references: [id])
+  items     InvoiceItem[]
+  payments  Payment[]
+  documents Document[]
+  project   Project?      @relation(fields: [projectId], references: [id])
 
   @@unique([companyId, invoiceNumber])
   @@index([companyId])
@@ -1109,26 +1105,26 @@ model InvoiceItem {
   createdAt   DateTime @default(now())
 
   // Relations
-  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
   @@index([invoiceId])
 }
 
 model SalesTarget {
-  id          String   @id @default(uuid())
-  companyId   String
-  employeeId  String
-  period      String   // e.g., "2024-Q1", "2024-01"
-  startDate   DateTime @db.Date
-  endDate     DateTime @db.Date
-  targetAmount Decimal @db.Decimal(12, 2)
-  achievedAmount Decimal @default(0) @db.Decimal(12, 2)
-  status      String   @default("active") // active, completed, expired
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String   @id @default(uuid())
+  companyId      String
+  employeeId     String
+  period         String // e.g., "2024-Q1", "2024-01"
+  startDate      DateTime @db.Date
+  endDate        DateTime @db.Date
+  targetAmount   Decimal  @db.Decimal(12, 2)
+  achievedAmount Decimal  @default(0) @db.Decimal(12, 2)
+  status         String   @default("active") // active, completed, expired
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@index([companyId])
   @@index([employeeId])
@@ -1136,23 +1132,23 @@ model SalesTarget {
 }
 
 model Subscription {
-  id              String   @id @default(uuid())
+  id              String    @id @default(uuid())
   companyId       String
   clientId        String
   name            String
   plan            String
-  amount          Decimal  @db.Decimal(12, 2)
-  billingCycle    String   @default("monthly") // monthly, quarterly, yearly
-  startDate       DateTime @db.Date
+  amount          Decimal   @db.Decimal(12, 2)
+  billingCycle    String    @default("monthly") // monthly, quarterly, yearly
+  startDate       DateTime  @db.Date
   endDate         DateTime? @db.Date
-  status          String   @default("active") // active, paused, cancelled, expired
+  status          String    @default("active") // active, paused, cancelled, expired
   nextBillingDate DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   // Relations
-  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  client          Client   @relation(fields: [clientId], references: [id])
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  client  Client  @relation(fields: [clientId], references: [id])
 
   @@index([companyId])
   @@index([clientId])
@@ -1165,21 +1161,21 @@ model Subscription {
 // ============================================
 
 model Payment {
-  id              String   @id @default(uuid())
-  invoiceId       String?
-  amount          Decimal  @db.Decimal(12, 2)
-  paymentDate     DateTime @db.Date
-  paymentMethod   String   // cash, bank-transfer, razorpay, cashfree, paypal
-  gateway         String?  // razorpay, cashfree, paypal
-  transactionId   String?  @unique
-  gatewayOrderId  String?
-  status          String   @default("pending") // pending, success, failed, refunded
-  notes           String?  @db.Text
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id             String   @id @default(uuid())
+  invoiceId      String?
+  amount         Decimal  @db.Decimal(12, 2)
+  paymentDate    DateTime @db.Date
+  paymentMethod  String // cash, bank-transfer, razorpay, cashfree, paypal
+  gateway        String? // razorpay, cashfree, paypal
+  transactionId  String?  @unique
+  gatewayOrderId String?
+  status         String   @default("pending") // pending, success, failed, refunded
+  notes          String?  @db.Text
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   // Relations
-  invoice         Invoice? @relation(fields: [invoiceId], references: [id])
+  invoice Invoice? @relation(fields: [invoiceId], references: [id])
 
   @@index([invoiceId])
   @@index([transactionId])
@@ -1192,32 +1188,32 @@ model Payment {
 // ============================================
 
 model Document {
-  id          String   @id @default(uuid())
-  companyId   String?
-  clientId    String?
-  invoiceId   String?
-  employeeId  String?
-  projectId   String?
-  
-  name        String
-  type        String   // invoice, agreement, offer-letter, appointment-letter, resume, id_proof
-  category    String?
-  filePath    String
-  fileSize    Int?
-  mimeType    String?
-  version     Int      @default(1)
-  isTemplate  Boolean  @default(false)
-  tags        String[] // Array of tags
-  metadata    Json?    // Additional metadata
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String  @id @default(uuid())
+  companyId  String?
+  clientId   String?
+  invoiceId  String?
+  employeeId String?
+  projectId  String?
+
+  name       String
+  type       String // invoice, agreement, offer-letter, appointment-letter, resume, id_proof
+  category   String?
+  filePath   String
+  fileSize   Int?
+  mimeType   String?
+  version    Int      @default(1)
+  isTemplate Boolean  @default(false)
+  tags       String[] // Array of tags
+  metadata   Json? // Additional metadata
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   // Relations
-  company     Company?  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  client      Client?   @relation(fields: [clientId], references: [id])
-  invoice     Invoice?  @relation(fields: [invoiceId], references: [id])
-  employee    Employee? @relation(fields: [employeeId], references: [id])
-  project     Project?  @relation(fields: [projectId], references: [id])
+  company  Company?  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  client   Client?   @relation(fields: [clientId], references: [id])
+  invoice  Invoice?  @relation(fields: [invoiceId], references: [id])
+  employee Employee? @relation(fields: [employeeId], references: [id])
+  project  Project?  @relation(fields: [projectId], references: [id])
 
   @@index([companyId])
   @@index([clientId])
@@ -1232,46 +1228,46 @@ model Document {
 // ============================================
 
 model JobOpening {
-  id          String   @id @default(uuid())
-  companyId   String
-  title       String
-  department  String?
-  position    String?
-  description String?  @db.Text
-  requirements String? @db.Text
-  status      String   @default("open") // open, closed, on-hold
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(uuid())
+  companyId    String
+  title        String
+  department   String?
+  position     String?
+  description  String?  @db.Text
+  requirements String?  @db.Text
+  status       String   @default("open") // open, closed, on-hold
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   // Relations
-  company     Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  candidates  Candidate[]
+  company    Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  candidates Candidate[]
 
   @@index([companyId])
   @@index([status])
 }
 
 model Candidate {
-  id              String   @id @default(uuid())
-  companyId       String
-  jobOpeningId    String?
-  firstName       String
-  lastName        String
-  email           String
-  phone           String?
-  resumePath      String?
-  status          String   @default("applied") // applied, screening, interview, offer, hired, rejected
-  currentStage    String?  // For Kanban: 'Screening', 'Technical Round', 'HR Round', 'Offer'
-  notes           String?  @db.Text
-  rating          Float?   // Average rating
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id           String   @id @default(uuid())
+  companyId    String
+  jobOpeningId String?
+  firstName    String
+  lastName     String
+  email        String
+  phone        String?
+  resumePath   String?
+  status       String   @default("applied") // applied, screening, interview, offer, hired, rejected
+  currentStage String? // For Kanban: 'Screening', 'Technical Round', 'HR Round', 'Offer'
+  notes        String?  @db.Text
+  rating       Float? // Average rating
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   // Relations
-  company         Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  jobOpening      JobOpening? @relation(fields: [jobOpeningId], references: [id])
-  interviews      Interview[]
-  offerLetter     OfferLetter?
+  company     Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  jobOpening  JobOpening?  @relation(fields: [jobOpeningId], references: [id])
+  interviews  Interview[]
+  offerLetter OfferLetter?
 
   @@index([companyId])
   @@index([jobOpeningId])
@@ -1283,68 +1279,68 @@ model Interview {
   id          String   @id @default(uuid())
   candidateId String
   round       Int
-  type        String   // technical, hr, final
+  type        String // technical, hr, final
   scheduledAt DateTime
   interviewer String?
   feedback    String?  @db.Text
-  rating      Int?     // 1-5
+  rating      Int? // 1-5
   status      String   @default("scheduled") // scheduled, completed, cancelled, no-show
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   // Relations
-  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
-  scorecard   InterviewScorecard?
+  candidate Candidate           @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  scorecard InterviewScorecard?
 
   @@index([candidateId])
   @@index([scheduledAt])
 }
 
 model InterviewScorecard {
-  id          String    @id @default(uuid())
-  interviewId String    @unique
-  technical   Int       @default(0) // 1-10
-  communication Int     @default(0) // 1-10
-  problemSolving Int    @default(0) // 1-10
-  cultureFit  Int       @default(0) // 1-10
-  comments    String?   @db.Text
-  submittedBy String?
-  createdAt   DateTime  @default(now())
+  id             String   @id @default(uuid())
+  interviewId    String   @unique
+  technical      Int      @default(0) // 1-10
+  communication  Int      @default(0) // 1-10
+  problemSolving Int      @default(0) // 1-10
+  cultureFit     Int      @default(0) // 1-10
+  comments       String?  @db.Text
+  submittedBy    String?
+  createdAt      DateTime @default(now())
 
-  interview   Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+  interview Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
 }
 
 model EmailTemplate {
-  id          String   @id @default(uuid())
-  companyId   String
-  name        String
-  subject     String
-  body        String   @db.Text
-  type        String   // offer, rejection, interview_invite
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(uuid())
+  companyId String
+  name      String
+  subject   String
+  body      String   @db.Text
+  type      String // offer, rejection, interview_invite
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId])
   @@index([type])
 }
 
 model OfferLetter {
-  id          String   @id @default(uuid())
-  candidateId String   @unique
-  position    String
-  department  String?
-  salary      Decimal  @db.Decimal(12, 2)
-  startDate   DateTime @db.Date
-  status      String   @default("pending") // pending, sent, accepted, rejected
+  id           String   @id @default(uuid())
+  candidateId  String   @unique
+  position     String
+  department   String?
+  salary       Decimal  @db.Decimal(12, 2)
+  startDate    DateTime @db.Date
+  status       String   @default("pending") // pending, sent, accepted, rejected
   documentPath String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   // Relations
-  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  candidate Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
 
   @@index([candidateId])
   @@index([status])
@@ -1355,22 +1351,22 @@ model OfferLetter {
 // ============================================
 
 model AuditLog {
-  id          String   @id @default(uuid())
-  companyId   String?
-  userId      String?
-  action      String
-  module      String
-  entityType  String?
-  entityId    String?
-  details     String?  @db.Text
-  changes     Json?
-  ipAddress   String?
-  userAgent   String?
-  createdAt   DateTime @default(now())
+  id         String   @id @default(uuid())
+  companyId  String?
+  userId     String?
+  action     String
+  module     String
+  entityType String?
+  entityId   String?
+  details    String?  @db.Text
+  changes    Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
 
   // Relations
-  company     Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  company Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([companyId])
   @@index([userId])
@@ -1384,18 +1380,18 @@ model AuditLog {
 // ============================================
 
 model DocumentTemplate {
-  id              String   @id @default(uuid())
-  companyId       String
-  name            String
-  description     String?
-  type            String   // OfferLetter, Payslip, Contract, Invoice
-  filePath        String   // Path to .docx template
-  letterheadMode  String   @default("NONE") // NONE, FIRST_PAGE, ALL_PAGES
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id             String   @id @default(uuid())
+  companyId      String
+  name           String
+  description    String?
+  type           String // OfferLetter, Payslip, Contract, Invoice
+  filePath       String // Path to .docx template
+  letterheadMode String   @default("NONE") // NONE, FIRST_PAGE, ALL_PAGES
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId])
   @@index([type])
@@ -1406,19 +1402,19 @@ model DocumentTemplate {
 // ============================================
 
 model LedgerAccount {
-  id          String   @id @default(uuid())
-  companyId   String
-  code        String   // e.g., "1001", "2000"
-  name        String   // "Cash", "Accounts Receivable"
-  type        String   // asset, liability, equity, income, expense, combined
-  balance     Decimal  @default(0) @db.Decimal(15, 2)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  id        String   @id @default(uuid())
+  companyId String
+  code      String // e.g., "1001", "2000"
+  name      String // "Cash", "Accounts Receivable"
+  type      String // asset, liability, equity, income, expense, combined
+  balance   Decimal  @default(0) @db.Decimal(15, 2)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company      Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
   journalLines JournalEntryLine[]
-  
+
   @@unique([companyId, code])
   @@index([companyId])
 }
@@ -1427,30 +1423,30 @@ model JournalEntry {
   id          String   @id @default(uuid())
   companyId   String
   date        DateTime @db.Date
-  reference   String?  // Invoice #, Payroll Month
+  reference   String? // Invoice #, Payroll Month
   description String?
   status      String   @default("draft") // draft, posted
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
-  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  lines       JournalEntryLine[]
-  
+
+  company Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  lines   JournalEntryLine[]
+
   @@index([companyId])
   @@index([date])
 }
 
 model JournalEntryLine {
-  id              String   @id @default(uuid())
-  journalEntryId  String
-  accountId       String
-  debit           Decimal  @default(0) @db.Decimal(15, 2)
-  credit          Decimal  @default(0) @db.Decimal(15, 2)
-  description     String?
-  
-  journalEntry    JournalEntry   @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
-  account         LedgerAccount  @relation(fields: [accountId], references: [id])
-  
+  id             String  @id @default(uuid())
+  journalEntryId String
+  accountId      String
+  debit          Decimal @default(0) @db.Decimal(15, 2)
+  credit         Decimal @default(0) @db.Decimal(15, 2)
+  description    String?
+
+  journalEntry JournalEntry  @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  account      LedgerAccount @relation(fields: [accountId], references: [id])
+
   @@index([journalEntryId])
   @@index([accountId])
 }
@@ -1460,42 +1456,55 @@ model JournalEntryLine {
 // ============================================
 
 model Contract {
-  id              String   @id @default(uuid())
-  companyId       String
-  clientId        String
-  projectId       String?
-  creatorId       String   // User who created the contract
+  id        String  @id @default(uuid())
+  companyId String
+  clientId  String
+  projectId String?
+  creatorId String // User who created the contract
 
-  title           String
-  content         String   @db.Text // HTML Content
-  status          String   @default("draft") // draft, sent, viewed, signed, expired, cancelled
-  
+  title   String
+  content String @db.Text // HTML Content
+  status  String @default("draft") // draft, sent, viewed, signed, expired, cancelled
+
   // Dates
-  validFrom       DateTime? @db.Date
-  validUntil      DateTime? @db.Date
-  sentAt          DateTime?
-  signedAt        DateTime?
-  
-  // Signature Data
-  clientSignature String?   @db.Text // Base64 or URL
+  validFrom  DateTime? @db.Date
+  validUntil DateTime? @db.Date
+  sentAt     DateTime?
+  signedAt   DateTime?
+
+  // Signature Data - Client
+  clientSignature String? @db.Text // Base64 or URL
   signerName      String?
   signerIp        String?
   
-  // PDF
-  pdfPath         String?
-  
-  // Template
-  templateId      String?
+  // Signature Data - Company
+  companySignature String? @db.Text
+  companySignerId  String?
+  companySignedAt  DateTime?
 
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  // PDF
+  pdfPath String?
+
+  // Template
+  templateId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  company         Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  client          Client            @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  project         Project?          @relation(fields: [projectId], references: [id])
-  creator         User              @relation("ContractCreator", fields: [creatorId], references: [id])
-  template        ContractTemplate? @relation(fields: [templateId], references: [id])
+  company  Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  client   Client            @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  project  Project?          @relation(fields: [projectId], references: [id])
+  creator  User              @relation("ContractCreator", fields: [creatorId], references: [id])
+  template ContractTemplate? @relation(fields: [templateId], references: [id])
+
+  // Analytics
+  viewCount       Int       @default(0)
+  lastViewedAt    DateTime?
+  emailOpens      Int       @default(0)
+  lastEmailOpenedAt DateTime?
+
+  activities      ContractActivity[]
 
   @@index([companyId])
   @@index([clientId])
@@ -1503,19 +1512,43 @@ model Contract {
   @@index([status])
 }
 
-model ContractTemplate {
+model ContractActivity {
   id          String   @id @default(uuid())
+  contractId  String
+  type        String   // VIEWED, DOWNLOADED, EMAIL_OPENED, LINK_CLICKED, STATUS_CHANGE
+  
+  // Detailed Tracking
+  ipAddress   String?
+  userAgent   String?
+  location    String?
+  deviceType  String?
+  browser     String?
+  os          String?
+  
+  // Metadata
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  
+  contract    Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  
+  @@index([contractId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model ContractTemplate {
+  id          String  @id @default(uuid())
   companyId   String
   name        String
   description String?
-  content     String   @db.Text // HTML Content with placeholders
-  isActive    Boolean  @default(true)
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  content     String  @db.Text // HTML Content with placeholders
+  isActive    Boolean @default(true)
 
-  company     Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  contracts   Contract[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company   Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contracts Contract[]
 
   @@index([companyId])
 }

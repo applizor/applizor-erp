@@ -3,6 +3,7 @@ import { ContractService } from '../services/contract.service';
 import { AuthRequest } from '../middleware/auth';
 import { ClientAuthRequest } from '../middleware/client.auth';
 import { PDFService } from '../services/pdf.service';
+import { sendContractNotification } from '../services/email.service';
 
 // Admin Controllers
 export const createContract = async (req: AuthRequest, res: Response) => {
@@ -55,6 +56,62 @@ export const deleteContract = async (req: Request, res: Response) => {
     }
 };
 
+export const sendContractToClient = async (req: Request, res: Response) => {
+    try {
+        const contractId = req.params.id;
+        const contract = await ContractService.getContractById(contractId);
+
+        if (!contract) return res.status(404).json({ error: 'Contract not found' });
+
+        // Update status to sent if it was draft
+        if (contract.status === 'draft') {
+            await ContractService.updateContract(contractId, { status: 'sent' });
+        }
+
+        // This URL should point to your frontend client portal
+        const publicUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/portal/contracts/${contractId}`;
+
+        // Send notification
+        try {
+            await sendContractNotification(contract, publicUrl);
+        } catch (emailError) {
+            console.error('Failed to send email:', emailError);
+            // Don't fail the request, just log it
+        }
+
+        // Log Activity
+        await ContractService.logActivity({
+            contractId,
+            type: 'EMAIL_SENT',
+            metadata: {
+                recipient: contract.client.email
+            }
+        });
+
+        res.json({ message: 'Contract sent successfully' });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+export const signContractByCompany = async (req: AuthRequest, res: Response) => {
+    try {
+        const { signature } = req.body;
+        const ip = req.ip || req.socket.remoteAddress || 'Unknown';
+
+        const contract = await ContractService.signContract(req.params.id, {
+            signature,
+            ip: ip as string,
+            signerId: req.userId!,
+            name: `${req.user?.firstName} ${req.user?.lastName}`,
+            type: 'company'
+        });
+        res.json(contract);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
 // Portal Controllers
 export const getMyContracts = async (req: ClientAuthRequest, res: Response) => {
     try {
@@ -76,7 +133,8 @@ export const signContract = async (req: ClientAuthRequest, res: Response) => {
         const contract = await ContractService.signContract(req.params.id, {
             signature,
             name,
-            ip: ip as string
+            ip: ip as string,
+            type: 'client'
         });
         res.json(contract);
     } catch (error: any) {

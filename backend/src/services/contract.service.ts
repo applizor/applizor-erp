@@ -37,6 +37,44 @@ export class ContractService {
         });
     }
 
+    static async logActivity(data: {
+        contractId: string;
+        type: string;
+        ipAddress?: string;
+        userAgent?: string;
+        metadata?: any;
+    }) {
+        // Log to database
+        await prisma.contractActivity.create({
+            data: {
+                contractId: data.contractId,
+                type: data.type,
+                ipAddress: data.ipAddress,
+                userAgent: data.userAgent,
+                metadata: data.metadata || {}
+            }
+        });
+
+        // Update counters if applicable
+        if (data.type === 'VIEWED') {
+            await prisma.contract.update({
+                where: { id: data.contractId },
+                data: {
+                    viewCount: { increment: 1 },
+                    lastViewedAt: new Date()
+                }
+            });
+        } else if (data.type === 'EMAIL_OPENED') {
+            await prisma.contract.update({
+                where: { id: data.contractId },
+                data: {
+                    emailOpens: { increment: 1 },
+                    lastEmailOpenedAt: new Date()
+                }
+            });
+        }
+    }
+
     static async getContractById(id: string) {
         return await prisma.contract.findUnique({
             where: { id },
@@ -44,7 +82,10 @@ export class ContractService {
                 client: true,
                 company: true,
                 project: true,
-                creator: true
+                creator: true,
+                activities: {
+                    orderBy: { createdAt: 'desc' }
+                }
             }
         });
     }
@@ -55,6 +96,9 @@ export class ContractService {
         if (existing?.status === 'signed') {
             throw new Error('Cannot edit a signed contract');
         }
+
+        // If status is sent, we allow editing but maybe we should warn? 
+        // User explicitly asked for this feature.
 
         return await prisma.contract.update({
             where: { id },
@@ -80,6 +124,14 @@ export class ContractService {
 
         const signedAt = new Date();
 
+        // Log the signing activity
+        await this.logActivity({
+            contractId: id,
+            type: 'SIGNED',
+            ipAddress: signatureData.ip,
+            metadata: { name: signatureData.name }
+        });
+
         // Generate PDF with Signature
         const pdfBuffer = await PDFService.generateContractPDF({
             id: contract.id,
@@ -92,10 +144,6 @@ export class ContractService {
             signerIp: signatureData.ip,
             signedAt: signedAt
         });
-
-        // In a real app, upload PDF to S3/Storage and save URL.
-        // For MVP, we might store base64 or just regenerate on fly.
-        // Let's assume we just regenerate on fly for now or store path if we had storage.
 
         return await prisma.contract.update({
             where: { id },
@@ -110,6 +158,7 @@ export class ContractService {
     }
 
     static async deleteContract(id: string) {
+        // Also delete activities (cascade should handle it but good to be explicit if needed, here cascade is set)
         return await prisma.contract.delete({ where: { id } });
     }
 }

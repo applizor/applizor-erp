@@ -6,9 +6,12 @@ import { authenticateClient } from '../middleware/client.auth';
 const router = Router();
 
 // Admin Routes (Protected)
+// Basic CRUD
 router.post('/', authenticate, checkPermission('Contract', 'create'), ContractController.createContract);
+router.post('/:id/send', authenticate, ContractController.sendContractToClient);
 router.get('/', authenticate, checkPermission('Contract', 'read'), ContractController.getContracts);
 router.get('/:id', authenticate, checkPermission('Contract', 'read'), ContractController.getContractById);
+router.post('/:id/sign-company', authenticate, checkPermission('Contract', 'update'), ContractController.signContractByCompany);
 router.put('/:id', authenticate, checkPermission('Contract', 'update'), ContractController.updateContract);
 router.delete('/:id', authenticate, checkPermission('Contract', 'delete'), ContractController.deleteContract);
 router.get('/:id/pdf', ContractController.downloadContractPDF); // Public/Token protected in real app, basic for now
