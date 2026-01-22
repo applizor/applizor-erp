@@ -134,8 +134,17 @@ app.use('/api/payroll/structure', salaryStructureRoutes);
 app.use('/api/accounting', accountingRoutes);
 
 // Automation/Debug Routes
+// Automation/Debug Routes
 import automationRoutes from './routes/automation.routes';
 app.use('/api/automation', automationRoutes);
+
+// Contract Routes
+import contractRoutes, { portalContractRouter } from './routes/contract.routes';
+import contractTemplateRoutes from './routes/contract-template.routes';
+
+app.use('/api/contracts', contractRoutes);
+app.use('/api/contract-templates', contractTemplateRoutes);
+app.use('/api/portal/contracts', portalContractRouter);
 
 // Scheduler
 import { SchedulerService } from './services/scheduler.service';

@@ -41,6 +41,7 @@ model User {
   createdLeads  Lead[]   @relation("LeadCreator")
   assignedQuotations Quotation[] @relation("QuotationAssignee")
   createdQuotations  Quotation[] @relation("QuotationCreator")
+  createdContracts   Contract[]  @relation("ContractCreator")
 
   @@index([email])
   @@index([companyId])
@@ -152,6 +153,8 @@ model Company {
   documentTemplates DocumentTemplate[]
   quotations      Quotation[]
   quotationTemplates QuotationTemplate[]
+  contracts          Contract[]
+  contractTemplates  ContractTemplate[]
 
   @@index([name])
 }
@@ -206,6 +209,7 @@ model Client {
   invoices        Invoice[]
   subscriptions   Subscription[]
   documents       Document[]
+  contracts       Contract[]
   
   // Portal Access
   password        String?  // Hashed password
@@ -533,6 +537,7 @@ model Project {
   timesheets  Timesheet[]
   documents   Document[]
   invoices    Invoice[]
+  contracts   Contract[]
 
   @@index([companyId])
   @@index([clientId])
@@ -1448,4 +1453,69 @@ model JournalEntryLine {
   
   @@index([journalEntryId])
   @@index([accountId])
+}
+
+// ============================================
+// CONTRACTS & AGREEMENTS
+// ============================================
+
+model Contract {
+  id              String   @id @default(uuid())
+  companyId       String
+  clientId        String
+  projectId       String?
+  creatorId       String   // User who created the contract
+
+  title           String
+  content         String   @db.Text // HTML Content
+  status          String   @default("draft") // draft, sent, viewed, signed, expired, cancelled
+  
+  // Dates
+  validFrom       DateTime? @db.Date
+  validUntil      DateTime? @db.Date
+  sentAt          DateTime?
+  signedAt        DateTime?
+  
+  // Signature Data
+  clientSignature String?   @db.Text // Base64 or URL
+  signerName      String?
+  signerIp        String?
+  
+  // PDF
+  pdfPath         String?
+  
+  // Template
+  templateId      String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  company         Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  client          Client            @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  project         Project?          @relation(fields: [projectId], references: [id])
+  creator         User              @relation("ContractCreator", fields: [creatorId], references: [id])
+  template        ContractTemplate? @relation(fields: [templateId], references: [id])
+
+  @@index([companyId])
+  @@index([clientId])
+  @@index([projectId])
+  @@index([status])
+}
+
+model ContractTemplate {
+  id          String   @id @default(uuid())
+  companyId   String
+  name        String
+  description String?
+  content     String   @db.Text // HTML Content with placeholders
+  isActive    Boolean  @default(true)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company     Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contracts   Contract[]
+
+  @@index([companyId])
 }

@@ -75,6 +75,7 @@ export default function Sidebar() {
         { name: 'Clients', href: '/clients', icon: Users, category: 'CRM', module: 'Client' },
         { name: 'Quotations', href: '/quotations', icon: FileText, category: 'CRM', module: 'Lead' },
         { name: 'Templates', href: '/quotations/templates', icon: Copy, category: 'CRM', module: 'QuotationTemplate' },
+        { name: 'Contracts', href: '/crm/contracts', icon: ShieldCheck, category: 'CRM', module: 'Contract' },
 
         // Finance
         { name: 'Invoices', href: '/invoices', icon: FileText, category: 'Finance', module: 'Invoice' },
