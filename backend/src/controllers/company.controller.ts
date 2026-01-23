@@ -57,7 +57,15 @@ export const updateCompany = async (req: AuthRequest, res: Response) => {
       currency, // Added
       allowedIPs, latitude, longitude, radius,
       legalName, gstin, pan, tan,
-      enabledModules // Added to destructuring
+      enabledModules,
+      digitalSignature,
+      letterhead,
+      continuationSheet,
+      pdfMarginTop,
+      pdfMarginBottom,
+      pdfMarginLeft,
+      pdfMarginRight,
+      pdfContinuationTop
     } = req.body;
 
     const company = await prisma.company.update({
@@ -67,7 +75,15 @@ export const updateCompany = async (req: AuthRequest, res: Response) => {
         currency, // Added
         allowedIPs, latitude: latitude ? parseFloat(latitude) : undefined, longitude: longitude ? parseFloat(longitude) : undefined, radius: radius ? parseInt(radius) : undefined,
         legalName, gstin, pan, tan,
-        enabledModules
+        enabledModules,
+        digitalSignature,
+        letterhead,
+        continuationSheet,
+        pdfMarginTop: pdfMarginTop ? parseInt(pdfMarginTop) : undefined,
+        pdfMarginBottom: pdfMarginBottom ? parseInt(pdfMarginBottom) : undefined,
+        pdfMarginLeft: pdfMarginLeft ? parseInt(pdfMarginLeft) : undefined,
+        pdfMarginRight: pdfMarginRight ? parseInt(pdfMarginRight) : undefined,
+        pdfContinuationTop: pdfContinuationTop ? parseInt(pdfContinuationTop) : undefined
       }
     });
 
@@ -136,5 +152,65 @@ export const updateLogo = async (req: AuthRequest, res: Response) => {
   } catch (error: any) {
     console.error('Upload logo error:', error);
     res.status(500).json({ error: 'Failed to update logo' });
+  }
+};
+
+export const updateSignature = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user || !user.companyId) return res.status(404).json({ error: 'Company not found' });
+
+    // Construct public URL
+    const signatureUrl = `/uploads/signatures/${req.file.filename}`;
+
+    const company = await prisma.company.update({
+      where: { id: user.companyId },
+      data: { digitalSignature: signatureUrl }
+    });
+
+    res.json({ message: 'Signature updated successfully', company });
+  } catch (error: any) {
+    console.error('Upload signature error:', error);
+    res.status(500).json({ error: 'Failed to update signature' });
+  }
+};
+
+export const updateLetterheadAsset = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const { companyId } = req.user || {};
+    let finalCompanyId = companyId;
+
+    if (!finalCompanyId) {
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      if (!user || !user.companyId) return res.status(404).json({ error: 'Company not found' });
+      finalCompanyId = user.companyId;
+    }
+
+    const fieldName = req.file.fieldname; // 'letterhead' or 'continuationSheet'
+    const assetUrl = `/uploads/letterheads/${req.file.filename}`;
+
+    const company = await prisma.company.update({
+      where: { id: finalCompanyId },
+      data: { [fieldName]: assetUrl }
+    });
+
+    res.json({ message: `${fieldName} updated successfully`, company });
+  } catch (error: any) {
+    console.error('Upload letterhead asset error:', error);
+    res.status(500).json({ error: 'Failed to update letterhead asset' });
   }
 };

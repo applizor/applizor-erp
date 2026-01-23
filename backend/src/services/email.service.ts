@@ -117,6 +117,27 @@ export const sendQuotationToClient = async (quotationData: any, publicUrl: strin
     return sendEmail(quotationData.lead?.email || quotationData.clientEmail, subject, html);
 };
 
+// Send Contract Notification to Client
+export const sendContractNotification = async (contract: any, publicUrl: string) => {
+    const subject = `New Contract: ${contract.title} from ${process.env.COMPANY_NAME || 'Applizor'}`;
+
+    const html = `
+        <div style="font-family: Arial, sans-serif;">
+            <h2>Hello ${contract.client.name},</h2>
+            <p>You have a new contract <strong>${contract.title}</strong> ready for review and signature.</p>
+            <p>Please click the link below to view and sign the contract online:</p>
+            <div style="margin: 20px 0;">
+                <a href="${publicUrl}" style="background-color: #4F46E5; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">View & Sign Contract</a>
+            </div>
+            <p>If you have any questions, please contact us.</p>
+            <br/>
+            <p>Best regards,<br/>${process.env.COMPANY_NAME || 'Applizor'} Team</p>
+        </div>
+    `;
+
+    return sendEmail(contract.client.email, subject, html);
+};
+
 // Send Acceptance Confirmation to Client
 export const sendQuotationAcceptanceToClient = async (quotationData: any) => {
     const subject = `Quotation #${quotationData.quotationNumber} - Accepted`;

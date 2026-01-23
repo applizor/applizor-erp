@@ -96,7 +96,7 @@ export const sendContractToClient = async (req: Request, res: Response) => {
 
 export const signContractByCompany = async (req: AuthRequest, res: Response) => {
     try {
-        const { signature } = req.body;
+        const { signature, useLetterhead } = req.body;
         const ip = req.ip || req.socket.remoteAddress || 'Unknown';
 
         const contract = await ContractService.signContract(req.params.id, {
@@ -104,7 +104,8 @@ export const signContractByCompany = async (req: AuthRequest, res: Response) => 
             ip: ip as string,
             signerId: req.userId!,
             name: `${req.user?.firstName} ${req.user?.lastName}`,
-            type: 'company'
+            type: 'company',
+            useLetterhead: useLetterhead === true
         });
         res.json(contract);
     } catch (error: any) {
@@ -127,14 +128,15 @@ export const getMyContracts = async (req: ClientAuthRequest, res: Response) => {
 
 export const signContract = async (req: ClientAuthRequest, res: Response) => {
     try {
-        const { signature, name } = req.body;
+        const { signature, name, useLetterhead } = req.body;
         const ip = req.ip || req.socket.remoteAddress || 'Unknown';
 
         const contract = await ContractService.signContract(req.params.id, {
             signature,
             name,
             ip: ip as string,
-            type: 'client'
+            type: 'client',
+            useLetterhead: useLetterhead === true
         });
         res.json(contract);
     } catch (error: any) {
@@ -156,7 +158,8 @@ export const downloadContractPDF = async (req: Request, res: Response) => {
             client: contract.client,
             clientSignature: contract.clientSignature,
             signerIp: contract.signerIp,
-            signedAt: contract.signedAt
+            signedAt: contract.signedAt,
+            useLetterhead: req.query.useLetterhead === 'true'
         });
 
         res.setHeader('Content-Type', 'application/pdf');

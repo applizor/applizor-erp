@@ -25,6 +25,7 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
     const [publicUrl, setPublicUrl] = useState<string>('');
     const [showLinkDialog, setShowLinkDialog] = useState(false);
     const [activeTab, setActiveTab] = useState('details');
+    const [useLetterhead, setUseLetterhead] = useState(true);
 
     useEffect(() => {
         loadQuotation();
@@ -137,14 +138,43 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
 
                 <div className="flex items-center gap-2">
                     {can('Quotation', 'update') && quotation.status === 'draft' && (
-                        <Link
-                            href={`/quotations/${quotation.id}/edit`}
-                        >
+                        <Link href={`/quotations/${quotation.id}/edit`}>
                             <Button variant="secondary" icon={Edit}>
                                 Edit
                             </Button>
                         </Link>
                     )}
+
+                    <Button
+                        onClick={async () => {
+                            try {
+                                const blob = await quotationsApi.generatePDF(params.id, useLetterhead);
+                                const url = window.URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = `Quotation-${quotation.quotationNumber}.pdf`;
+                                a.click();
+                                toast.success('Transfer complete');
+                            } catch (error) {
+                                toast.error('Transfer failed');
+                            }
+                        }}
+                        variant="secondary"
+                        icon={Download}
+                    >
+                        Preview PDF
+                    </Button>
+
+                    <div className="flex items-center gap-2 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
+                        <input
+                            type="checkbox"
+                            id="useLetterhead"
+                            checked={useLetterhead}
+                            onChange={(e) => setUseLetterhead(e.target.checked)}
+                            className="w-3.5 h-3.5 rounded border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer"
+                        />
+                        <label htmlFor="useLetterhead" className="text-[10px] font-black uppercase tracking-widest text-slate-600 cursor-pointer select-none">Letterhead</label>
+                    </div>
 
 
 
@@ -152,7 +182,7 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
                         <Button
                             onClick={async () => {
                                 try {
-                                    const response = await api.get(`/quotations/${params.id}/signed-pdf`, {
+                                    const response = await api.get(`/quotations/${params.id}/signed-pdf?useLetterhead=${useLetterhead}`, {
                                         responseType: 'blob'
                                     });
                                     const url = window.URL.createObjectURL(new Blob([response.data]));

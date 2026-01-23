@@ -25,59 +25,54 @@ async function main() {
         });
     }
     else {
-        console.log('Default company already exists.');
+        console.log('✅ Default company already exists.');
     }
-    // 2. Create Admin Role
-    const roleName = 'Admin';
-    let role = await prisma.role.findUnique({ where: { name: roleName } });
-    if (!role) {
-        console.log('Creating Admin role...');
-        role = await prisma.role.create({ data: { name: roleName, isSystem: true, description: 'System Administrator' } });
-    }
-    // 2.1 Create Employee Role
-    const empRoleName = 'Employee';
-    let empRole = await prisma.role.findUnique({ where: { name: empRoleName } });
-    if (!empRole) {
-        console.log('Creating Employee role...');
-        empRole = await prisma.role.create({ data: { name: empRoleName, isSystem: false, description: 'Standard Employee' } });
-    }
-    // 3. Create Admin User
-    const adminEmail = 'admin@applizor.com';
-    const adminPassword = 'admin123';
-    let user = await prisma.user.findUnique({ where: { email: adminEmail } });
-    if (!user) {
-        console.log('Creating admin user...');
-        const hashedPassword = await bcryptjs_1.default.hash(adminPassword, 10);
-        user = await prisma.user.create({
+    // 2. Create Roles
+    console.log('Creating roles...');
+    // Admin Role
+    let adminRole = await prisma.role.findUnique({ where: { name: 'Admin' } });
+    if (!adminRole) {
+        adminRole = await prisma.role.create({
             data: {
-                email: adminEmail,
-                password: hashedPassword,
-                firstName: 'System',
-                lastName: 'Admin',
-                companyId: company.id,
-                roles: {
-                    create: { roleId: role.id }
-                }
+                name: 'Admin',
+                isSystem: true,
+                description: 'System Administrator with full access'
             }
         });
-        console.log(`✅ Admin user created: ${adminEmail} / ${adminPassword}`);
+        console.log('✅ Admin role created');
     }
-    else {
-        console.log('Admin user already exists.');
-        // Optional: Reset password if known issue
-        const hashedPassword = await bcryptjs_1.default.hash(adminPassword, 10);
-        await prisma.user.update({
-            where: { id: user.id },
-            data: { password: hashedPassword, companyId: company.id } // Ensure company link
+    // HR Manager Role
+    let hrRole = await prisma.role.findUnique({ where: { name: 'HR Manager' } });
+    if (!hrRole) {
+        hrRole = await prisma.role.create({
+            data: {
+                name: 'HR Manager',
+                isSystem: false,
+                description: 'HR Manager with employee and leave management access'
+            }
         });
-        console.log('✅ Admin user updated with default password.');
+        console.log('✅ HR Manager role created');
     }
-    // 4. Create Departments
+    // Employee Role
+    let empRole = await prisma.role.findUnique({ where: { name: 'Employee' } });
+    if (!empRole) {
+        empRole = await prisma.role.create({
+            data: {
+                name: 'Employee',
+                isSystem: false,
+                description: 'Standard Employee with limited access'
+            }
+        });
+        console.log('✅ Employee role created');
+    }
+    // 3. Create Departments
     console.log('Creating departments...');
     const depts = [
-        { name: 'Information Technology', description: 'Software and Infrastructure' },
-        { name: 'Human Resources', description: 'People and Culture' },
-        { name: 'Sales & Marketing', description: 'Revenue and Growth' }
+        { name: 'Information Technology', description: 'Software Development and Infrastructure' },
+        { name: 'Human Resources', description: 'People Management and Culture' },
+        { name: 'Sales & Marketing', description: 'Revenue Generation and Growth' },
+        { name: 'Finance & Accounts', description: 'Financial Management' },
+        { name: 'Operations', description: 'Business Operations' }
     ];
     const departments = [];
     for (const d of depts) {
@@ -88,19 +83,25 @@ async function main() {
             dept = await prisma.department.create({
                 data: { ...d, companyId: company.id }
             });
+            console.log(`✅ Created department: ${d.name}`);
         }
         departments.push(dept);
     }
-    // 5. Create Positions
+    // 4. Create Positions
     console.log('Creating positions...');
     const itDept = departments.find(d => d.name === 'Information Technology');
     const hrDept = departments.find(d => d.name === 'Human Resources');
     const salesDept = departments.find(d => d.name === 'Sales & Marketing');
+    const financeDept = departments.find(d => d.name === 'Finance & Accounts');
     const posData = [
-        { departmentId: itDept.id, title: 'Software Engineer' },
-        { departmentId: itDept.id, title: 'Technical Lead' },
-        { departmentId: hrDept.id, title: 'HR Manager' },
-        { departmentId: salesDept.id, title: 'Sales Executive' }
+        { departmentId: itDept.id, title: 'Software Engineer', description: 'Develops software applications' },
+        { departmentId: itDept.id, title: 'Senior Software Engineer', description: 'Senior developer role' },
+        { departmentId: itDept.id, title: 'Technical Lead', description: 'Leads technical team' },
+        { departmentId: hrDept.id, title: 'HR Manager', description: 'Manages HR operations' },
+        { departmentId: hrDept.id, title: 'HR Executive', description: 'Handles HR tasks' },
+        { departmentId: salesDept.id, title: 'Sales Executive', description: 'Handles sales' },
+        { departmentId: salesDept.id, title: 'Sales Manager', description: 'Manages sales team' },
+        { departmentId: financeDept.id, title: 'Accountant', description: 'Manages accounts' }
     ];
     const positions = [];
     for (const p of posData) {
@@ -109,29 +110,131 @@ async function main() {
         });
         if (!pos) {
             pos = await prisma.position.create({ data: p });
+            console.log(`✅ Created position: ${p.title}`);
         }
         positions.push(pos);
     }
-    // 6. Create Default Shifts
-    console.log('Creating default shifts...');
-    let generalShift = await prisma.shift.findFirst({ where: { companyId: company.id, name: 'General Shift' } });
-    if (!generalShift) {
-        generalShift = await prisma.shift.create({
-            data: {
-                companyId: company.id,
-                name: 'General Shift',
-                startTime: '09:00',
-                endTime: '18:00',
-                workDays: ["monday", "tuesday", "wednesday", "thursday", "friday"]
-            }
+    // 5. Create Shifts
+    console.log('Creating shifts...');
+    const shifts = [
+        {
+            name: 'General Shift',
+            startTime: '09:00',
+            endTime: '18:00',
+            breakDuration: 60,
+            workDays: ["monday", "tuesday", "wednesday", "thursday", "friday"]
+        },
+        {
+            name: 'Morning Shift',
+            startTime: '06:00',
+            endTime: '15:00',
+            breakDuration: 60,
+            workDays: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]
+        },
+        {
+            name: 'Night Shift',
+            startTime: '22:00',
+            endTime: '07:00',
+            breakDuration: 60,
+            workDays: ["monday", "tuesday", "wednesday", "thursday", "friday"]
+        }
+    ];
+    const createdShifts = [];
+    for (const s of shifts) {
+        let shift = await prisma.shift.findFirst({
+            where: { companyId: company.id, name: s.name }
         });
+        if (!shift) {
+            shift = await prisma.shift.create({
+                data: {
+                    companyId: company.id,
+                    ...s,
+                    workDays: s.workDays
+                }
+            });
+            console.log(`✅ Created shift: ${s.name}`);
+        }
+        createdShifts.push(shift);
     }
-    // 7. Create Leave Types
+    const generalShift = createdShifts.find(s => s.name === 'General Shift');
+    // 6. Create Leave Types
     console.log('Creating leave types...');
     const leaveTypes = [
-        { name: 'Privilege Leave', days: 18, monthlyLimit: 2, isPaid: true, frequency: 'yearly' },
-        { name: 'Casual Leave', days: 12, monthlyLimit: 1, isPaid: true, frequency: 'yearly' },
-        { name: 'Sick Leave', days: 10, monthlyLimit: 2, isPaid: true, frequency: 'yearly' }
+        {
+            name: 'Earned Leave',
+            days: 18,
+            monthlyLimit: 0,
+            isPaid: true,
+            frequency: 'monthly',
+            accrualType: 'monthly',
+            accrualRate: 1.5,
+            maxAccrual: 18,
+            minServiceDays: 90,
+            carryForward: false,
+            maxCarryForward: 0,
+            maxConsecutiveDays: 4,
+            quarterlyLimit: 0,
+            probationQuota: 0,
+            confirmationBonus: 0,
+            color: '#3B82F6',
+            description: 'Earned leave - 1.5 days per month (18 days annually)',
+            policySettings: {
+                noticePeriod: 14,
+                minDaysForNotice: 4,
+                includeNonWorkingDays: false
+            }
+        },
+        {
+            name: 'Sick/Casual Leave',
+            days: 8,
+            monthlyLimit: 0,
+            isPaid: true,
+            frequency: 'yearly',
+            carryForward: false,
+            proofRequired: true,
+            quarterlyLimit: 2,
+            probationQuota: 2,
+            confirmationBonus: 4.5,
+            color: '#10B981',
+            description: 'Sick or casual leave - up to 8 days per year',
+            policySettings: {
+                minDaysForProof: 2,
+                includeNonWorkingDays: false
+            }
+        },
+        {
+            name: 'Marriage Leave',
+            days: 5,
+            monthlyLimit: 0,
+            isPaid: true,
+            frequency: 'yearly',
+            carryForward: false,
+            maxConsecutiveDays: 5,
+            quarterlyLimit: 0,
+            probationQuota: 5,
+            confirmationBonus: 0,
+            color: '#EC4899',
+            description: 'Marriage leave - 5 continuous working days',
+            policySettings: {
+                includeNonWorkingDays: false
+            }
+        },
+        {
+            name: 'Bereavement Leave',
+            days: 4,
+            monthlyLimit: 0,
+            isPaid: true,
+            frequency: 'yearly',
+            carryForward: false,
+            quarterlyLimit: 0,
+            probationQuota: 4,
+            confirmationBonus: 0,
+            color: '#EF4444',
+            description: 'Bereavement leave - 4 calendar days for immediate family member death',
+            policySettings: {
+                includeNonWorkingDays: true
+            }
+        }
     ];
     for (const lt of leaveTypes) {
         await prisma.leaveType.upsert({
@@ -139,107 +242,165 @@ async function main() {
             update: lt,
             create: lt
         });
+        console.log(`✅ Created/Updated leave type: ${lt.name}`);
     }
-    // 8. Create Employee Record for Admin
-    let adminEmployee = await prisma.employee.findUnique({ where: { email: adminEmail } });
+    // 7. Create Users
+    console.log('Creating users...');
+    // Admin User
+    const adminEmail = 'admin@applizor.com';
+    const adminPassword = 'admin123';
+    let adminUser = await prisma.user.findUnique({ where: { email: adminEmail } });
+    if (!adminUser) {
+        const hashedPassword = await bcryptjs_1.default.hash(adminPassword, 10);
+        adminUser = await prisma.user.create({
+            data: {
+                email: adminEmail,
+                password: hashedPassword,
+                firstName: 'System',
+                lastName: 'Admin',
+                companyId: company.id,
+                roles: {
+                    create: { roleId: adminRole.id }
+                }
+            }
+        });
+        console.log(`✅ Admin user created: ${adminEmail} / ${adminPassword}`);
+    }
+    // HR Manager User
+    const hrEmail = 'hr@applizor.com';
+    const hrPassword = 'hr@123';
+    let hrUser = await prisma.user.findUnique({ where: { email: hrEmail } });
+    if (!hrUser) {
+        const hashedPassword = await bcryptjs_1.default.hash(hrPassword, 10);
+        hrUser = await prisma.user.create({
+            data: {
+                email: hrEmail,
+                password: hashedPassword,
+                firstName: 'HR',
+                lastName: 'Manager',
+                companyId: company.id,
+                roles: {
+                    create: { roleId: hrRole.id }
+                }
+            }
+        });
+        console.log(`✅ HR Manager user created: ${hrEmail} / ${hrPassword}`);
+    }
+    // Employee User
+    const empEmail = 'emp1@test.com';
+    const empPassword = 'emp1';
+    let empUser = await prisma.user.findUnique({ where: { email: empEmail } });
+    if (!empUser) {
+        const hashedPassword = await bcryptjs_1.default.hash(empPassword, 10);
+        empUser = await prisma.user.create({
+            data: {
+                email: empEmail,
+                password: hashedPassword,
+                firstName: 'Test',
+                lastName: 'Employee',
+                companyId: company.id,
+                roles: {
+                    create: { roleId: empRole.id }
+                }
+            }
+        });
+        console.log(`✅ Employee user created: ${empEmail} / ${empPassword}`);
+    }
+    // 8. Create Employee Records
+    console.log('Creating employee records...');
+    // Admin Employee
+    let adminEmployee = await prisma.employee.findFirst({
+        where: {
+            companyId: company.id,
+            employeeId: 'EMP001'
+        }
+    });
     if (!adminEmployee) {
-        console.log('Creating employee record for Admin...');
         adminEmployee = await prisma.employee.create({
             data: {
                 companyId: company.id,
-                userId: user.id,
+                userId: adminUser.id,
                 employeeId: 'EMP001',
                 firstName: 'System',
                 lastName: 'Admin',
                 email: adminEmail,
                 dateOfJoining: new Date(),
                 status: 'active',
-                salary: 1000000,
+                salary: 1500000,
                 departmentId: hrDept.id,
                 positionId: positions.find(p => p.title === 'HR Manager').id,
-                shiftId: generalShift.id
+                shiftId: generalShift.id,
+                employmentType: 'Full Time'
             }
         });
+        console.log('✅ Admin employee record created');
     }
-    // 9. Create 2 more Demo Employees
-    const demoEmployees = [
-        {
-            email: 'john.doe@example.com',
-            firstName: 'John',
-            lastName: 'Doe',
-            empId: 'EMP002',
-            posTitle: 'Software Engineer',
-            deptName: 'Information Technology'
-        },
-        {
-            email: 'jane.smith@example.com',
-            firstName: 'Jane',
-            lastName: 'Smith',
-            empId: 'EMP003',
-            posTitle: 'Sales Executive',
-            deptName: 'Sales & Marketing'
+    // HR Manager Employee
+    let hrEmployee = await prisma.employee.findFirst({
+        where: {
+            companyId: company.id,
+            employeeId: 'EMP002'
         }
-    ];
-    for (const de of demoEmployees) {
-        let empUser = await prisma.user.findUnique({ where: { email: de.email } });
-        if (!empUser) {
-            console.log(`Creating user and employee for ${de.firstName}...`);
-            const hashedPassword = await bcryptjs_1.default.hash('password123', 10);
-            empUser = await prisma.user.create({
-                data: {
-                    email: de.email,
-                    password: hashedPassword,
-                    firstName: de.firstName,
-                    lastName: de.lastName,
-                    companyId: company.id
-                }
-            });
-            const dept = departments.find(d => d.name === de.deptName);
-            const pos = positions.find(p => p.title === de.posTitle);
-            await prisma.employee.create({
-                data: {
-                    companyId: company.id,
-                    userId: empUser.id,
-                    employeeId: de.empId,
-                    firstName: de.firstName,
-                    lastName: de.lastName,
-                    email: de.email,
-                    dateOfJoining: new Date(),
-                    status: 'active',
-                    salary: 600000,
-                    departmentId: dept.id,
-                    positionId: pos.id,
-                    shiftId: generalShift.id
-                }
-            });
-            // Assign Employee role
-            await prisma.userRole.upsert({
-                where: {
-                    userId_roleId: {
-                        userId: empUser.id,
-                        roleId: empRole.id
-                    }
-                },
-                update: {},
-                create: {
-                    userId: empUser.id,
-                    roleId: empRole.id
-                }
-            });
-        }
+    });
+    if (!hrEmployee) {
+        hrEmployee = await prisma.employee.create({
+            data: {
+                companyId: company.id,
+                userId: hrUser.id,
+                employeeId: 'EMP002',
+                firstName: 'HR',
+                lastName: 'Manager',
+                email: hrEmail,
+                dateOfJoining: new Date(),
+                status: 'active',
+                salary: 800000,
+                departmentId: hrDept.id,
+                positionId: positions.find(p => p.title === 'HR Executive').id,
+                shiftId: generalShift.id,
+                employmentType: 'Full Time'
+            }
+        });
+        console.log('✅ HR Manager employee record created');
     }
-    // 10. Sync Role Permissions for Admin
-    console.log('Syncing admin role permissions...');
+    // Test Employee
+    let testEmployee = await prisma.employee.findFirst({
+        where: {
+            companyId: company.id,
+            employeeId: 'EMP003'
+        }
+    });
+    if (!testEmployee) {
+        testEmployee = await prisma.employee.create({
+            data: {
+                companyId: company.id,
+                userId: empUser.id,
+                employeeId: 'EMP003',
+                firstName: 'Test',
+                lastName: 'Employee',
+                email: empEmail,
+                dateOfJoining: new Date(),
+                status: 'active',
+                salary: 600000,
+                departmentId: itDept.id,
+                positionId: positions.find(p => p.title === 'Software Engineer').id,
+                shiftId: generalShift.id,
+                employmentType: 'Full Time'
+            }
+        });
+        console.log('✅ Test employee record created');
+    }
+    // 9. Setup Role Permissions
+    console.log('Setting up role permissions...');
     const SYSTEM_MODULES = [
         'Dashboard', 'Company', 'User', 'Role',
         'Client', 'Lead', 'Invoice', 'Payment', 'Subscription',
         'Department', 'Position', 'Employee', 'Attendance', 'Leave', 'LeaveType', 'LeaveBalance', 'Shift', 'ShiftRoster', 'Payroll', 'Asset', 'Holiday',
-        'Recruitment', 'Document'
+        'Recruitment', 'Document', 'SalaryComponent'
     ];
-    let permCount = 0;
+    // Admin Permissions - Full Access
     for (const module of SYSTEM_MODULES) {
         await prisma.rolePermission.upsert({
-            where: { roleId_module: { roleId: role.id, module } },
+            where: { roleId_module: { roleId: adminRole.id, module } },
             update: {
                 createLevel: 'all',
                 readLevel: 'all',
@@ -247,7 +408,7 @@ async function main() {
                 deleteLevel: 'all'
             },
             create: {
-                roleId: role.id,
+                roleId: adminRole.id,
                 module,
                 createLevel: 'all',
                 readLevel: 'all',
@@ -255,11 +416,45 @@ async function main() {
                 deleteLevel: 'all'
             }
         });
-        permCount++;
     }
-    console.log(`✅ Synced ${permCount} role permissions for Admin.`);
-    // 11. Sync Employee Role Permissions
-    console.log('Syncing employee role permissions...');
+    console.log(`✅ Admin permissions synced (${SYSTEM_MODULES.length} modules)`);
+    // HR Manager Permissions
+    const HR_PERMISSIONS = [
+        { module: 'Dashboard', readLevel: 'all' },
+        { module: 'Employee', createLevel: 'all', readLevel: 'all', updateLevel: 'all', deleteLevel: 'all' },
+        { module: 'Department', readLevel: 'all' },
+        { module: 'Position', readLevel: 'all' },
+        { module: 'Leave', createLevel: 'all', readLevel: 'all', updateLevel: 'all', deleteLevel: 'all' },
+        { module: 'LeaveType', readLevel: 'all' },
+        { module: 'LeaveBalance', readLevel: 'all', updateLevel: 'all' },
+        { module: 'Attendance', readLevel: 'all', updateLevel: 'all' },
+        { module: 'Shift', readLevel: 'all' },
+        { module: 'ShiftRoster', createLevel: 'all', readLevel: 'all', updateLevel: 'all' },
+        { module: 'Holiday', readLevel: 'all' },
+        { module: 'Recruitment', createLevel: 'all', readLevel: 'all', updateLevel: 'all' },
+        { module: 'Payroll', readLevel: 'all' }
+    ];
+    for (const perm of HR_PERMISSIONS) {
+        await prisma.rolePermission.upsert({
+            where: { roleId_module: { roleId: hrRole.id, module: perm.module } },
+            update: {
+                createLevel: perm.createLevel || 'none',
+                readLevel: perm.readLevel || 'none',
+                updateLevel: perm.updateLevel || 'none',
+                deleteLevel: perm.deleteLevel || 'none'
+            },
+            create: {
+                roleId: hrRole.id,
+                module: perm.module,
+                createLevel: perm.createLevel || 'none',
+                readLevel: perm.readLevel || 'none',
+                updateLevel: perm.updateLevel || 'none',
+                deleteLevel: perm.deleteLevel || 'none'
+            }
+        });
+    }
+    console.log(`✅ HR Manager permissions synced (${HR_PERMISSIONS.length} modules)`);
+    // Employee Permissions
     const EMPLOYEE_PERMISSIONS = [
         { module: 'Dashboard', readLevel: 'all' },
         { module: 'Employee', readLevel: 'owned', updateLevel: 'owned' },
@@ -269,7 +464,7 @@ async function main() {
         { module: 'Department', readLevel: 'all' },
         { module: 'Position', readLevel: 'all' },
         { module: 'Shift', readLevel: 'all' },
-        { module: 'Holiday', readLevel: 'all' },
+        { module: 'Holiday', readLevel: 'all' }
     ];
     for (const perm of EMPLOYEE_PERMISSIONS) {
         await prisma.rolePermission.upsert({
@@ -290,12 +485,26 @@ async function main() {
             }
         });
     }
-    console.log(`✅ Synced ${EMPLOYEE_PERMISSIONS.length} role permissions for Employee.`);
-    console.log('🌱 Seeding completed.');
+    console.log(`✅ Employee permissions synced (${EMPLOYEE_PERMISSIONS.length} modules)`);
+    console.log('\n🎉 Seeding completed successfully!\n');
+    console.log('📋 Login Credentials:');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('👤 Admin:');
+    console.log(`   Email: ${adminEmail}`);
+    console.log(`   Password: ${adminPassword}`);
+    console.log('');
+    console.log('👤 HR Manager:');
+    console.log(`   Email: ${hrEmail}`);
+    console.log(`   Password: ${hrPassword}`);
+    console.log('');
+    console.log('👤 Employee:');
+    console.log(`   Email: ${empEmail}`);
+    console.log(`   Password: ${empPassword}`);
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 }
 main()
     .catch((e) => {
-    console.error(e);
+    console.error('❌ Seeding failed:', e);
     process.exit(1);
 })
     .finally(async () => {

@@ -1,3 +1,8 @@
+export declare enum LetterheadMode {
+    NONE = "NONE",
+    FIRST_PAGE = "FIRST_PAGE",
+    EVERY_PAGE = "EVERY_PAGE"
+}
 export declare class DocumentGenerationService {
     /**
      * Stage 1: Inject data into DOCX template
@@ -13,4 +18,5 @@ export declare class DocumentGenerationService {
      */
     static applyLetterhead(pdfBuffer: Buffer, letterheadBuffer: Buffer | null, mode: 'ALL_PAGES' | 'FIRST_PAGE' | 'NONE'): Promise<Buffer>;
 }
+export default DocumentGenerationService;
 //# sourceMappingURL=document.service.d.ts.map

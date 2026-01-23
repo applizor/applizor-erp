@@ -4,6 +4,10 @@ export declare class LeaveAccrualService {
      * This adds leave days based on the monthly rate (e.g., 1.5 days/month)
      */
     processMonthlyAccruals(): Promise<void>;
+    /**
+     * Finds employees whose probation has ended and applies confirmation bonuses
+     */
+    processProbationConfirmations(): Promise<void>;
 }
 export declare const leaveAccrualService: LeaveAccrualService;
 //# sourceMappingURL=leave-accrual.service.d.ts.map

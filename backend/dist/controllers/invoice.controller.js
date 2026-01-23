@@ -36,10 +36,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.sendInvoice = exports.updateInvoiceStatus = exports.generateInvoicePDF = exports.getInvoice = exports.getInvoices = exports.createInvoice = void 0;
+exports.convertQuotation = exports.batchSendInvoices = exports.batchUpdateStatus = exports.updateInvoiceStatus = exports.sendInvoice = exports.getInvoiceStats = exports.recordPayment = exports.generateInvoicePDF = exports.getInvoice = exports.getInvoices = exports.createInvoice = void 0;
 const client_1 = __importDefault(require("../prisma/client"));
-const document_service_1 = __importStar(require("../services/document.service"));
+const invoice_service_1 = require("../services/invoice.service");
 const emailService = __importStar(require("../services/email.service"));
+const pdf_service_1 = require("../services/pdf.service");
+/**
+ * Create a new invoice
+ */
 const createInvoice = async (req, res) => {
     try {
         const userId = req.userId;
@@ -48,73 +52,18 @@ const createInvoice = async (req, res) => {
         }
         const user = await client_1.default.user.findUnique({
             where: { id: userId },
-            include: { company: true },
         });
         if (!user || !user.companyId) {
             return res.status(400).json({ error: 'User must belong to a company' });
         }
-        const { clientId, invoiceDate, dueDate, items, tax = 0, discount = 0, notes, type = 'invoice', // invoice, quotation, proforma
-        terms, currency = 'USD', letterheadMode = document_service_1.LetterheadMode.EVERY_PAGE, } = req.body;
-        // Validation
-        if (!clientId || !invoiceDate || !dueDate || !items || items.length === 0) {
-            return res.status(400).json({ error: 'Missing required fields' });
-        }
-        // Calculate totals
-        const subtotal = items.reduce((sum, item) => {
-            const itemAmount = Number(item.quantity) * Number(item.rate);
-            return sum + itemAmount;
-        }, 0);
-        const total = subtotal + Number(tax) - Number(discount);
-        // Generate number based on type
-        const prefix = type === 'quotation' ? 'QTN' : 'INV';
-        const count = await client_1.default.invoice.count({
-            where: {
-                companyId: user.companyId,
-                type: type
-            },
+        const invoice = await invoice_service_1.InvoiceService.createInvoice({
+            ...req.body,
+            companyId: user.companyId,
+            createdBy: userId,
         });
-        const invoiceNumber = `${prefix}-${new Date().getFullYear()}-${String(count + 1).padStart(5, '0')}`;
-        // Create invoice
-        const invoice = await client_1.default.invoice.create({
-            data: {
-                companyId: user.companyId,
-                clientId,
-                invoiceNumber,
-                type,
-                currency,
-                terms,
-                invoiceDate: new Date(invoiceDate),
-                dueDate: new Date(dueDate),
-                subtotal,
-                tax,
-                discount,
-                total,
-                notes,
-                status: type === 'quotation' ? 'sent' : 'draft',
-            },
-            include: {
-                client: true,
-                items: true,
-            },
-        });
-        // Create invoice items
-        const invoiceItems = await Promise.all(items.map((item) => client_1.default.invoiceItem.create({
-            data: {
-                invoiceId: invoice.id,
-                description: item.description,
-                quantity: item.quantity,
-                rate: item.rate,
-                hsnCode: item.hsnCode,
-                taxRate: item.taxRate || 0,
-                amount: item.quantity * item.rate,
-            },
-        })));
         res.status(201).json({
             message: 'Invoice created successfully',
-            invoice: {
-                ...invoice,
-                items: invoiceItems,
-            },
+            invoice,
         });
     }
     catch (error) {
@@ -123,6 +72,9 @@ const createInvoice = async (req, res) => {
     }
 };
 exports.createInvoice = createInvoice;
+/**
+ * Get list of invoices with pagination and filters
+ */
 const getInvoices = async (req, res) => {
     try {
         const userId = req.userId;
@@ -135,15 +87,19 @@ const getInvoices = async (req, res) => {
         if (!user || !user.companyId) {
             return res.status(400).json({ error: 'User must belong to a company' });
         }
-        const { status, clientId, page = 1, limit = 10 } = req.query;
+        const { status, clientId, page = 1, limit = 10, search } = req.query;
         const where = {
             companyId: user.companyId,
         };
-        if (status) {
+        if (status)
             where.status = status;
-        }
-        if (clientId) {
+        if (clientId)
             where.clientId = clientId;
+        if (search) {
+            where.OR = [
+                { invoiceNumber: { contains: String(search), mode: 'insensitive' } },
+                { client: { name: { contains: String(search), mode: 'insensitive' } } },
+            ];
         }
         const [invoices, total] = await Promise.all([
             client_1.default.invoice.findMany({
@@ -176,12 +132,11 @@ const getInvoices = async (req, res) => {
     }
 };
 exports.getInvoices = getInvoices;
+/**
+ * Get a single invoice by ID
+ */
 const getInvoice = async (req, res) => {
     try {
-        const userId = req.userId;
-        if (!userId) {
-            return res.status(401).json({ error: 'Unauthorized' });
-        }
         const { id } = req.params;
         const invoice = await client_1.default.invoice.findUnique({
             where: { id },
@@ -189,6 +144,9 @@ const getInvoice = async (req, res) => {
                 client: true,
                 company: true,
                 items: true,
+                payments: {
+                    orderBy: { createdAt: 'desc' }
+                }
             },
         });
         if (!invoice) {
@@ -202,14 +160,12 @@ const getInvoice = async (req, res) => {
     }
 };
 exports.getInvoice = getInvoice;
+/**
+ * Generate Invoice PDF
+ */
 const generateInvoicePDF = async (req, res) => {
     try {
-        const userId = req.userId;
-        if (!userId) {
-            return res.status(401).json({ error: 'Unauthorized' });
-        }
         const { id } = req.params;
-        const { letterheadMode = document_service_1.LetterheadMode.EVERY_PAGE } = req.query;
         const invoice = await client_1.default.invoice.findUnique({
             where: { id },
             include: {
@@ -218,46 +174,106 @@ const generateInvoicePDF = async (req, res) => {
                 items: true,
             },
         });
-        if (!invoice) {
+        if (!invoice)
             return res.status(404).json({ error: 'Invoice not found' });
-        }
-        // Generate document
-        const docBuffer = await document_service_1.default.generateInvoice({
-            invoiceNumber: invoice.invoiceNumber,
-            invoiceDate: invoice.invoiceDate.toISOString().split('T')[0],
-            dueDate: invoice.dueDate.toISOString().split('T')[0],
-            clientName: invoice.client.name,
-            items: invoice.items,
-            subtotal: invoice.subtotal,
-            tax: invoice.tax,
-            discount: invoice.discount,
-            total: invoice.total,
-            notes: invoice.notes,
-        }, invoice.company, letterheadMode);
-        // Save document
-        const filename = `invoice-${invoice.invoiceNumber}-${Date.now()}.docx`;
-        const filePath = await document_service_1.default.saveDocument(docBuffer, filename);
-        // Update invoice with PDF path
-        await client_1.default.invoice.update({
-            where: { id },
-            data: { pdfPath: filePath },
+        // Use PDFService (HTML-to-PDF) for cleaner output
+        const pdfBuffer = await pdf_service_1.PDFService.generateInvoicePDF({
+            ...invoice,
+            company: {
+                ...invoice.company,
+                digitalSignature: invoice.company.digitalSignature || undefined,
+                letterhead: invoice.company.letterhead || undefined,
+                continuationSheet: invoice.company.continuationSheet || undefined
+            },
+            useLetterhead: req.query.useLetterhead === 'true'
         });
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-        res.send(docBuffer);
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="Invoice-${invoice.invoiceNumber}.pdf"`);
+        res.send(pdfBuffer);
     }
     catch (error) {
-        console.error('Generate invoice PDF error:', error);
-        res.status(500).json({ error: 'Failed to generate invoice PDF', details: error.message });
+        console.error('Generate PDF error:', error);
+        res.status(500).json({ error: 'Failed to generate PDF' });
     }
 };
 exports.generateInvoicePDF = generateInvoicePDF;
-const updateInvoiceStatus = async (req, res) => {
+/**
+ * Record a payment for an invoice
+ */
+const recordPayment = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { amount, paymentMethod, transactionId } = req.body;
+        if (!amount || !paymentMethod) {
+            return res.status(400).json({ error: 'Amount and payment method are required' });
+        }
+        const updatedInvoice = await invoice_service_1.InvoiceService.recordPayment(id, Number(amount), paymentMethod, transactionId);
+        res.json({
+            message: 'Payment recorded successfully',
+            invoice: updatedInvoice
+        });
+    }
+    catch (error) {
+        console.error('Record payment error:', error);
+        res.status(500).json({ error: error.message || 'Failed to record payment' });
+    }
+};
+exports.recordPayment = recordPayment;
+/**
+ * Get invoice statistics for dashboard
+ */
+const getInvoiceStats = async (req, res) => {
     try {
         const userId = req.userId;
-        if (!userId) {
-            return res.status(401).json({ error: 'Unauthorized' });
+        const user = await client_1.default.user.findUnique({ where: { id: userId } });
+        if (!user?.companyId)
+            return res.status(400).json({ error: 'Company not found' });
+        const stats = await invoice_service_1.InvoiceService.getDashboardStats(user.companyId);
+        res.json(stats);
+    }
+    catch (error) {
+        res.status(500).json({ error: 'Failed to fetch stats' });
+    }
+};
+exports.getInvoiceStats = getInvoiceStats;
+/**
+ * Send invoice via email
+ */
+const sendInvoice = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const invoice = await client_1.default.invoice.findUnique({
+            where: { id },
+            include: { client: true, company: true, items: true }
+        });
+        if (!invoice)
+            return res.status(404).json({ error: 'Invoice not found' });
+        if (!invoice.client.email)
+            return res.status(400).json({ error: 'Client has no email' });
+        const pdfBuffer = await pdf_service_1.PDFService.generateInvoicePDF({
+            ...invoice,
+            useLetterhead: req.body.useLetterhead === true
+        });
+        await emailService.sendInvoiceEmail(invoice.client.email, invoice, pdfBuffer);
+        if (invoice.status === 'draft') {
+            await client_1.default.invoice.update({
+                where: { id },
+                data: { status: 'sent' }
+            });
         }
+        res.json({ message: 'Invoice sent successfully' });
+    }
+    catch (error) {
+        console.error('Send email error:', error);
+        res.status(500).json({ error: 'Failed to send email' });
+    }
+};
+exports.sendInvoice = sendInvoice;
+/**
+ * Update invoice status manually
+ */
+const updateInvoiceStatus = async (req, res) => {
+    try {
         const { id } = req.params;
         const { status } = req.body;
         const invoice = await client_1.default.invoice.update({
@@ -267,45 +283,77 @@ const updateInvoiceStatus = async (req, res) => {
         res.json({ message: 'Invoice status updated', invoice });
     }
     catch (error) {
-        console.error('Update invoice status error:', error);
-        res.status(500).json({ error: 'Failed to update invoice status', details: error.message });
+        res.status(500).json({ error: 'Failed to update status' });
     }
 };
 exports.updateInvoiceStatus = updateInvoiceStatus;
-// Email sending endpoint
-const sendInvoice = async (req, res) => {
+/**
+ * Batch update invoice status
+ */
+const batchUpdateStatus = async (req, res) => {
     try {
-        const { id } = req.params;
-        const { email } = req.body; // Optional override email
-        const invoice = await client_1.default.invoice.findUnique({
-            where: { id },
-            include: { client: true, company: true, items: true }
+        const { ids, status } = req.body;
+        if (!ids || !Array.isArray(ids) || !status) {
+            return res.status(400).json({ error: 'Invalid request' });
+        }
+        await client_1.default.invoice.updateMany({
+            where: { id: { in: ids } },
+            data: { status }
         });
-        if (!invoice) {
-            return res.status(404).json({ error: 'Invoice not found' });
-        }
-        const recipientEmail = email || invoice.client.email;
-        if (!recipientEmail) {
-            return res.status(400).json({ error: 'Client has no email address' });
-        }
-        // Generate PDF (Mock buffer for now, real implementation would use documentService.generateInvoice)
-        // const pdfBuffer = await documentService.generateInvoice(invoice, invoice.company, 'every');
-        // Using mock buffer until PDF generation is robust
-        const pdfBuffer = Buffer.from('Mock PDF Content');
-        await emailService.sendInvoiceEmail(recipientEmail, invoice, pdfBuffer);
-        // Update status if it was draft
-        if (invoice.status === 'draft') {
-            await client_1.default.invoice.update({
-                where: { id },
-                data: { status: 'sent' }
-            });
-        }
-        res.json({ message: 'Email sent successfully' });
+        res.json({ message: `Successfully updated ${ids.length} invoices` });
     }
     catch (error) {
-        console.error('Send email error:', error);
-        res.status(500).json({ error: 'Failed to send email' });
+        res.status(500).json({ error: 'Batch update failed' });
     }
 };
-exports.sendInvoice = sendInvoice;
+exports.batchUpdateStatus = batchUpdateStatus;
+/**
+ * Batch send invoices via email
+ */
+const batchSendInvoices = async (req, res) => {
+    try {
+        const { ids } = req.body;
+        if (!ids || !Array.isArray(ids)) {
+            return res.status(400).json({ error: 'Invalid request' });
+        }
+        const invoices = await client_1.default.invoice.findMany({
+            where: { id: { in: ids } },
+            include: { client: true, company: true, items: true }
+        });
+        // Send emails in background
+        for (const invoice of invoices) {
+            if (invoice.client?.email) {
+                const pdfBuffer = await pdf_service_1.PDFService.generateInvoicePDF(invoice);
+                emailService.sendInvoiceEmail(invoice.client.email, invoice, pdfBuffer).catch(err => {
+                    console.error(`Failed to send batch email for ${invoice.invoiceNumber}`, err);
+                });
+                if (invoice.status === 'draft') {
+                    await client_1.default.invoice.update({
+                        where: { id: invoice.id },
+                        data: { status: 'sent' }
+                    });
+                }
+            }
+        }
+        res.json({ message: `Initiated sending for ${invoices.length} invoices` });
+    }
+    catch (error) {
+        res.status(500).json({ error: 'Batch send failed' });
+    }
+};
+exports.batchSendInvoices = batchSendInvoices;
+/**
+ * Convert quotation to invoice
+ */
+const convertQuotation = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const invoice = await invoice_service_1.InvoiceService.convertQuotationToInvoice(id);
+        res.json({ message: 'Quotation converted successfully', invoice });
+    }
+    catch (error) {
+        res.status(500).json({ error: error.message || 'Conversion failed' });
+    }
+};
+exports.convertQuotation = convertQuotation;
 //# sourceMappingURL=invoice.controller.js.map

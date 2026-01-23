@@ -61,9 +61,32 @@ export default function CreateContractPage() {
         setBaseContent(initialContent);
     }, []);
 
+    // Variables Helper List
+    const availableVariables = [
+        { label: 'Client Name', var: '[CLIENT_NAME]' },
+        { label: 'Client Company', var: '[CLIENT_COMPANY]' },
+        { label: 'Client Address', var: '[CLIENT_ADDRESS]' },
+        { label: 'Client City', var: '[CLIENT_CITY]' },
+        { label: 'My Company', var: '[MY_COMPANY_NAME]' },
+        { label: 'Company Signature', var: '[COMPANY_SIGNATURE]' }, // Added
+        { label: 'Current Date', var: '[CURRENT_DATE]' },
+    ];
+
+    const [companyData, setCompanyData] = useState<any>(null);
+
     useEffect(() => {
         fetchClients();
+        fetchCompany();
     }, []);
+
+    const fetchCompany = async () => {
+        try {
+            const res = await api.get('/company');
+            setCompanyData(res.data.company);
+        } catch (error) {
+            console.error('Failed to fetch company details');
+        }
+    };
 
     const fetchClients = async () => {
         try {
@@ -87,6 +110,12 @@ export default function CreateContractPage() {
         }
     };
 
+    // Helper to get base URL (without /api)
+    const getBaseUrl = () => {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+        return apiUrl.replace(/\/api$/, '');
+    };
+
     // Logic to replace variables with client data
     const processVariables = (text: string, clientData?: any) => {
         let processed = text;
@@ -94,7 +123,16 @@ export default function CreateContractPage() {
 
         // System Variables
         processed = processed.replace(/\[CURRENT_DATE\]/g, now);
-        processed = processed.replace(/\[MY_COMPANY_NAME\]/g, 'Applizor Softech'); // In real app, fetch from settings
+        processed = processed.replace(/\[MY_COMPANY_NAME\]/g, companyData?.name || 'Applizor Softech');
+
+        // Company Signature Variable
+        if (companyData?.digitalSignature) {
+            const signatureUrl = `${getBaseUrl()}${companyData.digitalSignature}`;
+            const signatureHtml = `<img src="${signatureUrl}" style="max-height: 60px; vertical-align: middle;" alt="Company Signature" />`;
+            processed = processed.replace(/\[COMPANY_SIGNATURE\]/g, signatureHtml);
+        } else {
+            processed = processed.replace(/\[COMPANY_SIGNATURE\]/g, '<strong>[PENDING SIGNATURE]</strong>');
+        }
 
         // Client Variables
         if (clientData) {
@@ -330,42 +368,43 @@ export default function CreateContractPage() {
 
                 {/* Main Editor Area */}
                 <div className="lg:col-span-8 space-y-6">
-                    <div className="ent-card p-8 shadow-sm">
-                        <div className="mb-8 ent-form-group">
-                            <label className="ent-label text-xs mb-2">Contract Title</label>
+                    <div className="ent-card p-6 shadow-sm">
+                        <div className="mb-6 ent-form-group">
+                            <label className="ent-label text-[10px] mb-2">Contract Title</label>
                             <input
                                 type="text"
                                 required
                                 value={title}
                                 onChange={(e) => setTitle(e.target.value)}
-                                className="ent-input text-xl py-3 px-4 font-black border-slate-200 focus:border-primary-500 focus:ring-primary-500/20"
+                                className="ent-input text-lg py-2.5 px-4 font-bold border-slate-200 focus:border-primary-500 focus:ring-primary-500/20"
                                 placeholder="E.G. SOFTWARE DEVELOPMENT AGREEMENT"
                             />
                         </div>
 
                         <div className="relative">
-                            <div className="flex justify-between items-end mb-4">
-                                <label className="ent-label text-xs">Agreement Content</label>
+                            <div className="flex justify-between items-center mb-4">
+                                <label className="ent-label text-[10px]">Agreement Content</label>
                                 <div className="flex gap-2">
                                     <button
                                         type="button"
                                         onClick={manualVariableFill}
-                                        className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 bg-white border border-emerald-100 flex items-center gap-1.5 text-[10px] uppercase font-black tracking-widest transition-all px-3 py-1.5 rounded-md shadow-sm"
+                                        className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 bg-white border border-emerald-100 flex items-center gap-1.5 text-[9px] uppercase font-black tracking-widest transition-all px-2.5 py-1.5 rounded shadow-sm"
                                         title="Replace variables with selected client data"
                                     >
-                                        <Check size={12} strokeWidth={3} /> Auto-Fill Data
+                                        <Check size={10} strokeWidth={3} /> Auto-Fill Data
                                     </button>
                                     <button
                                         type="button"
                                         onClick={fetchTemplates}
-                                        className="text-primary-600 hover:text-primary-700 hover:bg-primary-50 bg-white border border-primary-100 flex items-center gap-1.5 text-[10px] uppercase font-black tracking-widest transition-all px-3 py-1.5 rounded-md shadow-sm"
+                                        className="text-primary-600 hover:text-primary-700 hover:bg-primary-50 bg-white border border-primary-100 flex items-center gap-1.5 text-[9px] uppercase font-black tracking-widest transition-all px-2.5 py-1.5 rounded shadow-sm"
                                     >
-                                        <LayoutTemplate size={12} strokeWidth={3} /> Load Template
+                                        <LayoutTemplate size={10} strokeWidth={3} /> Load Template
                                     </button>
                                 </div>
                             </div>
                         </div>
-                        <div className="border border-slate-200 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-primary-500/20 focus-within:border-primary-500 transition-all bg-slate-100 p-4">
+
+                        <div className="border border-slate-200 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-primary-500/20 focus-within:border-primary-500 transition-all">
                             <PagedRichTextEditor
                                 value={content}
                                 onChange={setContent}
@@ -442,14 +481,7 @@ export default function CreateContractPage() {
                             </h3>
                         </div>
                         <div className="p-2 space-y-1 bg-slate-50/50 max-h-80 overflow-y-auto">
-                            {[
-                                { label: 'Client Name', var: '[CLIENT_NAME]' },
-                                { label: 'Client Company', var: '[CLIENT_COMPANY]' },
-                                { label: 'Client Address', var: '[CLIENT_ADDRESS]' },
-                                { label: 'Client City', var: '[CLIENT_CITY]' },
-                                { label: 'My Company', var: '[MY_COMPANY_NAME]' },
-                                { label: 'Current Date', var: '[CURRENT_DATE]' },
-                            ].map((v) => (
+                            {availableVariables.map((v) => (
                                 <button type="button" key={v.var} className="w-full flex justify-between items-center group cursor-pointer hover:bg-white p-2 rounded border border-transparent hover:border-slate-200 hover:shadow-sm transition-all"
                                     onClick={() => {
                                         navigator.clipboard.writeText(v.var);

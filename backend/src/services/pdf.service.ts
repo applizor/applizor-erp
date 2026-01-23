@@ -1,5 +1,8 @@
 import axios from 'axios';
 import FormData from 'form-data';
+import fs from 'fs';
+import path from 'path';
+import { PDFDocument } from 'pdf-lib';
 
 const GOTENBERG_URL = process.env.GOTENBERG_URL || 'http://gotenberg:3000';
 
@@ -23,7 +26,11 @@ interface PDFData {
         email?: string;
         phone?: string;
         gstin?: string;
+        digitalSignature?: string;
+        letterhead?: string;
+        continuationSheet?: string;
     };
+    useLetterhead?: boolean;
     client?: {
         name: string;
         company?: string;
@@ -56,6 +63,33 @@ interface PDFData {
 
 export class PDFService {
     /**
+     * Convert local file path to base64 data URI
+     */
+    private static getImageBase64(filePath: string | undefined): string | undefined {
+        if (!filePath) return undefined;
+
+        // If it's already a base64 or external URL, return as is
+        if (filePath.startsWith('data:') || filePath.startsWith('http')) return filePath;
+
+        try {
+            // Assume uploads are in the relative ../uploads directory from this file's location
+            // which is backend/src/services/pdf.service.ts
+            // Strip leading slash if present to make it a relative path for joining
+            const relativeFilePath = filePath.startsWith('/') ? filePath.substring(1) : filePath;
+            const absolutePath = path.join(__dirname, '../../', relativeFilePath);
+            if (fs.existsSync(absolutePath)) {
+                const fileBuffer = fs.readFileSync(absolutePath);
+                const extension = path.extname(filePath).substring(1);
+                const mimeType = extension === 'png' ? 'image/png' : 'image/jpeg';
+                return `data:${mimeType};base64,${fileBuffer.toString('base64')}`;
+            }
+        } catch (error) {
+            console.error('Error converting image to base64:', error);
+        }
+        return filePath; // Fallback to original
+    }
+
+    /**
      * Generate HTML template for Quotations/Invoices
      */
     private static generateHTML(data: PDFData, type: 'QUOTATION' | 'INVOICE', isSigned: boolean = false): string {
@@ -81,6 +115,44 @@ export class PDFService {
         const subDateLabel = type === 'QUOTATION' ? 'Valid Till' : 'Due Date';
         const recipient = data.client || data.lead;
 
+        const logoBase64 = this.getImageBase64(data.company.logo);
+        const signatureBase64 = this.getImageBase64(data.company.digitalSignature);
+        const isLetterheadPDF = data.useLetterhead && data.company.letterhead?.toLowerCase().endsWith('.pdf');
+        const isContinuationPDF = data.useLetterhead && data.company.continuationSheet?.toLowerCase().endsWith('.pdf');
+
+        const letterheadBase64 = data.useLetterhead && !isLetterheadPDF ? this.getImageBase64(data.company.letterhead) : undefined;
+        const continuationBase64 = data.useLetterhead && !isContinuationPDF ? this.getImageBase64(data.company.continuationSheet) : undefined;
+
+        const marginTop = data.useLetterhead ? (data.company.pdfMarginTop || 180) : 40;
+        const contTop = data.useLetterhead ? (data.company.pdfContinuationTop || 80) : 40;
+        const marginBottom = data.useLetterhead ? (data.company.pdfMarginBottom || 80) : 40;
+        const marginLeft = data.useLetterhead ? (data.company.pdfMarginLeft || 40) : 40;
+        const marginRight = data.useLetterhead ? (data.company.pdfMarginRight || 40) : 40;
+
+        const backgroundCSS = data.useLetterhead ? `
+        @page {
+            margin: ${contTop}px ${marginRight}px ${marginBottom}px ${marginLeft}px;
+            ${continuationBase64 ? `background-image: url('${continuationBase64}'); background-size: 100% 100%;` : ''}
+        }
+        @page:first {
+            margin-top: ${marginTop}px;
+            ${letterheadBase64 ? `background-image: url('${letterheadBase64}'); background-size: 100% 100%;` : ''}
+        }
+        body { 
+            margin: 0;
+            padding: 0;
+            background: transparent !important;
+        }
+        ` : `
+        @page {
+            margin: 40px;
+        }
+        body { 
+            margin: 0;
+            padding: 0;
+        }
+        `;
+
         return `
 <!DOCTYPE html>
 <html>
@@ -92,10 +164,10 @@ export class PDFService {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             color: #333;
             line-height: 1.6;
-            padding: 40px;
         }
+        ${backgroundCSS}
         .header {
-            display: flex;
+            display: ${data.useLetterhead ? 'none' : 'flex'};
             justify-content: space-between;
             align-items: start;
             margin-bottom: 40px;
@@ -224,6 +296,7 @@ export class PDFService {
             background: #f0fdf4;
         }
         .footer {
+            display: ${data.useLetterhead ? 'none' : 'block'};
             margin-top: 50px;
             padding-top: 20px;
             border-top: 1px solid #e5e7eb;
@@ -236,7 +309,7 @@ export class PDFService {
 <body>
     <div class="header">
         <div class="company-info">
-            ${data.company.logo ? `<img src="${data.company.logo}" class="company-logo" alt="${data.company.name}">` : `<h2>${data.company.name}</h2>`}
+            ${logoBase64 ? `<img src="${logoBase64}" class="company-logo" alt="${data.company.name}">` : `<h2>${data.company.name}</h2>`}
             <div class="company-details">
                 ${data.company.address ? `${data.company.address}<br>` : ''}
                 ${data.company.city && data.company.state ? `${data.company.city}, ${data.company.state} - ${data.company.pincode || ''}<br>` : ''}
@@ -317,7 +390,18 @@ export class PDFService {
     </div>
     ` : ''}
 
-    ${isSigned && data.clientSignature ? `
+    ${signatureBase64 ? `
+    <div style="margin-top: 40px; text-align: right;">
+        <div style="display: inline-block; text-align: center;">
+            <img src="${signatureBase64}" style="max-height: 60px; display: block; margin-bottom: 5px;">
+            <div style="font-size: 10px; font-weight: bold; text-transform: uppercase; color: #666; border-top: 1px solid #eee; padding-top: 5px;">
+                Authorized Signatory
+            </div>
+        </div>
+    </div>
+    ` : ''}
+
+    ${data.clientSignature ? `
     <div class="signature-section">
         <h3 style="color: #065f46; margin-bottom: 15px;">✓ Client Acceptance</h3>
         <div style="border: 2px solid #d1d5db; padding: 15px; background: white; border-radius: 4px; display: inline-block;">
@@ -362,22 +446,127 @@ export class PDFService {
         }
     }
 
+    private static async overlayBackdrop(contentPdf: Buffer, backdropPath: string | undefined, continuationPath: string | undefined): Promise<Buffer> {
+        if (!backdropPath && !continuationPath) return contentPdf;
+
+        try {
+            const mainPdfDoc = await PDFDocument.load(contentPdf);
+            const overlayPages = mainPdfDoc.getPages();
+
+            const getBackdropDoc = async (p: string) => {
+                const relativePath = p.startsWith('/') ? p.substring(1) : p;
+                const absolutePath = path.join(__dirname, '../../', relativePath);
+                if (fs.existsSync(absolutePath)) {
+                    return await PDFDocument.load(fs.readFileSync(absolutePath));
+                }
+                return null;
+            };
+
+            const backdropPdf = backdropPath && backdropPath.toLowerCase().endsWith('.pdf') ? await getBackdropDoc(backdropPath) : null;
+            const continuationPdf = continuationPath && continuationPath.toLowerCase().endsWith('.pdf') ? await getBackdropDoc(continuationPath) : null;
+
+            if (!backdropPdf && !continuationPdf) return contentPdf;
+
+            const finalPdfDoc = await PDFDocument.create();
+
+            for (let i = 0; i < overlayPages.length; i++) {
+                const isFirstPage = i === 0;
+                const template = isFirstPage ? (backdropPdf || continuationPdf) : (continuationPdf || backdropPdf);
+
+                if (template) {
+                    const [templatePage] = await finalPdfDoc.copyPages(template, [0]);
+                    const [contentPage] = await finalPdfDoc.copyPages(mainPdfDoc, [i]);
+
+                    const newNode = finalPdfDoc.addPage(templatePage);
+                    const embeddedContent = await finalPdfDoc.embedPage(contentPage);
+
+                    newNode.drawPage(embeddedContent, {
+                        x: 0,
+                        y: 0,
+                        width: newNode.getWidth(),
+                        height: newNode.getHeight(),
+                    });
+                } else {
+                    const [contentPage] = await finalPdfDoc.copyPages(mainPdfDoc, [i]);
+                    finalPdfDoc.addPage(contentPage);
+                }
+            }
+
+            return Buffer.from(await finalPdfDoc.save());
+        } catch (error) {
+            console.error('Overlay backdrop error:', error);
+            return contentPdf;
+        }
+    }
+
     static async generateQuotationPDF(data: any): Promise<Buffer> {
         const html = this.generateHTML(data, 'QUOTATION', false);
-        return this.convertHTMLToPDF(html);
+        const contentPdf = await this.convertHTMLToPDF(html);
+        if (data.useLetterhead) {
+            return this.overlayBackdrop(contentPdf, data.company.letterhead, data.company.continuationSheet);
+        }
+        return contentPdf;
     }
 
     static async generateInvoicePDF(data: any): Promise<Buffer> {
         const html = this.generateHTML(data, 'INVOICE', false);
-        return this.convertHTMLToPDF(html);
+        const contentPdf = await this.convertHTMLToPDF(html);
+        if (data.useLetterhead) {
+            return this.overlayBackdrop(contentPdf, data.company.letterhead, data.company.continuationSheet);
+        }
+        return contentPdf;
     }
 
     static async generateSignedQuotationPDF(data: any): Promise<Buffer> {
         const html = this.generateHTML(data, 'QUOTATION', true);
-        return this.convertHTMLToPDF(html);
+        const contentPdf = await this.convertHTMLToPDF(html);
+        if (data.useLetterhead) {
+            return this.overlayBackdrop(contentPdf, data.company.letterhead, data.company.continuationSheet);
+        }
+        return contentPdf;
     }
 
     private static generateContractHTML(data: any): string {
+        const logoBase64 = this.getImageBase64(data.company.logo);
+        const signatureBase64 = this.getImageBase64(data.company.digitalSignature);
+        const clientSignatureBase64 = this.getImageBase64(data.clientSignature);
+        const companyAuthSignatureBase64 = this.getImageBase64(data.companySignature);
+        const isLetterheadPDF = data.useLetterhead && data.company.letterhead?.toLowerCase().endsWith('.pdf');
+        const isContinuationPDF = data.useLetterhead && data.company.continuationSheet?.toLowerCase().endsWith('.pdf');
+
+        const letterheadBase64 = data.useLetterhead && !isLetterheadPDF ? this.getImageBase64(data.company.letterhead) : undefined;
+        const continuationBase64 = data.useLetterhead && !isContinuationPDF ? this.getImageBase64(data.company.continuationSheet) : undefined;
+
+        const marginTop = data.useLetterhead ? (data.company.pdfMarginTop || 180) : 40;
+        const contTop = data.useLetterhead ? (data.company.pdfContinuationTop || 80) : 40;
+        const marginBottom = data.useLetterhead ? (data.company.pdfMarginBottom || 80) : 40;
+        const marginLeft = data.useLetterhead ? (data.company.pdfMarginLeft || 40) : 40;
+        const marginRight = data.useLetterhead ? (data.company.pdfMarginRight || 40) : 40;
+
+        const backgroundCSS = data.useLetterhead ? `
+    @page {
+        margin: ${contTop}px ${marginRight}px ${marginBottom}px ${marginLeft}px;
+        ${continuationBase64 ? `background-image: url('${continuationBase64}'); background-size: 100% 100%;` : ''}
+    }
+    @page:first {
+        margin-top: ${marginTop}px;
+        ${letterheadBase64 ? `background-image: url('${letterheadBase64}'); background-size: 100% 100%;` : ''}
+    }
+    body { 
+        margin: 0;
+        padding: 0;
+        background: transparent !important;
+    }
+    ` : `
+    @page {
+        margin: 40px 60px;
+    }
+    body { 
+        margin: 0;
+        padding: 0;
+    }
+    `;
+
         return `
 <!DOCTYPE html>
 <html>
@@ -389,10 +578,11 @@ export class PDFService {
             font-family: 'Times New Roman', Times, serif;
             color: #1a1a1a;
             line-height: 1.8;
-            padding: 40px 60px;
             font-size: 14px;
         }
+        ${backgroundCSS}
         .header {
+            display: ${data.useLetterhead ? 'none' : 'block'};
             text-align: center;
             margin-bottom: 50px;
             border-bottom: 2px solid #000;
@@ -447,6 +637,7 @@ export class PDFService {
             font-size: 11px;
         }
         .footer {
+            display: ${data.useLetterhead ? 'none' : 'block'};
             margin-top: 50px;
             text-align: center;
             font-size: 10px;
@@ -458,19 +649,19 @@ export class PDFService {
 </head>
 <body>
     <div class="header">
-        ${data.company.logo ? `<img src="${data.company.logo}" class="company-logo">` : ''}
+        ${logoBase64 ? `<img src="${logoBase64}" class="company-logo">` : ''}
         <div class="title">${data.title}</div>
         <div class="meta">Agreement Date: ${new Date(data.date).toLocaleDateString()}</div>
     </div>
 
     <div class="content">
-        ${data.content}
+        ${(data.content || '').replace(/\[COMPANY_SIGNATURE\]/g, signatureBase64 ? `<img src="${signatureBase64}" style="max-height: 60px; vertical-align: middle;">` : '')}
     </div>
 
     <div class="signatures">
         <div class="signature-block">
             <div class="sign-area">
-                ${data.companySignature ? `<img src="${data.companySignature}" class="sign-img">` : ''}
+                ${companyAuthSignatureBase64 ? `<img src="${companyAuthSignatureBase64}" class="sign-img">` : ''}
             </div>
             <div class="sign-label">For ${data.company.name}</div>
             <div style="font-size: 12px; color: #666;">
@@ -480,7 +671,7 @@ export class PDFService {
 
         <div class="signature-block">
             <div class="sign-area">
-                ${data.clientSignature ? `<img src="${data.clientSignature}" class="sign-img">` : ''}
+                ${clientSignatureBase64 ? `<img src="${clientSignatureBase64}" class="sign-img">` : ''}
             </div>
             <div class="sign-label">For ${data.client.name}</div>
             ${data.signedAt ? `<div style="font-size: 10px; color: #666;">Digitally Signed<br>IP: ${data.signerIp}<br>Date: ${new Date(data.signedAt).toLocaleString()}</div>` : ''}
@@ -497,6 +688,10 @@ export class PDFService {
 
     static async generateContractPDF(data: any): Promise<Buffer> {
         const html = this.generateContractHTML(data);
-        return this.convertHTMLToPDF(html);
+        const contentPdf = await this.convertHTMLToPDF(html);
+        if (data.useLetterhead) {
+            return this.overlayBackdrop(contentPdf, data.company.letterhead, data.company.continuationSheet);
+        }
+        return contentPdf;
     }
 }

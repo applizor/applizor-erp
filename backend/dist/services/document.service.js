@@ -3,13 +3,19 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DocumentGenerationService = void 0;
+exports.DocumentGenerationService = exports.LetterheadMode = void 0;
 const docx_templates_1 = __importDefault(require("docx-templates"));
 const axios_1 = __importDefault(require("axios"));
 const form_data_1 = __importDefault(require("form-data"));
 const pdf_lib_1 = require("pdf-lib");
 // Config - in production use env vars
-const GOTENBERG_URL = process.env.GOTENBERG_URL || 'http://localhost:8000'; // If running from host. If inside docker, use http://gotenberg:3000
+const GOTENBERG_URL = process.env.GOTENBERG_URL || 'http://localhost:8000';
+var LetterheadMode;
+(function (LetterheadMode) {
+    LetterheadMode["NONE"] = "NONE";
+    LetterheadMode["FIRST_PAGE"] = "FIRST_PAGE";
+    LetterheadMode["EVERY_PAGE"] = "EVERY_PAGE";
+})(LetterheadMode || (exports.LetterheadMode = LetterheadMode = {}));
 class DocumentGenerationService {
     /**
      * Stage 1: Inject data into DOCX template
@@ -77,14 +83,6 @@ class DocumentGenerationService {
                     y: 0,
                     width,
                     height,
-                    blendMode: 'Normal', // Overlay? or Behind? 
-                    // Usually letterhead is background, so we should draw Content on top of Letterhead?
-                    // PDF-Lib draws on top. So if we draw letterhead now, it might cover text if letterhead has white background.
-                    // Ideally, we should Draw Letterhead -> Then Content. But our Content is already a PDF.
-                    // Solution: Letterhead should be a transparent PNG? Or Vector PDF with transparent bg?
-                    // Or we copy content page onto letterhead page?
-                    // "Merge" usually implies one under another.
-                    // Better approach: If letterhead is PDF, create new page, draw letterhead, draw content page on top?
                 });
             }
             // Alternative: Place content ON TOP of letterhead
@@ -122,7 +120,7 @@ class DocumentGenerationService {
             // Valid Order: Bottom=Word PDF (White), Top=Letterhead PDF (Transparent w/ Logo).
             // This works! The Logo covers the white header area of Word (which is empty space).
             // So: Draw embeddedLetterhead ON TOP of existing page.
-            return await pdfDoc.saveAsBuffer(); // save() returns Uint8Array, wrap in Buffer
+            return Buffer.from(await pdfDoc.save()); // save() returns Uint8Array, wrap in Buffer
         }
         catch (e) {
             console.error('Letterhead overlay failed', e);
@@ -131,4 +129,5 @@ class DocumentGenerationService {
     }
 }
 exports.DocumentGenerationService = DocumentGenerationService;
+exports.default = DocumentGenerationService;
 //# sourceMappingURL=document.service.js.map

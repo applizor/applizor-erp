@@ -233,7 +233,15 @@ export const getQuotation = async (req: AuthRequest, res: Response) => {
                         pincode: true,
                         gstin: true,
                         pan: true,
-                        logo: true
+                        logo: true,
+                        digitalSignature: true,
+                        letterhead: true,
+                        continuationSheet: true,
+                        pdfMarginTop: true,
+                        pdfMarginBottom: true,
+                        pdfMarginLeft: true,
+                        pdfMarginRight: true,
+                        pdfContinuationTop: true
                     }
                 }
             }
@@ -570,7 +578,15 @@ export const downloadQuotationPDF = async (req: AuthRequest, res: Response) => {
                 pincode: quotation.company.pincode || undefined,
                 email: quotation.company.email || undefined,
                 phone: quotation.company.phone || undefined,
-                gstin: quotation.company.gstin || undefined
+                gstin: quotation.company.gstin || undefined,
+                digitalSignature: quotation.company.digitalSignature || undefined,
+                letterhead: quotation.company.letterhead || undefined,
+                continuationSheet: quotation.company.continuationSheet || undefined,
+                pdfMarginTop: quotation.company.pdfMarginTop || undefined,
+                pdfMarginBottom: quotation.company.pdfMarginBottom || undefined,
+                pdfMarginLeft: quotation.company.pdfMarginLeft || undefined,
+                pdfMarginRight: quotation.company.pdfMarginRight || undefined,
+                pdfContinuationTop: quotation.company.pdfContinuationTop || undefined
             },
             lead: quotation.lead ? {
                 name: quotation.lead.name,
@@ -588,7 +604,8 @@ export const downloadQuotationPDF = async (req: AuthRequest, res: Response) => {
             discount: Number(quotation.discount),
             total: Number(quotation.total),
             currency: quotation.currency,
-            notes: quotation.notes || undefined
+            notes: quotation.notes || undefined,
+            useLetterhead: req.query.useLetterhead === 'true'
         });
 
         // Set headers for PDF download
@@ -658,7 +675,15 @@ export const downloadSignedQuotationPDF = async (req: AuthRequest, res: Response
                 pincode: quotation.company.pincode || undefined,
                 email: quotation.company.email || undefined,
                 phone: quotation.company.phone || undefined,
-                gstin: quotation.company.gstin || undefined
+                gstin: quotation.company.gstin || undefined,
+                digitalSignature: quotation.company.digitalSignature || undefined,
+                letterhead: quotation.company.letterhead || undefined,
+                continuationSheet: quotation.company.continuationSheet || undefined,
+                pdfMarginTop: quotation.company.pdfMarginTop || undefined,
+                pdfMarginBottom: quotation.company.pdfMarginBottom || undefined,
+                pdfMarginLeft: quotation.company.pdfMarginLeft || undefined,
+                pdfMarginRight: quotation.company.pdfMarginRight || undefined,
+                pdfContinuationTop: quotation.company.pdfContinuationTop || undefined
             },
             lead: quotation.lead ? {
                 name: quotation.lead.name,
@@ -679,7 +704,8 @@ export const downloadSignedQuotationPDF = async (req: AuthRequest, res: Response
             notes: quotation.notes || undefined,
             clientSignature: quotation.clientSignature,
             clientName: quotation.clientName || undefined,
-            clientAcceptedAt: quotation.clientAcceptedAt
+            clientAcceptedAt: quotation.clientAcceptedAt,
+            useLetterhead: req.query.useLetterhead === 'true'
         });
 
         // Set headers for PDF download

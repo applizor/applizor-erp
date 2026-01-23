@@ -124,6 +124,87 @@ class LeaveAccrualService {
         }
         console.log(`[LeaveAccrual] Monthly accrual finished`);
     }
+    /**
+     * Finds employees whose probation has ended and applies confirmation bonuses
+     */
+    async processProbationConfirmations() {
+        const now = new Date();
+        const year = now.getFullYear();
+        console.log(`[LeaveAccrual] Checking for probation completions...`);
+        // Find employees whose probation has ended but not yet processed
+        const completedProbations = await client_1.default.employee.findMany({
+            where: {
+                status: 'active',
+                probationProcessed: false,
+                probationEndDate: {
+                    lte: now
+                }
+            }
+        });
+        console.log(`[LeaveAccrual] Found ${completedProbations.length} employees completing probation.`);
+        for (const employee of completedProbations) {
+            try {
+                // Find all leave types that have a confirmation bonus
+                const bonusLeaveTypes = await client_1.default.leaveType.findMany({
+                    where: {
+                        confirmationBonus: {
+                            gt: 0
+                        }
+                    }
+                });
+                for (const leaveType of bonusLeaveTypes) {
+                    // Check if applicable to this employee (dept/pos)
+                    const deptMatch = leaveType.departmentIds.length === 0 ||
+                        (employee.departmentId && leaveType.departmentIds.includes(employee.departmentId));
+                    const posMatch = leaveType.positionIds.length === 0 ||
+                        (employee.positionId && leaveType.positionIds.includes(employee.positionId));
+                    if (deptMatch && posMatch) {
+                        const bonus = leaveType.confirmationBonus;
+                        console.log(`[LeaveAccrual] Applying ${bonus} days bonus (${leaveType.name}) to ${employee.email}`);
+                        // Find or create balance
+                        const balance = await client_1.default.employeeLeaveBalance.findUnique({
+                            where: {
+                                employeeId_leaveTypeId_year: {
+                                    employeeId: employee.id,
+                                    leaveTypeId: leaveType.id,
+                                    year
+                                }
+                            }
+                        });
+                        if (balance) {
+                            await client_1.default.employeeLeaveBalance.update({
+                                where: { id: balance.id },
+                                data: {
+                                    allocated: balance.allocated + bonus
+                                }
+                            });
+                        }
+                        else {
+                            await client_1.default.employeeLeaveBalance.create({
+                                data: {
+                                    employeeId: employee.id,
+                                    leaveTypeId: leaveType.id,
+                                    year,
+                                    allocated: bonus,
+                                    used: 0,
+                                    carriedOver: 0
+                                }
+                            });
+                        }
+                    }
+                }
+                // Mark as processed
+                await client_1.default.employee.update({
+                    where: { id: employee.id },
+                    data: { probationProcessed: true }
+                });
+                console.log(`[LeaveAccrual] Confirmation processed for ${employee.email}`);
+            }
+            catch (err) {
+                console.error(`[LeaveAccrual] Error processing confirmation for ${employee.email}:`, err);
+            }
+        }
+    }
 }
 exports.LeaveAccrualService = LeaveAccrualService;
 exports.leaveAccrualService = new LeaveAccrualService();

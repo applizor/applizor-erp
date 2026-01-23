@@ -83,8 +83,10 @@ const createLeaveType = async (req, res) => {
             return res.status(403).json({ error: 'Access denied: No create rights for LeaveType' });
         }
         const { name, days, isPaid, description, frequency, carryForward, 
-        // Advanced
+        // Advanced Constraints
         maxCarryForward, monthlyLimit, maxConsecutiveDays, minServiceDays, sandwichRule, encashable, proofRequired, color, 
+        // Accrual & Probation
+        accrualType, accrualRate, accrualStartMonth, maxAccrual, quarterlyLimit, probationQuota, confirmationBonus, 
         // Relations
         departmentIds, positionIds, employmentStatus } = req.body;
         const leaveType = await client_1.default.leaveType.create({
@@ -104,6 +106,14 @@ const createLeaveType = async (req, res) => {
                 encashable: encashable !== undefined ? encashable : false,
                 proofRequired: proofRequired !== undefined ? proofRequired : false,
                 color: color || '#3B82F6',
+                // Accrual & Probation
+                accrualType: accrualType || 'yearly',
+                accrualRate: (accrualRate !== undefined && accrualRate !== null) ? parseFloat(accrualRate) : 0,
+                accrualStartMonth: (accrualStartMonth !== undefined && accrualStartMonth !== null) ? parseInt(accrualStartMonth) : 1,
+                maxAccrual: (maxAccrual !== undefined && maxAccrual !== null) ? parseFloat(maxAccrual) : 0,
+                quarterlyLimit: (quarterlyLimit !== undefined && quarterlyLimit !== null) ? parseInt(quarterlyLimit) : 0,
+                probationQuota: (probationQuota !== undefined && probationQuota !== null) ? parseFloat(probationQuota) : 0,
+                confirmationBonus: (confirmationBonus !== undefined && confirmationBonus !== null) ? parseFloat(confirmationBonus) : 0,
                 // Relations
                 departmentIds: departmentIds || [],
                 positionIds: positionIds || [],
@@ -116,7 +126,7 @@ const createLeaveType = async (req, res) => {
         const currentYear = new Date().getFullYear();
         // Find all employees matches the criteria (dept/pos)
         // If arrays are empty, it applies to ALL.
-        const whereClause = { isActive: true };
+        const whereClause = { status: 'active' };
         if (departmentIds && departmentIds.length > 0) {
             whereClause.departmentId = { in: departmentIds };
         }
@@ -184,13 +194,15 @@ const updateLeaveType = async (req, res) => {
         const { name, days, isPaid, description, frequency, carryForward, 
         // Advanced
         maxCarryForward, monthlyLimit, maxConsecutiveDays, minServiceDays, sandwichRule, encashable, proofRequired, color, 
+        // New Fields
+        accrualType, accrualRate, accrualStartMonth, maxAccrual, quarterlyLimit, probationQuota, confirmationBonus, 
         // Relations
         departmentIds, positionIds, employmentStatus } = req.body;
         const leaveType = await client_1.default.leaveType.update({
             where: { id },
             data: {
                 name,
-                days: parseInt(days),
+                days: days ? parseInt(days) : undefined,
                 isPaid,
                 description,
                 frequency,
@@ -208,10 +220,14 @@ const updateLeaveType = async (req, res) => {
                 departmentIds: departmentIds || [],
                 positionIds: positionIds || [],
                 employmentStatus: employmentStatus || [],
-                // Accrual
-                accrualType: req.body.accrualType,
-                accrualRate: req.body.accrualRate ? parseFloat(req.body.accrualRate) : 0,
-                maxAccrual: req.body.maxAccrual ? parseFloat(req.body.maxAccrual) : 0,
+                // Accrual & Probation
+                accrualType,
+                accrualRate: (accrualRate !== undefined && accrualRate !== null) ? parseFloat(accrualRate) : undefined,
+                accrualStartMonth: (accrualStartMonth !== undefined && accrualStartMonth !== null) ? parseInt(accrualStartMonth) : undefined,
+                maxAccrual: (maxAccrual !== undefined && maxAccrual !== null) ? parseFloat(maxAccrual) : undefined,
+                quarterlyLimit: (quarterlyLimit !== undefined && quarterlyLimit !== null) ? parseInt(quarterlyLimit) : undefined,
+                probationQuota: (probationQuota !== undefined && probationQuota !== null) ? parseFloat(probationQuota) : undefined,
+                confirmationBonus: (confirmationBonus !== undefined && confirmationBonus !== null) ? parseFloat(confirmationBonus) : undefined,
                 // Dynamic Policy
                 policySettings: req.body.policySettings || undefined
             }
@@ -349,10 +365,11 @@ const createLeaveRequest = async (req, res) => {
             }
         }
         // 1. Check Probation Period (Min Service Days)
+        const joiningDate = new Date(employee.dateOfJoining);
+        const serviceTime = new Date().getTime() - joiningDate.getTime();
+        const serviceDays = Math.floor(serviceTime / (1000 * 60 * 60 * 24));
+        const isProbation = employee.probationEndDate && new Date() < new Date(employee.probationEndDate);
         if (leaveType.minServiceDays > 0) {
-            const joiningDate = new Date(employee.dateOfJoining);
-            const serviceTime = new Date().getTime() - joiningDate.getTime();
-            const serviceDays = Math.floor(serviceTime / (1000 * 60 * 60 * 24));
             if (serviceDays < leaveType.minServiceDays) {
                 return res.status(400).json({
                     error: `You are in probation/active service period (Served: ${serviceDays} days). Minimum ${leaveType.minServiceDays} days required for this leave type.`
@@ -374,25 +391,19 @@ const createLeaveRequest = async (req, res) => {
         if (employee.shiftId) {
             const shift = await client_1.default.shift.findUnique({ where: { id: employee.shiftId } });
             if (shift && shift.workDays) {
-                // shift.workDays is Json, assuming string[]
-                shiftWorkDays = shift.workDays;
-                // Normalize to lowercase
-                shiftWorkDays = shiftWorkDays.map(d => d.toLowerCase());
+                shiftWorkDays = shift.workDays.map(d => d.toLowerCase());
             }
         }
         const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
         const includeNonWorkingDays = policySettings.includeNonWorkingDays === true;
-        // Loop through dates
         while (currentDate <= end) {
             const dayName = dayNames[currentDate.getDay()];
             const isWeekend = !shiftWorkDays.includes(dayName);
             const isHoliday = holidayDates.includes(currentDate.toDateString());
             if (leaveType.sandwichRule || includeNonWorkingDays) {
-                // If Sandwich Rule OR "Calendar Days" policy (Bereavement) is ON, we count everything.
                 calculatedDays++;
             }
             else {
-                // Standard: Exclude Holidays and Weekends
                 if (!isWeekend && !isHoliday) {
                     calculatedDays++;
                 }
@@ -404,6 +415,26 @@ const createLeaveRequest = async (req, res) => {
         }
         if (calculatedDays === 0) {
             return res.status(400).json({ error: 'Selected range contains only holidays or non-working days.' });
+        }
+        // 1b. Check Probation Quota (If > 0, enforce it. If 0, consider no limit as per user request)
+        if (isProbation && leaveType.probationQuota > 0) {
+            const existingRequestsInProbation = await client_1.default.leaveRequest.findMany({
+                where: {
+                    employeeId: targetEmployee.id,
+                    leaveTypeId,
+                    status: { not: 'rejected' },
+                    startDate: {
+                        gte: joiningDate,
+                        lte: new Date(employee.probationEndDate)
+                    }
+                }
+            });
+            const totalUsedInProbation = existingRequestsInProbation.reduce((acc, req) => acc + req.days, 0);
+            if (totalUsedInProbation + calculatedDays > leaveType.probationQuota) {
+                return res.status(400).json({
+                    error: `Probation quota exceeded for ${leaveType.name}. Max allowed during probation: ${leaveType.probationQuota}, Used: ${totalUsedInProbation}, Requesting: ${calculatedDays}.`
+                });
+            }
         }
         // --- Deferred Check: Advance Notice ---
         if (noticePeriod > 0) {
@@ -459,7 +490,29 @@ const createLeaveRequest = async (req, res) => {
                 });
             }
         }
-        // 5. Calculate LOP Days (Allow Overdraft)
+        // 5. Check Quarterly Limit
+        if (leaveType.quarterlyLimit && leaveType.quarterlyLimit > 0) {
+            const currentYear = start.getFullYear();
+            const currentMonth = start.getMonth();
+            const currentQuarter = Math.floor(currentMonth / 3) + 1;
+            const quarterStart = new Date(currentYear, (currentQuarter - 1) * 3, 1);
+            const quarterEnd = new Date(currentYear, currentQuarter * 3, 0);
+            const existingRequestsInQuarter = await client_1.default.leaveRequest.findMany({
+                where: {
+                    employeeId: targetEmployee.id,
+                    leaveTypeId,
+                    status: { not: 'rejected' },
+                    startDate: { gte: quarterStart, lte: quarterEnd }
+                }
+            });
+            const totalDaysInQuarter = existingRequestsInQuarter.reduce((acc, req) => acc + req.days, 0);
+            if (totalDaysInQuarter + calculatedDays > leaveType.quarterlyLimit) {
+                return res.status(400).json({
+                    error: `Quarterly limit exceeded for ${leaveType.name}. Max allowed: ${leaveType.quarterlyLimit}/quarter, Used: ${totalDaysInQuarter}, Requesting: ${calculatedDays}.`
+                });
+            }
+        }
+        // 6. Calculate LOP Days (Allow Overdraft)
         // Fetch current balance
         const currentYear = start.getFullYear();
         let balanceRecord = await client_1.default.employeeLeaveBalance.findFirst({
@@ -874,9 +927,16 @@ const getMyBalances = async (req, res) => {
         });
         const balances = rawBalances.map(b => {
             let displayTotal = 0;
+            // Check if employee is in probation
+            const isProbation = employee.probationEndDate && new Date() < new Date(employee.probationEndDate);
             // Robust check: handle 'Monthly', 'monthly', 'Monthly Accrual'
             const isMonthly = b.leaveType.accrualType && b.leaveType.accrualType.toLowerCase().includes('monthly');
-            if (isMonthly) {
+            // If in probation and leave type has probation quota > 0, use it.
+            // If quota is 0, user requested to treat it as "no limit" (show full balance).
+            if (isProbation && b.leaveType.probationQuota > 0) {
+                displayTotal = b.leaveType.probationQuota;
+            }
+            else if (isMonthly) {
                 // Calculate projected total for this user
                 // Using leaveType.days as base (Annual Quota)
                 const annualQuota = b.leaveType.days;
@@ -962,6 +1022,7 @@ const getAllBalances = async (req, res) => {
                         lastName: true,
                         employeeId: true,
                         dateOfJoining: true, // Needed for pro-rata
+                        probationEndDate: true, // Needed for probation display
                         department: { select: { name: true } }
                     }
                 }
@@ -973,30 +1034,33 @@ const getAllBalances = async (req, res) => {
         });
         const balances = rawBalances.map(b => {
             // Robust check: handle 'Monthly', 'monthly', 'Monthly Accrual'
-            const isMonthly = b.leaveType.accrualType && b.leaveType.accrualType.toLowerCase().includes('monthly');
+            const isMonthly = b.leaveType.accrualType?.toLowerCase().includes('monthly');
+            const annualQuota = b.leaveType.days;
             let displayTotal = 0;
-            if (isMonthly) {
-                const annualQuota = b.leaveType.days;
-                if (b.employee && b.employee.dateOfJoining) {
-                    const joinDate = new Date(b.employee.dateOfJoining);
-                    const joinYear = joinDate.getFullYear();
-                    let effectiveMonths = 12;
-                    if (joinYear === currentYear) {
-                        effectiveMonths = 12 - joinDate.getMonth();
-                    }
-                    else if (joinYear > currentYear) {
-                        effectiveMonths = 0;
-                    }
-                    if (joinYear === currentYear) {
-                        const proRata = (annualQuota / 12) * effectiveMonths;
-                        displayTotal = Math.round(proRata * 2) / 2;
-                    }
-                    else {
-                        displayTotal = annualQuota;
-                    }
+            const empJoiningDate = b.employee?.dateOfJoining ? new Date(b.employee.dateOfJoining) : null;
+            const empJoinYear = empJoiningDate?.getFullYear();
+            const isProbation = b.employee?.probationEndDate && new Date() < new Date(b.employee.probationEndDate);
+            let effectiveMonths = 12;
+            if (empJoinYear === currentYear && empJoiningDate) {
+                effectiveMonths = 12 - empJoiningDate.getMonth();
+            }
+            else if (empJoinYear && empJoinYear > currentYear) {
+                effectiveMonths = 0;
+            }
+            // Sync with getMyBalances priority logic
+            if (isProbation && b.leaveType.probationQuota > 0) {
+                displayTotal = b.leaveType.probationQuota;
+            }
+            else if (isMonthly) {
+                if (empJoinYear === currentYear) {
+                    const proRata = (annualQuota / 12) * effectiveMonths;
+                    displayTotal = Math.round(proRata * 2) / 2;
+                }
+                else if (empJoinYear && empJoinYear < currentYear) {
+                    displayTotal = annualQuota;
                 }
                 else {
-                    displayTotal = annualQuota; // Fallback
+                    displayTotal = annualQuota;
                 }
             }
             else {

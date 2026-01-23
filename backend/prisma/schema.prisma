@@ -116,7 +116,15 @@ model Company {
   pan           String?
   tan           String?
   logo          String?
+  digitalSignature String? // Global company signature
   letterheadDoc String? // Path to letterhead DOCX template
+  letterhead    String? // First page background image
+  continuationSheet String? // Subsequent pages background image
+  pdfMarginTop  Int     @default(180)
+  pdfMarginBottom Int   @default(80)
+  pdfMarginLeft Int     @default(40)
+  pdfMarginRight Int    @default(40)
+  pdfContinuationTop Int @default(80)
 
   // Attendance Settings
   allowedIPs String? // Comma separated IPs

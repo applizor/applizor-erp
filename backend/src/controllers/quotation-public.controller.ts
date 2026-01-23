@@ -135,7 +135,15 @@ export const getQuotationByToken = async (req: Request, res: Response) => {
                         country: true,
                         pincode: true,
                         gstin: true,
-                        logo: true
+                        logo: true,
+                        digitalSignature: true,
+                        letterhead: true,
+                        continuationSheet: true,
+                        pdfMarginTop: true,
+                        pdfMarginBottom: true,
+                        pdfMarginLeft: true,
+                        pdfMarginRight: true,
+                        pdfContinuationTop: true
                     }
                 }
             }
@@ -399,7 +407,15 @@ export const downloadSignedQuotationPDFPublic = async (req: Request, res: Respon
                 pincode: quotation.company.pincode || undefined,
                 email: quotation.company.email || undefined,
                 phone: quotation.company.phone || undefined,
-                gstin: quotation.company.gstin || undefined
+                gstin: quotation.company.gstin || undefined,
+                digitalSignature: quotation.company.digitalSignature || undefined,
+                letterhead: quotation.company.letterhead || undefined,
+                continuationSheet: quotation.company.continuationSheet || undefined,
+                pdfMarginTop: (quotation.company as any).pdfMarginTop,
+                pdfMarginBottom: (quotation.company as any).pdfMarginBottom,
+                pdfMarginLeft: (quotation.company as any).pdfMarginLeft,
+                pdfMarginRight: (quotation.company as any).pdfMarginRight,
+                pdfContinuationTop: (quotation.company as any).pdfContinuationTop
             },
             lead: quotation.lead ? {
                 name: quotation.lead.name,
@@ -420,7 +436,8 @@ export const downloadSignedQuotationPDFPublic = async (req: Request, res: Respon
             notes: quotation.notes || undefined,
             clientSignature: quotation.clientSignature,
             clientName: quotation.clientName || undefined,
-            clientAcceptedAt: quotation.clientAcceptedAt
+            clientAcceptedAt: quotation.clientAcceptedAt,
+            useLetterhead: true
         });
 
         // Set headers for PDF download

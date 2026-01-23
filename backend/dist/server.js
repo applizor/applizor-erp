@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -49,23 +82,27 @@ app.use('/api/branches', branch_routes_1.default);
 // Audit routes
 const audit_routes_1 = __importDefault(require("./routes/audit.routes"));
 app.use('/api/audit-logs', audit_routes_1.default);
-// CRM Routes
-const lead_routes_1 = __importDefault(require("./routes/crm/lead.routes"));
+// CRM Routes (Sales only, leads moved to main routes below)
 const sales_routes_1 = __importDefault(require("./routes/crm/sales.routes"));
 const portal_routes_1 = __importDefault(require("./routes/portal.routes"));
-app.use('/api/crm/leads', lead_routes_1.default);
 app.use('/api/crm/sales', sales_routes_1.default);
-app.use('/api/portal', portal_routes_1.default); // New Route
+app.use('/api/portal', portal_routes_1.default);
 // Company routes
 app.use('/api/company', company_routes_1.default);
 // Invoice routes
 app.use('/api/invoices', invoice_routes_1.default);
 // Client routes
 app.use('/api/clients', client_routes_1.default);
-// Lead routes
+// Lead routes (main - with new CRM features)
+const lead_routes_1 = __importDefault(require("./routes/lead.routes"));
 app.use('/api/leads', lead_routes_1.default);
 // Payment routes
 app.use('/api/payments', payment_routes_1.default);
+// Quotation routes
+const quotation_routes_1 = __importDefault(require("./routes/quotation.routes"));
+const quotation_template_routes_1 = __importDefault(require("./routes/quotation-template.routes"));
+app.use('/api/quotations', quotation_routes_1.default);
+app.use('/api/quotation-templates', quotation_template_routes_1.default);
 // HRMS Routes
 const department_routes_1 = __importDefault(require("./routes/department.routes"));
 const position_routes_1 = __importDefault(require("./routes/position.routes"));
@@ -102,7 +139,20 @@ app.use('/api/payroll/structure', salary_structure_routes_1.default);
 // app.use('/api/payroll', payrollRoutes);
 // ... other routes
 app.use('/api/accounting', accounting_routes_1.default);
+// Automation/Debug Routes
+// Automation/Debug Routes
+const automation_routes_1 = __importDefault(require("./routes/automation.routes"));
+app.use('/api/automation', automation_routes_1.default);
+// Contract Routes
+const contract_routes_1 = __importStar(require("./routes/contract.routes"));
+const contract_template_routes_1 = __importDefault(require("./routes/contract-template.routes"));
+app.use('/api/contracts', contract_routes_1.default);
+app.use('/api/contract-templates', contract_template_routes_1.default);
+app.use('/api/portal/contracts', contract_routes_1.portalContractRouter);
+// Scheduler
+const scheduler_service_1 = require("./services/scheduler.service");
 // Start server
+scheduler_service_1.SchedulerService.init();
 app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`📊 Health check: http://localhost:${PORT}/health`);

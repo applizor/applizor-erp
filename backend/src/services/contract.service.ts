@@ -110,6 +110,9 @@ export class ContractService {
         signature: string; // Base64
         ip: string;
         name: string;
+        signerId?: string;
+        type?: 'client' | 'company';
+        useLetterhead?: boolean;
     }) {
         const contract = await prisma.contract.findUnique({
             where: { id },
@@ -140,9 +143,11 @@ export class ContractService {
             date: contract.createdAt,
             company: contract.company,
             client: contract.client,
-            clientSignature: signatureData.signature,
+            clientSignature: signatureData.type === 'client' ? signatureData.signature : contract.clientSignature,
+            companySignature: signatureData.type === 'company' ? signatureData.signature : (contract as any).companySignature,
             signerIp: signatureData.ip,
-            signedAt: signedAt
+            signedAt: signedAt,
+            useLetterhead: signatureData.useLetterhead
         });
 
         return await prisma.contract.update({

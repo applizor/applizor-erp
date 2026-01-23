@@ -1,3 +1,9 @@
 export declare const sendEmail: (to: string, subject: string, html: string, attachments?: any[]) => Promise<import("nodemailer/lib/smtp-transport").SentMessageInfo>;
-export declare const sendInvoiceEmail: (to: string, invoiceData: any, pdfBuffer?: Buffer) => Promise<import("nodemailer/lib/smtp-transport").SentMessageInfo>;
+export declare const sendInvoiceEmail: (to: string, invoiceData: any, pdfBuffer?: Buffer, isReminder?: boolean) => Promise<import("nodemailer/lib/smtp-transport").SentMessageInfo>;
+export declare const sendQuotationToClient: (quotationData: any, publicUrl: string) => Promise<import("nodemailer/lib/smtp-transport").SentMessageInfo>;
+export declare const sendContractNotification: (contract: any, publicUrl: string) => Promise<import("nodemailer/lib/smtp-transport").SentMessageInfo>;
+export declare const sendQuotationAcceptanceToClient: (quotationData: any) => Promise<import("nodemailer/lib/smtp-transport").SentMessageInfo>;
+export declare const sendQuotationAcceptanceToCompany: (quotationData: any) => Promise<import("nodemailer/lib/smtp-transport").SentMessageInfo | undefined>;
+export declare const sendQuotationRejectionToCompany: (quotationData: any) => Promise<import("nodemailer/lib/smtp-transport").SentMessageInfo | undefined>;
+export declare const sendQuotationReminder: (quotationData: any, publicUrl: string) => Promise<import("nodemailer/lib/smtp-transport").SentMessageInfo>;
 //# sourceMappingURL=email.service.d.ts.map

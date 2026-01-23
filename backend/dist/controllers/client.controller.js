@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteClient = exports.updateClient = exports.getClient = exports.getClients = exports.createClient = void 0;
 const client_1 = __importDefault(require("../prisma/client"));
 const permission_service_1 = require("../services/permission.service");
+const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const createClient = async (req, res) => {
     try {
         const userId = req.userId;
@@ -21,9 +22,13 @@ const createClient = async (req, res) => {
         if (!user || !user.companyId) {
             return res.status(400).json({ error: 'User must belong to a company' });
         }
-        const { name, email, phone, address, city, state, country = 'India', pincode, gstin, pan, clientType = 'customer', } = req.body;
+        const { name, email, phone, address, city, state, country = 'India', pincode, gstin, pan, clientType = 'customer', portalAccess = false, password, } = req.body;
         if (!name) {
             return res.status(400).json({ error: 'Client name is required' });
+        }
+        let hashedPassword = null;
+        if (portalAccess && password) {
+            hashedPassword = await bcryptjs_1.default.hash(password, 10);
         }
         const client = await client_1.default.client.create({
             data: {
@@ -40,8 +45,11 @@ const createClient = async (req, res) => {
                 pan,
                 clientType,
                 status: 'active',
+                portalAccess: Boolean(portalAccess),
+                password: hashedPassword,
             },
         });
+        // TODO: Send Welcome Email with credentials if portalAccess is true
         res.status(201).json({
             message: 'Client created successfully',
             client,
@@ -156,23 +164,28 @@ const updateClient = async (req, res) => {
             return res.status(403).json({ error: 'Access denied: No update rights for Client' });
         }
         const { id } = req.params;
-        const { name, email, phone, address, city, state, country, pincode, gstin, pan, status, clientType, } = req.body;
+        const { name, email, phone, address, city, state, country, pincode, gstin, pan, status, clientType, portalAccess, password, } = req.body;
+        const data = {
+            name,
+            email,
+            phone,
+            address,
+            city,
+            state,
+            country,
+            pincode,
+            gstin,
+            pan,
+            status,
+            clientType,
+            portalAccess: portalAccess !== undefined ? Boolean(portalAccess) : undefined,
+        };
+        if (password) {
+            data.password = await bcryptjs_1.default.hash(password, 10);
+        }
         const client = await client_1.default.client.update({
             where: { id },
-            data: {
-                name,
-                email,
-                phone,
-                address,
-                city,
-                state,
-                country,
-                pincode,
-                gstin,
-                pan,
-                status,
-                clientType,
-            },
+            data,
         });
         res.json({
             message: 'Client updated successfully',

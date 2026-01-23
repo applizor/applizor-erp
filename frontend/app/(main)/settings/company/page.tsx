@@ -13,6 +13,18 @@ export default function CompanySettingsPage() {
     const [logoFile, setLogoFile] = useState<File | null>(null);
     const [logoPreview, setLogoPreview] = useState<string | null>(null);
     const [uploadingLogo, setUploadingLogo] = useState(false);
+    const [signatureFile, setSignatureFile] = useState<File | null>(null);
+    const [signaturePreview, setSignaturePreview] = useState<string | null>(null);
+    const [uploadingSignature, setUploadingSignature] = useState(false);
+
+    const [letterheadFile, setLetterheadFile] = useState<File | null>(null);
+    const [letterheadPreview, setLetterheadPreview] = useState<string | null>(null);
+    const [uploadingLetterhead, setUploadingLetterhead] = useState(false);
+
+    const [continuationFile, setContinuationFile] = useState<File | null>(null);
+    const [continuationPreview, setContinuationPreview] = useState<string | null>(null);
+    const [uploadingContinuation, setUploadingContinuation] = useState(false);
+
     const [saving, setSaving] = useState(false);
 
     // Helper to get base URL (without /api)
@@ -36,6 +48,15 @@ export default function CompanySettingsPage() {
                 setCompany(data.company);
                 if (data.company.logo) {
                     setLogoPreview(`${getBaseUrl()}${data.company.logo}`);
+                }
+                if (data.company.digitalSignature) {
+                    setSignaturePreview(`${getBaseUrl()}${data.company.digitalSignature}`);
+                }
+                if (data.company.letterhead) {
+                    setLetterheadPreview(`${getBaseUrl()}${data.company.letterhead}`);
+                }
+                if (data.company.continuationSheet) {
+                    setContinuationPreview(`${getBaseUrl()}${data.company.continuationSheet}`);
                 }
             }
         } catch (error) {
@@ -82,6 +103,123 @@ export default function CompanySettingsPage() {
             toast.error('Error uploading logo');
         } finally {
             setUploadingLogo(false);
+        }
+    };
+
+    const handleSignatureChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            setSignatureFile(file);
+            setSignaturePreview(URL.createObjectURL(file));
+        }
+    };
+
+    const handleSignatureUpload = async () => {
+        if (!signatureFile) return;
+        setUploadingSignature(true);
+        try {
+            const formData = new FormData();
+            formData.append('signature', signatureFile);
+
+            const token = localStorage.getItem('token');
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/company/signature`, {
+                method: 'PUT',
+                headers: {
+                    Authorization: `Bearer ${token}`
+                },
+                body: formData
+            });
+
+            if (res.ok) {
+                toast.success('Signature updated successfully!');
+                fetchCompany(); // Refresh
+                setSignatureFile(null); // Clear file selection
+            } else {
+                toast.error('Failed to update signature');
+            }
+        } catch (error) {
+            console.error('Signature upload error', error);
+            toast.error('Error uploading signature');
+        } finally {
+            setUploadingSignature(false);
+        }
+    };
+
+    const handleLetterheadChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            setLetterheadFile(file);
+            setLetterheadPreview(URL.createObjectURL(file));
+        }
+    };
+
+    const handleLetterheadUpload = async () => {
+        if (!letterheadFile) return;
+        setUploadingLetterhead(true);
+        try {
+            const formData = new FormData();
+            formData.append('letterhead', letterheadFile);
+
+            const token = localStorage.getItem('token');
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/company/letterhead-asset`, {
+                method: 'PUT',
+                headers: {
+                    Authorization: `Bearer ${token}`
+                },
+                body: formData
+            });
+
+            if (res.ok) {
+                toast.success('Letterhead updated successfully!');
+                fetchCompany(); // Refresh
+                setLetterheadFile(null); // Clear file selection
+            } else {
+                toast.error('Failed to update letterhead');
+            }
+        } catch (error) {
+            console.error('Letterhead upload error', error);
+            toast.error('Error uploading letterhead');
+        } finally {
+            setUploadingLetterhead(false);
+        }
+    };
+
+    const handleContinuationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            setContinuationFile(file);
+            setContinuationPreview(URL.createObjectURL(file));
+        }
+    };
+
+    const handleContinuationUpload = async () => {
+        if (!continuationFile) return;
+        setUploadingContinuation(true);
+        try {
+            const formData = new FormData();
+            formData.append('continuationSheet', continuationFile);
+
+            const token = localStorage.getItem('token');
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/company/continuation-sheet-asset`, {
+                method: 'PUT',
+                headers: {
+                    Authorization: `Bearer ${token}`
+                },
+                body: formData
+            });
+
+            if (res.ok) {
+                toast.success('Continuation sheet updated successfully!');
+                fetchCompany(); // Refresh
+                setContinuationFile(null); // Clear file selection
+            } else {
+                toast.error('Failed to update continuation sheet');
+            }
+        } catch (error) {
+            console.error('Continuation upload error', error);
+            toast.error('Error uploading continuation sheet');
+        } finally {
+            setUploadingContinuation(false);
         }
     };
 
@@ -190,11 +328,122 @@ export default function CompanySettingsPage() {
                                 <button
                                     onClick={handleLogoUpload}
                                     disabled={uploadingLogo}
-                                    className="w-full px-4 py-2 bg-primary-600 text-white text-[10px] font-black uppercase tracking-widest rounded-md hover:bg-primary-700 transition-all shadow-md active:scale-95 disabled:opacity-50"
+                                    className="w-full px-4 py-2 bg-primary-600 text-white text-[10px] font-black uppercase tracking-widest rounded-md hover:bg-primary-700 transition-all shadow-md active:scale-95 disabled:opacity-50 mb-3"
                                 >
-                                    {uploadingLogo ? 'Uploading...' : 'Confirm Upload'}
+                                    {uploadingLogo ? 'Uploading Logo...' : 'Confirm Logo Upload'}
                                 </button>
                             )}
+
+                            <div className="w-full border-t border-gray-100 my-6"></div>
+
+                            {/* Digital Signature */}
+                            <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4 w-full">Authorized Signature</h3>
+
+                            <div className="h-24 w-full border border-gray-100 rounded-md overflow-hidden flex items-center justify-center bg-white mb-4 relative group">
+                                {signaturePreview ? (
+                                    <img src={signaturePreview} alt="Company Signature" className="h-full w-full object-contain p-2" />
+                                ) : (
+                                    <span className="text-[10px] font-black text-gray-300 uppercase tracking-widest">No Signature</span>
+                                )}
+                            </div>
+
+                            <label className="block w-full mb-3">
+                                <span className="sr-only">Choose signature</span>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleSignatureChange}
+                                    className="block w-full text-[10px] text-gray-500 font-bold uppercase
+                                    file:mr-4 file:py-2 file:px-4
+                                    file:rounded-md file:border-0
+                                    file:text-[9px] file:font-black file:uppercase file:tracking-widest
+                                    file:bg-slate-50 file:text-slate-700
+                                    hover:file:bg-slate-100 cursor-pointer"
+                                />
+                            </label>
+
+                            {signatureFile && (
+                                <button
+                                    onClick={handleSignatureUpload}
+                                    disabled={uploadingSignature}
+                                    className="w-full px-4 py-2 bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest rounded-md hover:bg-emerald-700 transition-all shadow-md active:scale-95 disabled:opacity-50"
+                                >
+                                    {uploadingSignature ? 'Uploading Signature...' : 'Confirm Signature Upload'}
+                                </button>
+                            )}
+
+                            <div className="w-full border-t border-gray-100 my-6"></div>
+
+                            {/* Letterhead Assets */}
+                            <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4 w-full text-center">Document Engine Assets</h3>
+
+                            {/* First Page Letterhead */}
+                            <div className="w-full mb-6">
+                                <label className="text-[9px] font-black text-gray-900 uppercase tracking-widest mb-2 block">1st Page Letterhead</label>
+                                <div className="h-40 w-full border border-gray-100 rounded-md overflow-hidden flex items-center justify-center bg-white mb-2 relative group grayscale hover:grayscale-0 transition-all">
+                                    {(letterheadFile?.type === 'application/pdf' || (company?.letterhead?.toLowerCase().endsWith('.pdf'))) ? (
+                                        <div className="flex flex-col items-center gap-2">
+                                            <div className="bg-red-50 p-3 rounded-full">
+                                                <Upload className="w-8 h-8 text-red-500" />
+                                            </div>
+                                            <span className="text-[10px] font-black text-red-600 uppercase tracking-widest">PDF Letterhead Set</span>
+                                        </div>
+                                    ) : letterheadPreview ? (
+                                        <img src={letterheadPreview} alt="Letterhead" className="h-full w-full object-contain p-2" />
+                                    ) : (
+                                        <span className="text-[9px] font-black text-gray-300 uppercase tracking-widest">A4 Background Not Set</span>
+                                    )}
+                                </div>
+                                <input
+                                    type="file"
+                                    accept="image/*,application/pdf"
+                                    onChange={handleLetterheadChange}
+                                    className="block w-full text-[9px] text-gray-400 font-bold uppercase cursor-pointer"
+                                />
+                                {letterheadFile && (
+                                    <button
+                                        onClick={handleLetterheadUpload}
+                                        disabled={uploadingLetterhead}
+                                        className="w-full mt-2 px-3 py-1.5 bg-gray-900 text-white text-[9px] font-black uppercase tracking-widest rounded transition-all active:scale-95"
+                                    >
+                                        {uploadingLetterhead ? 'Uploading...' : 'Upload Letterhead'}
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Continuation Sheet */}
+                            <div className="w-full">
+                                <label className="text-[9px] font-black text-gray-900 uppercase tracking-widest mb-2 block">Continuation Sheet</label>
+                                <div className="h-40 w-full border border-gray-100 rounded-md overflow-hidden flex items-center justify-center bg-white mb-2 relative group grayscale hover:grayscale-0 transition-all">
+                                    {(continuationFile?.type === 'application/pdf' || (company?.continuationSheet?.toLowerCase().endsWith('.pdf'))) ? (
+                                        <div className="flex flex-col items-center gap-2">
+                                            <div className="bg-red-50 p-3 rounded-full">
+                                                <Upload className="w-8 h-8 text-red-500" />
+                                            </div>
+                                            <span className="text-[10px] font-black text-red-600 uppercase tracking-widest">PDF Sheet Set</span>
+                                        </div>
+                                    ) : continuationPreview ? (
+                                        <img src={continuationPreview} alt="Continuation Sheet" className="h-full w-full object-contain p-2" />
+                                    ) : (
+                                        <span className="text-[9px] font-black text-gray-300 uppercase tracking-widest">Next Pages Background</span>
+                                    )}
+                                </div>
+                                <input
+                                    type="file"
+                                    accept="image/*,application/pdf"
+                                    onChange={handleContinuationChange}
+                                    className="block w-full text-[9px] text-gray-400 font-bold uppercase cursor-pointer"
+                                />
+                                {continuationFile && (
+                                    <button
+                                        onClick={handleContinuationUpload}
+                                        disabled={uploadingContinuation}
+                                        className="w-full mt-2 px-3 py-1.5 bg-gray-900 text-white text-[9px] font-black uppercase tracking-widest rounded transition-all active:scale-95"
+                                    >
+                                        {uploadingContinuation ? 'Uploading...' : 'Upload Continuation'}
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     </div>
 
@@ -318,57 +567,67 @@ export default function CompanySettingsPage() {
                             </div>
                         </div>
 
-                        {/* Section 3: Business Details */}
-                        <div className="ent-card p-6">
+                        {/* Section 4: PDF Layout Settings */}
+                        <div className="ent-card p-6 border-l-4 border-l-blue-500">
                             <h2 className="text-sm font-black text-gray-900 mb-6 flex items-center gap-2 uppercase tracking-tight border-b border-gray-100 pb-2">
-                                <Globe className="w-4 h-4 text-primary-600" />
-                                Fiscal & Statutory
+                                <CreditCard className="w-4 h-4 text-blue-600" />
+                                PDF Layout Configuration
                             </h2>
-                            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                            <p className="text-[10px] text-gray-500 mb-6 uppercase font-bold tracking-tight">
+                                Customize margins to align content with your uploaded Letterhead and Continuation sheets.
+                            </p>
+
+                            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                                 <div className="ent-form-group">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Base Currency</label>
-                                    <div className="relative">
-                                        <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-                                        <select
-                                            value={company.currency || 'USD'}
-                                            onChange={e => setCompany({ ...company, currency: e.target.value })}
-                                            className="ent-input w-full pl-9 appearance-none"
-                                        >
-                                            <option value="USD">USD ($) - US Dollar</option>
-                                            <option value="INR">INR (₹) - Indian Rupee</option>
-                                        </select>
-                                    </div>
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">1st Page Top Margin (px)</label>
+                                    <input
+                                        type="number"
+                                        value={company.pdfMarginTop || 180}
+                                        onChange={e => setCompany({ ...company, pdfMarginTop: parseInt(e.target.value) })}
+                                        className="ent-input w-full font-mono text-blue-600"
+                                    />
+                                    <span className="text-[9px] text-gray-400 mt-1 block">Space for Letterhead header</span>
                                 </div>
                                 <div className="ent-form-group">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">GSTIN / Tax ID</label>
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Next Pages Top Margin (px)</label>
                                     <input
-                                        type="text"
-                                        value={company.gstin || ''}
-                                        onChange={e => setCompany({ ...company, gstin: e.target.value })}
+                                        type="number"
+                                        value={company.pdfContinuationTop || 80}
+                                        onChange={e => setCompany({ ...company, pdfContinuationTop: parseInt(e.target.value) })}
+                                        className="ent-input w-full font-mono text-blue-600"
+                                    />
+                                    <span className="text-[9px] text-gray-400 mt-1 block">Space for Continuation header</span>
+                                </div>
+                                <div className="ent-form-group">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Bottom Margin (px)</label>
+                                    <input
+                                        type="number"
+                                        value={company.pdfMarginBottom || 80}
+                                        onChange={e => setCompany({ ...company, pdfMarginBottom: parseInt(e.target.value) })}
+                                        className="ent-input w-full font-mono text-blue-600"
+                                    />
+                                    <span className="text-[9px] text-gray-400 mt-1 block">Space for Footer</span>
+                                </div>
+                                <div className="ent-form-group">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Left Margin (px)</label>
+                                    <input
+                                        type="number"
+                                        value={company.pdfMarginLeft || 40}
+                                        onChange={e => setCompany({ ...company, pdfMarginLeft: parseInt(e.target.value) })}
                                         className="ent-input w-full font-mono"
                                     />
                                 </div>
                                 <div className="ent-form-group">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">PAN Number</label>
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Right Margin (px)</label>
                                     <input
-                                        type="text"
-                                        value={company.pan || ''}
-                                        onChange={e => setCompany({ ...company, pan: e.target.value })}
-                                        className="ent-input w-full font-mono"
-                                    />
-                                </div>
-                                <div className="ent-form-group">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">TAN Number</label>
-                                    <input
-                                        type="text"
-                                        value={company.tan || ''}
-                                        onChange={e => setCompany({ ...company, tan: e.target.value })}
+                                        type="number"
+                                        value={company.pdfMarginRight || 40}
+                                        onChange={e => setCompany({ ...company, pdfMarginRight: parseInt(e.target.value) })}
                                         className="ent-input w-full font-mono"
                                     />
                                 </div>
                             </div>
                         </div>
-
                     </form>
                 </div>
             </div>

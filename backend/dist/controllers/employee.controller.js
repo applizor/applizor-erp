@@ -173,16 +173,21 @@ const createEmployee = async (req, res) => {
             });
             // Create leave balance records for applicable leave types
             if (applicableLeaveTypes.length > 0) {
+                // Check if employee is in probation
+                const isProbation = probationEndDate && new Date(probationEndDate) > new Date();
                 const balanceData = applicableLeaveTypes.map(leaveType => {
                     let allocated = 0;
-                    if (leaveType.accrualType === 'monthly') {
+                    // Priority 1: Use probation quota if employee is in probation AND quota > 0
+                    if (isProbation && leaveType.probationQuota > 0) {
+                        allocated = leaveType.probationQuota;
+                    }
+                    // Priority 2: Monthly accrual types start at 0
+                    else if (leaveType.accrualType === 'monthly') {
                         allocated = 0; // Starts at 0, accrues monthly
                     }
+                    // Priority 3: Yearly Upfront - Pro-Rata Calculation
                     else {
-                        // Yearly Upfront - Pro-Rata Calculation
                         const joinDate = new Date(dateOfJoining);
-                        // If join date is in future (e.g. next year), for THIS year it should be 0? 
-                        // Assuming current year allocation:
                         const joinYear = joinDate.getFullYear();
                         if (joinYear > currentYear) {
                             allocated = 0;
@@ -323,9 +328,8 @@ const getEmployees = async (req, res) => {
     try {
         const { companyId } = req.user;
         const userId = req.user.id;
-        // Check if super admin
-        const isAdmin = req.user.roles.some((ur) => ['admin', 'super admin', 'administrator'].includes(ur.role.name.toLowerCase()));
-        const isSuperAdmin = isAdmin; // Alias for logic
+        // Check if super admin (Check name AND isSystem)
+        const isSuperAdmin = req.user.roles.some((ur) => ['admin', 'super admin', 'administrator'].includes(ur.role.name.toLowerCase()) || ur.role.isSystem);
         // Base where clause
         const whereClause = {
             companyId: companyId

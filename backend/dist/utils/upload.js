@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.uploadLeaveAttachment = exports.uploadDocument = exports.uploadLogo = void 0;
+exports.uploadLetterheadAsset = exports.uploadSignature = exports.uploadLeaveAttachment = exports.uploadDocument = exports.uploadLogo = void 0;
 const multer_1 = __importDefault(require("multer"));
 const path_1 = __importDefault(require("path"));
 const fs_1 = __importDefault(require("fs"));
@@ -86,5 +86,54 @@ exports.uploadLeaveAttachment = (0, multer_1.default)({
     storage: leaveStorage,
     limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
     fileFilter: docFileFilter
+});
+// Signature Upload Configuration
+const signatureDir = path_1.default.join(__dirname, '../../uploads/signatures');
+if (!fs_1.default.existsSync(signatureDir)) {
+    fs_1.default.mkdirSync(signatureDir, { recursive: true });
+}
+const signatureStorage = multer_1.default.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, signatureDir);
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, 'signature-' + uniqueSuffix + path_1.default.extname(file.originalname));
+    }
+});
+exports.uploadSignature = (0, multer_1.default)({
+    storage: signatureStorage,
+    limits: { fileSize: 2 * 1024 * 1024 }, // 2MB limit
+    fileFilter: fileFilter
+});
+// Letterhead Upload Configuration
+const letterheadDir = path_1.default.join(__dirname, '../../uploads/letterheads');
+if (!fs_1.default.existsSync(letterheadDir)) {
+    fs_1.default.mkdirSync(letterheadDir, { recursive: true });
+}
+const letterheadStorage = multer_1.default.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, letterheadDir);
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, file.fieldname + '-' + uniqueSuffix + path_1.default.extname(file.originalname));
+    }
+});
+const letterheadFileFilter = (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif|pdf/;
+    const extname = allowedTypes.test(path_1.default.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    if (extname || mimetype) {
+        return cb(null, true);
+    }
+    else {
+        cb(new Error('Only images and PDFs are allowed (jpeg, jpg, png, gif, pdf)'));
+    }
+};
+exports.uploadLetterheadAsset = (0, multer_1.default)({
+    storage: letterheadStorage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+    fileFilter: letterheadFileFilter
 });
 //# sourceMappingURL=upload.js.map

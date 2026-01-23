@@ -151,7 +151,21 @@ export const generateInvoicePDF = async (req: AuthRequest, res: Response) => {
     if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
 
     // Use PDFService (HTML-to-PDF) for cleaner output
-    const pdfBuffer = await PDFService.generateInvoicePDF(invoice as any);
+    const pdfBuffer = await PDFService.generateInvoicePDF({
+      ...invoice,
+      company: {
+        ...invoice.company,
+        digitalSignature: invoice.company.digitalSignature || undefined,
+        letterhead: invoice.company.letterhead || undefined,
+        continuationSheet: invoice.company.continuationSheet || undefined,
+        pdfMarginTop: (invoice.company as any).pdfMarginTop || undefined,
+        pdfMarginBottom: (invoice.company as any).pdfMarginBottom || undefined,
+        pdfMarginLeft: (invoice.company as any).pdfMarginLeft || undefined,
+        pdfMarginRight: (invoice.company as any).pdfMarginRight || undefined,
+        pdfContinuationTop: (invoice.company as any).pdfContinuationTop || undefined
+      },
+      useLetterhead: req.query.useLetterhead === 'true'
+    });
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="Invoice-${invoice.invoiceNumber}.pdf"`);
@@ -216,7 +230,10 @@ export const sendInvoice = async (req: AuthRequest, res: Response) => {
     if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
     if (!invoice.client.email) return res.status(400).json({ error: 'Client has no email' });
 
-    const pdfBuffer = await PDFService.generateInvoicePDF(invoice as any);
+    const pdfBuffer = await PDFService.generateInvoicePDF({
+      ...invoice,
+      useLetterhead: req.body.useLetterhead === true
+    });
     await emailService.sendInvoiceEmail(invoice.client.email, invoice, pdfBuffer);
 
     if (invoice.status === 'draft') {

@@ -8,9 +8,10 @@ const client_1 = __importDefault(require("../prisma/client"));
 const permission_service_1 = require("../services/permission.service");
 exports.SYSTEM_MODULES = [
     'Dashboard', 'Company', 'User', 'Role',
-    'Client', 'Lead', 'Invoice', 'Payment', 'Subscription',
+    'Client', 'Lead', 'LeadActivity', 'Quotation', 'QuotationTemplate', 'Invoice', 'Payment', 'Subscription',
     'Department', 'Position', 'Employee', 'Attendance', 'Leave', 'LeaveType', 'LeaveBalance', 'Shift', 'ShiftRoster', 'Payroll', 'Asset',
-    'Recruitment', 'Document', 'Holiday'
+    'Department', 'Position', 'Employee', 'Attendance', 'Leave', 'LeaveType', 'LeaveBalance', 'Shift', 'ShiftRoster', 'Payroll', 'Asset',
+    'Recruitment', 'Document', 'Holiday', 'Contract'
 ];
 const ACCESS_LEVELS = ['none', 'all', 'added', 'owned', 'added_owned']; // "added_owned" matches "Added & Owned"
 // Sync System: Truncate? No. Ensure every Role has every Module entry.

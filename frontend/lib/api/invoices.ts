@@ -56,8 +56,8 @@ export const invoicesApi = {
     return response.data;
   },
 
-  generatePDF: async (id: string) => {
-    const response = await api.post(`/invoices/${id}/generate-pdf`, {}, {
+  generatePDF: async (id: string, useLetterhead: boolean = true) => {
+    const response = await api.post(`/invoices/${id}/generate-pdf`, { useLetterhead }, {
       responseType: 'blob',
     });
     return response.data;
@@ -95,6 +95,10 @@ export const invoicesApi = {
 
   convertQuotation: async (id: string) => {
     const response = await api.post(`/invoices/${id}/convert`);
+    return response.data;
+  },
+  delete: async (id: string) => {
+    const response = await api.delete(`/invoices/${id}`);
     return response.data;
   }
 };

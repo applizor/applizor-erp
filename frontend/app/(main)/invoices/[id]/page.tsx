@@ -24,6 +24,7 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [paymentData, setPaymentData] = useState({ amount: 0, method: 'bank-transfer' });
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [useLetterhead, setUseLetterhead] = useState(true);
 
     useEffect(() => {
         loadInvoice();
@@ -58,7 +59,7 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
 
     const handleDownloadPDF = async () => {
         try {
-            const blob = await invoicesApi.generatePDF(params.id);
+            const blob = await invoicesApi.generatePDF(params.id, useLetterhead);
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -149,6 +150,17 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
                 </div>
 
                 <div className="flex items-center gap-2 w-full lg:w-auto">
+                    <div className="flex items-center gap-2 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
+                        <input
+                            type="checkbox"
+                            id="useLetterhead"
+                            checked={useLetterhead}
+                            onChange={(e) => setUseLetterhead(e.target.checked)}
+                            className="w-3.5 h-3.5 rounded border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer"
+                        />
+                        <label htmlFor="useLetterhead" className="text-[10px] font-black uppercase tracking-widest text-slate-600 cursor-pointer select-none">Letterhead</label>
+                    </div>
+
                     <button onClick={handleDownloadPDF} className="flex-1 lg:flex-none px-3 py-1.5 bg-white border border-gray-200 rounded text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 flex items-center justify-center gap-2 transition-all">
                         <Download size={14} /> Export
                     </button>
@@ -410,7 +422,7 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
                 title="Confirm Document Purge"
                 message="This action will permanently remove this commercial record from the enterprise registry. This process is irreversible."
                 type="danger"
-                confirmLabel="Confirm Delete"
+                confirmText="Confirm Delete"
             />
         </div>
     );

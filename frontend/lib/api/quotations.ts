@@ -77,5 +77,13 @@ export const quotationsApi = {
     convertToInvoice: async (id: string) => {
         const response = await api.post(`/quotations/${id}/convert-to-invoice`);
         return response.data;
+    },
+
+    generatePDF: async (id: string, useLetterhead: boolean = true) => {
+        const response = await api.get(`/quotations/${id}/pdf`, {
+            params: { useLetterhead },
+            responseType: 'blob'
+        });
+        return response.data;
     }
 };

@@ -65,78 +65,78 @@ export default function PagedRichTextEditor({
 
             <style jsx global>{`
                 .paged-editor-container {
-                    background: #dfe3e8; /* Grey background like Word/Docs */
-                    padding: 40px;
+                    background: #f8fafc; /* Lighter, cleaner background */
+                    padding: 30px 20px;
                     overflow: auto;
                     display: flex;
-                    justify-content: center;
+                    flex-direction: column;
+                    align-items: center;
                 }
 
                 .a4-page-simulation {
                     width: 210mm; /* A4 Width */
                     min-height: 297mm; /* A4 Height */
                     background: white;
-                    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+                    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
                     margin: 0 auto;
                     position: relative;
+                    border: 1px solid #e2e8f0;
                 }
 
                 /* Quill Overrides for A4 Feel */
                 .ql-toolbar {
                     position: sticky;
                     top: 0;
-                    z-index: 10;
+                    z-index: 20;
                     background: white;
-                    border: 1px solid #e2e8f0 !important;
-                    width: 210mm;
-                    margin: 0 auto 10px auto;
-                    border-radius: 6px;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+                    border: none !important;
+                    border-bottom: 1px solid #e2e8f0 !important;
+                    width: 100%;
+                    margin-bottom: 0;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+                    display: flex;
+                    justify-content: center;
+                    flex-wrap: wrap;
+                    padding: 8px !important;
                 }
 
                 .ql-container {
                     border: none !important;
                     font-size: 11pt; /* Standard Document Font Size */
-                    font-family: 'Times New Roman', Times, serif; /* Legal standard */
+                    font-family: 'Inter', system-ui, -apple-system, sans-serif;
                 }
 
                 .ql-editor {
                     min-height: 297mm;
-                    padding: 25mm 20mm; /* Standard Margins */
-                    line-height: 1.5;
+                    padding: 30mm 25mm !important; /* Professional Margins */
+                    line-height: 1.6;
+                    color: #1e293b;
                 }
 
                 /* Letterhead Styles */
                 .with-letterhead .ql-editor {
-                    /* Default to Continuation Sheet for generic background */
                      background-image: ${continuationBg ? `url('${continuationBg}')` : 'none'};
-                     background-size: 100% auto;
-                     background-repeat: repeat-y;
-                     background-position: top center;
+                     background-size: 100% 100%;
+                     background-repeat: no-repeat;
+                     background-position: center;
                 }
                 
-                /* Page 1 Specific - difficult in single editor, but we can fake top margin or background attachment */
                  .with-letterhead .ql-editor:before {
-                     /* This is pseudo-code for visual aid, real multi-page requires splitting content */
-                     /* For MVP, we apply one background or assume header is consistent */
                      content: "";
                      display: block;
                      position: absolute;
                      top: 0;
                      left: 0;
                      right: 0;
-                     height: 297mm;
+                     height: 100%;
                      pointer-events: none;
                      background-image: ${pageOneBg ? `url('${pageOneBg}')` : 'none'};
-                     background-size: cover;
+                     background-size: 100% 100%;
+                     background-repeat: no-repeat;
                      opacity: 1;
                      z-index: 0;
-                     /* Only show on first "page" area? Hard with scrolling text. */
-                     /* User requested strict separation. True separation needs separate text areas per page, which is very hard for editing flow. */
-                     /* We will try to simulate a continuous sheet with the continuation header repeating */
                  }
                  
-                 /* Ensure text is above background */
                  .ql-editor > * {
                      position: relative;
                      z-index: 1;

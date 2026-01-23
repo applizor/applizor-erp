@@ -91,3 +91,59 @@ export const uploadLeaveAttachment = multer({
     fileFilter: docFileFilter
 });
 
+// Signature Upload Configuration
+const signatureDir = path.join(__dirname, '../../uploads/signatures');
+if (!fs.existsSync(signatureDir)) {
+    fs.mkdirSync(signatureDir, { recursive: true });
+}
+
+const signatureStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, signatureDir);
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, 'signature-' + uniqueSuffix + path.extname(file.originalname));
+    }
+});
+
+export const uploadSignature = multer({
+    storage: signatureStorage,
+    limits: { fileSize: 2 * 1024 * 1024 }, // 2MB limit
+    fileFilter: fileFilter
+});
+
+// Letterhead Upload Configuration
+const letterheadDir = path.join(__dirname, '../../uploads/letterheads');
+if (!fs.existsSync(letterheadDir)) {
+    fs.mkdirSync(letterheadDir, { recursive: true });
+}
+
+const letterheadStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, letterheadDir);
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+    }
+});
+
+const letterheadFileFilter = (req: any, file: any, cb: any) => {
+    const allowedTypes = /jpeg|jpg|png|gif|pdf/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+
+    if (extname || mimetype) {
+        return cb(null, true);
+    } else {
+        cb(new Error('Only images and PDFs are allowed (jpeg, jpg, png, gif, pdf)'));
+    }
+};
+
+export const uploadLetterheadAsset = multer({
+    storage: letterheadStorage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+    fileFilter: letterheadFileFilter
+});
+
