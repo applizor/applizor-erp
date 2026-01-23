@@ -42,6 +42,21 @@ export default function CreateContractPage() {
     const [validFrom, setValidFrom] = useState('');
     const [validUntil, setValidUntil] = useState('');
 
+    // New Fields matching Reference
+    const [contractValue, setContractValue] = useState('');
+    const [currency, setCurrency] = useState('INR');
+    const [contractType, setContractType] = useState('');
+    const [projectId, setProjectId] = useState('');
+
+    // Mock Data for new fields (normally fetched from API)
+    const currencies = ['INR', 'USD', 'EUR', 'GBP'];
+    const contractTypes = ['NDA', 'SLA', 'Employment', 'Vendor Agreement', 'Partnership'];
+    const projects = [
+        { id: '1', name: 'Website Redesign' },
+        { id: '2', name: 'Mobile App Dev' },
+        { id: '3', name: 'Cloud Migration' }
+    ];
+
     // Initial content with correct variables
     const initialContent = `
         <h2 style="text-align: center;">AGREEMENT</h2>
@@ -226,7 +241,13 @@ export default function CreateContractPage() {
                 clientId,
                 content,
                 validFrom: validFrom ? new Date(validFrom) : null,
-                validUntil: validUntil ? new Date(validUntil) : null
+                validFrom: validFrom ? new Date(validFrom) : null,
+                validUntil: validUntil ? new Date(validUntil) : null,
+                // New Fields
+                contractValue: parseFloat(contractValue) || 0,
+                currency,
+                contractType,
+                projectId
             });
             const contractId = res.data.id;
 
@@ -253,7 +274,13 @@ export default function CreateContractPage() {
                 clientId,
                 content,
                 validFrom: validFrom ? new Date(validFrom) : null,
-                validUntil: validUntil ? new Date(validUntil) : null
+                validFrom: validFrom ? new Date(validFrom) : null,
+                validUntil: validUntil ? new Date(validUntil) : null,
+                // New Fields
+                contractValue: parseFloat(contractValue) || 0,
+                currency,
+                contractType,
+                projectId
             });
             toast.success('Contract saved as draft');
             router.push('/crm/contracts');
@@ -399,72 +426,133 @@ export default function CreateContractPage() {
                         </div>
 
                         {/* Dates Row */}
-                        <div className="md:col-span-6 lg:col-span-4 flex gap-4">
-                            <div className="flex-1 space-y-2">
-                                <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">Valid From</label>
-                                <div className="relative">
-                                    <input
-                                        type="date"
-                                        value={validFrom}
-                                        onChange={(e) => setValidFrom(e.target.value)}
-                                        className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block p-2.5"
-                                    />
-                                </div>
-                            </div>
-                            <div className="flex-1 space-y-2">
-                                <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">Valid Until</label>
-                                <div className="relative">
-                                    <input
-                                        type="date"
-                                        value={validUntil}
-                                        onChange={(e) => setValidUntil(e.target.value)}
-                                        className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block p-2.5"
-                                    />
-                                </div>
+                    </div>
+
+                    {/* Row 2: Projects & Type */}
+                    <div className="md:col-span-12 grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                            <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">Project (Optional)</label>
+                            <select
+                                value={projectId}
+                                onChange={(e) => setProjectId(e.target.value)}
+                                className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block p-2.5"
+                            >
+                                <option value="">-- No Project --</option>
+                                {projects.map(p => (
+                                    <option key={p.id} value={p.id}>{p.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">Contract Type <span className="text-red-500">*</span></label>
+                            <div className="flex gap-2">
+                                <select
+                                    required
+                                    value={contractType}
+                                    onChange={(e) => setContractType(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block p-2.5"
+                                >
+                                    <option value="">-- Select Type --</option>
+                                    {contractTypes.map(t => (
+                                        <option key={t} value={t}>{t}</option>
+                                    ))}
+                                </select>
+                                <button type="button" className="px-3 py-1 text-xs font-bold bg-slate-100 rounded border border-slate-200 hover:bg-slate-200">Add</button>
                             </div>
                         </div>
                     </div>
 
-                    {/* Quick Actions Toolbar */}
-                    <div className="mt-6 pt-4 border-t border-slate-100 flex justify-between items-center">
-                        <div className="flex items-center gap-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                            <LayoutTemplate size={14} /> Document Editor
+                    {/* Row 3: Financials & Dates */}
+                    <div className="md:col-span-12 grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {/* Value & Currency */}
+                        <div className="space-y-2">
+                            <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">Contract Value <span className="text-red-500">*</span></label>
+                            <div className="flex">
+                                <div className="relative w-full">
+                                    <input
+                                        type="number"
+                                        required
+                                        value={contractValue}
+                                        onChange={(e) => setContractValue(e.target.value)}
+                                        className="block p-2.5 w-full z-20 text-sm text-slate-900 bg-slate-50 rounded-l-lg border-l-gray-50 border-l-2 border border-gray-300 focus:ring-primary-500 focus:border-primary-500"
+                                        placeholder="0.00"
+                                    />
+                                </div>
+                                <select
+                                    value={currency}
+                                    onChange={(e) => setCurrency(e.target.value)}
+                                    className="z-10 inline-flex items-center py-2.5 px-4 text-sm font-medium text-center text-slate-900 bg-slate-100 border border-l-0 border-gray-300 rounded-r-lg hover:bg-gray-200 focus:ring-4 focus:outline-none focus:ring-gray-100"
+                                >
+                                    {currencies.map(c => <option key={c} value={c}>{c}</option>)}
+                                </select>
+                            </div>
                         </div>
-                        <div className="flex gap-3">
-                            <button
-                                type="button"
-                                onClick={manualVariableFill}
-                                className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 bg-white border border-emerald-200 flex items-center gap-2 text-[10px] uppercase font-black tracking-widest transition-all px-3 py-2 rounded-lg"
-                                title="Fills variables if you changed the client after loading template"
-                            >
-                                <Check size={12} strokeWidth={3} /> Re-Sync Data
-                            </button>
-                            <button
-                                type="button"
-                                onClick={fetchTemplates}
-                                className="text-primary-600 hover:text-primary-700 hover:bg-primary-50 bg-white border border-primary-200 flex items-center gap-2 text-[10px] uppercase font-black tracking-widest transition-all px-3 py-2 rounded-lg"
-                            >
-                                <LayoutTemplate size={12} strokeWidth={3} /> Change Template
-                            </button>
+
+                        <div className="space-y-2">
+                            <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">Valid From</label>
+                            <div className="relative">
+                                <input
+                                    type="date"
+                                    value={validFrom}
+                                    onChange={(e) => setValidFrom(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block p-2.5"
+                                />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">Valid Until</label>
+                            <div className="relative">
+                                <input
+                                    type="date"
+                                    value={validUntil}
+                                    onChange={(e) => setValidUntil(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block p-2.5"
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Main Editor Area - Centered Document */}
-                {/* Main Editor Area - Centered Document */}
-                <div className="bg-slate-100/50 rounded-xl border border-dashed border-slate-200 p-0 overflow-hidden">
-                    <div className="w-full shadow-2xl shadow-slate-200/50">
-                        {/* Editor Container */}
-                        <PagedRichTextEditor
-                            value={content}
-                            onChange={setContent}
-                            className="min-h-[1000px] border-0"
-                            showLetterhead={showLetterhead}
-                            pageOneBg="/images/letterhead-page1.png"
-                            continuationBg="/images/letterhead-continuation.png"
-                        />
+                {/* Quick Actions Toolbar */}
+                <div className="mt-6 pt-4 border-t border-slate-100 flex justify-between items-center">
+                    <div className="flex items-center gap-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                        <LayoutTemplate size={14} /> Document Editor
+                    </div>
+                    <div className="flex gap-3">
+                        <button
+                            type="button"
+                            onClick={manualVariableFill}
+                            className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 bg-white border border-emerald-200 flex items-center gap-2 text-[10px] uppercase font-black tracking-widest transition-all px-3 py-2 rounded-lg"
+                            title="Fills variables if you changed the client after loading template"
+                        >
+                            <Check size={12} strokeWidth={3} /> Re-Sync Data
+                        </button>
+                        <button
+                            type="button"
+                            onClick={fetchTemplates}
+                            className="text-primary-600 hover:text-primary-700 hover:bg-primary-50 bg-white border border-primary-200 flex items-center gap-2 text-[10px] uppercase font-black tracking-widest transition-all px-3 py-2 rounded-lg"
+                        >
+                            <LayoutTemplate size={12} strokeWidth={3} /> Change Template
+                        </button>
                     </div>
                 </div>
+        </div>
+
+                {/* Main Editor Area - Centered Document */ }
+    {/* Main Editor Area - Centered Document */ }
+    <div className="bg-slate-100/50 rounded-xl border border-dashed border-slate-200 p-0 overflow-hidden">
+        <div className="w-full shadow-2xl shadow-slate-200/50">
+            {/* Editor Container */}
+            <PagedRichTextEditor
+                value={content}
+                onChange={setContent}
+                className="min-h-[1000px] border-0"
+                showLetterhead={showLetterhead}
+                pageOneBg="/images/letterhead-page1.png"
+                continuationBg="/images/letterhead-continuation.png"
+            />
+        </div>
+    </div>
             </form >
         </div >
     );

@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import React, { useRef, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
-import 'react-quill/dist/quill.snow.css';
+import { Copy } from 'lucide-react';
+import { useToast } from '@/hooks/useToast';
+import 'jodit/es2021/jodit.min.css';
 
-// Dynamically import ReactQuill to avoid SSR issues
-const ReactQuill = dynamic(() => import('react-quill'), { ssr: false });
+const JoditEditor = dynamic(() => import('jodit-react'), { ssr: false });
 
 interface PagedRichTextEditorProps {
     value: string;
@@ -13,8 +14,8 @@ interface PagedRichTextEditorProps {
     placeholder?: string;
     className?: string;
     showLetterhead?: boolean;
-    pageOneBg?: string; // URL for Page 1 Background
-    continuationBg?: string; // URL for Continuation Sheet Background
+    pageOneBg?: string;
+    continuationBg?: string;
 }
 
 export default function PagedRichTextEditor({
@@ -26,34 +27,55 @@ export default function PagedRichTextEditor({
     pageOneBg,
     continuationBg
 }: PagedRichTextEditorProps) {
-    const quillRef = useRef<any>(null);
+    const editorRef = useRef<any>(null);
+    const toast = useToast();
 
-    const modules = {
-        toolbar: [
-            [{ 'header': [1, 2, 3, false] }],
-            ['bold', 'italic', 'underline', 'strike'],
-            [{ 'list': 'ordered' }, { 'list': 'bullet' }],
-            [{ 'indent': '-1' }, { 'indent': '+1' }],
-            [{ 'align': [] }],
-            ['link'],
-            ['clean']
+    const config = useMemo(() => ({
+        readonly: false,
+        placeholder: placeholder || 'Start typing...',
+        height: 'auto',
+        minHeight: 1123, // A4 approx height
+        width: '210mm',
+        toolbarAdaptive: false,
+        toolbarSticky: true,
+        toolbarButtonSize: 'middle' as 'middle',
+        buttons: [
+            'source', '|',
+            'bold', 'italic', 'underline', 'strikethrough', 'eraser', '|',
+            'ul', 'ol', '|',
+            'font', 'fontsize', 'paragraph', 'lineHeight', '|',
+            'image', 'table', 'link', '|',
+            'align', 'undo', 'redo', '|',
+            'hr', 'symbol', 'fullsize', 'print'
         ],
-    };
-
-    const formats = [
-        'header',
-        'bold', 'italic', 'underline', 'strike',
-        'list', 'bullet', 'indent',
-        'align', 'link'
-    ];
+        style: {
+            fontFamily: 'Inter, system-ui, sans-serif',
+            fontSize: '11pt',
+            lineHeight: '1.6',
+            color: '#1e293b',
+            padding: '20mm 25mm',
+            background: 'transparent'
+        },
+        uploader: {
+            insertImageAsBase64URI: true
+        }
+    }), [placeholder]);
 
     const insertVariable = (variable: string) => {
-        if (quillRef.current) {
-            const quill = quillRef.current.getEditor();
-            const range = quill.getSelection(true);
-            quill.insertText(range.index, variable);
-            quill.setSelection(range.index + variable.length);
+        if (editorRef.current && editorRef.current.editor) {
+            editorRef.current.editor.selection.insertHTML(variable);
+            // After insertion, manually trigger onChange if needed, 
+            // but Jodit's internal state usually syncs on next interaction or we can force it
+            const newContent = editorRef.current.editor.value;
+            onChange(newContent);
+        } else {
+            console.warn("Editor not initialized yet");
         }
+    };
+
+    const copyToClipboard = (text: string) => {
+        navigator.clipboard.writeText(text);
+        toast.success(`${text} copied to clipboard`);
     };
 
     const variables = [
@@ -77,42 +99,48 @@ export default function PagedRichTextEditor({
                 <div className="flex-1 overflow-y-auto p-2">
                     <div className="space-y-1">
                         {variables.map((v) => (
-                            <button
-                                key={v.value}
-                                onClick={() => insertVariable(v.value)}
-                                className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 rounded transition-colors flex items-center justify-between group"
-                            >
-                                <span>{v.label}</span>
-                                <code className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded group-hover:bg-indigo-100 group-hover:text-indigo-500 font-mono">
-                                    {v.value}
-                                </code>
-                            </button>
+                            <div key={v.value} className="flex items-center gap-1 group">
+                                <button
+                                    type="button"
+                                    onClick={() => insertVariable(v.value)}
+                                    className="flex-1 text-left px-3 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 rounded transition-colors flex items-center justify-between"
+                                    title="Insert at cursor"
+                                >
+                                    <span>{v.label}</span>
+                                    <code className="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded group-hover:bg-indigo-100 group-hover:text-indigo-500 font-mono">
+                                        {v.value}
+                                    </code>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => copyToClipboard(v.value)}
+                                    className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                    title="Copy to clipboard"
+                                >
+                                    <Copy size={14} />
+                                </button>
+                            </div>
                         ))}
                     </div>
                 </div>
-                <div className="p-4 bg-gray-50 border-t border-gray-100 text-xs text-gray-500">
-                    Click to insert variable at cursor position.
+                <div className="p-4 bg-gray-50 border-t border-gray-100 text-[10px] text-gray-500 text-center leading-relaxed">
+                    Click to insert • Hover for copy option
                 </div>
             </div>
 
             {/* Editor Area */}
-            <div className={`paged-editor-container flex-1`}>
-                {/* A4 Page Simulation Wrapper */}
+            <div className="paged-editor-container flex-1">
                 <div className={`a4-page-simulation ${showLetterhead ? 'with-letterhead' : ''}`}>
-                    <ReactQuill
-                        ref={quillRef}
-                        theme="snow"
+                    <JoditEditor
+                        ref={editorRef}
                         value={value}
-                        onChange={onChange}
-                        modules={modules}
-                        formats={formats}
-                        placeholder={placeholder}
-                        className="bg-white"
+                        config={config}
+                        onBlur={newContent => onChange(newContent)}
+                        onChange={newContent => { }}
                     />
 
                     {/* Visual Page Break Markers */}
-                    <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
-                        {/* Page 1 Break Line (approx 297mm - margins) - Visual Guide Only */}
+                    <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden z-[1]">
                         {[1, 2, 3, 4, 5].map(i => (
                             <div
                                 key={i}
@@ -127,85 +155,63 @@ export default function PagedRichTextEditor({
 
                 <style jsx global>{`
                     .paged-editor-container {
-                        background: #f8fafc; /* Lighter, cleaner background */
+                        background: #f8fafc;
                         padding: 30px 40px;
                         overflow: auto;
                         display: flex;
                         flex-direction: column;
                         align-items: center;
-                        height: calc(100vh - 80px); /* Fill remaining height */
+                        height: calc(100vh - 80px);
                     }
 
                     .a4-page-simulation {
-                        width: 210mm; /* A4 Width */
-                        min-height: 297mm; /* A4 Height */
+                        width: 210mm;
+                        min-height: 297mm;
                         background: white;
                         box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
                         margin: 0 auto;
                         position: relative;
-                        border: 1px solid #e2e8f0;
-                        padding-bottom: 50px; /* Space for last page growth */
+                        padding-bottom: 50px;
                     }
 
-                    /* Quill Overrides for A4 Feel */
-                    .ql-toolbar {
-                        position: sticky;
-                        top: 0;
-                        z-index: 50;
-                        background: white;
+                    .jodit-container {
                         border: none !important;
-                        border-bottom: 1px solid #e2e8f0 !important;
-                        width: 100%;
-                        margin-bottom: 0;
-                        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-                        display: flex;
-                        justify-content: center;
-                        flex-wrap: wrap;
-                        padding: 8px !important;
+                        min-height: 297mm !important;
+                        width: 100% !important;
                     }
 
-                    .ql-container {
-                        border: none !important;
-                        font-size: 11pt; /* Standard Document Font Size */
-                        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+                    .jodit-workplace {
+                        min-height: 297mm !important;
                     }
 
-                    .ql-editor {
-                        min-height: 297mm;
-                        padding: 30mm 25mm !important; /* Professional Margins */
-                        line-height: 1.6;
-                        color: #1e293b;
+                    .jodit-wysiwyg {
+                        padding: 0 !important; /* Managed by style config */
+                        background: transparent !important;
                     }
 
                     /* Letterhead Styles */
-                    .with-letterhead .ql-editor {
-                         background-image: ${continuationBg ? `url('${continuationBg}')` : 'none'};
-                         background-size: 100% 100%;
-                         background-repeat: no-repeat;
-                         background-position: center;
-                    }
-                    
-                     .with-letterhead .ql-editor:before {
-                         content: "";
-                         display: block;
-                         position: absolute;
-                         top: 0;
-                         left: 0;
-                         right: 0;
-                         height: 100%;
-                         pointer-events: none;
-                         background-image: ${pageOneBg ? `url('${pageOneBg}')` : 'none'};
-                         background-size: 100% 100%;
-                         background-repeat: no-repeat;
-                         opacity: 1;
-                         z-index: 0;
+                     .with-letterhead {
+                          background-image: ${continuationBg ? `url('${continuationBg}')` : 'none'};
+                          background-size: 100% 100%;
+                          background-repeat: no-repeat;
+                          background-position: center;
                      }
                      
-                     .ql-editor > * {
-                         position: relative;
-                         z-index: 1;
-                     }
-
+                     .with-letterhead:before {
+                          content: "";
+                          display: block;
+                          position: absolute;
+                          top: 0;
+                          left: 0;
+                          right: 0;
+                          height: 297mm;
+                          pointer-events: none;
+                          background-image: ${pageOneBg ? `url('${pageOneBg}')` : 'none'};
+                          background-size: 100% 100%;
+                          background-repeat: no-repeat;
+                          opacity: 1;
+                          z-index: 0;
+                      }
                 `}</style>
             </div>
         </div>
