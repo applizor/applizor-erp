@@ -7,7 +7,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Save, ArrowLeft, LayoutTemplate } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
-import RichTextEditor from '@/components/ui/RichTextEditor';
+import PagedRichTextEditor from '@/components/ui/PagedRichTextEditor';
 import Link from 'next/link';
 
 export default function CreateTemplatePage({ params }: { params: { id?: string } }) {
@@ -19,10 +19,11 @@ export default function CreateTemplatePage({ params }: { params: { id?: string }
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
     const [content, setContent] = useState(`
-        <h2>AGREEMENT TEMPLATE</h2>
-        <p>This is a standard agreement template.</p>
+        <h2 style="text-align: center;">AGREEMENT TEMPLATE</h2>
+        <p style="text-align: center;">This is a standard agreement template.</p>
+        <p><br></p>
         <h3>1. Scope</h3>
-        <p>...</p>
+        <p>Type your agreement terms here...</p>
     `);
 
     useEffect(() => {
@@ -73,7 +74,7 @@ export default function CreateTemplatePage({ params }: { params: { id?: string }
     );
 
     return (
-        <div className="max-w-5xl mx-auto pb-20 space-y-6 animate-fade-in my-6">
+        <div className="max-w-7xl mx-auto pb-20 space-y-6 animate-fade-in my-6 px-4">
             <PageHeader
                 title={params?.id ? "Edit Template" : "New Template"}
                 subtitle="Design reusable contract layout"
@@ -99,12 +100,12 @@ export default function CreateTemplatePage({ params }: { params: { id?: string }
                 }
             />
 
-            <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <form onSubmit={handleSubmit} className="flex flex-col gap-6">
 
-                {/* Main Editor */}
-                <div className="lg:col-span-2 space-y-6">
-                    <div className="ent-card p-6">
-                        <div className="mb-4 ent-form-group">
+                {/* Meta Data */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="ent-card p-6 lg:col-span-2">
+                        <div className="ent-form-group">
                             <label className="ent-label">Template Name</label>
                             <input
                                 type="text"
@@ -115,63 +116,33 @@ export default function CreateTemplatePage({ params }: { params: { id?: string }
                                 placeholder="E.G. NDA AGREEMENT"
                             />
                         </div>
-
-                        <div>
-                            <label className="ent-label mb-2 block">Template Content</label>
-                            <RichTextEditor
-                                value={content}
-                                onChange={setContent}
-                                className="min-h-[500px]"
-                            />
-                        </div>
                     </div>
-                </div>
-
-                {/* Sidebar Details */}
-                <div className="space-y-6">
-                    <div className="ent-card p-6 space-y-6">
-                        <h3 className="text-xs font-black uppercase tracking-widest text-slate-900 border-b border-slate-100 pb-3">Template Details</h3>
-
+                    <div className="ent-card p-6">
                         <div className="ent-form-group">
                             <label className="ent-label">Description</label>
                             <textarea
                                 value={description}
                                 onChange={(e) => setDescription(e.target.value)}
-                                className="ent-textarea h-32 resize-none"
-                                placeholder="Brief description of when to use this template..."
+                                className="ent-textarea resize-none h-[50px]"
+                                placeholder="Brief description..."
                             />
                         </div>
                     </div>
-
-                    <div className="ent-card p-5 bg-slate-50 border-slate-200">
-                        <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-600 mb-3">Available Variables</h3>
-                        <div className="space-y-2">
-                            {[
-                                { label: 'Client Name', var: '[CLIENT_NAME]' },
-                                { label: 'Client Company', var: '[CLIENT_COMPANY]' },
-                                { label: 'Client Address', var: '[CLIENT_ADDRESS]' },
-                                { label: 'Client City', var: '[CLIENT_CITY]' },
-                                { label: 'My Company', var: '[MY_COMPANY_NAME]' },
-                                { label: 'Current Date', var: '[CURRENT_DATE]' },
-                            ].map((v) => (
-                                <div key={v.var} className="flex justify-between items-center group cursor-pointer hover:bg-white p-1.5 rounded border border-transparent hover:border-slate-200 transition-all"
-                                    onClick={() => {
-                                        // In a real implementation we would insert at cursor. 
-                                        // For now just copying to clipboard or showing it's clickable
-                                        navigator.clipboard.writeText(v.var);
-                                        toast.success('Copied ' + v.var);
-                                    }}
-                                >
-                                    <span className="text-[10px] font-bold text-slate-500">{v.label}</span>
-                                    <code className="text-[9px] font-mono bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded">{v.var}</code>
-                                </div>
-                            ))}
-                        </div>
-                        <p className="text-[10px] text-slate-400 mt-3 pt-3 border-t border-slate-200/50 italic">
-                            Click to copy variable. These will be automatically replaced with actual data when creating a contract.
-                        </p>
-                    </div>
                 </div>
+
+                {/* Main Editor - Full Width */}
+                <div className="ent-card overflow-hidden border-2 border-slate-100 shadow-xl">
+                    <div className="bg-slate-50 border-b border-slate-200 p-2 text-xs text-center text-slate-500 font-medium">
+                        DOCUMENT EDITOR - A4 PAGE VIEW
+                    </div>
+                    <PagedRichTextEditor
+                        value={content}
+                        onChange={setContent}
+                        className="h-[800px]"
+                        showLetterhead={true} // Preview with letterhead feel
+                    />
+                </div>
+
             </form>
         </div>
     );

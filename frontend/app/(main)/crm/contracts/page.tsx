@@ -9,6 +9,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Plus, Search, Filter, FileText, Calendar, User, MoreVertical, Edit, Trash, Eye, Download, LayoutTemplate } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
 import { useAuth } from '@/lib/auth';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 export default function ContractsList() {
     const { user } = useAuth();
@@ -18,6 +19,12 @@ export default function ContractsList() {
     const [contracts, setContracts] = useState<any[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState('all');
+
+    // Delete Dialog State
+    const [deleteDialog, setDeleteDialog] = useState<{ isOpen: boolean; id: string | null }>({
+        isOpen: false,
+        id: null
+    });
 
     useEffect(() => {
         fetchContracts();
@@ -35,14 +42,20 @@ export default function ContractsList() {
         }
     };
 
-    const handleDelete = async (id: string) => {
-        if (!confirm('Are you sure you want to delete this contract?')) return;
+    const handleDeleteClick = (id: string) => {
+        setDeleteDialog({ isOpen: true, id });
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!deleteDialog.id) return;
         try {
-            await api.delete(`/contracts/${id}`);
+            await api.delete(`/contracts/${deleteDialog.id}`);
             toast.success('Contract deleted');
             fetchContracts();
         } catch (error) {
             toast.error('Failed to delete contract');
+        } finally {
+            setDeleteDialog({ isOpen: false, id: null });
         }
     };
 
@@ -100,6 +113,16 @@ export default function ContractsList() {
                         </Link>
                     </div>
                 }
+            />
+
+            <ConfirmDialog
+                isOpen={deleteDialog.isOpen}
+                onClose={() => setDeleteDialog({ isOpen: false, id: null })}
+                onConfirm={handleConfirmDelete}
+                title="Delete Contract"
+                message="Are you sure you want to delete this contract? This action cannot be undone."
+                confirmText="Delete Contract"
+                type="danger"
             />
 
             {/* Filters */}
@@ -201,23 +224,21 @@ export default function ContractsList() {
                                                     <Eye size={14} />
                                                 </Link>
                                                 {contract.status === 'draft' && (
-                                                    <>
-                                                        <Link
-                                                            href={`/crm/contracts/${contract.id}/edit`}
-                                                            className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded transition-colors"
-                                                            title="Edit"
-                                                        >
-                                                            <Edit size={14} />
-                                                        </Link>
-                                                        <button
-                                                            onClick={() => handleDelete(contract.id)}
-                                                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
-                                                            title="Delete"
-                                                        >
-                                                            <Trash size={14} />
-                                                        </button>
-                                                    </>
+                                                    <Link
+                                                        href={`/crm/contracts/${contract.id}/edit`}
+                                                        className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded transition-colors"
+                                                        title="Edit"
+                                                    >
+                                                        <Edit size={14} />
+                                                    </Link>
                                                 )}
+                                                <button
+                                                    onClick={() => handleDeleteClick(contract.id)}
+                                                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
+                                                    title="Delete"
+                                                >
+                                                    <Trash size={14} />
+                                                </button>
                                             </div>
                                         </td>
                                     </tr>

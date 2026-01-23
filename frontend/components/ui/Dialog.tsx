@@ -49,7 +49,7 @@ export const Dialog: React.FC<DialogProps> = ({
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overflow-x-hidden bg-gray-900/60 backdrop-blur-sm p-4 md:p-6 transition-all duration-200">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center overflow-y-auto overflow-x-hidden bg-gray-900/60 backdrop-blur-sm p-4 md:p-6 transition-all duration-200">
             {/* Overlay click to close */}
             <div
                 className="fixed inset-0"

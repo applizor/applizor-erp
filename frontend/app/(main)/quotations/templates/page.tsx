@@ -105,13 +105,15 @@ export default function QuotationTemplatesPage() {
                 icon={LayoutTemplate}
                 actions={
                     can('Quotation', 'create') && (
-                        <button
-                            onClick={() => router.push('/quotations/create')}
-                            className="ent-button-primary shadow-lg shadow-primary-500/20"
-                        >
-                            <Plus className="w-4 h-4 mr-2" />
-                            Create New Quote
-                        </button>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => router.push('/quotations/templates/create')}
+                                className="ent-button-primary shadow-lg shadow-primary-500/20"
+                            >
+                                <Plus className="w-4 h-4 mr-2" />
+                                Create New Template
+                            </button>
+                        </div>
                     )
                 }
             />
@@ -159,11 +161,11 @@ export default function QuotationTemplatesPage() {
                     </p>
                     {can('Quotation', 'create') && !searchTerm && !selectedCategory && (
                         <button
-                            onClick={() => router.push('/quotations/create')}
+                            onClick={() => router.push('/quotations/templates/create')}
                             className="ent-button-primary"
                         >
                             <Plus className="w-4 h-4 mr-2" />
-                            Draft New Quote
+                            Draft New Template
                         </button>
                     )}
                 </div>
@@ -216,13 +218,18 @@ export default function QuotationTemplatesPage() {
                                     onClick={() => handleUseTemplate(template.id)}
                                     className="flex-1 ent-button-primary text-xs py-2 bg-gray-900 border-gray-900 hover:bg-gray-800"
                                 >
-                                    Use Template
+                                    Use
                                 </button>
 
-                                {/* Edit functionality usually goes to create page prefilled, but if there's a dedicated edit, we'd link there. 
-                                    For now, assumption is templates are edited by using them and saving as new or overwriting? 
-                                    Or maybe just deleting. The original code didn't have an explicit 'Edit Template' route, just 'Use'. 
-                                */}
+                                {can('Quotation', 'update') && (
+                                    <button
+                                        onClick={() => router.push(`/quotations/templates/${template.id}/edit`)}
+                                        className="p-2 border border-gray-200 text-gray-500 rounded-lg hover:bg-white hover:border-primary-200 hover:text-primary-600 hover:shadow-sm transition-all bg-white"
+                                        title="Edit Template"
+                                    >
+                                        <Edit className="w-4 h-4" />
+                                    </button>
+                                )}
 
                                 {can('Quotation', 'delete') && (
                                     <button

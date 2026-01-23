@@ -616,98 +616,117 @@ export class PDFService {
     }
     `;
 
+
+        // Check if signatures are embedded in content via variables
+        const hasEmbeddedCompanySig = (data.content || '').includes('[COMPANY_SIGNATURE]');
+        const hasEmbeddedClientSig = (data.content || '').includes('[CLIENT_SIGNATURE]');
+
+        // Perform Variable Replacement
+        const processedContent = (data.content || '')
+            .replace(/\[COMPANY_SIGNATURE\]/g, signatureBase64 ? `<img src="${signatureBase64}" style="max-height: 60px; vertical-align: middle;">` : '')
+            .replace(/\[CLIENT_SIGNATURE\]/g, clientSignatureBase64 ? `<img src="${clientSignatureBase64}" style="max-height: 60px; vertical-align: middle;">` : '')
+            .replace(/\[CLIENT_NAME\]/g, data.client.name || '')
+            .replace(/\[COMPANY_NAME\]/g, data.company.name || '')
+            .replace(/\[DATE\]/g, new Date(data.date).toLocaleDateString())
+            .replace(/\[PROJECT_NAME\]/g, data.project?.name || '')
+            .replace(/\[TOTAL_AMOUNT\]/g, data.total ? `${data.currency} ${data.total}` : '');
+
+
         return `
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-            font-family: 'Times New Roman', Times, serif;
-            color: #1a1a1a;
-            line-height: 1.8;
-            font-size: 14px;
-        }
+            <!DOCTYPE html>
+                <html>
+                <head>
+                <meta charset="UTF-8" >
+                    <style>
+        * { margin: 0; padding: 0; box- sizing: border - box;
+    }
+        body {
+    font - family: 'Times New Roman', Times, serif;
+    color: #1a1a1a;
+    line - height: 1.8;
+    font - size: 14px;
+}
         ${backgroundCSS}
         .header {
-            display: ${data.useLetterhead ? 'none' : 'block'};
-            text-align: center;
-            margin-bottom: 50px;
-            border-bottom: 2px solid #000;
-            padding-bottom: 20px;
-        }
-        .company-logo {
-            max-height: 80px;
-            margin-bottom: 15px;
-        }
+    display: ${data.useLetterhead ? 'none' : 'block'};
+    text - align: center;
+    margin - bottom: 50px;
+    border - bottom: 2px solid #000;
+    padding - bottom: 20px;
+}
+        .company - logo {
+    max - height: 80px;
+    margin - bottom: 15px;
+}
         .title {
-            font-size: 24px;
-            font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 10px;
-        }
+    font - size: 24px;
+    font - weight: bold;
+    text - transform: uppercase;
+    letter - spacing: 1px;
+    margin - bottom: 10px;
+}
         .meta {
-            font-size: 12px;
-            color: #666;
-        }
+    font - size: 12px;
+    color: #666;
+}
         .content {
-            text-align: justify;
-            min-height: 400px;
-            margin-bottom: 50px;
-        }
+    text - align: justify;
+    min - height: 400px;
+    margin - bottom: 50px;
+}
         .signatures {
-            display: flex;
-            justify-content: space-between;
-            page-break-inside: avoid;
-            margin-top: 60px;
-        }
-        .signature-block {
-            width: 45%;
-        }
-        .sign-area {
-            border-bottom: 1px solid #000;
-            height: 100px;
-            margin-bottom: 10px;
-            display: flex;
-            align-items: flex-end;
-            position: relative;
-        }
-        .sign-img {
-            max-height: 90px;
-            max-width: 100%;
-            display: block;
-            margin: 0 auto;
-        }
-        .sign-label {
-            font-weight: bold;
-            text-transform: uppercase;
-            font-size: 11px;
-        }
+    display: flex;
+    justify - content: space - between;
+    page -break-inside: avoid;
+    margin - top: 60px;
+}
+        .signature - block {
+    width: 45 %;
+}
+        .sign - area {
+    border - bottom: 1px solid #000;
+    height: 100px;
+    margin - bottom: 10px;
+    display: flex;
+    align - items: flex - end;
+    position: relative;
+}
+        .sign - img {
+    max - height: 90px;
+    max - width: 100 %;
+    display: block;
+    margin: 0 auto;
+}
+        .sign - label {
+    font - weight: bold;
+    text - transform: uppercase;
+    font - size: 11px;
+}
         .footer {
-            display: ${data.useLetterhead ? 'none' : 'block'};
-            margin-top: 50px;
-            text-align: center;
-            font-size: 10px;
-            color: #999;
-            border-top: 1px solid #eee;
-            padding-top: 10px;
-        }
-    </style>
-</head>
-<body>
-    <div class="header">
+    display: ${data.useLetterhead ? 'none' : 'block'};
+    margin - top: 50px;
+    text - align: center;
+    font - size: 10px;
+    color: #999;
+    border - top: 1px solid #eee;
+    padding - top: 10px;
+}
+</style>
+    </head>
+    < body >
+    <div class="header" >
         ${logoBase64 ? `<img src="${logoBase64}" class="company-logo">` : ''}
-        <div class="title">${data.title}</div>
-        <div class="meta">Agreement Date: ${new Date(data.date).toLocaleDateString()}</div>
-    </div>
+<div class="title" > ${data.title} </div>
+    < div class="meta" > Agreement Date: ${new Date(data.date).toLocaleDateString()} </div>
+        </div>
 
-    <div class="content">
-        ${(data.content || '').replace(/\[COMPANY_SIGNATURE\]/g, signatureBase64 ? `<img src="${signatureBase64}" style="max-height: 60px; vertical-align: middle;">` : '')}
-    </div>
+        < div class="content" >
+            ${processedContent}
+</div>
 
+    ${(!hasEmbeddedCompanySig || !hasEmbeddedClientSig) ? `
     <div class="signatures">
+        ${!hasEmbeddedCompanySig ? `
         <div class="signature-block">
             <div class="sign-area">
                 ${companyAuthSignatureBase64 ? `<img src="${companyAuthSignatureBase64}" class="sign-img">` : ''}
@@ -717,7 +736,9 @@ export class PDFService {
                 ${data.companySignedAt ? `Authorized Signatory<br>Date: ${new Date(data.companySignedAt).toLocaleString()}` : 'Authorized Signatory'}
             </div>
         </div>
+        ` : '<div></div>'}
 
+        ${!hasEmbeddedClientSig ? `
         <div class="signature-block">
             <div class="sign-area">
                 ${clientSignatureBase64 ? `<img src="${clientSignatureBase64}" class="sign-img">` : ''}
@@ -725,14 +746,17 @@ export class PDFService {
             <div class="sign-label">For ${data.client.name}</div>
             ${data.signedAt ? `<div style="font-size: 10px; color: #666;">Digitally Signed<br>IP: ${data.signerIp}<br>Date: ${new Date(data.signedAt).toLocaleString()}</div>` : ''}
         </div>
+        ` : '<div></div>'}
     </div>
+    ` : ''
+            }
 
-    <div class="footer">
-        Contract ID: ${data.id} • Generated by Applizor ERP
-    </div>
-</body>
-</html>
-        `;
+<div class="footer" >
+    Contract ID: ${data.id} • Generated by Applizor ERP
+        </div>
+        </body>
+        </html>
+            `;
     }
 
     static async generateContractPDF(data: any): Promise<Buffer> {
