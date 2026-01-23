@@ -18,6 +18,11 @@ async function main() {
     }
     console.log('✅ Found Admin User:', user.id);
 
+    if (!user.companyId) {
+        console.error('❌ User does not belong to a company!');
+        return;
+    }
+
     // 2. Find Management Department
     const department = await prisma.department.findFirst({
         where: { name: 'Management', companyId: user.companyId },

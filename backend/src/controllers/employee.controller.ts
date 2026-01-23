@@ -118,7 +118,7 @@ export const createEmployee = async (req: AuthRequest, res: Response) => {
                 data: {
                     userId: newUserId ? newUserId : undefined,
                     createdById: adminUserId ? adminUserId : undefined,
-                    companyId: adminUser.companyId,
+                    companyId: adminUser.companyId as string,
                     firstName,
                     lastName,
                     email,

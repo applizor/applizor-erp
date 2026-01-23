@@ -37,8 +37,12 @@ export const getTemplates = async (req: AuthRequest, res: Response) => {
         const userId = req.user?.userId;
         const user = await prisma.user.findUnique({ where: { id: userId } });
 
+        if (!user?.companyId) {
+            return res.status(400).json({ error: 'User/Company not found' });
+        }
+
         const templates = await prisma.emailTemplate.findMany({
-            where: { companyId: user?.companyId },
+            where: { companyId: user.companyId },
             orderBy: { createdAt: 'desc' }
         });
 

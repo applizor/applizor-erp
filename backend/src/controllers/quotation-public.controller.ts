@@ -397,6 +397,8 @@ export const downloadSignedQuotationPDFPublic = async (req: Request, res: Respon
             quotationNumber: quotation.quotationNumber,
             quotationDate: quotation.quotationDate,
             validUntil: quotation.validUntil || undefined,
+            title: quotation.title || undefined,
+            description: quotation.description || undefined,
             company: {
                 name: quotation.company.name,
                 logo: quotation.company.logo || undefined,
@@ -437,6 +439,7 @@ export const downloadSignedQuotationPDFPublic = async (req: Request, res: Respon
             clientSignature: quotation.clientSignature,
             clientName: quotation.clientName || undefined,
             clientAcceptedAt: quotation.clientAcceptedAt,
+            signatureToken: quotation.publicToken || undefined,
             useLetterhead: true
         });
 

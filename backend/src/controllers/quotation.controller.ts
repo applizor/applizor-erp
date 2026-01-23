@@ -705,6 +705,7 @@ export const downloadSignedQuotationPDF = async (req: AuthRequest, res: Response
             clientSignature: quotation.clientSignature,
             clientName: quotation.clientName || undefined,
             clientAcceptedAt: quotation.clientAcceptedAt,
+            signatureToken: quotation.publicToken || undefined,
             useLetterhead: req.query.useLetterhead === 'true'
         });
 

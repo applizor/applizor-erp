@@ -183,7 +183,12 @@ const generateInvoicePDF = async (req, res) => {
                 ...invoice.company,
                 digitalSignature: invoice.company.digitalSignature || undefined,
                 letterhead: invoice.company.letterhead || undefined,
-                continuationSheet: invoice.company.continuationSheet || undefined
+                continuationSheet: invoice.company.continuationSheet || undefined,
+                pdfMarginTop: invoice.company.pdfMarginTop || undefined,
+                pdfMarginBottom: invoice.company.pdfMarginBottom || undefined,
+                pdfMarginLeft: invoice.company.pdfMarginLeft || undefined,
+                pdfMarginRight: invoice.company.pdfMarginRight || undefined,
+                pdfContinuationTop: invoice.company.pdfContinuationTop || undefined
             },
             useLetterhead: req.query.useLetterhead === 'true'
         });

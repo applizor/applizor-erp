@@ -29,6 +29,11 @@ interface PDFData {
         digitalSignature?: string;
         letterhead?: string;
         continuationSheet?: string;
+        pdfMarginTop?: number;
+        pdfContinuationTop?: number;
+        pdfMarginBottom?: number;
+        pdfMarginLeft?: number;
+        pdfMarginRight?: number;
     };
     useLetterhead?: boolean;
     client?: {
@@ -55,10 +60,10 @@ interface PDFData {
     total: number;
     currency: string;
     notes?: string;
-    // For signed PDF
     clientSignature?: string;
     clientName?: string;
     clientAcceptedAt?: Date;
+    signatureToken?: string;
 }
 
 export class PDFService {
@@ -106,6 +111,13 @@ export class PDFService {
                 year: 'numeric',
                 month: 'short',
                 day: 'numeric'
+            });
+        };
+
+        const formatDateTime = (date: Date) => {
+            return new Date(date).toLocaleString('en-IN', {
+                day: 'numeric', month: 'short', year: 'numeric',
+                hour: '2-digit', minute: '2-digit', hour12: true
             });
         };
 
@@ -339,6 +351,21 @@ export class PDFService {
     </div>
     ` : ''}
 
+    ${type === 'QUOTATION' && data.title ? `
+    <div style="margin-bottom: 20px; border-bottom: 1px solid #e5e7eb; padding-bottom: 15px;">
+        <h2 style="font-size: 16px; font-weight: bold; color: #1f2937; margin-bottom: 5px;">${data.title}</h2>
+    </div>
+    ` : ''}
+
+    ${type === 'QUOTATION' && data.description ? `
+    <div style="margin-bottom: 30px;">
+        <h3 style="font-size: 11px; text-transform: uppercase; color: #6b7280; margin-bottom: 10px; letter-spacing: 0.5px; font-weight: bold;">Scope of Work / Introduction</h3>
+        <div style="font-size: 12px; line-height: 1.6; color: #374151;">
+            ${data.description} <!-- Rich HTML Content -->
+        </div>
+    </div>
+    ` : ''}
+
     <table>
         <thead>
             <tr>
@@ -390,9 +417,42 @@ export class PDFService {
     </div>
     ` : ''}
 
+    ${data.clientSignature ? `
+    <div style="margin-top: 60px; page-break-inside: avoid;">
+        <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+                <td style="width: 60%; vertical-align: top; padding-right: 20px;">
+                    <div style="border-left: 4px solid #10b981; padding-left: 15px;">
+                        <h3 style="color: #10b981; font-size: 12px; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">Accepted & Agreed</h3>
+                        <div style="margin-bottom: 12px;">
+                            <img src="${data.clientSignature}" style="max-height: 60px; display: block;" alt="Signature">
+                        </div>
+                        <div style="font-size: 11px; color: #374151; line-height: 1.6;">
+                            <div><strong>${data.clientName}</strong></div>
+                            <div style="color: #6b7280;">${data.clientAcceptedAt ? formatDateTime(data.clientAcceptedAt) : ''}</div>
+                            ${data.signatureToken ? `<div style="font-family: monospace; color: #9ca3af; font-size: 9px; margin-top: 4px;">ID: ${data.signatureToken}</div>` : ''}
+                        </div>
+                    </div>
+                </td>
+                <td style="width: 40%; vertical-align: top; text-align: right;">
+                    ${signatureBase64 ? `
+                    <div style="display: flex; flex-direction: column; align-items: flex-end;">
+                        <div style="font-size: 11px; font-weight: bold; color: #374151; margin-bottom: 5px;">For ${data.company.name}</div>
+                        <img src="${signatureBase64}" style="max-height: 50px; margin-bottom: 8px;">
+                        <div style="font-size: 10px; font-weight: bold; text-transform: uppercase; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 5px; width: 150px; text-align: center;">
+                            Authorized Signatory
+                        </div>
+                    </div>
+                    ` : ''}
+                </td>
+            </tr>
+        </table>
+    </div>
+    ` : `
     ${signatureBase64 ? `
-    <div style="margin-top: 40px; text-align: right;">
+    <div style="margin-top: 60px; text-align: right;">
         <div style="display: inline-block; text-align: center;">
+            <div style="font-size: 11px; font-weight: bold; color: #374151; margin-bottom: 5px; text-align: right;">For ${data.company.name}</div>
             <img src="${signatureBase64}" style="max-height: 60px; display: block; margin-bottom: 5px;">
             <div style="font-size: 10px; font-weight: bold; text-transform: uppercase; color: #666; border-top: 1px solid #eee; padding-top: 5px;">
                 Authorized Signatory
@@ -400,18 +460,7 @@ export class PDFService {
         </div>
     </div>
     ` : ''}
-
-    ${data.clientSignature ? `
-    <div class="signature-section">
-        <h3 style="color: #065f46; margin-bottom: 15px;">✓ Client Acceptance</h3>
-        <div style="border: 2px solid #d1d5db; padding: 15px; background: white; border-radius: 4px; display: inline-block;">
-            <img src="${data.clientSignature}" style="max-height: 80px;" alt="Signature">
-        </div>
-        <div style="font-size: 12px; color: #666; margin-top: 10px;">
-            Signed by <strong>${data.clientName}</strong> on ${data.clientAcceptedAt ? formatDate(data.clientAcceptedAt) : ''}
-        </div>
-    </div>
-    ` : ''}
+    `}
 
     <div class="footer">
         This is a computer-generated document and does not require a physical signature.

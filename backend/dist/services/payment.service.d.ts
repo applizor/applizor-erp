@@ -2,7 +2,7 @@ export interface PaymentLinkOptions {
     amount: number;
     currency?: string;
     description: string;
-    customer?: {
+    customer: {
         name: string;
         email: string;
         contact: string;
@@ -15,7 +15,7 @@ export declare class PaymentService {
     /**
      * Create Razorpay payment link
      */
-    createPaymentLink(options: PaymentLinkOptions): Promise<Promise<import("razorpay/dist/types/paymentLink").PaymentLinks.RazorpayPaymentLink> & void>;
+    createPaymentLink(options: PaymentLinkOptions): Promise<import("razorpay/dist/types/paymentLink").PaymentLinks.RazorpayPaymentLink>;
     /**
      * Verify Razorpay payment signature
      */

@@ -27,10 +27,10 @@ const createPaymentLink = async (req, res) => {
         }
         // Create payment link
         const paymentLink = await payment_service_1.default.createPaymentLink({
-            amount: amount || invoice.total,
+            amount: Number(amount || invoice.total),
             currency: 'INR',
             description: description || `Payment for Invoice ${invoice.invoiceNumber}`,
-            customer: customer || {
+            customer: {
                 name: invoice.client.name,
                 email: invoice.client.email || '',
                 contact: invoice.client.phone || '',
@@ -45,7 +45,7 @@ const createPaymentLink = async (req, res) => {
         const payment = await client_1.default.payment.create({
             data: {
                 invoiceId: invoice.id,
-                amount: amount || invoice.total,
+                amount: Number(amount || invoice.total),
                 paymentDate: new Date(),
                 paymentMethod: 'razorpay',
                 gateway: 'razorpay',
@@ -58,7 +58,7 @@ const createPaymentLink = async (req, res) => {
             paymentLink: {
                 id: paymentLink.id,
                 short_url: paymentLink.short_url,
-                amount: paymentLink.amount / 100,
+                amount: Number(paymentLink.amount) / 100,
             },
             payment,
         });
@@ -104,8 +104,8 @@ const handlePaymentWebhook = async (req, res) => {
                 });
                 // Update invoice
                 if (paymentRecord.invoice) {
-                    const newPaidAmount = paymentRecord.invoice.paidAmount + payment.amount / 100;
-                    const status = newPaidAmount >= paymentRecord.invoice.total ? 'paid' : 'partial';
+                    const newPaidAmount = Number(paymentRecord.invoice.paidAmount) + (payment.amount / 100);
+                    const status = newPaidAmount >= Number(paymentRecord.invoice.total) ? 'paid' : 'partial';
                     await client_1.default.invoice.update({
                         where: { id: paymentRecord.invoiceId },
                         data: {
@@ -153,8 +153,10 @@ const verifyPayment = async (req, res) => {
                 },
             });
             // Update invoice
-            const newPaidAmount = payment.invoice.paidAmount + payment.amount;
-            const status = newPaidAmount >= payment.invoice.total ? 'paid' : 'partial';
+            // payment.amount is Decimal, we need to convert. paymentDetails.amount is from Razorpay (paise)
+            // We should rely on stored payment amount if correct, or paymentDetails
+            const newPaidAmount = Number(payment.invoice.paidAmount) + Number(payment.amount);
+            const status = newPaidAmount >= Number(payment.invoice.total) ? 'paid' : 'partial';
             await client_1.default.invoice.update({
                 where: { id: payment.invoiceId },
                 data: {

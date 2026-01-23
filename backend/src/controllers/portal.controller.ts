@@ -125,7 +125,7 @@ export const getInvoiceDetails = async (req: ClientAuthRequest, res: Response) =
         // Timeline Logic
         const timeline = [
             { status: 'Draft', date: invoice.createdAt, completed: true },
-            { status: 'Sent', date: invoice.issueDate || invoice.createdAt, completed: invoice.status !== 'draft' },
+            { status: 'Sent', date: invoice.invoiceDate || invoice.createdAt, completed: invoice.status !== 'draft' },
             { status: 'Paid', date: invoice.payments[0]?.createdAt, completed: invoice.status === 'paid' }
         ];
 

@@ -29,10 +29,10 @@ export const createPaymentLink = async (req: AuthRequest, res: Response) => {
 
     // Create payment link
     const paymentLink = await paymentService.createPaymentLink({
-      amount: amount || invoice.total,
+      amount: Number(amount || invoice.total),
       currency: 'INR',
       description: description || `Payment for Invoice ${invoice.invoiceNumber}`,
-      customer: customer || {
+      customer: {
         name: invoice.client.name,
         email: invoice.client.email || '',
         contact: invoice.client.phone || '',
@@ -48,7 +48,7 @@ export const createPaymentLink = async (req: AuthRequest, res: Response) => {
     const payment = await prisma.payment.create({
       data: {
         invoiceId: invoice.id,
-        amount: amount || invoice.total,
+        amount: Number(amount || invoice.total),
         paymentDate: new Date(),
         paymentMethod: 'razorpay',
         gateway: 'razorpay',
@@ -62,7 +62,7 @@ export const createPaymentLink = async (req: AuthRequest, res: Response) => {
       paymentLink: {
         id: paymentLink.id,
         short_url: paymentLink.short_url,
-        amount: paymentLink.amount / 100,
+        amount: Number(paymentLink.amount) / 100,
       },
       payment,
     });
@@ -114,8 +114,8 @@ export const handlePaymentWebhook = async (req: Request, res: Response) => {
 
         // Update invoice
         if (paymentRecord.invoice) {
-          const newPaidAmount = paymentRecord.invoice.paidAmount + payment.amount / 100;
-          const status = newPaidAmount >= paymentRecord.invoice.total ? 'paid' : 'partial';
+          const newPaidAmount = Number(paymentRecord.invoice.paidAmount) + (payment.amount / 100);
+          const status = newPaidAmount >= Number(paymentRecord.invoice.total) ? 'paid' : 'partial';
 
           await prisma.invoice.update({
             where: { id: paymentRecord.invoiceId! },
@@ -171,8 +171,10 @@ export const verifyPayment = async (req: AuthRequest, res: Response) => {
       });
 
       // Update invoice
-      const newPaidAmount = payment.invoice.paidAmount + payment.amount;
-      const status = newPaidAmount >= payment.invoice.total ? 'paid' : 'partial';
+      // payment.amount is Decimal, we need to convert. paymentDetails.amount is from Razorpay (paise)
+      // We should rely on stored payment amount if correct, or paymentDetails
+      const newPaidAmount = Number(payment.invoice.paidAmount) + Number(payment.amount);
+      const status = newPaidAmount >= Number(payment.invoice.total) ? 'paid' : 'partial';
 
       await prisma.invoice.update({
         where: { id: payment.invoiceId! },

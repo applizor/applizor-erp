@@ -375,6 +375,28 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
                                 )}
                             </div>
 
+                            {/* Proposal Scope & Introduction */}
+                            {(quotation.title || quotation.description) && (
+                                <div className="px-8 py-8 border-b border-gray-100">
+                                    {quotation.title && (
+                                        <div className="mb-6 pb-6 border-b border-gray-100/50">
+                                            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Proposal Title</h3>
+                                            <p className="text-lg font-black text-gray-800">{quotation.title}</p>
+                                        </div>
+                                    )}
+
+                                    {quotation.description && (
+                                        <div>
+                                            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Scope of Work / Introduction</h3>
+                                            <div
+                                                className="prose prose-sm max-w-none text-gray-600 font-medium leading-relaxed"
+                                                dangerouslySetInnerHTML={{ __html: quotation.description }}
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
                             {/* Items Table */}
                             <div className="px-8 py-8">
                                 <table className="min-w-full">

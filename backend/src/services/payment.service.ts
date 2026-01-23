@@ -15,7 +15,7 @@ export interface PaymentLinkOptions {
   amount: number;
   currency?: string;
   description: string;
-  customer?: {
+  customer: {
     name: string;
     email: string;
     contact: string;
