@@ -130,36 +130,42 @@ export class ContractService {
         // Log the signing activity
         await this.logActivity({
             contractId: id,
-            type: 'SIGNED',
+            type: signatureData.type === 'company' ? 'COMPANY_SIGNED' : 'SIGNED',
             ipAddress: signatureData.ip,
             metadata: { name: signatureData.name }
         });
 
-        // Generate PDF with Signature
-        const pdfBuffer = await PDFService.generateContractPDF({
-            id: contract.id,
-            title: contract.title,
-            content: contract.content,
-            date: contract.createdAt,
-            company: contract.company,
-            client: contract.client,
-            clientSignature: signatureData.type === 'client' ? signatureData.signature : contract.clientSignature,
-            companySignature: signatureData.type === 'company' ? signatureData.signature : (contract as any).companySignature,
-            signerIp: signatureData.ip,
-            signedAt: signedAt,
-            useLetterhead: signatureData.useLetterhead
+        // Update database
+        const updateData: any = {};
+        if (signatureData.type === 'company') {
+            updateData.companySignature = signatureData.signature;
+            updateData.companySignerId = signatureData.signerId;
+            updateData.companySignedAt = signedAt;
+        } else {
+            updateData.clientSignature = signatureData.signature;
+            updateData.signerName = signatureData.name;
+            updateData.signerIp = signatureData.ip;
+            updateData.signedAt = signedAt;
+            updateData.status = 'signed'; // Status becomes 'signed' when client signs
+        }
+
+        const updatedContract = await prisma.contract.update({
+            where: { id: id },
+            data: updateData,
+            include: { company: true, client: true }
         });
 
-        return await prisma.contract.update({
-            where: { id },
-            data: {
-                status: 'signed',
-                clientSignature: signatureData.signature,
-                signerIp: signatureData.ip,
-                signerName: signatureData.name,
-                signedAt: signedAt
+        // Trigger notification to company if client signed
+        if (signatureData.type === 'client') {
+            try {
+                const { sendContractSignedNotificationToCompany } = require('./email.service');
+                await sendContractSignedNotificationToCompany(updatedContract);
+            } catch (error) {
+                console.error('Failed to send signature notification to company:', error);
             }
-        });
+        }
+
+        return updatedContract;
     }
 
     static async deleteContract(id: string) {

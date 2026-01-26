@@ -106,78 +106,71 @@ export default function ContractDetailsPage({ params }: { params: { id: string }
                         <ArrowLeft size={12} className="mr-1" />
                         Back to Contracts
                     </Link>
-                    <h1 className="text-3xl font-black text-slate-900 tracking-tight">{contract.title}</h1>
-                    <div className="flex items-center gap-3 mt-2">
-                        <span className={`px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-widest border ${contract.status === 'signed' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' :
-                            contract.status === 'sent' ? 'bg-blue-50 text-blue-600 border-blue-200' :
-                                'bg-slate-100 text-slate-600 border-slate-200'
-                            }`}>
-                            {contract.status}
+                    <h1 className="ent-page-title text-2xl">{contract.title}</h1>
+                    <div className="flex items-center gap-3 mt-1.5">
+                        {getStatusBadge(contract.status)}
+                        <span className="text-slate-300 text-[10px]">•</span>
+                        <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest">
+                            Client: <span className="text-slate-900">{contract.client.name}</span>
                         </span>
-                        <span className="text-slate-400 text-xs">•</span>
-                        <span className="text-sm text-slate-500 font-medium">Client: <span className="text-slate-900 font-bold">{contract.client.name}</span></span>
                     </div>
                 </div>
 
                 <div className="flex items-center gap-3">
                     {/* Sign as Company Button */}
                     {!contract.companySignature && (
-                        <Button
+                        <button
                             onClick={handleCompanySign}
-                            isLoading={sending}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 font-bold uppercase tracking-widest text-xs"
+                            className="btn-primary bg-emerald-600 hover:bg-emerald-700 border-none gap-2"
                         >
                             <CheckCircle size={14} />
-                            Sign as Company
-                        </Button>
+                            SIGN AS COMPANY
+                        </button>
                     )}
 
                     {contract.status === 'draft' && (
                         <Link
                             href={`/crm/contracts/${params.id}/edit`}
-                            className="bg-white border border-slate-200 text-slate-700 px-4 py-2.5 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-slate-50 hover:border-slate-300 transition-all flex items-center gap-2 shadow-sm"
+                            className="btn-secondary gap-2"
                         >
-                            <Edit size={14} /> Edit
+                            <Edit size={14} /> EDIT
                         </Link>
                     )}
                     {contract.status === 'draft' && (
-                        <Button
+                        <button
                             onClick={handleSend}
-                            isLoading={sending}
-                            className="ent-button-primary gap-2"
+                            className="btn-primary gap-2"
                         >
                             <Send size={14} />
-                            Publish & Send
-                        </Button>
+                            PUBLISH & SEND
+                        </button>
                     )}
                     {/* Allow Resending if Sent OR Signed */}
                     {(contract.status === 'sent' || contract.status === 'signed') && (
-                        <Button
+                        <button
                             onClick={handleSend}
-                            isLoading={sending}
-                            variant="secondary"
-                            className="gap-2"
+                            className="btn-secondary gap-2"
                         >
                             <Send size={14} />
-                            Resend Email
-                        </Button>
+                            RESEND EMAIL
+                        </button>
                     )}
 
-                    <div className="flex items-center gap-2 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
+                    <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-md border border-slate-200">
                         <input
                             type="checkbox"
                             id="useLetterhead"
                             checked={useLetterhead}
                             onChange={(e) => setUseLetterhead(e.target.checked)}
-                            className="w-3.5 h-3.5 rounded border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer"
+                            className="w-3.5 h-3.5 rounded border-slate-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
                         />
-                        <label htmlFor="useLetterhead" className="text-[10px] font-black uppercase tracking-widest text-slate-600 cursor-pointer select-none">Letterhead</label>
+                        <label htmlFor="useLetterhead" className="stat-label cursor-pointer select-none">Letterhead</label>
                     </div>
 
                     <a
                         href={`${process.env.NEXT_PUBLIC_API_URL}/contracts/${contract.id}/pdf?useLetterhead=${useLetterhead}`}
                         target="_blank"
-                        className="bg-slate-900 text-white px-4 py-2.5 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center gap-2 shadow-lg shadow-slate-900/20"
+                        className="btn-primary gap-2 shadow-lg shadow-primary-900/10"
                     >
                         <Download size={14} /> PDF
                     </a>
@@ -270,16 +263,15 @@ export default function ContractDetailsPage({ params }: { params: { id: string }
             {activeTab === 'tracking' && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
 
-                    {/* Stats Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         {stats.map((stat) => (
-                            <div key={stat.label} className="ent-card p-6 flex items-center gap-4 hover:shadow-md transition-shadow">
-                                <div className={`p-3 rounded-full ${stat.bg} ${stat.color}`}>
-                                    <stat.icon size={24} />
+                            <div key={stat.label} className="ent-card p-5 flex items-center gap-4">
+                                <div className={`p-2.5 rounded-md ${stat.bg} ${stat.color} shadow-sm border border-black/5`}>
+                                    <stat.icon size={18} />
                                 </div>
                                 <div>
-                                    <span className="block text-slate-500 text-[10px] font-black uppercase tracking-widest">{stat.label}</span>
-                                    <span className="block text-2xl font-black text-slate-900 mt-1">{stat.value}</span>
+                                    <span className="stat-label">{stat.label}</span>
+                                    <span className="block stat-value">{stat.value}</span>
                                 </div>
                             </div>
                         ))}
@@ -313,15 +305,25 @@ export default function ContractDetailsPage({ params }: { params: { id: string }
                                                         <div className="font-bold text-slate-900 text-sm">{activity.type.replace(/_/g, ' ')}</div>
                                                         <time className="font-mono text-[10px] text-slate-400">{new Date(activity.createdAt).toLocaleString()}</time>
                                                     </div>
-                                                    <div className="text-slate-500 text-xs">
+                                                    <div className="text-slate-500 text-xs leading-relaxed">
                                                         {activity.type === 'VIEWED' && 'Client viewed the contract details page.'}
                                                         {activity.type === 'EMAIL_SENT' && `Contract sent to ${activity.metadata?.recipient || 'client'}.`}
-                                                        {(activity.type === 'SIGNED' || activity.type === 'COMPANY_SIGNED') && `Signed by ${activity.metadata?.name}.`}
-                                                        {activity.ipAddress && (
-                                                            <div className="mt-2 flex items-center gap-2 text-[10px] text-slate-400 bg-slate-50 p-1 rounded inline-flex">
-                                                                <Globe size={10} /> {activity.ipAddress}
-                                                            </div>
-                                                        )}
+                                                        {(activity.type === 'SIGNED' || activity.type === 'COMPANY_SIGNED') && `Successfully signed by ${activity.metadata?.name}.`}
+                                                        {activity.type === 'DOWNLOADED' && 'Contract PDF was downloaded.'}
+
+                                                        <div className="mt-2 flex flex-wrap gap-2">
+                                                            {activity.ipAddress && (
+                                                                <span className="inline-flex items-center gap-1 text-[9px] text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">
+                                                                    <Globe size={10} /> {activity.ipAddress}
+                                                                </span>
+                                                            )}
+                                                            {activity.userAgent && (
+                                                                <span className="inline-flex items-center gap-1 text-[9px] text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">
+                                                                    {activity.userAgent.includes('Mobile') ? <Smartphone size={10} /> : <Monitor size={10} />}
+                                                                    {activity.userAgent.split(')')[0].split('(')[1]?.substring(0, 20) || 'Device'}...
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>

@@ -12,7 +12,8 @@ import {
     X,
     Bell,
     User,
-    Building2
+    Building2,
+    FileSignature
 } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
 
@@ -55,6 +56,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
     const menuItems = [
         { name: 'Dashboard', href: '/portal/dashboard', icon: LayoutDashboard },
         { name: 'My Invoices', href: '/portal/invoices', icon: FileText },
+        { name: 'My Contracts', href: '/portal/contracts', icon: FileSignature },
         { name: 'My Projects', href: '/portal/projects', icon: Briefcase },
     ];
 

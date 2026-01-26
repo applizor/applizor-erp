@@ -27,4 +27,5 @@ export const portalContractRouter = Router();
 portalContractRouter.get('/', authenticateClient, ContractController.getMyContracts);
 portalContractRouter.get('/:id', authenticateClient, ContractController.getContractById); // Reuse controller, ensuring permission checks in future
 portalContractRouter.post('/:id/sign', authenticateClient, ContractController.signContract);
+portalContractRouter.post('/:id/view', authenticateClient, ContractController.logView);
 portalContractRouter.get('/:id/pdf', authenticateClient, ContractController.downloadContractPDF);

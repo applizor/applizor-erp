@@ -169,3 +169,22 @@ export const downloadContractPDF = async (req: Request, res: Response) => {
         res.status(500).json({ error: error.message });
     }
 }
+
+export const logView = async (req: Request, res: Response) => {
+    try {
+        const contractId = req.params.id;
+        const ip = req.ip || req.socket.remoteAddress || 'Unknown';
+        const userAgent = req.headers['user-agent'];
+
+        await ContractService.logActivity({
+            contractId,
+            type: 'VIEWED',
+            ipAddress: ip as string,
+            userAgent: userAgent as string
+        });
+
+        res.json({ success: true });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};

@@ -64,6 +64,14 @@ interface PDFData {
     clientName?: string;
     clientAcceptedAt?: Date;
     signatureToken?: string;
+    project?: { name: string };
+    date?: Date;
+    content?: string;
+    companySignature?: string;
+    signerIp?: string;
+    signedAt?: Date;
+    companySignedAt?: Date;
+    id?: string;
 }
 
 export class PDFService {
@@ -617,59 +625,79 @@ export class PDFService {
     `;
 
 
-        // Check if signatures are embedded in content via variables
-        const hasEmbeddedCompanySig = (data.content || '').includes('[COMPANY_SIGNATURE]');
-        const hasEmbeddedClientSig = (data.content || '').includes('[CLIENT_SIGNATURE]');
+        const formatDate = (date: any) => {
+            if (!date) return '-';
+            return new Date(date).toLocaleDateString('en-IN', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+        };
 
-        // Perform Variable Replacement
-        const processedContent = (data.content || '')
-            .replace(/\[COMPANY_SIGNATURE\]/g, signatureBase64 ? `<img src="${signatureBase64}" style="max-height: 60px; vertical-align: middle;">` : '')
-            .replace(/\[CLIENT_SIGNATURE\]/g, clientSignatureBase64 ? `<img src="${clientSignatureBase64}" style="max-height: 60px; vertical-align: middle;">` : '')
-            .replace(/\[CLIENT_NAME\]/g, data.client.name || '')
-            .replace(/\[COMPANY_NAME\]/g, data.company.name || '')
-            .replace(/\[DATE\]/g, new Date(data.date).toLocaleDateString())
-            .replace(/\[PROJECT_NAME\]/g, data.project?.name || '')
-            .replace(/\[TOTAL_AMOUNT\]/g, data.total ? `${data.currency} ${data.total}` : '');
-
-
-        const backgroundCSS = data.useLetterhead ? `
-    @page {
-        margin: ${contTop}px ${marginRight}px ${marginBottom}px ${marginLeft}px;
-        ${continuationBase64 ? `background-image: url('${continuationBase64}'); background-size: 100% 100%;` : ''}
-    }
-    @page:first {
-        margin-top: ${marginTop}px;
-        ${letterheadBase64 ? `background-image: url('${letterheadBase64}'); background-size: 100% 100%;` : ''}
-    }
-    body { 
-        margin: 0;
-        padding: 0;
-        background: transparent !important;
-    }
-    ` : `
-    @page {
-        margin: 40px 60px;
-    }
-    body { 
-        margin: 0;
-        padding: 0;
-    }
-    `;
-
+        const formatCurrency = (amount: any) => {
+            const num = Number(amount);
+            if (isNaN(num)) return amount;
+            return new Intl.NumberFormat(data.currency === 'INR' ? 'en-IN' : 'en-US', {
+                style: 'currency',
+                currency: data.currency || 'INR',
+                minimumFractionDigits: 2
+            }).format(num);
+        };
 
         // Check if signatures are embedded in content via variables
-        const hasEmbeddedCompanySig = (data.content || '').includes('[COMPANY_SIGNATURE]');
-        const hasEmbeddedClientSig = (data.content || '').includes('[CLIENT_SIGNATURE]');
+        const hasEmbeddedCompanySig = (data.content || '').toLowerCase().includes('[company_signature]');
+        const hasEmbeddedClientSig = (data.content || '').toLowerCase().includes('[client_signature]');
 
         // Perform Variable Replacement
-        const processedContent = (data.content || '')
-            .replace(/\[COMPANY_SIGNATURE\]/g, signatureBase64 ? `<img src="${signatureBase64}" style="max-height: 60px; vertical-align: middle;">` : '')
-            .replace(/\[CLIENT_SIGNATURE\]/g, clientSignatureBase64 ? `<img src="${clientSignatureBase64}" style="max-height: 60px; vertical-align: middle;">` : '')
-            .replace(/\[CLIENT_NAME\]/g, data.client.name || '')
-            .replace(/\[COMPANY_NAME\]/g, data.company.name || '')
-            .replace(/\[DATE\]/g, new Date(data.date).toLocaleDateString())
-            .replace(/\[PROJECT_NAME\]/g, data.project?.name || '')
-            .replace(/\[TOTAL_AMOUNT\]/g, data.total ? `${data.currency} ${data.total}` : '');
+        let processedContent = (data.content || '');
+
+        // System / Contract Variables
+        processedContent = processedContent
+            .replace(/\[COMPANY_SIGNATURE\]/gi, signatureBase64 ? `<img src="${signatureBase64}" style="max-height: 60px; vertical-align: middle;">` : '')
+            .replace(/\[CLIENT_SIGNATURE\]/gi, clientSignatureBase64 ? `<img src="${clientSignatureBase64}" style="max-height: 60px; vertical-align: middle;">` : '')
+            .replace(/\[DATE\]/gi, formatDate(data.date))
+            .replace(/\[CURRENT_DATE\]/gi, formatDate(new Date()))
+            .replace(/\[CONTRACT_ID\]/gi, data.id || '')
+            .replace(/\[CONTRACT_VALUE\]/gi, data.contractValue ? data.contractValue.toString() : '0')
+            .replace(/\[CURRENCY\]/gi, data.currency || 'INR')
+            .replace(/\[VALID_FROM\]/gi, data.validFrom ? formatDate(data.validFrom) : '')
+            .replace(/\[VALID_UNTIL\]/gi, data.validUntil ? formatDate(data.validUntil) : '')
+            .replace(/\[TOTAL_AMOUNT\]/gi, data.contractValue ? `${data.currency || 'INR'} ${data.contractValue}` : '');
+
+        // Client Variables
+        if (data.client) {
+            processedContent = processedContent
+                .replace(/\[CLIENT_NAME\]/gi, data.client.name || '')
+                .replace(/\[CLIENT_COMPANY\]/gi, data.client.company?.name || data.client.name || '')
+                .replace(/\[CLIENT_EMAIL\]/gi, data.client.email || '')
+                .replace(/\[CLIENT_PHONE\]/gi, data.client.phone || '')
+                .replace(/\[CLIENT_ADDRESS\]/gi, data.client.address || '')
+                .replace(/\[CLIENT_CITY\]/gi, data.client.city || '')
+                .replace(/\[CLIENT_STATE\]/gi, data.client.state || '')
+                .replace(/\[CLIENT_GSTIN\]/gi, data.client.gstin || '')
+                .replace(/\[CLIENT_PAN\]/gi, data.client.pan || '');
+        }
+
+        // Company Variables
+        if (data.company) {
+            processedContent = processedContent
+                .replace(/\[COMPANY_NAME\]/gi, data.company.name || '')
+                .replace(/\[COMPANY_LEGAL_NAME\]/gi, data.company.legalName || data.company.name || '')
+                .replace(/\[COMPANY_EMAIL\]/gi, data.company.email || '')
+                .replace(/\[COMPANY_PHONE\]/gi, data.company.phone || '')
+                .replace(/\[COMPANY_ADDRESS\]/gi, data.company.address || '')
+                .replace(/\[COMPANY_GSTIN\]/gi, data.company.gstin || '')
+                .replace(/\[COMPANY_PAN\]/gi, data.company.pan || '');
+        }
+
+        // Project Variables
+        if (data.project) {
+            processedContent = processedContent
+                .replace(/\[PROJECT_NAME\]/gi, data.project.name || '')
+                .replace(/\[PROJECT_DESCRIPTION\]/gi, data.project.description || '')
+                .replace(/\[PROJECT_START_DATE\]/gi, data.project.startDate ? formatDate(data.project.startDate) : '')
+                .replace(/\[PROJECT_END_DATE\]/gi, data.project.endDate ? formatDate(data.project.endDate) : '');
+        }
 
 
         return `
@@ -756,7 +784,7 @@ export class PDFService {
 <div class="header">
     ${logoBase64 ? `<img src="${logoBase64}" class="company-logo">` : ''}
     <div class="title">${data.title}</div>
-    <div class="meta">Agreement Date: ${new Date(data.date).toLocaleDateString()}</div>
+    <div class="meta">Agreement Date: ${formatDate(data.date)}</div>
 </div>
 
 <div class="content">

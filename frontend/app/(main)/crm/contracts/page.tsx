@@ -20,6 +20,18 @@ export default function ContractsList() {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState('all');
 
+    // Stats
+    const stats = {
+        total: contracts.length,
+        signed: contracts.filter(c => c.status === 'signed').length,
+        sent: contracts.filter(c => c.status === 'sent').length,
+        expiringSoon: contracts.filter(c => {
+            if (!c.validUntil || c.status === 'signed') return false;
+            const daysLeft = Math.ceil((new Date(c.validUntil).getTime() - new Date().getTime()) / (1000 * 3600 * 24));
+            return daysLeft > 0 && daysLeft <= 30;
+        }).length
+    };
+
     // Delete Dialog State
     const [deleteDialog, setDeleteDialog] = useState<{ isOpen: boolean; id: string | null }>({
         isOpen: false,
@@ -66,11 +78,11 @@ export default function ContractsList() {
             viewed: 'ent-badge ent-badge-warning',
             signed: 'ent-badge ent-badge-success',
             expired: 'ent-badge ent-badge-danger',
-            cancelled: 'ent-badge bg-gray-100 text-gray-400 border-gray-200'
+            cancelled: 'ent-badge bg-slate-100 text-slate-400 border-slate-200'
         };
         return (
             <span className={styles[status] || styles.draft}>
-                {status}
+                {status.toUpperCase()}
             </span>
         );
     };
@@ -79,8 +91,15 @@ export default function ContractsList() {
         const matchesSearch =
             c.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
             c.client.name.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesStatus = filterStatus === 'all' || c.status === filterStatus;
-        return matchesSearch && matchesStatus;
+
+        if (filterStatus === 'all') return matchesSearch;
+        if (filterStatus === 'expiring') {
+            if (!c.validUntil || c.status === 'signed') return false;
+            const daysLeft = Math.ceil((new Date(c.validUntil).getTime() - new Date().getTime()) / (1000 * 3600 * 24));
+            return matchesSearch && daysLeft > 0 && daysLeft <= 30;
+        }
+
+        return matchesSearch && c.status === filterStatus;
     });
 
     if (loading) return (
@@ -101,14 +120,14 @@ export default function ContractsList() {
                             href="/crm/contracts/templates"
                             className="ent-button-secondary gap-2"
                         >
-                            <LayoutTemplate size={16} />
+                            <LayoutTemplate size={14} />
                             Templates
                         </Link>
                         <Link
                             href="/crm/contracts/create"
-                            className="ent-button-primary"
+                            className="btn-primary"
                         >
-                            <Plus size={16} className="mr-2" />
+                            <Plus size={14} className="mr-2" />
                             Create Contract
                         </Link>
                     </div>
@@ -138,16 +157,21 @@ export default function ContractsList() {
                     />
                 </div>
                 <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto">
-                    {['all', 'draft', 'sent', 'signed', 'expired'].map((status) => (
+                    {['all', 'draft', 'sent', 'signed', 'expired', 'expiring'].map((status) => (
                         <button
                             key={status}
                             onClick={() => setFilterStatus(status)}
-                            className={`px-3 py-1.5 rounded text-[10px] font-black uppercase tracking-widest transition-all ${filterStatus === status
+                            className={`px-3 py-1.5 rounded text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${filterStatus === status
                                 ? 'bg-slate-900 text-white shadow-md'
                                 : 'bg-white border border-slate-200 text-slate-500 hover:bg-slate-50'
                                 }`}
                         >
-                            {status}
+                            {status === 'expiring' ? 'Expiring Soon' : status}
+                            {status === 'expiring' && stats.expiringSoon > 0 && (
+                                <span className="bg-rose-500 text-white px-1.5 py-0.5 rounded-full text-[8px] animate-pulse">
+                                    {stats.expiringSoon}
+                                </span>
+                            )}
                         </button>
                     ))}
                 </div>
@@ -178,21 +202,21 @@ export default function ContractsList() {
                                     <tr key={contract.id} className="group">
                                         <td>
                                             <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded bg-primary-50 flex items-center justify-center text-primary-600">
-                                                    <FileText size={14} />
+                                                <div className="ent-icon-box w-8 h-8 rounded bg-primary-900 shadow-none">
+                                                    <FileText size={14} className="text-white" />
                                                 </div>
                                                 <div>
-                                                    <p className="font-bold text-slate-900">{contract.title}</p>
-                                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
-                                                        BY {contract.creator.firstName}
+                                                    <p className="font-black text-slate-900">{contract.title}</p>
+                                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mt-0.5">
+                                                        REF: {contract.id.split('-')[0]} • BY {contract.creator.firstName}
                                                     </p>
                                                 </div>
                                             </div>
                                         </td>
                                         <td>
                                             <div>
-                                                <p className="font-bold text-slate-900">{contract.client.name}</p>
-                                                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{contract.client.company?.name || 'INDIVIDUAL'}</p>
+                                                <p className="font-black text-slate-900">{contract.client.name}</p>
+                                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mt-0.5">{contract.client.company?.name || 'INDIVIDUAL'}</p>
                                             </div>
                                         </td>
                                         <td>
@@ -200,6 +224,18 @@ export default function ContractsList() {
                                                 <Calendar size={12} />
                                                 {new Date(contract.createdAt).toLocaleDateString()}
                                             </div>
+                                            {contract.validUntil && (
+                                                <div className={`mt-1 text-[10px] font-bold flex items-center gap-1 ${(() => {
+                                                    const days = Math.ceil((new Date(contract.validUntil).getTime() - new Date().getTime()) / (1000 * 3600 * 24));
+                                                    if (days <= 0) return 'text-rose-600';
+                                                    if (days <= 30) return 'text-amber-500';
+                                                    return 'text-slate-400';
+                                                })()
+                                                    }`}>
+                                                    <Calendar size={10} />
+                                                    Expires: {new Date(contract.validUntil).toLocaleDateString()}
+                                                </div>
+                                            )}
                                         </td>
                                         <td>
                                             {getStatusBadge(contract.status)}

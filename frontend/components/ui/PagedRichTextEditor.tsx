@@ -79,14 +79,41 @@ export default function PagedRichTextEditor({
     };
 
     const variables = [
+        // System / Contract
+        { label: 'Current Date', value: '[CURRENT_DATE]' },
+        { label: 'Contract ID', value: '[CONTRACT_ID]' },
+        { label: 'Contract Value', value: '[CONTRACT_VALUE]' },
+        { label: 'Currency', value: '[CURRENCY]' },
+        { label: 'Valid From', value: '[VALID_FROM]' },
+        { label: 'Valid Until', value: '[VALID_UNTIL]' },
+
+        // Client Details
         { label: 'Client Name', value: '[CLIENT_NAME]' },
-        { label: 'Company Name', value: '[COMPANY_NAME]' },
-        { label: 'Website', value: '[WEBSITE]' },
-        { label: 'Date', value: '[DATE]' },
-        { label: 'Project Name', value: '[PROJECT_NAME]' },
-        { label: 'Total Amount', value: '[TOTAL_AMOUNT]' },
+        { label: 'Client Company', value: '[CLIENT_COMPANY]' },
+        { label: 'Client Email', value: '[CLIENT_EMAIL]' },
+        { label: 'Client Phone', value: '[CLIENT_PHONE]' },
+        { label: 'Client Address', value: '[CLIENT_ADDRESS]' },
+        { label: 'Client City', value: '[CLIENT_CITY]' },
+        { label: 'Client State', value: '[CLIENT_STATE]' },
+        { label: 'Client GSTIN', value: '[CLIENT_GSTIN]' },
+        { label: 'Client PAN', value: '[CLIENT_PAN]' },
         { label: 'Client Signature', value: '[CLIENT_SIGNATURE]' },
+
+        // Company Details
+        { label: 'Company Name', value: '[COMPANY_NAME]' },
+        { label: 'Company Legal Name', value: '[COMPANY_LEGAL_NAME]' },
+        { label: 'Company Email', value: '[COMPANY_EMAIL]' },
+        { label: 'Company Phone', value: '[COMPANY_PHONE]' },
+        { label: 'Company Address', value: '[COMPANY_ADDRESS]' },
+        { label: 'Company GSTIN', value: '[COMPANY_GSTIN]' },
+        { label: 'Company PAN', value: '[COMPANY_PAN]' },
         { label: 'Company Signature', value: '[COMPANY_SIGNATURE]' },
+
+        // Project Details
+        { label: 'Project Name', value: '[PROJECT_NAME]' },
+        { label: 'Project Description', value: '[PROJECT_DESCRIPTION]' },
+        { label: 'Project Start Date', value: '[PROJECT_START_DATE]' },
+        { label: 'Project End Date', value: '[PROJECT_END_DATE]' },
     ];
 
     return (

@@ -15,6 +15,7 @@ export default function CreateContractPage() {
     const router = useRouter();
     const toast = useToast();
     const [loading, setLoading] = useState(false);
+    const [saving, setSaving] = useState(false);
     const [clients, setClients] = useState<any[]>([]);
 
     // Dialog State
@@ -42,20 +43,13 @@ export default function CreateContractPage() {
     const [validFrom, setValidFrom] = useState('');
     const [validUntil, setValidUntil] = useState('');
 
-    // New Fields matching Reference
+    // Additional Fields
     const [contractValue, setContractValue] = useState('');
     const [currency, setCurrency] = useState('INR');
     const [contractType, setContractType] = useState('');
     const [projectId, setProjectId] = useState('');
 
-    // Mock Data for new fields (normally fetched from API)
-    const currencies = ['INR', 'USD', 'EUR', 'GBP'];
-    const contractTypes = ['NDA', 'SLA', 'Employment', 'Vendor Agreement', 'Partnership'];
-    const projects = [
-        { id: '1', name: 'Website Redesign' },
-        { id: '2', name: 'Mobile App Dev' },
-        { id: '3', name: 'Cloud Migration' }
-    ];
+    const [companyData, setCompanyData] = useState<any>(null);
 
     // Initial content with correct variables
     const initialContent = `
@@ -71,39 +65,24 @@ export default function CreateContractPage() {
     `;
     const [content, setContent] = useState(initialContent);
 
-    // Set initial base content
     useEffect(() => {
         setBaseContent(initialContent);
+        fetchInitialData();
     }, []);
 
-
-
-    // NOTE: availableVariables array was removed from here as it's now handled inside PagedRichTextEditor 
-    // to avoid UI duplication.
-
-
-    const [companyData, setCompanyData] = useState<any>(null);
-
-    useEffect(() => {
-        fetchClients();
-        fetchCompany();
-    }, []);
-
-    const fetchCompany = async () => {
+    const fetchInitialData = async () => {
+        setLoading(true);
         try {
-            const res = await api.get('/company');
-            setCompanyData(res.data.company);
+            const [companyRes, clientsRes] = await Promise.all([
+                api.get('/company'),
+                api.get('/clients?limit=100')
+            ]);
+            setCompanyData(companyRes.data.company);
+            setClients(clientsRes.data.clients || []);
         } catch (error) {
-            console.error('Failed to fetch company details');
-        }
-    };
-
-    const fetchClients = async () => {
-        try {
-            const res = await api.get('/clients?limit=100');
-            setClients(res.data.clients || []);
-        } catch (error) {
-            console.error(error);
+            console.error('Failed to fetch initial data', error);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -120,22 +99,18 @@ export default function CreateContractPage() {
         }
     };
 
-    // Helper to get base URL (without /api)
     const getBaseUrl = () => {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
         return apiUrl.replace(/\/api$/, '');
     };
 
-    // Logic to replace variables with client data
     const processVariables = (text: string, clientData?: any) => {
         let processed = text;
         const now = new Date().toLocaleDateString();
 
-        // System Variables
         processed = processed.replace(/\[CURRENT_DATE\]/g, now);
         processed = processed.replace(/\[MY_COMPANY_NAME\]/g, companyData?.name || 'Applizor Softech');
 
-        // Company Signature Variable
         if (companyData?.digitalSignature) {
             const signatureUrl = `${getBaseUrl()}${companyData.digitalSignature}`;
             const signatureHtml = `<img src="${signatureUrl}" style="max-height: 60px; vertical-align: middle;" alt="Company Signature" />`;
@@ -144,13 +119,17 @@ export default function CreateContractPage() {
             processed = processed.replace(/\[COMPANY_SIGNATURE\]/g, '<strong>[PENDING SIGNATURE]</strong>');
         }
 
-        // Client Variables
         if (clientData) {
             const replacements: Record<string, string> = {
                 '\\[CLIENT_NAME\\]': clientData.name || '',
                 '\\[CLIENT_COMPANY\\]': clientData.company?.name || clientData.name || '',
+                '\\[CLIENT_EMAIL\\]': clientData.email || '',
+                '\\[CLIENT_PHONE\\]': clientData.phone || '',
                 '\\[CLIENT_ADDRESS\\]': clientData.address || '',
-                '\\[CLIENT_CITY\\]': clientData.city || 'City',
+                '\\[CLIENT_CITY\\]': clientData.city || '',
+                '\\[CLIENT_STATE\\]': clientData.state || '',
+                '\\[CLIENT_GSTIN\\]': clientData.gstin || '',
+                '\\[CLIENT_PAN\\]': clientData.pan || '',
             };
 
             Object.entries(replacements).forEach(([key, value]) => {
@@ -158,6 +137,38 @@ export default function CreateContractPage() {
                 processed = processed.replace(regex, value);
             });
         }
+
+        // Company Variables
+        if (companyData) {
+            const replacements: Record<string, string> = {
+                '\\[COMPANY_NAME\\]': companyData.name || '',
+                '\\[COMPANY_LEGAL_NAME\\]': companyData.legalName || companyData.name || '',
+                '\\[COMPANY_EMAIL\\]': companyData.email || '',
+                '\\[COMPANY_PHONE\\]': companyData.phone || '',
+                '\\[COMPANY_ADDRESS\\]': companyData.address || '',
+                '\\[COMPANY_GSTIN\\]': companyData.gstin || '',
+                '\\[COMPANY_PAN\\]': companyData.pan || '',
+            };
+
+            Object.entries(replacements).forEach(([key, value]) => {
+                const regex = new RegExp(key, 'g');
+                processed = processed.replace(regex, value);
+            });
+        }
+
+        // Contract / System Variables
+        const contractReplacements: Record<string, string> = {
+            '\\[CONTRACT_VALUE\\]': contractValue || '0',
+            '\\[CURRENCY\\]': currency || 'INR',
+            '\\[VALID_FROM\\]': validFrom || '',
+            '\\[VALID_UNTIL\\]': validUntil || '',
+            '\\[CURRENT_DATE\\]': new Date().toLocaleDateString(),
+        };
+
+        Object.entries(contractReplacements).forEach(([key, value]) => {
+            const regex = new RegExp(key, 'g');
+            processed = processed.replace(regex, value);
+        });
         return processed;
     };
 
@@ -166,12 +177,7 @@ export default function CreateContractPage() {
         const selectedClient = clients.find(c => c.id === id);
 
         if (selectedClient) {
-            // ALWAYS use baseContent (with placeholders) as the source
-            // This ensures we can switch clients and re-apply variables correctly
             const sourceContent = baseContent || content;
-
-            // Check if source actually has placeholders, otherwise updates might be useless
-            // But if we have baseContent, it SHOULD have placeholders.
             if (sourceContent.includes('[')) {
                 const newContent = processVariables(sourceContent, selectedClient);
                 setContent(newContent);
@@ -197,13 +203,10 @@ export default function CreateContractPage() {
     };
 
     const applyTemplate = (template: any) => {
-        // 1. Store the raw template as baseContent
         setBaseContent(template.content);
-
         let newContent = template.content;
         const selectedClient = clients.find(c => c.id === clientId);
 
-        // 2. Apply variables immediately if client is selected
         if (selectedClient) {
             newContent = processVariables(newContent, selectedClient);
             toast.success('Template applied & variables filled!');
@@ -223,50 +226,39 @@ export default function CreateContractPage() {
             toast.error('Please select a client first');
             return;
         }
-
-        // Use baseContent if available to ensure we have placeholders, otherwise fallback to current content
         const source = baseContent.includes('[CLIENT') ? baseContent : content;
-
         const filled = processVariables(source, selectedClient);
         setContent(filled);
         toast.success('Variables processed');
     };
 
     const handleSaveAndSend = async () => {
-        setLoading(true);
+        setSaving(true);
         try {
-            // 1. Create/Save Contract
             const res = await api.post('/contracts', {
                 title,
                 clientId,
                 content,
                 validFrom: validFrom ? new Date(validFrom) : null,
-                validFrom: validFrom ? new Date(validFrom) : null,
                 validUntil: validUntil ? new Date(validUntil) : null,
-                // New Fields
                 contractValue: parseFloat(contractValue) || 0,
                 currency,
                 contractType,
                 projectId
             });
-            const contractId = res.data.id;
-
-            // 2. Send Notification
-            // Note: Ensure POST /contracts/:id/send route exists on backend
-            await api.post(`/contracts/${contractId}/send`);
-
-            toast.success('Contract saved & sent to client!');
+            await api.post(`/contracts/${res.data.id}/send`);
+            toast.success('Contract created & sent to client!');
             router.push('/crm/contracts');
         } catch (error: any) {
             toast.error(error.response?.data?.error || 'Failed to send contract');
         } finally {
-            setLoading(false);
+            setSaving(false);
         }
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setLoading(true);
+    const handleSubmit = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        setSaving(true);
 
         try {
             await api.post('/contracts', {
@@ -274,9 +266,7 @@ export default function CreateContractPage() {
                 clientId,
                 content,
                 validFrom: validFrom ? new Date(validFrom) : null,
-                validFrom: validFrom ? new Date(validFrom) : null,
                 validUntil: validUntil ? new Date(validUntil) : null,
-                // New Fields
                 contractValue: parseFloat(contractValue) || 0,
                 currency,
                 contractType,
@@ -287,13 +277,18 @@ export default function CreateContractPage() {
         } catch (error: any) {
             toast.error(error.response?.data?.error || 'Failed to create contract');
         } finally {
-            setLoading(false);
+            setSaving(false);
         }
     };
 
+    if (loading) return (
+        <div className="flex justify-center items-center h-96">
+            <LoadingSpinner size="lg" />
+        </div>
+    );
+
     return (
         <div className="max-w-7xl mx-auto pb-20 space-y-8 animate-fade-in relative my-8 px-4 sm:px-6">
-
             <ConfirmDialog
                 isOpen={confirmDialog.isOpen}
                 onClose={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
@@ -326,7 +321,6 @@ export default function CreateContractPage() {
                                         <LayoutTemplate size={32} className="text-slate-300" />
                                     </div>
                                     <p className="text-slate-500 font-bold">No templates found.</p>
-                                    <Link href="/crm/contracts/templates/create" className="text-primary-600 text-xs font-black uppercase tracking-widest mt-2 inline-block hover:underline">Create your first template</Link>
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -354,206 +348,128 @@ export default function CreateContractPage() {
             )}
 
             <PageHeader
-                title="Draft New Contract"
-                subtitle="Create a legally binding agreement"
+                title="Create Contract"
+                subtitle="Draft a new agreement"
                 icon={FileText}
                 actions={
                     <div className="flex gap-3">
-                        <Link
-                            href="/crm/contracts"
-                            className="ent-button-secondary gap-2"
-                        >
+                        <Link href="/crm/contracts" className="ent-button-secondary gap-2">
                             <ArrowLeft className="w-3 h-3" />
-                            Cancel
+                            Back
                         </Link>
                         <button
                             onClick={handleSaveAndSend}
-                            disabled={loading}
-                            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] uppercase tracking-widest rounded-md shadow-lg shadow-emerald-900/10 flex items-center gap-2 transition-all"
+                            disabled={saving}
+                            className="btn-primary bg-emerald-600 hover:bg-emerald-700 border-none px-4 py-2 text-[10px] shadow-lg shadow-emerald-900/10"
                         >
-                            <Send size={14} />
-                            {loading ? 'Processing...' : 'Save & Send'}
+                            <Send size={14} className="mr-2" />
+                            {saving ? 'Processing...' : 'Save & Send'}
                         </button>
                         <button
-                            onClick={handleSubmit}
-                            disabled={loading}
-                            className="ent-button-primary gap-2 shadow-xl shadow-primary-900/10"
+                            onClick={() => handleSubmit()}
+                            disabled={saving}
+                            className="btn-primary gap-2 shadow-xl shadow-primary-900/10"
                         >
-                            <Save className="w-4 h-4" />
-                            {loading ? 'Saving...' : 'Save Draft'}
+                            <Save size={14} />
+                            {saving ? 'Saving...' : 'Save Draft'}
                         </button>
                     </div>
                 }
             />
 
             <form onSubmit={handleSubmit} className="space-y-6">
-
-                {/* Top Metadata Bar */}
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-                    <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
-                        {/* Title Section - Prominent */}
-                        <div className="md:col-span-12 lg:col-span-5 space-y-2">
-                            <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">Contract Title</label>
+                <div className="ent-card p-5">
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-start">
+                        <div className="md:col-span-12 lg:col-span-5 ent-form-group">
+                            <label className="ent-label">Contract Title</label>
                             <input
                                 type="text"
                                 required
                                 value={title}
                                 onChange={(e) => setTitle(e.target.value)}
-                                className="w-full text-lg font-bold text-slate-900 border-0 border-b-2 border-slate-200 focus:border-primary-500 focus:ring-0 px-0 py-2 bg-transparent transition-colors placeholder-slate-300"
-                                placeholder="e.g. Software Development Agreement - Client Name"
+                                className="ent-input text-sm"
+                                placeholder="e.g. Software Development Agreement"
                             />
                         </div>
 
-                        {/* Client Selector */}
-                        <div className="md:col-span-6 lg:col-span-3 space-y-2">
-                            <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">Client</label>
+                        <div className="md:col-span-6 lg:col-span-3 ent-form-group">
+                            <label className="ent-label">Client</label>
                             <div className="relative">
                                 <select
                                     required
                                     value={clientId}
                                     onChange={(e) => handleClientChange(e.target.value)}
-                                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block p-2.5 font-medium"
+                                    className="ent-input pr-10"
                                 >
                                     <option value="">-- Select Client --</option>
                                     {clients.map(c => (
                                         <option key={c.id} value={c.id}>{c.name} ({c.company?.name || 'Ind.'})</option>
                                     ))}
                                 </select>
-                                <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none text-slate-400">
+                                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-slate-400">
                                     <User size={14} />
                                 </div>
                             </div>
                         </div>
 
-                        {/* Dates Row */}
-                    </div>
-
-                    {/* Row 2: Projects & Type */}
-                    <div className="md:col-span-12 grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                            <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">Project (Optional)</label>
-                            <select
-                                value={projectId}
-                                onChange={(e) => setProjectId(e.target.value)}
-                                className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block p-2.5"
-                            >
-                                <option value="">-- No Project --</option>
-                                {projects.map(p => (
-                                    <option key={p.id} value={p.id}>{p.name}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">Contract Type <span className="text-red-500">*</span></label>
-                            <div className="flex gap-2">
-                                <select
-                                    required
-                                    value={contractType}
-                                    onChange={(e) => setContractType(e.target.value)}
-                                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block p-2.5"
-                                >
-                                    <option value="">-- Select Type --</option>
-                                    {contractTypes.map(t => (
-                                        <option key={t} value={t}>{t}</option>
-                                    ))}
-                                </select>
-                                <button type="button" className="px-3 py-1 text-xs font-bold bg-slate-100 rounded border border-slate-200 hover:bg-slate-200">Add</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Row 3: Financials & Dates */}
-                    <div className="md:col-span-12 grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {/* Value & Currency */}
-                        <div className="space-y-2">
-                            <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">Contract Value <span className="text-red-500">*</span></label>
-                            <div className="flex">
-                                <div className="relative w-full">
-                                    <input
-                                        type="number"
-                                        required
-                                        value={contractValue}
-                                        onChange={(e) => setContractValue(e.target.value)}
-                                        className="block p-2.5 w-full z-20 text-sm text-slate-900 bg-slate-50 rounded-l-lg border-l-gray-50 border-l-2 border border-gray-300 focus:ring-primary-500 focus:border-primary-500"
-                                        placeholder="0.00"
-                                    />
-                                </div>
-                                <select
-                                    value={currency}
-                                    onChange={(e) => setCurrency(e.target.value)}
-                                    className="z-10 inline-flex items-center py-2.5 px-4 text-sm font-medium text-center text-slate-900 bg-slate-100 border border-l-0 border-gray-300 rounded-r-lg hover:bg-gray-200 focus:ring-4 focus:outline-none focus:ring-gray-100"
-                                >
-                                    {currencies.map(c => <option key={c} value={c}>{c}</option>)}
-                                </select>
-                            </div>
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">Valid From</label>
-                            <div className="relative">
+                        <div className="md:col-span-6 lg:col-span-4 flex gap-4">
+                            <div className="flex-1 ent-form-group">
+                                <label className="ent-label">Valid From</label>
                                 <input
                                     type="date"
                                     value={validFrom}
                                     onChange={(e) => setValidFrom(e.target.value)}
-                                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block p-2.5"
+                                    className="ent-input"
                                 />
                             </div>
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">Valid Until</label>
-                            <div className="relative">
+                            <div className="flex-1 ent-form-group">
+                                <label className="ent-label">Valid Until</label>
                                 <input
                                     type="date"
                                     value={validUntil}
                                     onChange={(e) => setValidUntil(e.target.value)}
-                                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block p-2.5"
+                                    className="ent-input"
                                 />
                             </div>
                         </div>
                     </div>
-                </div>
 
-                {/* Quick Actions Toolbar */}
-                <div className="mt-6 pt-4 border-t border-slate-100 flex justify-between items-center">
-                    <div className="flex items-center gap-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                        <LayoutTemplate size={14} /> Document Editor
-                    </div>
-                    <div className="flex gap-3">
-                        <button
-                            type="button"
-                            onClick={manualVariableFill}
-                            className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 bg-white border border-emerald-200 flex items-center gap-2 text-[10px] uppercase font-black tracking-widest transition-all px-3 py-2 rounded-lg"
-                            title="Fills variables if you changed the client after loading template"
-                        >
-                            <Check size={12} strokeWidth={3} /> Re-Sync Data
-                        </button>
-                        <button
-                            type="button"
-                            onClick={fetchTemplates}
-                            className="text-primary-600 hover:text-primary-700 hover:bg-primary-50 bg-white border border-primary-200 flex items-center gap-2 text-[10px] uppercase font-black tracking-widest transition-all px-3 py-2 rounded-lg"
-                        >
-                            <LayoutTemplate size={12} strokeWidth={3} /> Change Template
-                        </button>
+                    <div className="mt-5 pt-4 border-t border-slate-100 flex justify-between items-center">
+                        <div className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">
+                            <LayoutTemplate size={12} /> Document Editor
+                        </div>
+                        <div className="flex gap-2">
+                            <button
+                                type="button"
+                                onClick={manualVariableFill}
+                                className="btn-secondary gap-2 text-[9px] border-emerald-200 text-emerald-700 hover:bg-emerald-50 px-3 py-1.5"
+                            >
+                                <Check size={12} strokeWidth={3} /> RE-SYNC DATA
+                            </button>
+                            <button
+                                type="button"
+                                onClick={fetchTemplates}
+                                className="btn-secondary gap-2 text-[9px] px-3 py-1.5"
+                            >
+                                <LayoutTemplate size={12} strokeWidth={3} /> CHANGE TEMPLATE
+                            </button>
+                        </div>
                     </div>
                 </div>
-        </div>
 
-                {/* Main Editor Area - Centered Document */ }
-    {/* Main Editor Area - Centered Document */ }
-    <div className="bg-slate-100/50 rounded-xl border border-dashed border-slate-200 p-0 overflow-hidden">
-        <div className="w-full shadow-2xl shadow-slate-200/50">
-            {/* Editor Container */}
-            <PagedRichTextEditor
-                value={content}
-                onChange={setContent}
-                className="min-h-[1000px] border-0"
-                showLetterhead={showLetterhead}
-                pageOneBg="/images/letterhead-page1.png"
-                continuationBg="/images/letterhead-continuation.png"
-            />
+                <div className="bg-slate-100/50 rounded-xl border border-dashed border-slate-200 p-0 overflow-hidden">
+                    <div className="w-full shadow-2xl shadow-slate-200/50">
+                        <PagedRichTextEditor
+                            value={content}
+                            onChange={setContent}
+                            className="min-h-[1000px] border-0"
+                            showLetterhead={showLetterhead}
+                            pageOneBg="/images/letterhead-page1.png"
+                            continuationBg="/images/letterhead-continuation.png"
+                        />
+                    </div>
+                </div>
+            </form>
         </div>
-    </div>
-            </form >
-        </div >
     );
 }

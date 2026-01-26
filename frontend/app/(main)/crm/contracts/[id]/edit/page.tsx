@@ -44,6 +44,12 @@ export default function EditContractPage({ params }: { params: { id: string } })
     const [validUntil, setValidUntil] = useState('');
     const [content, setContent] = useState('');
 
+    // Additional Fields
+    const [contractValue, setContractValue] = useState('');
+    const [currency, setCurrency] = useState('INR');
+    const [contractType, setContractType] = useState('');
+    const [projectId, setProjectId] = useState('');
+
     const [companyData, setCompanyData] = useState<any>(null);
 
     // Variables Helper List removed (redundant)
@@ -69,6 +75,10 @@ export default function EditContractPage({ params }: { params: { id: string } })
             setClientId(c.clientId);
             if (c.validFrom) setValidFrom(new Date(c.validFrom).toISOString().split('T')[0]);
             if (c.validUntil) setValidUntil(new Date(c.validUntil).toISOString().split('T')[0]);
+            setContractValue(c.contractValue?.toString() || '');
+            setCurrency(c.currency || 'INR');
+            setContractType(c.contractType || '');
+            setProjectId(c.projectId || '');
 
             // For editing, we don't have the "baseContent" with placeholders
             // but we can initialize it to the current content.
@@ -119,8 +129,13 @@ export default function EditContractPage({ params }: { params: { id: string } })
             const replacements: Record<string, string> = {
                 '\\[CLIENT_NAME\\]': clientData.name || '',
                 '\\[CLIENT_COMPANY\\]': clientData.company?.name || clientData.name || '',
+                '\\[CLIENT_EMAIL\\]': clientData.email || '',
+                '\\[CLIENT_PHONE\\]': clientData.phone || '',
                 '\\[CLIENT_ADDRESS\\]': clientData.address || '',
-                '\\[CLIENT_CITY\\]': clientData.city || 'City',
+                '\\[CLIENT_CITY\\]': clientData.city || '',
+                '\\[CLIENT_STATE\\]': clientData.state || '',
+                '\\[CLIENT_GSTIN\\]': clientData.gstin || '',
+                '\\[CLIENT_PAN\\]': clientData.pan || '',
             };
 
             Object.entries(replacements).forEach(([key, value]) => {
@@ -128,6 +143,38 @@ export default function EditContractPage({ params }: { params: { id: string } })
                 processed = processed.replace(regex, value);
             });
         }
+
+        // Company Variables
+        if (companyData) {
+            const replacements: Record<string, string> = {
+                '\\[COMPANY_NAME\\]': companyData.name || '',
+                '\\[COMPANY_LEGAL_NAME\\]': companyData.legalName || companyData.name || '',
+                '\\[COMPANY_EMAIL\\]': companyData.email || '',
+                '\\[COMPANY_PHONE\\]': companyData.phone || '',
+                '\\[COMPANY_ADDRESS\\]': companyData.address || '',
+                '\\[COMPANY_GSTIN\\]': companyData.gstin || '',
+                '\\[COMPANY_PAN\\]': companyData.pan || '',
+            };
+
+            Object.entries(replacements).forEach(([key, value]) => {
+                const regex = new RegExp(key, 'g');
+                processed = processed.replace(regex, value);
+            });
+        }
+
+        // Contract Variables
+        const contractReplacements: Record<string, string> = {
+            '\\[CONTRACT_VALUE\\]': contractValue || '0',
+            '\\[CURRENCY\\]': currency || 'INR',
+            '\\[VALID_FROM\\]': validFrom || '',
+            '\\[VALID_UNTIL\\]': validUntil || '',
+            '\\[CURRENT_DATE\\]': new Date().toLocaleDateString(),
+        };
+
+        Object.entries(contractReplacements).forEach(([key, value]) => {
+            const regex = new RegExp(key, 'g');
+            processed = processed.replace(regex, value);
+        });
         return processed;
     };
 
@@ -312,17 +359,17 @@ export default function EditContractPage({ params }: { params: { id: string } })
                         <button
                             onClick={handleSaveAndSend}
                             disabled={saving}
-                            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] uppercase tracking-widest rounded-md shadow-lg shadow-emerald-900/10 flex items-center gap-2 transition-all disabled:opacity-50"
+                            className="btn-primary bg-emerald-600 hover:bg-emerald-700 border-none px-4 py-2 text-[10px] shadow-lg shadow-emerald-900/10"
                         >
-                            <Send size={14} />
+                            <Send size={14} className="mr-2" />
                             {saving ? 'Processing...' : 'Save & Send'}
                         </button>
                         <button
                             onClick={handleSubmit}
                             disabled={saving}
-                            className="ent-button-primary gap-2 shadow-xl shadow-primary-900/10 disabled:opacity-50"
+                            className="btn-primary gap-2 shadow-xl shadow-primary-900/10"
                         >
-                            <Save className="w-4 h-4" />
+                            <Save size={14} />
                             {saving ? 'Saving...' : 'Save Changes'}
                         </button>
                     </div>
@@ -332,89 +379,81 @@ export default function EditContractPage({ params }: { params: { id: string } })
             <form onSubmit={handleSubmit} className="space-y-6">
 
                 {/* Top Metadata Bar */}
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-                    <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
-                        {/* Title Section - Prominent */}
-                        <div className="md:col-span-12 lg:col-span-5 space-y-2">
-                            <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">Contract Title</label>
+                <div className="ent-card p-5">
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-start">
+                        <div className="md:col-span-12 lg:col-span-5 ent-form-group">
+                            <label className="ent-label">Contract Title</label>
                             <input
                                 type="text"
                                 required
                                 value={title}
                                 onChange={(e) => setTitle(e.target.value)}
-                                className="w-full text-lg font-bold text-slate-900 border-0 border-b-2 border-slate-200 focus:border-primary-500 focus:ring-0 px-0 py-2 bg-transparent transition-colors placeholder-slate-300"
+                                className="ent-input text-sm"
                                 placeholder="e.g. Software Development Agreement - Client Name"
                             />
                         </div>
 
-                        {/* Client Selector */}
-                        <div className="md:col-span-6 lg:col-span-3 space-y-2">
-                            <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">Client</label>
+                        <div className="md:col-span-6 lg:col-span-3 ent-form-group">
+                            <label className="ent-label">Client</label>
                             <div className="relative">
                                 <select
                                     required
                                     value={clientId}
                                     onChange={(e) => handleClientChange(e.target.value)}
-                                    className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block p-2.5 font-medium"
+                                    className="ent-input pr-10"
                                 >
                                     <option value="">-- Select Client --</option>
                                     {clients.map(c => (
                                         <option key={c.id} value={c.id}>{c.name} ({c.company?.name || 'Ind.'})</option>
                                     ))}
                                 </select>
-                                <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none text-slate-400">
+                                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-slate-400">
                                     <User size={14} />
                                 </div>
                             </div>
                         </div>
 
-                        {/* Dates Row */}
                         <div className="md:col-span-6 lg:col-span-4 flex gap-4">
-                            <div className="flex-1 space-y-2">
-                                <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">Valid From</label>
-                                <div className="relative">
-                                    <input
-                                        type="date"
-                                        value={validFrom}
-                                        onChange={(e) => setValidFrom(e.target.value)}
-                                        className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block p-2.5"
-                                    />
-                                </div>
+                            <div className="flex-1 ent-form-group">
+                                <label className="ent-label">Valid From</label>
+                                <input
+                                    type="date"
+                                    value={validFrom}
+                                    onChange={(e) => setValidFrom(e.target.value)}
+                                    className="ent-input"
+                                />
                             </div>
-                            <div className="flex-1 space-y-2">
-                                <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">Valid Until</label>
-                                <div className="relative">
-                                    <input
-                                        type="date"
-                                        value={validUntil}
-                                        onChange={(e) => setValidUntil(e.target.value)}
-                                        className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block p-2.5"
-                                    />
-                                </div>
+                            <div className="flex-1 ent-form-group">
+                                <label className="ent-label">Valid Until</label>
+                                <input
+                                    type="date"
+                                    value={validUntil}
+                                    onChange={(e) => setValidUntil(e.target.value)}
+                                    className="ent-input"
+                                />
                             </div>
                         </div>
                     </div>
 
-                    {/* Quick Actions Toolbar */}
-                    <div className="mt-6 pt-4 border-t border-slate-100 flex justify-between items-center">
-                        <div className="flex items-center gap-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                            <LayoutTemplate size={14} /> Document Editor
+                    <div className="mt-5 pt-4 border-t border-slate-100 flex justify-between items-center">
+                        <div className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">
+                            <LayoutTemplate size={12} /> Document Editor
                         </div>
-                        <div className="flex gap-3">
+                        <div className="flex gap-2">
                             <button
                                 type="button"
                                 onClick={manualVariableFill}
-                                className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 bg-white border border-emerald-200 flex items-center gap-2 text-[10px] uppercase font-black tracking-widest transition-all px-3 py-2 rounded-lg"
+                                className="btn-secondary gap-2 text-[9px] border-emerald-200 text-emerald-700 hover:bg-emerald-50 px-3 py-1.5"
                                 title="Fills variables if you changed the client after loading template"
                             >
-                                <Check size={12} strokeWidth={3} /> Re-Sync Data
+                                <Check size={12} strokeWidth={3} /> RE-SYNC DATA
                             </button>
                             <button
                                 type="button"
                                 onClick={fetchTemplates}
-                                className="text-primary-600 hover:text-primary-700 hover:bg-primary-50 bg-white border border-primary-200 flex items-center gap-2 text-[10px] uppercase font-black tracking-widest transition-all px-3 py-2 rounded-lg"
+                                className="btn-secondary gap-2 text-[9px] px-3 py-1.5"
                             >
-                                <LayoutTemplate size={12} strokeWidth={3} /> Change Template
+                                <LayoutTemplate size={12} strokeWidth={3} /> CHANGE TEMPLATE
                             </button>
                         </div>
                     </div>
