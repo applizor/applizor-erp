@@ -157,9 +157,13 @@ export const downloadContractPDF = async (req: Request, res: Response) => {
             company: contract.company,
             client: contract.client,
             clientSignature: contract.clientSignature,
+            companySignature: contract.companySignature,
+            companySignedAt: contract.companySignedAt,
+            signerName: contract.signerName,
             signerIp: contract.signerIp,
             signedAt: contract.signedAt,
-            useLetterhead: req.query.useLetterhead === 'true'
+            useLetterhead: req.query.useLetterhead === 'true',
+            letterheadMode: req.query.letterheadMode as string // 'MODE_A' or 'MODE_B'
         });
 
         res.setHeader('Content-Type', 'application/pdf');

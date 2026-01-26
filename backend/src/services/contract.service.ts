@@ -13,10 +13,31 @@ export class ContractService {
         validFrom?: Date;
         validUntil?: Date;
         templateId?: string;
+        contractValue?: number;
+        currency?: string;
+        contractType?: string;
     }) {
+        // Handle empty strings for optional relation IDs
+        const projectId = data.projectId === '' ? null : data.projectId;
+        const templateId = data.templateId === '' ? null : data.templateId;
+
+        // Diagnostic logging
+        console.log('--- DIAGNOSTIC: PRISMA CONTRACT FIELDS ---');
+        try {
+            // @ts-ignore - access internal DMMF to see fields
+            const fields = (prisma as any)._dmmf.modelMap.Contract.fields.map((f: any) => f.name);
+            console.log('Contract fields in DMMF:', fields);
+        } catch (e) {
+            console.log('Failed to log DMMF fields');
+        }
+        console.log('Keys of prisma.contract:', Object.keys(prisma.contract));
+        console.log('Sample data being sent:', { ...data, projectId, templateId, status: 'draft' });
+
         return await prisma.contract.create({
             data: {
                 ...data,
+                projectId,
+                templateId,
                 status: 'draft'
             }
         });
@@ -97,12 +118,14 @@ export class ContractService {
             throw new Error('Cannot edit a signed contract');
         }
 
-        // If status is sent, we allow editing but maybe we should warn? 
-        // User explicitly asked for this feature.
+        // Handle empty strings for optional relation IDs to avoid FK errors
+        const updateData = { ...data };
+        if (updateData.projectId === '') updateData.projectId = null;
+        if (updateData.templateId === '') updateData.templateId = null;
 
         return await prisma.contract.update({
             where: { id },
-            data
+            data: updateData
         });
     }
 

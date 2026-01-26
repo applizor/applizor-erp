@@ -1474,6 +1474,11 @@ model Contract {
   content String @db.Text // HTML Content
   status  String @default("draft") // draft, sent, viewed, signed, expired, cancelled
 
+  // Amounts & Type
+  contractValue Decimal? @default(0) @db.Decimal(12, 2)
+  currency      String   @default("INR")
+  contractType  String?
+
   // Dates
   validFrom  DateTime? @db.Date
   validUntil DateTime? @db.Date

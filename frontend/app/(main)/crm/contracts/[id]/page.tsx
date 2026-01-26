@@ -17,6 +17,7 @@ export default function ContractDetailsPage({ params }: { params: { id: string }
     const [activeTab, setActiveTab] = useState<'overview' | 'tracking'>('overview');
     const [sending, setSending] = useState(false);
     const [useLetterhead, setUseLetterhead] = useState(true);
+    const [letterheadMode, setLetterheadMode] = useState<'MODE_A' | 'MODE_B'>('MODE_A');
 
     useEffect(() => {
         fetchContract();
@@ -85,9 +86,26 @@ export default function ContractDetailsPage({ params }: { params: { id: string }
         </div>
     );
 
+    const getStatusBadge = (status: string) => {
+        const styles: any = {
+            draft: 'ent-badge ent-badge-neutral font-bold',
+            sent: 'ent-badge ent-badge-info font-bold',
+            viewed: 'ent-badge ent-badge-warning font-bold',
+            signed: 'ent-badge ent-badge-success font-bold',
+            expired: 'ent-badge ent-badge-danger font-bold',
+            cancelled: 'ent-badge bg-slate-100 text-slate-400 border-slate-200 font-bold'
+        };
+        return (
+            <span className={styles[status] || styles.draft}>
+                {status?.toUpperCase() || 'DRAFT'}
+            </span>
+        );
+    };
+
     if (!contract) return <div>Contract not found</div>;
 
     const stats = [
+        { label: 'Contract Value', value: `${contract.currency || 'INR'} ${contract.contractValue?.toLocaleString() || '0'}`, icon: FileText, color: 'text-emerald-600', bg: 'bg-emerald-50' },
         { label: 'Total Views', value: contract.viewCount || 0, icon: Eye, color: 'text-blue-600', bg: 'bg-blue-50' },
         { label: 'Email Opens', value: contract.emailOpens || 0, icon: Mail, color: 'text-violet-600', bg: 'bg-violet-50' },
         { label: 'Last Viewed', value: contract.lastViewedAt ? new Date(contract.lastViewedAt).toLocaleDateString() : 'Never', icon: Calendar, color: 'text-amber-600', bg: 'bg-amber-50' },
@@ -113,6 +131,22 @@ export default function ContractDetailsPage({ params }: { params: { id: string }
                         <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest">
                             Client: <span className="text-slate-900">{contract.client.name}</span>
                         </span>
+                        {contract.project && (
+                            <>
+                                <span className="text-slate-300 text-[10px]">•</span>
+                                <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest">
+                                    Project: <span className="text-slate-900">{contract.project.name}</span>
+                                </span>
+                            </>
+                        )}
+                        {contract.contractType && (
+                            <>
+                                <span className="text-slate-300 text-[10px]">•</span>
+                                <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest">
+                                    Type: <span className="text-slate-900">{contract.contractType}</span>
+                                </span>
+                            </>
+                        )}
                     </div>
                 </div>
 
@@ -156,19 +190,31 @@ export default function ContractDetailsPage({ params }: { params: { id: string }
                         </button>
                     )}
 
-                    <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-md border border-slate-200">
-                        <input
-                            type="checkbox"
-                            id="useLetterhead"
-                            checked={useLetterhead}
-                            onChange={(e) => setUseLetterhead(e.target.checked)}
-                            className="w-3.5 h-3.5 rounded border-slate-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
-                        />
-                        <label htmlFor="useLetterhead" className="stat-label cursor-pointer select-none">Letterhead</label>
+                    <div className="flex flex-col gap-2 bg-slate-50 p-3 rounded-md border border-slate-200">
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="checkbox"
+                                id="useLetterhead"
+                                checked={useLetterhead}
+                                onChange={(e) => setUseLetterhead(e.target.checked)}
+                                className="w-3.5 h-3.5 rounded border-slate-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
+                            />
+                            <label htmlFor="useLetterhead" className="stat-label cursor-pointer select-none">LETTERHEAD</label>
+                        </div>
+                        {useLetterhead && (
+                            <select
+                                value={letterheadMode}
+                                onChange={(e) => setLetterheadMode(e.target.value as 'MODE_A' | 'MODE_B')}
+                                className="text-[10px] font-black uppercase tracking-widest bg-white border border-slate-200 rounded px-2 py-1 focus:ring-primary-500"
+                            >
+                                <option value="MODE_A">MODE A (ALL PAGES)</option>
+                                <option value="MODE_B">MODE B (FIRST PAGE)</option>
+                            </select>
+                        )}
                     </div>
 
                     <a
-                        href={`${process.env.NEXT_PUBLIC_API_URL}/contracts/${contract.id}/pdf?useLetterhead=${useLetterhead}`}
+                        href={`${process.env.NEXT_PUBLIC_API_URL}/contracts/${contract.id}/pdf?useLetterhead=${useLetterhead}&letterheadMode=${letterheadMode}`}
                         target="_blank"
                         className="btn-primary gap-2 shadow-lg shadow-primary-900/10"
                     >

@@ -243,7 +243,11 @@ export default function EditContractPage({ params }: { params: { id: string } })
                 clientId,
                 content,
                 validFrom: validFrom ? new Date(validFrom) : null,
-                validUntil: validUntil ? new Date(validUntil) : null
+                validUntil: validUntil ? new Date(validUntil) : null,
+                contractValue: parseFloat(contractValue) || 0,
+                currency,
+                contractType,
+                projectId
             });
             await api.post(`/contracts/${params.id}/send`);
             toast.success('Contract updated & sent to client!');
@@ -265,7 +269,11 @@ export default function EditContractPage({ params }: { params: { id: string } })
                 clientId,
                 content,
                 validFrom: validFrom ? new Date(validFrom) : null,
-                validUntil: validUntil ? new Date(validUntil) : null
+                validUntil: validUntil ? new Date(validUntil) : null,
+                contractValue: parseFloat(contractValue) || 0,
+                currency,
+                contractType,
+                projectId
             });
             toast.success('Contract updated successfully');
             router.push(`/crm/contracts/${params.id}`);
@@ -432,6 +440,51 @@ export default function EditContractPage({ params }: { params: { id: string } })
                                     className="ent-input"
                                 />
                             </div>
+                        </div>
+
+                        {/* Extra Fields */}
+                        <div className="md:col-span-6 lg:col-span-3 ent-form-group">
+                            <label className="ent-label">Contract Value</label>
+                            <input
+                                type="number"
+                                value={contractValue}
+                                onChange={(e) => setContractValue(e.target.value)}
+                                className="ent-input"
+                                placeholder="0.00"
+                            />
+                        </div>
+                        <div className="md:col-span-6 lg:col-span-2 ent-form-group">
+                            <label className="ent-label">Currency</label>
+                            <select
+                                value={currency}
+                                onChange={(e) => setCurrency(e.target.value)}
+                                className="ent-input"
+                            >
+                                <option value="INR">INR (₹)</option>
+                                <option value="USD">USD ($)</option>
+                                <option value="EUR">EUR (€)</option>
+                                <option value="GBP">GBP (£)</option>
+                            </select>
+                        </div>
+                        <div className="md:col-span-6 lg:col-span-3 ent-form-group">
+                            <label className="ent-label">Contract Type</label>
+                            <input
+                                type="text"
+                                value={contractType}
+                                onChange={(e) => setContractType(e.target.value)}
+                                className="ent-input"
+                                placeholder="e.g. Service Agreement"
+                            />
+                        </div>
+                        <div className="md:col-span-6 lg:col-span-4 ent-form-group">
+                            <label className="ent-label">Internal Project Link</label>
+                            <input
+                                type="text"
+                                value={projectId}
+                                onChange={(e) => setProjectId(e.target.value)}
+                                className="ent-input font-mono text-[10px]"
+                                placeholder="Paste Project ID (Optional)"
+                            />
                         </div>
                     </div>
 

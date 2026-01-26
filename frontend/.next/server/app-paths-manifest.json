@@ -1,6 +1,8 @@
 {
-  "/(main)/crm/contracts/create/page": "app/(main)/crm/contracts/create/page.js",
-  "/(main)/crm/contracts/templates/page": "app/(main)/crm/contracts/templates/page.js",
-  "/(main)/crm/contracts/templates/[id]/edit/page": "app/(main)/crm/contracts/templates/[id]/edit/page.js",
-  "/(main)/crm/contracts/page": "app/(main)/crm/contracts/page.js"
+  "/(main)/settings/company/page": "app/(main)/settings/company/page.js",
+  "/(main)/crm/contracts/[id]/page": "app/(main)/crm/contracts/[id]/page.js",
+  "/(main)/quotations/[id]/page": "app/(main)/quotations/[id]/page.js",
+  "/(main)/crm/contracts/page": "app/(main)/crm/contracts/page.js",
+  "/portal/contracts/page": "app/portal/contracts/page.js",
+  "/(main)/crm/contracts/create/page": "app/(main)/crm/contracts/create/page.js"
 }

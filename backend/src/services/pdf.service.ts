@@ -85,16 +85,24 @@ export class PDFService {
         if (filePath.startsWith('data:') || filePath.startsWith('http')) return filePath;
 
         try {
-            // Assume uploads are in the relative ../uploads directory from this file's location
-            // which is backend/src/services/pdf.service.ts
-            // Strip leading slash if present to make it a relative path for joining
-            const relativeFilePath = filePath.startsWith('/') ? filePath.substring(1) : filePath;
-            const absolutePath = path.join(__dirname, '../../', relativeFilePath);
+            // Check if path already starts with uploads/
+            let relativeFilePath = filePath.startsWith('/') ? filePath.substring(1) : filePath;
+
+            // If it doesn't start with uploads/ or backend/uploads/, prepend uploads/
+            if (!relativeFilePath.startsWith('uploads/') && !relativeFilePath.startsWith('backend/uploads/')) {
+                relativeFilePath = path.join('uploads', relativeFilePath);
+            }
+
+            // Path.join(__dirname, '../../') takes us to the project root (backend/)
+            const absolutePath = path.resolve(process.cwd(), relativeFilePath);
+
             if (fs.existsSync(absolutePath)) {
                 const fileBuffer = fs.readFileSync(absolutePath);
-                const extension = path.extname(filePath).substring(1);
+                const extension = path.extname(filePath).substring(1).toLowerCase();
                 const mimeType = extension === 'png' ? 'image/png' : 'image/jpeg';
                 return `data:${mimeType};base64,${fileBuffer.toString('base64')}`;
+            } else {
+                console.error(`File not found at absolute path: ${absolutePath}`);
             }
         } catch (error) {
             console.error('Error converting image to base64:', error);
@@ -796,22 +804,20 @@ ${(!hasEmbeddedCompanySig || !hasEmbeddedClientSig) ? `
     ${!hasEmbeddedCompanySig ? `
     <div class="signature-block">
         <div class="sign-area">
-            ${companyAuthSignatureBase64 ? `<img src="${companyAuthSignatureBase64}" class="sign-img">` : ''}
+            ${(signatureBase64 || companyAuthSignatureBase64) ? `<img src="${signatureBase64 || companyAuthSignatureBase64}" class="sign-img">` : ''}
         </div>
         <div class="sign-label">For ${data.company.name}</div>
-        <div style="font-size: 12px; color: #666;">
-            ${data.companySignedAt ? `Authorized Signatory<br>Date: ${new Date(data.companySignedAt).toLocaleString()}` : 'Authorized Signatory'}
+        <div style="font-size: 11px; color: #666; margin-top: 5px;">
+            ${data.companySignedAt ? `Digitally Signed by Authorized Signatory<br>Date: ${new Date(data.companySignedAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}` : 'Authorized Signatory'}
         </div>
     </div>
-    ` : '<div></div>'}
 
-    ${!hasEmbeddedClientSig ? `
     <div class="signature-block">
         <div class="sign-area">
-            ${clientSignatureBase64 ? `<img src="${clientSignatureBase64}" class="sign-img">` : ''}
+             ${clientSignatureBase64 ? `<img src="${clientSignatureBase64}" class="sign-img">` : ''}
         </div>
         <div class="sign-label">For ${data.client.name}</div>
-        ${data.signedAt ? `<div style="font-size: 10px; color: #666;">Digitally Signed<br>IP: ${data.signerIp}<br>Date: ${new Date(data.signedAt).toLocaleString()}</div>` : ''}
+        ${data.signedAt ? `<div style="font-size: 11px; color: #666; margin-top: 5px;">Digitally Signed<br>IP: ${data.signerIp}<br>Date: ${new Date(data.signedAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>` : ''}
     </div>
     ` : '<div></div>'}
 </div>
