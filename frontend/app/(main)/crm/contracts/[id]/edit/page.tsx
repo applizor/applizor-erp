@@ -128,9 +128,12 @@ export default function EditContractPage({ params }: { params: { id: string } })
         if (clientData) {
             const replacements: Record<string, string> = {
                 '\\[CLIENT_NAME\\]': clientData.name || '',
-                '\\[CLIENT_COMPANY\\]': clientData.company?.name || clientData.name || '',
+                '\\[CLIENT_COMPANY\\]': clientData.companyName || clientData.name || '',
                 '\\[CLIENT_EMAIL\\]': clientData.email || '',
                 '\\[CLIENT_PHONE\\]': clientData.phone || '',
+                '\\[CLIENT_MOBILE\\]': clientData.mobile || '',
+                '\\[CLIENT_WEBSITE\\]': clientData.website || '',
+                '\\[CLIENT_TAX_NAME\\]': clientData.taxName || '',
                 '\\[CLIENT_ADDRESS\\]': clientData.address || '',
                 '\\[CLIENT_CITY\\]': clientData.city || '',
                 '\\[CLIENT_STATE\\]': clientData.state || '',

@@ -15,6 +15,9 @@ import { ProfileSkeleton } from '@/components/skeletons/ProfileSkeleton';
 import { useCurrency } from '@/context/CurrencyContext';
 import { ClientQuotationsDialog } from '@/components/clients/ClientQuotationsDialog';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const SERVER_URL = API_URL.replace('/api', '');
+
 export default function ClientDetailPage() {
     const router = useRouter();
     const params = useParams();
@@ -107,13 +110,20 @@ export default function ClientDetailPage() {
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             {/* Header */}
-
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-5 rounded-md border border-gray-200 shadow-sm gap-4 mb-6">
                 <div className="flex items-center gap-4">
-                    <div className="p-4 bg-primary-900 rounded-md shadow-xl shadow-primary-900/20">
-                        <span className="text-white font-black text-2xl">
-                            {client.name?.charAt(0).toUpperCase() || 'C'}
-                        </span>
+                    <div className="p-4 bg-primary-900 rounded-md shadow-xl shadow-primary-900/20 relative overflow-hidden w-16 h-16 flex items-center justify-center">
+                        {client.profilePicture ? (
+                            <img
+                                src={`${SERVER_URL}${client.profilePicture}`}
+                                alt={client.name}
+                                className="absolute inset-0 w-full h-full object-cover"
+                            />
+                        ) : (
+                            <span className="text-white font-black text-2xl">
+                                {client.name?.charAt(0).toUpperCase() || 'C'}
+                            </span>
+                        )}
                     </div>
                     <div>
                         <div className="flex items-center gap-2 mb-1">
@@ -175,6 +185,20 @@ export default function ClientDetailPage() {
                                 <dt className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">Telephony</dt>
                                 <dd className="text-sm font-bold text-gray-900 font-mono">{client.phone || '-'}</dd>
                             </div>
+                            <div className="ent-form-group">
+                                <dt className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">Mobile</dt>
+                                <dd className="text-sm font-bold text-gray-900 font-mono">{client.mobile || '-'}</dd>
+                            </div>
+                            <div className="ent-form-group">
+                                <dt className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">Website</dt>
+                                <dd className="text-sm font-bold text-primary-600">
+                                    {client.website ? (
+                                        <a href={client.website} target="_blank" rel="noopener noreferrer" className="hover:underline flex items-center gap-1">
+                                            {client.website}
+                                        </a>
+                                    ) : '-'}
+                                </dd>
+                            </div>
                         </dl>
                     </div>
 
@@ -216,6 +240,14 @@ export default function ClientDetailPage() {
                         </h2>
                         <dl className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                             <div>
+                                <dt className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">Company Name</dt>
+                                <dd className="text-sm font-bold text-gray-900">{client.companyName || '-'}</dd>
+                            </div>
+                            <div>
+                                <dt className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">Tax Name</dt>
+                                <dd className="text-sm font-bold text-gray-900">{client.taxName || '-'}</dd>
+                            </div>
+                            <div>
                                 <dt className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">GSTIN Identifier</dt>
                                 <dd className="text-sm font-bold text-gray-900 font-mono bg-gray-50 px-3 py-1.5 rounded-md border border-gray-200 inline-block">{client.gstin || 'N/A'}</dd>
                             </div>
@@ -225,6 +257,17 @@ export default function ClientDetailPage() {
                             </div>
                         </dl>
                     </div>
+
+                    {/* Notes */}
+                    {client.notes && (
+                        <div className="ent-card p-6">
+                            <h2 className="text-sm font-black text-gray-900 mb-4 flex items-center gap-2 uppercase tracking-tight border-b border-gray-100 pb-2">
+                                <FileText className="w-4 h-4 text-gray-400" />
+                                Internal Notes
+                            </h2>
+                            <p className="text-sm text-gray-600 whitespace-pre-wrap">{client.notes}</p>
+                        </div>
+                    )}
                 </div>
 
                 {/* Sidebar */}
@@ -250,6 +293,20 @@ export default function ClientDetailPage() {
                             </div>
                         </div>
                     </div>
+
+                    {/* Company Logo */}
+                    {client.companyLogo && (
+                        <div className="ent-card p-6 flex flex-col items-center justify-center">
+                            <h2 className="text-sm font-black text-gray-900 mb-4 w-full uppercase tracking-tight">Organization Identity</h2>
+                            <div className="w-full relative flex items-center justify-center p-4 bg-gray-50 rounded-lg">
+                                <img
+                                    src={`${SERVER_URL}${client.companyLogo}`}
+                                    alt="Company Logo"
+                                    className="max-w-full max-h-32 object-contain"
+                                />
+                            </div>
+                        </div>
+                    )}
 
                     {/* Metadata */}
                     <div className="ent-card p-6">

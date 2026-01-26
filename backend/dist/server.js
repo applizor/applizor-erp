@@ -44,6 +44,7 @@ const auth_routes_1 = __importDefault(require("./routes/auth.routes"));
 const company_routes_1 = __importDefault(require("./routes/company.routes"));
 const invoice_routes_1 = __importDefault(require("./routes/invoice.routes"));
 const client_routes_1 = __importDefault(require("./routes/client.routes"));
+const clientCategory_routes_1 = __importDefault(require("./routes/clientCategory.routes"));
 // import leadRoutes from './routes/lead.routes'; // This import is removed as it's duplicated by the CRM leadRoutes
 const payment_routes_1 = __importDefault(require("./routes/payment.routes"));
 dotenv_1.default.config();
@@ -93,6 +94,7 @@ app.use('/api/company', company_routes_1.default);
 app.use('/api/invoices', invoice_routes_1.default);
 // Client routes
 app.use('/api/clients', client_routes_1.default);
+app.use('/api/client-categories', clientCategory_routes_1.default);
 // Lead routes (main - with new CRM features)
 const lead_routes_1 = __importDefault(require("./routes/lead.routes"));
 app.use('/api/leads', lead_routes_1.default);

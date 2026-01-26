@@ -174,7 +174,10 @@ export default function ClientsPage() {
                             </span>
                           </div>
                           <div className="ml-3">
-                            <div className="text-sm font-black text-slate-900 tracking-tight">{client.name}</div>
+                            <div className="text-sm font-black text-slate-900 tracking-tight">{client.companyName || client.name}</div>
+                            {client.companyName && (
+                              <div className="text-[10px] text-slate-500 font-medium">{client.name}</div>
+                            )}
                             {client.gstin && (
                               <div className="text-[9px] text-slate-400 font-black uppercase tracking-wider mt-0.5">VAT: {client.gstin}</div>
                             )}

@@ -55,6 +55,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
 
     const menuItems = [
         { name: 'Dashboard', href: '/portal/dashboard', icon: LayoutDashboard },
+        { name: 'My Quotations', href: '/portal/quotations', icon: FileText },
         { name: 'My Invoices', href: '/portal/invoices', icon: FileText },
         { name: 'My Contracts', href: '/portal/contracts', icon: FileSignature },
         { name: 'My Projects', href: '/portal/projects', icon: Briefcase },

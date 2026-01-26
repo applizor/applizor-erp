@@ -154,7 +154,7 @@ export const getInvoicePdf = async (req: ClientAuthRequest, res: Response) => {
             return res.status(404).json({ error: 'Invoice not found' });
         }
 
-        const pdfBuffer = await PDFService.generateInvoicePDF(invoice);
+        const pdfBuffer = await PDFService.generateInvoicePDF({ ...invoice, useLetterhead: true });
 
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="Invoice-${invoice.invoiceNumber}.pdf"`);
@@ -219,5 +219,186 @@ export const exportInvoices = async (req: ClientAuthRequest, res: Response) => {
     } catch (error) {
         console.error('Export error:', error);
         res.status(500).json({ error: 'Failed to export invoices' });
+    }
+};
+
+// ==========================================
+// Quotations
+// ==========================================
+
+
+export const getMyQuotations = async (req: ClientAuthRequest, res: Response) => {
+    try {
+        const clientId = req.clientId;
+        const clientEmail = req.client?.email;
+        const page = Number(req.query.page) || 1;
+        const limit = Number(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+
+        const { search, status } = req.query;
+
+        // Filter by lead email matching client email
+        // Note: Prisma where clause structure depends on schema. 
+        // Assuming Quotation -> Lead -> email
+        const where: any = {
+            lead: {
+                email: clientEmail
+            }
+        };
+
+        if (status && status !== 'all') {
+            where.status = status;
+        }
+
+        if (search) {
+            where.quotationNumber = {
+                contains: search as string,
+                mode: 'insensitive'
+            };
+        }
+
+        const [quotations, total] = await Promise.all([
+            prisma.quotation.findMany({
+                where,
+                orderBy: { quotationDate: 'desc' },
+                skip,
+                take: limit,
+                include: { items: true, lead: true, company: true }
+            }),
+            prisma.quotation.count({ where })
+        ]);
+
+        res.json({ quotations, total, pages: Math.ceil(total / limit) });
+    } catch (error) {
+        console.error('Get quotations error:', error);
+        res.status(500).json({ error: 'Failed to fetch quotations' });
+    }
+};
+
+export const getQuotationDetails = async (req: ClientAuthRequest, res: Response) => {
+    try {
+        const { id } = req.params;
+        const clientEmail = req.client?.email;
+
+        const quotation = await prisma.quotation.findUnique({
+            where: { id },
+            include: {
+                items: true,
+                lead: true,
+                company: true
+            }
+        });
+
+        // Security check: Ensure quotation belongs to this client (via lead email)
+        if (!quotation || quotation.lead?.email !== clientEmail) {
+            return res.status(404).json({ error: 'Quotation not found' });
+        }
+
+        res.json({ quotation });
+    } catch (error) {
+        console.error('Get quotation details error:', error);
+        res.status(500).json({ error: 'Failed to fetch quotation details' });
+    }
+};
+
+export const getQuotationPdf = async (req: ClientAuthRequest, res: Response) => {
+    try {
+        const { id } = req.params;
+        const clientEmail = req.client?.email;
+
+        const quotation = await prisma.quotation.findUnique({
+            where: { id },
+            include: {
+                lead: true,
+                company: true,
+                items: true
+            }
+        });
+
+        if (!quotation || quotation.lead?.email !== clientEmail) {
+            return res.status(404).json({ error: 'Quotation not found' });
+        }
+
+        // Use appropriate PDF generation (signed if accepted?)
+        const pdfBuffer = await PDFService.generateQuotationPDF({ ...quotation, useLetterhead: true });
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="Quotation-${quotation.quotationNumber}.pdf"`);
+        res.send(pdfBuffer);
+    } catch (error) {
+        console.error('Get Quotation PDF error:', error);
+        res.status(500).json({ error: 'Failed to generate PDF' });
+    }
+};
+
+export const getContractPdf = async (req: ClientAuthRequest, res: Response) => {
+    try {
+        const { id } = req.params;
+        const clientId = req.clientId; // Contracts likely linked to ClientId directly
+
+        const contract = await prisma.contract.findUnique({
+            where: { id },
+            include: {
+                client: true,
+                company: true
+            }
+        });
+
+        if (!contract || contract.clientId !== clientId) {
+            return res.status(404).json({ error: 'Contract not found' });
+        }
+
+        const pdfBuffer = await PDFService.generateContractPDF({ ...contract, useLetterhead: true });
+
+        res.setHeader('Content-Type', 'application/pdf');
+        // Contract model has 'title', not 'contractNumber'. Use title or id.
+        res.setHeader('Content-Disposition', `attachment; filename="Contract-${contract.title.replace(/\s+/g, '-')}.pdf"`);
+        res.send(pdfBuffer);
+    } catch (error) {
+        console.error('Get Contract PDF error:', error);
+        res.status(500).json({ error: 'Failed to generate PDF' });
+    }
+};
+
+export const getMyContracts = async (req: ClientAuthRequest, res: Response) => {
+    try {
+        const clientId = req.clientId;
+        // Search by client ID
+        const where: any = { clientId: clientId };
+
+        // Support search filter if needed in future
+        if (req.query.search) {
+            where.title = { contains: req.query.search as string, mode: 'insensitive' };
+        }
+
+        const contracts = await prisma.contract.findMany({
+            where,
+            orderBy: { createdAt: 'desc' },
+            include: { company: true }
+        });
+
+        res.json(contracts);
+    } catch (error) {
+        console.error('Get contracts error:', error);
+        res.status(500).json({ error: 'Failed to fetch contracts' });
+    }
+};
+
+export const getContractDetails = async (req: ClientAuthRequest, res: Response) => {
+    try {
+        const { id } = req.params;
+        const clientId = req.clientId;
+
+        const contract = await prisma.contract.findUnique({
+            where: { id },
+            include: { company: true }
+        });
+
+        if (!contract || contract.clientId !== clientId) {
+            return res.status(404).json({ error: 'Contract not found' });
+        }
+        res.json(contract);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch contract' });
     }
 };

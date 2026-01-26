@@ -68,8 +68,13 @@ export const invoicesApi = {
     return response.data;
   },
 
-  sendEmail: async (id: string) => {
-    const response = await api.post(`/invoices/${id}/send`);
+  update: async (id: string, data: any) => {
+    const response = await api.put(`/invoices/${id}`, data);
+    return response.data;
+  },
+
+  sendEmail: async (id: string, data?: { useLetterhead: boolean }) => {
+    const response = await api.post(`/invoices/${id}/send`, data);
     return response.data;
   },
 

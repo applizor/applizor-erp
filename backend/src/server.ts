@@ -7,6 +7,7 @@ import authRoutes from './routes/auth.routes';
 import companyRoutes from './routes/company.routes';
 import invoiceRoutes from './routes/invoice.routes';
 import clientRoutes from './routes/client.routes';
+import clientCategoryRoutes from './routes/clientCategory.routes';
 // import leadRoutes from './routes/lead.routes'; // This import is removed as it's duplicated by the CRM leadRoutes
 import paymentRoutes from './routes/payment.routes';
 
@@ -71,6 +72,7 @@ app.use('/api/invoices', invoiceRoutes);
 
 // Client routes
 app.use('/api/clients', clientRoutes);
+app.use('/api/client-categories', clientCategoryRoutes);
 
 // Lead routes (main - with new CRM features)
 import leadRoutes from './routes/lead.routes';

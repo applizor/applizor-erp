@@ -550,7 +550,8 @@ export const downloadQuotationPDF = async (req: AuthRequest, res: Response) => {
             include: {
                 items: true,
                 lead: true,
-                company: true
+                company: true,
+                client: true
             }
         });
 
@@ -588,6 +589,22 @@ export const downloadQuotationPDF = async (req: AuthRequest, res: Response) => {
                 pdfMarginRight: quotation.company.pdfMarginRight || undefined,
                 pdfContinuationTop: quotation.company.pdfContinuationTop || undefined
             },
+            client: quotation.client ? {
+                name: quotation.client.name,
+                company: quotation.client.companyName || undefined,
+                email: quotation.client.email || undefined,
+                phone: quotation.client.phone || undefined,
+                mobile: quotation.client.mobile || undefined,
+                address: quotation.client.address || undefined,
+                city: quotation.client.city || undefined,
+                state: quotation.client.state || undefined,
+                country: quotation.client.country || undefined,
+                pincode: quotation.client.pincode || undefined,
+                gstin: quotation.client.gstin || undefined,
+                pan: quotation.client.pan || undefined,
+                website: quotation.client.website || undefined,
+                taxName: quotation.client.taxName || undefined
+            } : undefined,
             lead: quotation.lead ? {
                 name: quotation.lead.name,
                 company: quotation.lead.company || undefined,
@@ -643,7 +660,8 @@ export const downloadSignedQuotationPDF = async (req: AuthRequest, res: Response
             include: {
                 items: true,
                 lead: true,
-                company: true
+                company: true,
+                client: true
             }
         });
 
@@ -685,6 +703,22 @@ export const downloadSignedQuotationPDF = async (req: AuthRequest, res: Response
                 pdfMarginRight: quotation.company.pdfMarginRight || undefined,
                 pdfContinuationTop: quotation.company.pdfContinuationTop || undefined
             },
+            client: quotation.client ? {
+                name: quotation.client.name,
+                company: quotation.client.companyName || undefined,
+                email: quotation.client.email || undefined,
+                phone: quotation.client.phone || undefined,
+                mobile: quotation.client.mobile || undefined,
+                address: quotation.client.address || undefined,
+                city: quotation.client.city || undefined,
+                state: quotation.client.state || undefined,
+                country: quotation.client.country || undefined,
+                pincode: quotation.client.pincode || undefined,
+                gstin: quotation.client.gstin || undefined,
+                pan: quotation.client.pan || undefined,
+                website: quotation.client.website || undefined,
+                taxName: quotation.client.taxName || undefined
+            } : undefined,
             lead: quotation.lead ? {
                 name: quotation.lead.name,
                 company: quotation.lead.company || undefined,
@@ -744,7 +778,8 @@ export const sendQuotationEmail = async (req: AuthRequest, res: Response) => {
             include: {
                 items: true,
                 lead: true,
-                company: true
+                company: true,
+                client: true
             }
         });
 

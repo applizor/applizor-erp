@@ -41,6 +41,16 @@ interface PDFData {
         company?: string;
         email?: string;
         phone?: string;
+        address?: string;
+        city?: string;
+        state?: string;
+        country?: string;
+        pincode?: string;
+        gstin?: string;
+        pan?: string;
+        website?: string;
+        taxName?: string;
+        mobile?: string;
     };
     lead?: {
         name: string;
@@ -361,8 +371,14 @@ export class PDFService {
         <div class="billed-to-details">
             <strong>${recipient.name}</strong><br>
             ${recipient.company ? `${recipient.company}<br>` : ''}
+            ${recipient.address ? `${recipient.address}<br>` : ''}
+            ${recipient.city && recipient.state ? `${recipient.city}, ${recipient.state} - ${recipient.pincode || ''}<br>` : ''}
+            ${recipient.country ? `${recipient.country}<br>` : ''}
             ${recipient.email ? `${recipient.email}<br>` : ''}
-            ${recipient.phone ? `${recipient.phone}` : ''}
+            ${recipient.phone ? `Phone: ${recipient.phone}<br>` : ''}
+            ${recipient.mobile ? `Mobile: ${recipient.mobile}<br>` : ''}
+            ${recipient.gstin ? `GSTIN: ${recipient.gstin}<br>` : ''}
+            ${recipient.website ? `Website: ${recipient.website}<br>` : ''}
         </div>
     </div>
     ` : ''}
@@ -676,14 +692,16 @@ export class PDFService {
         if (data.client) {
             processedContent = processedContent
                 .replace(/\[CLIENT_NAME\]/gi, data.client.name || '')
-                .replace(/\[CLIENT_COMPANY\]/gi, data.client.company?.name || data.client.name || '')
+                .replace(/\[CLIENT_COMPANY\]/gi, data.client.companyName || data.client.name || '')
                 .replace(/\[CLIENT_EMAIL\]/gi, data.client.email || '')
                 .replace(/\[CLIENT_PHONE\]/gi, data.client.phone || '')
                 .replace(/\[CLIENT_ADDRESS\]/gi, data.client.address || '')
                 .replace(/\[CLIENT_CITY\]/gi, data.client.city || '')
                 .replace(/\[CLIENT_STATE\]/gi, data.client.state || '')
                 .replace(/\[CLIENT_GSTIN\]/gi, data.client.gstin || '')
-                .replace(/\[CLIENT_PAN\]/gi, data.client.pan || '');
+                .replace(/\[CLIENT_PAN\]/gi, data.client.pan || '')
+                .replace(/\[CLIENT_WEBSITE\]/gi, data.client.website || '')
+                .replace(/\[CLIENT_TAX_NAME\]/gi, data.client.taxName || '');
         }
 
         // Company Variables

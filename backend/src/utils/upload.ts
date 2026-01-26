@@ -147,3 +147,25 @@ export const uploadLetterheadAsset = multer({
     fileFilter: letterheadFileFilter
 });
 
+// Profile Upload Configuration
+const profileDir = path.join(__dirname, '../../uploads/profiles');
+if (!fs.existsSync(profileDir)) {
+    fs.mkdirSync(profileDir, { recursive: true });
+}
+
+const profileStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, profileDir);
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, 'profile-' + uniqueSuffix + path.extname(file.originalname));
+    }
+});
+
+export const uploadProfilePicture = multer({
+    storage: profileStorage,
+    limits: { fileSize: 2 * 1024 * 1024 }, // 2MB limit
+    fileFilter: fileFilter
+});
+

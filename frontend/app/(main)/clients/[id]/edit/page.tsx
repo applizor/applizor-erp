@@ -1,34 +1,51 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Save, X, Building2, Mail, Phone, MapPin, Globe, FileText, CreditCard, Tag, Activity, Lock } from 'lucide-react';
+import { ArrowLeft, Save, X, Building2, Mail, Phone, MapPin, Globe, FileText, CreditCard, Tag, Activity, Lock, Plus } from 'lucide-react';
 import { z } from 'zod';
 import { clientsApi } from '@/lib/api/clients';
 import { useToast } from '@/hooks/useToast';
 import { usePermission } from '@/hooks/usePermission';
 import AccessDenied from '@/components/AccessDenied';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { QuickAddModal } from '@/components/ui/QuickAddModal';
 
-// Define Zod Schema
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const SERVER_URL = API_URL.replace('/api', '');
+
 const clientSchema = z.object({
+    salutation: z.string().optional(),
     name: z.string().min(2, "Client/Company name is required"),
     email: z.string().email("Invalid email address").optional().or(z.literal('')),
     phone: z.string().min(10, "Phone number must be at least 10 digits").optional().or(z.literal('')),
+    mobile: z.string().optional(),
+    password: z.string().optional(), // Optional for edit
+    country: z.string().default('India'),
+    gender: z.enum(['male', 'female', 'other']).optional(),
+    language: z.string().default('English'),
+    categoryId: z.string().optional(),
+    subCategoryId: z.string().optional(),
+    receiveNotifications: z.boolean().default(true),
+    portalAccess: z.boolean().default(false),
+
+    // Company Details
+    companyName: z.string().optional(),
+    website: z.string().optional(),
+    taxName: z.string().optional(),
+    gstin: z.string().regex(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/, "Invalid GSTIN format").optional().or(z.literal('')),
     address: z.string().optional(),
+    shippingAddress: z.string().optional(),
     city: z.string().optional(),
     state: z.string().optional(),
-    country: z.string().default('India'),
     pincode: z.string().optional(),
-    gstin: z.string().regex(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/, "Invalid GSTIN format").optional().or(z.literal('')),
-    pan: z.string().regex(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, "Invalid PAN format").optional().or(z.literal('')),
-    clientType: z.enum(['customer', 'vendor', 'partner']),
-    status: z.enum(['active', 'inactive']),
-    portalAccess: z.boolean().default(false),
-    password: z.string().optional()
+    notes: z.string().optional(),
+    clientType: z.enum(['customer', 'vendor', 'partner']).default('customer'),
+    status: z.enum(['active', 'inactive']).default('active'),
+    profilePicture: z.string().optional(),
+    companyLogo: z.string().optional(),
 }).refine(data => {
-    // For Edit: Password is optional even if portal enabled (if they don't want to change it)
     return true;
 });
 
@@ -42,21 +59,99 @@ export default function EditClientPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [errors, setErrors] = useState<Partial<Record<keyof ClientFormData, string>>>({});
+    const [categories, setCategories] = useState<any[]>([]);
+    const [subCategories, setSubCategories] = useState<any[]>([]);
+    const [loadingCats, setLoadingCats] = useState(false);
+    const [catModal, setCatModal] = useState(false);
+    const [subCatModal, setSubCatModal] = useState(false);
+
+    const [uploadingProfile, setUploadingProfile] = useState(false);
+    const [uploadingLogo, setUploadingLogo] = useState(false);
+
+    const profileInputRef = useRef<HTMLInputElement>(null);
+    const logoInputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        loadCategories();
+    }, []);
+
+    const loadCategories = async () => {
+        setLoadingCats(true);
+        try {
+            const response = await clientsApi.getCategories();
+            setCategories(response.data?.categories || []);
+        } catch (error) {
+            console.error('Failed to load categories', error);
+        } finally {
+            setLoadingCats(false);
+        }
+    };
+
+    const loadSubCategories = async (catId: string) => {
+        if (!catId) {
+            setSubCategories([]);
+            return;
+        }
+        try {
+            const response = await clientsApi.getSubCategories(catId);
+            setSubCategories(response.data?.subCategories || []);
+        } catch (error) {
+            console.error('Failed to load sub-categories', error);
+        }
+    };
+
+    const handleAddCategory = async (name: string) => {
+        try {
+            await clientsApi.createCategory({ name });
+            toast.success('Category successfully registered');
+            loadCategories();
+        } catch (error: any) {
+            toast.error(error.response?.data?.error || 'Failed to create category');
+            throw error;
+        }
+    };
+
+    const handleAddSubCategory = async (name: string) => {
+        if (!formData.categoryId) {
+            toast.error('Select a primary category first');
+            return;
+        }
+        try {
+            await clientsApi.createSubCategory({ categoryId: formData.categoryId, name });
+            toast.success('Sub-Category successfully registered');
+            loadSubCategories(formData.categoryId);
+        } catch (error: any) {
+            toast.error(error.response?.data?.error || 'Failed to create sub-category');
+            throw error;
+        }
+    };
     const [formData, setFormData] = useState<ClientFormData>({
+        salutation: '',
         name: '',
         email: '',
         phone: '',
+        mobile: '',
+        password: '',
+        country: 'India',
+        gender: 'male',
+        language: 'English',
+        categoryId: '',
+        subCategoryId: '',
+        receiveNotifications: true,
+        portalAccess: false,
+        website: '',
+        taxName: '',
+        gstin: '',
         address: '',
+        shippingAddress: '',
         city: '',
         state: '',
-        country: 'India',
         pincode: '',
-        gstin: '',
-        pan: '',
+        notes: '',
         clientType: 'customer',
         status: 'active',
-        portalAccess: false,
-        password: ''
+        profilePicture: '',
+        companyLogo: '',
     });
 
     // Page Level Security
@@ -73,24 +168,39 @@ export default function EditClientPage() {
     const loadClient = async (id: string) => {
         try {
             const response = await clientsApi.getById(id);
-            // Backend returns { client: {...} }
             const data = response.client || response;
             setFormData({
+                salutation: data.salutation || '',
                 name: data.name || '',
                 email: data.email || '',
                 phone: data.phone || '',
+                mobile: data.mobile || '',
+                password: '',
+                country: data.country || 'India',
+                gender: data.gender || 'male',
+                language: data.language || 'English',
+                categoryId: data.categoryId || '',
+                subCategoryId: data.subCategoryId || '',
+                receiveNotifications: data.receiveNotifications ?? true,
+                portalAccess: data.portalAccess || false,
+                companyName: data.companyName || '',
+                website: data.website || '',
+                taxName: data.taxName || '',
+                gstin: data.gstin || '',
                 address: data.address || '',
+                shippingAddress: data.shippingAddress || '',
                 city: data.city || '',
                 state: data.state || '',
-                country: data.country || 'India',
                 pincode: data.pincode || '',
-                gstin: data.gstin || '',
-                pan: data.pan || '',
+                notes: data.notes || '',
                 clientType: data.clientType || 'customer',
                 status: data.status || 'active',
-                portalAccess: data.portalAccess || false,
-                password: ''
+                profilePicture: data.profilePicture || '',
+                companyLogo: data.companyLogo || '',
             });
+            if (data.categoryId) {
+                loadSubCategories(data.categoryId);
+            }
         } catch (error: any) {
             toast.error(error.response?.data?.error || 'Failed to load client');
             router.push('/clients');
@@ -113,8 +223,40 @@ export default function EditClientPage() {
         }
     };
 
-    const handleChange = (field: keyof ClientFormData, value: string) => {
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'profile' | 'logo') => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('image', file);
+
+        if (type === 'profile') setUploadingProfile(true);
+        else setUploadingLogo(true);
+
+        try {
+            const res = type === 'profile'
+                ? await clientsApi.uploadProfile(formData)
+                : await clientsApi.uploadLogo(formData);
+
+            setFormData(prev => ({
+                ...prev,
+                [type === 'profile' ? 'profilePicture' : 'companyLogo']: res.data.filePath
+            }));
+            toast.success(`${type === 'profile' ? 'Profile picture' : 'Company logo'} uploaded`);
+        } catch (error: any) {
+            toast.error('Upload failed: ' + (error.response?.data?.error || 'Unknown error'));
+        } finally {
+            if (type === 'profile') setUploadingProfile(false);
+            else setUploadingLogo(false);
+        }
+    };
+
+    const handleChange = (field: keyof ClientFormData, value: any) => {
         setFormData({ ...formData, [field]: value });
+        if (field === 'categoryId') {
+            loadSubCategories(value);
+            setFormData(prev => ({ ...prev, categoryId: value, subCategoryId: '' }));
+        }
         if (errors[field]) {
             validateField(field, value);
         }
@@ -141,7 +283,7 @@ export default function EditClientPage() {
         setSaving(true);
         try {
             await clientsApi.update(params.id as string, formData);
-            toast.success('Client updated successfully');
+            toast.success('Client profile updated');
             router.push(`/clients/${params.id}`);
         } catch (error: any) {
             toast.error(error.response?.data?.error || 'Failed to update client');
@@ -159,345 +301,262 @@ export default function EditClientPage() {
     }
 
     return (
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            {/* Header Card */}
-            <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                    <div className="p-3 bg-primary-50 text-primary-600 rounded-lg border border-primary-100 shadow-sm">
-                        <Building2 size={24} />
-                    </div>
-                    <div>
-                        <div className="flex items-center gap-2 mb-1">
-                            <Link
-                                href={`/clients/${params.id}`}
-                                className="text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-primary-600 transition-colors flex items-center gap-1"
-                            >
-                                <ArrowLeft size={10} /> Back to Registry
-                            </Link>
-                        </div>
-                        <h1 className="text-xl font-black text-gray-900 tracking-tight uppercase">
-                            Edit Client Profile
-                        </h1>
-                        <p className="text-xs text-gray-500 font-medium">
-                            Update organization identity and commercial parameters
-                        </p>
-                    </div>
+        <div className="max-w-6xl mx-auto px-4 py-8 pb-40">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8 gap-4 px-2">
+                <div className="space-y-0.5">
+                    <button
+                        onClick={() => router.back()}
+                        className="flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-primary-600 transition-colors mb-2 uppercase tracking-wide"
+                    >
+                        <ArrowLeft size={14} />
+                        Abort Edit
+                    </button>
+                    <h1 className="text-2xl font-black text-slate-900 tracking-tight leading-tight uppercase">
+                        Edit Client Registry
+                    </h1>
                 </div>
                 <div className="flex items-center gap-3">
-                    <Link
-                        href={`/clients/${params.id}`}
-                        className="ent-button-secondary text-xs uppercase tracking-wider font-bold"
-                    >
-                        <X size={14} className="mr-2" />
-                        Cancel
-                    </Link>
-                    <button
-                        onClick={handleSubmit}
-                        disabled={saving}
-                        className="ent-button-primary text-xs uppercase tracking-wider font-bold shadow-primary-100"
-                    >
-                        {saving ? (
-                            <>
-                                <LoadingSpinner size="sm" className="mr-2" />
-                                Saving...
-                            </>
-                        ) : (
-                            <>
-                                <Save size={14} className="mr-2" />
-                                Save Changes
-                            </>
-                        )}
+                    <button onClick={() => router.back()} className="btn-secondary">Cancel</button>
+                    <button onClick={handleSubmit} disabled={saving} className="btn-primary">
+                        {saving && <LoadingSpinner size="sm" className="mr-2" />}
+                        {saving ? 'Synchronizing...' : 'Save Configuration'}
                     </button>
                 </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Organization Identity */}
-                <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-                    <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-3 bg-gray-50/50">
-                        <div className="p-1.5 bg-white rounded border border-gray-200 shadow-sm text-primary-600">
-                            <Activity size={14} />
-                        </div>
-                        <h2 className="text-xs font-black text-gray-900 uppercase tracking-widest">
-                            Organization Identity
-                        </h2>
+            <form onSubmit={handleSubmit} className="space-y-10">
+                {/* Account Details Section */}
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div className="px-6 py-4 bg-slate-50 border-b border-slate-200">
+                        <h2 className="text-sm font-black text-slate-800 uppercase tracking-widest">Account Details</h2>
                     </div>
-
-                    <div className="p-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
-                        <div className="sm:col-span-2">
-                            <div className="ent-form-group">
-                                <label className="ent-label">Client/Company Name <span className="text-red-500">*</span></label>
-                                <div className="relative">
-                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <Building2 className="h-4 w-4 text-gray-400" />
-                                    </div>
-                                    <input
-                                        type="text"
-                                        value={formData.name}
-                                        onChange={(e) => handleChange('name', e.target.value)}
-                                        className={`ent-input pl-10 ${errors.name ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
-                                        placeholder="Enter full legal entity name"
-                                    />
-                                </div>
-                                {errors.name && <p className="ent-error">{errors.name}</p>}
-                            </div>
+                    <div className="p-8 grid grid-cols-1 md:grid-cols-4 gap-x-6 gap-y-8">
+                        <div className="ent-form-group">
+                            <label className="ent-label">Salutation</label>
+                            <select value={formData.salutation} onChange={e => handleChange('salutation', e.target.value)} className="ent-input">
+                                <option value="">--</option>
+                                <option value="Mr.">Mr.</option>
+                                <option value="Mrs.">Mrs.</option>
+                                <option value="Ms.">Ms.</option>
+                                <option value="Dr.">Dr.</option>
+                            </select>
+                        </div>
+                        <div className="md:col-span-2 ent-form-group">
+                            <label className="ent-label">Client Name <span className="text-rose-500">*</span></label>
+                            <input type="text" value={formData.name} onChange={e => handleChange('name', e.target.value)} className="ent-input" placeholder="e.g. John Doe" />
+                            {errors.name && <p className="ent-error">{errors.name}</p>}
+                        </div>
+                        <div className="ent-form-group">
+                            <label className="ent-label">Email</label>
+                            <input type="email" value={formData.email} onChange={e => handleChange('email', e.target.value)} className="ent-input" placeholder="e.g. johndoe@example.com" />
                         </div>
 
                         <div className="ent-form-group">
-                            <label className="ent-label">Primary Email</label>
+                            <label className="ent-label">Update Password</label>
                             <div className="relative">
-                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <Mail className="h-4 w-4 text-gray-400" />
-                                </div>
-                                <input
-                                    type="email"
-                                    value={formData.email}
-                                    onChange={(e) => handleChange('email', e.target.value)}
-                                    className={`ent-input pl-10 ${errors.email ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
-                                    placeholder="contact@company.com"
-                                />
+                                <input type="password" value={formData.password} onChange={e => handleChange('password', e.target.value)} className="ent-input pr-20" placeholder="••••••••" />
                             </div>
-                            {errors.email && <p className="ent-error">{errors.email}</p>}
-                        </div>
-
-                        <div className="ent-form-group">
-                            <label className="ent-label">Phone Number</label>
-                            <div className="relative">
-                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <Phone className="h-4 w-4 text-gray-400" />
-                                </div>
-                                <input
-                                    type="tel"
-                                    value={formData.phone}
-                                    onChange={(e) => handleChange('phone', e.target.value)}
-                                    className={`ent-input pl-10 ${errors.phone ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
-                                    placeholder="+91 98765 43210"
-                                />
-                            </div>
-                            {errors.phone && <p className="ent-error">{errors.phone}</p>}
-                        </div>
-                    </div>
-                </div>
-
-                {/* Location & Coordinates */}
-                <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-                    <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-3 bg-gray-50/50">
-                        <div className="p-1.5 bg-white rounded border border-gray-200 shadow-sm text-emerald-600">
-                            <MapPin size={14} />
-                        </div>
-                        <h2 className="text-xs font-black text-gray-900 uppercase tracking-widest">
-                            Location & Coordinates
-                        </h2>
-                    </div>
-
-                    <div className="p-6 grid grid-cols-1 gap-6 sm:grid-cols-4">
-                        <div className="sm:col-span-4">
-                            <div className="ent-form-group">
-                                <label className="ent-label">Street Address</label>
-                                <textarea
-                                    value={formData.address}
-                                    onChange={(e) => handleChange('address', e.target.value)}
-                                    rows={2}
-                                    className="ent-input py-2 resize-none"
-                                    placeholder="Building No., Street, Area"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="ent-form-group">
-                            <label className="ent-label">City</label>
-                            <input
-                                type="text"
-                                value={formData.city}
-                                onChange={(e) => handleChange('city', e.target.value)}
-                                className="ent-input"
-                                placeholder="City Name"
-                            />
-                        </div>
-
-                        <div className="ent-form-group">
-                            <label className="ent-label">State/Province</label>
-                            <input
-                                type="text"
-                                value={formData.state}
-                                onChange={(e) => handleChange('state', e.target.value)}
-                                className="ent-input"
-                                placeholder="State Name"
-                            />
+                            <p className="text-[10px] text-slate-400 mt-1">Leave blank to keep existing protocol</p>
                         </div>
 
                         <div className="ent-form-group">
                             <label className="ent-label">Country</label>
-                            <div className="relative">
-                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <Globe className="h-4 w-4 text-gray-400" />
-                                </div>
-                                <input
-                                    type="text"
-                                    value={formData.country}
-                                    onChange={(e) => handleChange('country', e.target.value)}
-                                    className="ent-input pl-10"
-                                />
+                            <select value={formData.country} onChange={e => handleChange('country', e.target.value)} className="ent-input">
+                                <option value="India">India</option>
+                                <option value="United States">United States</option>
+                            </select>
+                        </div>
+
+                        <div className="ent-form-group">
+                            <label className="ent-label">Mobile</label>
+                            <div className="flex gap-2">
+                                <div className="w-20"><input type="text" value="+91" readOnly className="ent-input text-center" /></div>
+                                <input type="text" value={formData.mobile} onChange={e => handleChange('mobile', e.target.value)} className="ent-input flex-1" placeholder="e.g. 1234567890" />
+                            </div>
+                        </div>
+
+                        <div
+                            onClick={() => profileInputRef.current?.click()}
+                            className="row-span-2 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center p-4 bg-slate-50/50 hover:bg-slate-50 transition-colors cursor-pointer group relative overflow-hidden"
+                        >
+                            {formData.profilePicture ? (
+                                <img src={`${SERVER_URL}${formData.profilePicture}`} className="absolute inset-0 w-full h-full object-cover" alt="Profile" />
+                            ) : uploadingProfile ? (
+                                <LoadingSpinner />
+                            ) : (
+                                <>
+                                    <div className="w-12 h-12 rounded-full bg-white shadow-sm flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                                        <Plus size={24} className="text-slate-400" />
+                                    </div>
+                                    <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Profile Picture</p>
+                                </>
+                            )}
+                            <input type="file" ref={profileInputRef} className="hidden" accept="image/*" onChange={(e) => handleFileUpload(e, 'profile')} />
+                        </div>
+
+                        <div className="ent-form-group">
+                            <label className="ent-label">Gender</label>
+                            <select value={formData.gender} onChange={e => handleChange('gender', e.target.value)} className="ent-input">
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+
+                        <div className="ent-form-group">
+                            <label className="ent-label">Change Language</label>
+                            <select value={formData.language} onChange={e => handleChange('language', e.target.value)} className="ent-input">
+                                <option value="English">English</option>
+                                <option value="Hindi">Hindi</option>
+                            </select>
+                        </div>
+                        <div className="ent-form-group">
+                            <label className="ent-label">Client Category</label>
+                            <div className="flex gap-2">
+                                <select value={formData.categoryId} onChange={e => handleChange('categoryId', e.target.value)} className="ent-input flex-1">
+                                    <option value="">-- Choose Category --</option>
+                                    {categories.map(cat => (
+                                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                                    ))}
+                                </select>
+                                <button type="button" onClick={() => setCatModal(true)} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded text-[10px] font-black uppercase transition-colors">Add</button>
                             </div>
                         </div>
 
                         <div className="ent-form-group">
-                            <label className="ent-label">Postal Code</label>
-                            <input
-                                type="text"
-                                value={formData.pincode}
-                                onChange={(e) => handleChange('pincode', e.target.value)}
-                                className="ent-input"
-                                placeholder="000000"
-                            />
+                            <label className="ent-label">Client Sub Category</label>
+                            <div className="flex gap-2">
+                                <select value={formData.subCategoryId} onChange={e => handleChange('subCategoryId', e.target.value)} className="ent-input flex-1">
+                                    <option value="">-- Choose Sub Category --</option>
+                                    {subCategories.map(sub => (
+                                        <option key={sub.id} value={sub.id}>{sub.name}</option>
+                                    ))}
+                                </select>
+                                <button type="button" onClick={() => setSubCatModal(true)} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded text-[10px] font-black uppercase transition-colors">Add</button>
+                            </div>
+                        </div>
+
+                        <div className="md:col-span-2 ent-form-group">
+                            <label className="ent-label">Login Allowed?</label>
+                            <div className="flex gap-6 mt-2">
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input type="radio" checked={formData.portalAccess === true} onChange={() => handleChange('portalAccess', true)} className="w-4 h-4 text-primary-600" />
+                                    <span className="text-sm font-bold text-slate-700">Yes</span>
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input type="radio" checked={formData.portalAccess === false} onChange={() => handleChange('portalAccess', false)} className="w-4 h-4 text-primary-600" />
+                                    <span className="text-sm font-bold text-slate-700">No</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div className="md:col-span-2 ent-form-group">
+                            <label className="ent-label">Receive email notifications?</label>
+                            <div className="flex gap-6 mt-2">
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input type="radio" checked={formData.receiveNotifications === true} onChange={() => handleChange('receiveNotifications', true)} className="w-4 h-4 text-primary-600" />
+                                    <span className="text-sm font-bold text-slate-700">Yes</span>
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input type="radio" checked={formData.receiveNotifications === false} onChange={() => handleChange('receiveNotifications', false)} className="w-4 h-4 text-primary-600" />
+                                    <span className="text-sm font-bold text-slate-700">No</span>
+                                </label>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Commercial & Tax Info */}
-                <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-                    <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-3 bg-gray-50/50">
-                        <div className="p-1.5 bg-white rounded border border-gray-200 shadow-sm text-violet-600">
-                            <CreditCard size={14} />
-                        </div>
-                        <h2 className="text-xs font-black text-gray-900 uppercase tracking-widest">
-                            Commercial & Tax Info
-                        </h2>
+                {/* Company Details Section */}
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div className="px-6 py-4 bg-slate-50 border-b border-slate-200">
+                        <h2 className="text-sm font-black text-slate-800 uppercase tracking-widest">Company Details</h2>
                     </div>
-
-                    <div className="p-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
+                    <div className="p-8 grid grid-cols-1 md:grid-cols-4 gap-x-6 gap-y-8">
                         <div className="ent-form-group">
-                            <label className="ent-label">GSTIN Identifier</label>
-                            <div className="relative">
-                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <FileText className="h-4 w-4 text-gray-400" />
-                                </div>
-                                <input
-                                    type="text"
-                                    value={formData.gstin}
-                                    onChange={(e) => handleChange('gstin', e.target.value.toUpperCase())}
-                                    placeholder="22AAAAA0000A1Z5"
-                                    className={`ent-input pl-10 font-mono uppercase ${errors.gstin ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
-                                />
-                            </div>
-                            {errors.gstin && <p className="ent-error">{errors.gstin}</p>}
+                            <label className="ent-label">Company Name</label>
+                            <input type="text" value={formData.companyName} onChange={e => handleChange('companyName', e.target.value)} className="ent-input" placeholder="e.g. Acme Corporation" />
+                        </div>
+                        <div className="ent-form-group">
+                            <label className="ent-label">Official Website</label>
+                            <input type="text" value={formData.website} onChange={e => handleChange('website', e.target.value)} className="ent-input" placeholder="https://www.example.com" />
+                        </div>
+                        <div className="ent-form-group">
+                            <label className="ent-label">Tax Name</label>
+                            <input type="text" value={formData.taxName} onChange={e => handleChange('taxName', e.target.value)} className="ent-input" placeholder="GST/VAT" />
+                        </div>
+                        <div className="ent-form-group">
+                            <label className="ent-label">GST/VAT Number</label>
+                            <input type="text" value={formData.gstin} onChange={e => handleChange('gstin', e.target.value.toUpperCase())} className="ent-input font-mono" placeholder="18AABCU960XXXXX" />
+                        </div>
+                        <div className="ent-form-group">
+                            <label className="ent-label">Postal code</label>
+                            <input type="text" value={formData.pincode} onChange={e => handleChange('pincode', e.target.value)} className="ent-input" placeholder="90250" />
                         </div>
 
                         <div className="ent-form-group">
-                            <label className="ent-label">PAN Reference</label>
-                            <div className="relative">
-                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <FileText className="h-4 w-4 text-gray-400" />
-                                </div>
-                                <input
-                                    type="text"
-                                    value={formData.pan}
-                                    onChange={(e) => handleChange('pan', e.target.value.toUpperCase())}
-                                    placeholder="AAAAA0000A"
-                                    className={`ent-input pl-10 font-mono uppercase ${errors.pan ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
-                                />
-                            </div>
-                            {errors.pan && <p className="ent-error">{errors.pan}</p>}
+                            <label className="ent-label">City</label>
+                            <input type="text" value={formData.city} onChange={e => handleChange('city', e.target.value)} className="ent-input" />
+                        </div>
+                        <div className="ent-form-group">
+                            <label className="ent-label">State</label>
+                            <input type="text" value={formData.state} onChange={e => handleChange('state', e.target.value)} className="ent-input" />
                         </div>
 
-                        <div className="ent-form-group">
-                            <label className="ent-label">Client Classification <span className="text-red-500">*</span></label>
-                            <div className="relative">
-                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <Tag className="h-4 w-4 text-gray-400" />
-                                </div>
-                                <div className="relative">
-                                    <select
-                                        value={formData.clientType}
-                                        onChange={(e) => handleChange('clientType', e.target.value)}
-                                        className="ent-input pl-10 appearance-none"
-                                    >
-                                        <option value="customer">Customer</option>
-                                        <option value="vendor">Vendor</option>
-                                        <option value="partner">Partner</option>
-                                    </select>
-                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                                        <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
+                        <div className="md:col-span-2 ent-form-group">
+                            <label className="ent-label">Current Address</label>
+                            <textarea rows={3} value={formData.address} onChange={e => handleChange('address', e.target.value)} className="ent-input resize-none" />
+                        </div>
+                        <div className="md:col-span-2 ent-form-group">
+                            <label className="ent-label">Shipping Protocol Address</label>
+                            <textarea rows={3} value={formData.shippingAddress} onChange={e => handleChange('shippingAddress', e.target.value)} className="ent-input resize-none" />
+                        </div>
+
+                        <div className="md:col-span-4 ent-form-group">
+                            <label className="ent-label">Internal Documentation Note</label>
+                            <div className="border border-slate-200 rounded-lg p-2 min-h-[100px]">
+                                <textarea value={formData.notes} onChange={e => handleChange('notes', e.target.value)} className="w-full h-full border-0 focus:ring-0 resize-none text-sm" />
+                            </div>
+                        </div>
+
+                        <div
+                            onClick={() => logoInputRef.current?.click()}
+                            className="md:col-span-1 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center p-8 bg-slate-50/50 hover:bg-slate-50 transition-colors cursor-pointer group relative overflow-hidden"
+                        >
+                            {formData.companyLogo ? (
+                                <img src={`${SERVER_URL}${formData.companyLogo}`} className="absolute inset-0 w-full h-full object-contain p-2" alt="Logo" />
+                            ) : uploadingLogo ? (
+                                <LoadingSpinner />
+                            ) : (
+                                <>
+                                    <div className="p-4 bg-white shadow-sm flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                                        <Plus size={24} className="text-slate-400" />
                                     </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="ent-form-group">
-                            <label className="ent-label">Operational Status <span className="text-red-500">*</span></label>
-                            <div className="relative">
-                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <Activity className="h-4 w-4 text-gray-400" />
-                                </div>
-                                <div className="relative">
-                                    <select
-                                        value={formData.status}
-                                        onChange={(e) => handleChange('status', e.target.value)}
-                                        className="ent-input pl-10 appearance-none"
-                                    >
-                                        <option value="active">Active</option>
-                                        <option value="inactive">Inactive</option>
-                                    </select>
-                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                                        <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
-                                    </div>
-                                </div>
-                            </div>
+                                    <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest text-center">Company Logo</p>
+                                </>
+                            )}
+                            <input type="file" ref={logoInputRef} className="hidden" accept="image/*" onChange={(e) => handleFileUpload(e, 'logo')} />
                         </div>
                     </div>
                 </div>
-                {/* Client Portal Access */}
-                <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-                    <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-3 bg-gray-50/50">
-                        <div className="p-1.5 bg-white rounded border border-gray-200 shadow-sm text-primary-600">
-                            <Lock size={14} />
-                        </div>
-                        <h2 className="text-xs font-black text-gray-900 uppercase tracking-widest">
-                            Portal Access Control
-                        </h2>
-                    </div>
-
-                    <div className="p-6 flex flex-col gap-6">
-                        <div className="flex items-center justify-between p-4 bg-primary-50/50 rounded-lg border border-primary-100">
-                            <div>
-                                <h4 className="text-sm font-bold text-slate-900">Enable Client Portal Access</h4>
-                                <p className="text-xs text-slate-500 mt-1">Allow this entity to login, view invoices, and make payments.</p>
-                            </div>
-                            <label className="relative inline-flex items-center cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    className="sr-only peer"
-                                    checked={formData.portalAccess}
-                                    onChange={e => handleChange('portalAccess', e.target.checked as any)}
-                                />
-                                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-                            </label>
-                        </div>
-
-                        {formData.portalAccess && (
-                            <div className="ent-form-group animate-in fade-in slide-in-from-top-2">
-                                <label className="ent-label">Update Login Password <span className="text-slate-400 font-normal normal-case">(Leave blank to keep current)</span></label>
-                                <div className="relative">
-                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <Lock size={14} className="text-gray-400" />
-                                    </div>
-                                    <input
-                                        type="password"
-                                        value={formData.password}
-                                        onChange={e => handleChange('password', e.target.value)}
-                                        className="ent-input pl-10"
-                                        placeholder="Enter new password to change"
-                                    />
-                                </div>
-                                <p className="text-[10px] text-slate-400 mt-2 font-medium">
-                                    Credentials will be emailed to <span className="text-slate-900 font-bold">{formData.email || 'the provided email'}</span> upon update.
-                                </p>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
             </form>
+
+            <QuickAddModal
+                isOpen={catModal}
+                onClose={() => setCatModal(false)}
+                onAdd={handleAddCategory}
+                title="Update Category Protocols"
+                label="Category Name"
+                placeholder="e.g. Strategic Partner, Direct Vendor..."
+            />
+
+            <QuickAddModal
+                isOpen={subCatModal}
+                onClose={() => setSubCatModal(false)}
+                onAdd={handleAddSubCategory}
+                title="Update Sub-Category Protocols"
+                label="Sub-Category Name"
+                placeholder="e.g. Infrastructure, Consultancy..."
+            />
         </div>
     );
 }

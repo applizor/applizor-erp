@@ -42,6 +42,7 @@ model User {
   assignedQuotations Quotation[] @relation("QuotationAssignee")
   createdQuotations  Quotation[] @relation("QuotationCreator")
   createdContracts   Contract[]  @relation("ContractCreator")
+  createdClients     Client[]    @relation("ClientCreator")
 
   @@index([email])
   @@index([companyId])
@@ -163,6 +164,7 @@ model Company {
   quotationTemplates QuotationTemplate[]
   contracts          Contract[]
   contractTemplates  ContractTemplate[]
+  clientCategories   ClientCategory[]
 
   @@index([name])
 }
@@ -194,39 +196,91 @@ model Branch {
 // ============================================
 
 model Client {
-  id         String   @id @default(uuid())
-  companyId  String
-  name       String
-  email      String?
-  phone      String?
-  address    String?
-  city       String?
-  state      String?
-  country    String   @default("India")
-  pincode    String?
-  gstin      String?
-  pan        String?
-  status     String   @default("active") // active, inactive, blocked
-  clientType String   @default("customer") // customer, prospect, lead
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id             String    @id @default(uuid())
+  companyId      String
+  name           String
+  companyName    String?
+  email          String?
+  phone          String?
+  address        String?
+  city           String?
+  state          String?
+  country        String    @default("India")
+  pincode        String?
+  gstin          String?
+  pan            String?
+  salutation     String?
+  gender         String?
+  language       String?   @default("English")
+  profilePicture String?
+  mobile         String?
+  website        String?
+  taxName        String?
+  shippingAddress String?  @db.Text
+  notes          String?   @db.Text
+  companyLogo    String?
+  receiveNotifications Boolean @default(true)
+
+  status         String    @default("active") // active, inactive, blocked
+  clientType     String    @default("customer") // customer, prospect, lead
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   // Relations
-  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  projects      Project[]
-  invoices      Invoice[]
-  subscriptions Subscription[]
-  documents     Document[]
-  contracts     Contract[]
+  company        Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdById    String?
+  creator        User?     @relation("ClientCreator", fields: [createdById], references: [id])
+  
+  categoryId     String?
+  category       ClientCategory? @relation(fields: [categoryId], references: [id])
+  subCategoryId  String?
+  subCategory    ClientSubCategory? @relation(fields: [subCategoryId], references: [id])
+
+  projects       Project[]
+  invoices       Invoice[]
+  subscriptions  Subscription[]
+  documents      Document[]
+  contracts      Contract[]
+  quotations     Quotation[]
 
   // Portal Access
-  password     String? // Hashed password
-  portalAccess Boolean   @default(false)
-  lastLogin    DateTime?
+  password       String?   // Hashed password
+  portalAccess   Boolean   @default(false)
+  lastLogin      DateTime?
 
   @@index([companyId])
   @@index([email])
   @@index([status])
+  @@index([categoryId])
+}
+
+model ClientCategory {
+  id        String   @id @default(uuid())
+  companyId String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  company      Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  clients      Client[]
+  subCategories ClientSubCategory[]
+
+  @@index([companyId])
+}
+
+model ClientSubCategory {
+  id         String   @id @default(uuid())
+  categoryId String
+  name       String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  category ClientCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  clients  Client[]
+
+  @@index([categoryId])
 }
 
 model Lead {
@@ -393,6 +447,7 @@ model Quotation {
 
   // Relations
   lead         Lead?   @relation(fields: [leadId], references: [id])
+  client       Client? @relation(fields: [clientId], references: [id])
   company      Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   creator      User?   @relation("QuotationCreator", fields: [createdBy], references: [id])
   assignedUser User?   @relation("QuotationAssignee", fields: [assignedTo], references: [id])
@@ -1066,7 +1121,7 @@ model Invoice {
   dueDate           DateTime  @db.Date
   status            String    @default("draft") // draft, sent, paid, overdue, cancelled
   type              String    @default("invoice") // invoice, quotation, proforma
-  currency          String    @default("USD")
+  currency          String    @default("INR")
   terms             String?   @db.Text
   subtotal          Decimal   @db.Decimal(12, 2)
   tax               Decimal   @default(0) @db.Decimal(12, 2)

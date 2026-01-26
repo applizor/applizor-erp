@@ -79,6 +79,7 @@ export const getInvoices = async (req: AuthRequest, res: Response) => {
         include: {
           client: true,
           items: true,
+          payments: true,
         },
         orderBy: {
           createdAt: 'desc',
@@ -164,7 +165,7 @@ export const generateInvoicePDF = async (req: AuthRequest, res: Response) => {
         pdfMarginRight: (invoice.company as any).pdfMarginRight || undefined,
         pdfContinuationTop: (invoice.company as any).pdfContinuationTop || undefined
       },
-      useLetterhead: req.query.useLetterhead === 'true'
+      useLetterhead: req.body.useLetterhead === true || req.query.useLetterhead === 'true'
     });
 
     res.setHeader('Content-Type', 'application/pdf');
@@ -234,7 +235,9 @@ export const sendInvoice = async (req: AuthRequest, res: Response) => {
       ...invoice,
       useLetterhead: req.body.useLetterhead === true
     });
-    await emailService.sendInvoiceEmail(invoice.client.email, invoice, pdfBuffer);
+
+    const publicUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/portal/invoices/${invoice.id}`;
+    await emailService.sendInvoiceEmail(invoice.client.email, invoice, pdfBuffer, false, publicUrl);
 
     if (invoice.status === 'draft') {
       await prisma.invoice.update({
@@ -331,6 +334,44 @@ export const batchSendInvoices = async (req: AuthRequest, res: Response) => {
 /**
  * Convert quotation to invoice
  */
+
+/**
+ * Update an invoice
+ */
+export const updateInvoice = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user || !user.companyId) {
+      return res.status(400).json({ error: 'User must belong to a company' });
+    }
+
+    const invoice = await InvoiceService.updateInvoice(id, {
+      ...req.body,
+      companyId: user.companyId,
+    });
+
+    res.json({
+      message: 'Invoice updated successfully',
+      invoice,
+    });
+  } catch (error: any) {
+    console.error('Update invoice error:', error);
+    res.status(500).json({ error: 'Failed to update invoice', details: error.message });
+  }
+};
+
+/**
+ * Convert quotation to invoice
+ */
 export const convertQuotation = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
@@ -338,5 +379,61 @@ export const convertQuotation = async (req: AuthRequest, res: Response) => {
     res.json({ message: 'Quotation converted successfully', invoice });
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Conversion failed' });
+  }
+};
+
+/**
+ * Get public invoice details by ID
+ */
+export const getPublicInvoice = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const invoice = await prisma.invoice.findUnique({
+      where: { id },
+      include: {
+        company: true,
+        client: true,
+        items: true,
+        payments: true, // Include payments for timeline
+      },
+    });
+
+    if (!invoice) {
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+
+    res.json({ invoice });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to fetch invoice', details: error.message });
+  }
+};
+
+/**
+ * Get public invoice PDF by ID
+ */
+export const getPublicInvoicePdf = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const invoice = await prisma.invoice.findUnique({
+      where: { id },
+      include: {
+        company: true,
+        client: true,
+        items: true,
+      },
+    });
+
+    if (!invoice) {
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+
+    const pdfBuffer = await PDFService.generateInvoicePDF({ ...invoice, useLetterhead: true });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="Invoice-${invoice.invoiceNumber}.pdf"`);
+    res.send(pdfBuffer);
+  } catch (error: any) {
+    console.error('Get public PDF error:', error);
+    res.status(500).json({ error: 'Failed to generate PDF', details: error.message });
   }
 };

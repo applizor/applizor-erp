@@ -14,6 +14,7 @@ export default function InvoiceDetails({ params }: { params: { id: string } }) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        // Portal uses the authenticated route that returns timeline and extra details
         api.get(`/portal/invoices/${params.id}`)
             .then((res: any) => {
                 setInvoice(res.data.invoice);
@@ -153,9 +154,44 @@ export default function InvoiceDetails({ params }: { params: { id: string } }) {
                                         <span>Total</span>
                                         <span>{invoice.currency} {Number(invoice.total).toLocaleString()}</span>
                                     </div>
+                                    <div className="flex justify-between text-xs text-emerald-600 font-bold pt-1">
+                                        <span>Paid</span>
+                                        <span>{invoice.currency} {Number(invoice.paidAmount).toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex justify-between text-sm font-black text-rose-600 pt-2 border-t border-slate-100">
+                                        <span>Balance Due</span>
+                                        <span>{invoice.currency} {Number(invoice.total - invoice.paidAmount).toLocaleString()}</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
+
+                        {/* Payment History Table */}
+                        {invoice.payments && invoice.payments.length > 0 && (
+                            <div className="p-6 border-t border-slate-100 bg-slate-50/20">
+                                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Payment Records</h3>
+                                <table className="w-full text-left text-xs">
+                                    <thead className="text-slate-500 font-bold uppercase tracking-wider">
+                                        <tr>
+                                            <th className="pb-2">Date</th>
+                                            <th className="pb-2">Method</th>
+                                            <th className="pb-2 text-right">Amount</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {invoice.payments.map((p: any) => (
+                                            <tr key={p.id}>
+                                                <td className="py-2 font-medium text-slate-900">{new Date(p.paymentDate).toLocaleDateString()}</td>
+                                                <td className="py-2 text-slate-600 uppercase">{p.paymentMethod?.replace('-', ' ')}</td>
+                                                <td className="py-2 text-right font-bold text-emerald-600">
+                                                    {invoice.currency} {Number(p.amount).toLocaleString()}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
                     </div>
                 </div>
 

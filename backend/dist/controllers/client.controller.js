@@ -22,7 +22,7 @@ const createClient = async (req, res) => {
         if (!user || !user.companyId) {
             return res.status(400).json({ error: 'User must belong to a company' });
         }
-        const { name, email, phone, address, city, state, country = 'India', pincode, gstin, pan, clientType = 'customer', portalAccess = false, password, } = req.body;
+        const { name, email, phone, address, city, state, country = 'India', pincode, gstin, pan, clientType = 'customer', portalAccess = false, password, salutation, gender, language, profilePicture, mobile, website, taxName, shippingAddress, notes, companyLogo, receiveNotifications = true, categoryId, subCategoryId, companyName, } = req.body;
         if (!name) {
             return res.status(400).json({ error: 'Client name is required' });
         }
@@ -43,10 +43,25 @@ const createClient = async (req, res) => {
                 pincode,
                 gstin,
                 pan,
+                salutation,
+                gender,
+                language,
+                profilePicture,
+                mobile,
+                website,
+                taxName,
+                shippingAddress,
+                notes,
+                companyLogo,
+                receiveNotifications: Boolean(receiveNotifications),
+                categoryId: categoryId || null,
+                subCategoryId: subCategoryId || null,
+                companyName,
                 clientType,
                 status: 'active',
                 portalAccess: Boolean(portalAccess),
                 password: hashedPassword,
+                createdById: userId,
             },
         });
         // TODO: Send Welcome Email with credentials if portalAccess is true
@@ -164,7 +179,7 @@ const updateClient = async (req, res) => {
             return res.status(403).json({ error: 'Access denied: No update rights for Client' });
         }
         const { id } = req.params;
-        const { name, email, phone, address, city, state, country, pincode, gstin, pan, status, clientType, portalAccess, password, } = req.body;
+        const { name, email, phone, address, city, state, country, pincode, gstin, pan, status, clientType, portalAccess, password, salutation, gender, language, profilePicture, mobile, website, taxName, shippingAddress, notes, companyLogo, receiveNotifications, categoryId, subCategoryId, companyName, } = req.body;
         const data = {
             name,
             email,
@@ -176,6 +191,20 @@ const updateClient = async (req, res) => {
             pincode,
             gstin,
             pan,
+            salutation,
+            gender,
+            language,
+            profilePicture,
+            mobile,
+            website,
+            taxName,
+            shippingAddress,
+            notes,
+            companyLogo,
+            receiveNotifications: receiveNotifications !== undefined ? Boolean(receiveNotifications) : undefined,
+            categoryId: categoryId || null,
+            subCategoryId: subCategoryId || null,
+            companyName,
             status,
             clientType,
             portalAccess: portalAccess !== undefined ? Boolean(portalAccess) : undefined,

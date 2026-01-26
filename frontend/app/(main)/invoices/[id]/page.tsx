@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
     ArrowLeft, Download, Mail, DollarSign,
     Clock, CheckCircle, AlertCircle, FileText,
-    Share2, Trash2, Printer, Receipt, Info, ShieldCheck
+    Share2, Trash2, Printer, Receipt, Info, ShieldCheck, Link as LinkIcon
 } from 'lucide-react';
 import { invoicesApi } from '@/lib/api/invoices';
 import { useToast } from '@/hooks/useToast';
@@ -47,7 +47,8 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
     const handleSendEmail = async () => {
         try {
             setActionLoading(true);
-            await invoicesApi.sendEmail(params.id);
+            setActionLoading(true);
+            await invoicesApi.sendEmail(params.id, { useLetterhead });
             toast.success('Document transmitted successfully');
             loadInvoice();
         } catch (error) {
@@ -55,6 +56,14 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
         } finally {
             setActionLoading(false);
         }
+    };
+
+    const handleCopyLink = () => {
+        // Use window.location.host to get the current domain and port (e.g. localhost:3000)
+        // Construct URL for the public portal
+        const url = `${window.location.protocol}//${window.location.host}/public/invoices/${params.id}`;
+        navigator.clipboard.writeText(url);
+        toast.success('Public link copied to clipboard');
     };
 
     const handleDownloadPDF = async () => {
@@ -161,6 +170,9 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
                         <label htmlFor="useLetterhead" className="text-[10px] font-black uppercase tracking-widest text-slate-600 cursor-pointer select-none">Letterhead</label>
                     </div>
 
+                    <button onClick={handleCopyLink} className="flex-1 lg:flex-none px-3 py-1.5 bg-white border border-gray-200 rounded text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 flex items-center justify-center gap-2 transition-all" title="Copy Public Link">
+                        <LinkIcon size={14} /> Link
+                    </button>
                     <button onClick={handleDownloadPDF} className="flex-1 lg:flex-none px-3 py-1.5 bg-white border border-gray-200 rounded text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 flex items-center justify-center gap-2 transition-all">
                         <Download size={14} /> Export
                     </button>
@@ -226,19 +238,21 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
                                     </div>
                                 </div>
                                 <div className="bg-gray-50/50 rounded-lg p-6 border border-gray-100 flex flex-col justify-between">
-                                    <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 text-right">Valuation Balance</h3>
+                                    <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 text-right">Payment Summary</h3>
                                     <div className="space-y-3">
                                         <div className="flex justify-between items-center">
-                                            <span className="text-[10px] font-bold text-gray-500 uppercase">Gross Assignment</span>
+                                            <span className="text-[10px] font-bold text-gray-500 uppercase">Total Invoice Value</span>
                                             <span className="text-xs font-black text-gray-900">{formatCurrency(invoice.total)}</span>
                                         </div>
                                         <div className="flex justify-between items-center">
-                                            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Liquidated Amount</span>
+                                            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Paid Amount</span>
                                             <span className="text-xs font-black text-emerald-600">{formatCurrency(invoice.paidAmount)}</span>
                                         </div>
                                         <div className="pt-3 border-t border-gray-200/50 flex justify-between items-end">
-                                            <span className="text-[10px] font-black text-gray-900 uppercase tracking-widest mb-1">Outstanding Balance</span>
-                                            <span className="text-2xl font-black text-primary-600 tracking-tight">{formatCurrency(Number(invoice.total) - Number(invoice.paidAmount))}</span>
+                                            <span className="text-[10px] font-black text-gray-900 uppercase tracking-widest mb-1">Balance Due</span>
+                                            <span className={`text-2xl font-black tracking-tight ${Number(invoice.total) - Number(invoice.paidAmount) > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                                {formatCurrency(Number(invoice.total) - Number(invoice.paidAmount))}
+                                            </span>
                                         </div>
                                     </div>
                                 </div>
@@ -276,6 +290,37 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
                                     </table>
                                 </div>
                             </div>
+
+                            {/* Payment History */}
+                            {invoice.payments && invoice.payments.length > 0 && (
+                                <div className="mb-10">
+                                    <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 border-b border-gray-50 pb-2">Payment Records</h3>
+                                    <div className="overflow-x-auto">
+                                        <table className="ent-table">
+                                            <thead>
+                                                <tr>
+                                                    <th className="text-[10px] uppercase tracking-widest">Date</th>
+                                                    <th className="text-[10px] uppercase tracking-widest">Method</th>
+                                                    <th className="text-[10px] uppercase tracking-widest">Transaction ID</th>
+                                                    <th className="text-right text-[10px] uppercase tracking-widest">Amount</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-50 border-b border-gray-50">
+                                                {invoice.payments.map((payment: any) => (
+                                                    <tr key={payment.id} className="hover:bg-gray-50/50 transition-colors">
+                                                        <td className="py-4 font-bold text-gray-900 text-xs">
+                                                            {new Date(payment.paymentDate || payment.createdAt).toLocaleDateString()}
+                                                        </td>
+                                                        <td className="py-4 text-xs font-bold text-gray-600 uppercase">{payment.paymentMethod?.replace('-', ' ')}</td>
+                                                        <td className="py-4 text-xs font-mono text-gray-500">{payment.transactionId || '--'}</td>
+                                                        <td className="py-4 text-right font-black text-emerald-600 text-xs">{formatCurrency(payment.amount)}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Supplemental Memoranda */}
                             {(invoice.notes || invoice.terms) && (

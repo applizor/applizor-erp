@@ -566,10 +566,17 @@ export const convertLeadToClientEnhanced = async (req: AuthRequest, res: Respons
       data: {
         companyId: user.companyId,
         name: lead.name,
+        companyName: lead.company,
         email: lead.email,
         phone: lead.phone,
+        website: lead.website,
+        notes: lead.notes,
         clientType: 'customer',
-        status: 'active'
+        status: 'active',
+        createdById: userId,
+        // New UI fields from account details (if they existed in lead)
+        language: 'English',
+        receiveNotifications: true
       }
     });
 

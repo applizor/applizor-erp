@@ -97,6 +97,8 @@ export default function PagedRichTextEditor({
         { label: 'Client State', value: '[CLIENT_STATE]' },
         { label: 'Client GSTIN', value: '[CLIENT_GSTIN]' },
         { label: 'Client PAN', value: '[CLIENT_PAN]' },
+        { label: 'Client Website', value: '[CLIENT_WEBSITE]' },
+        { label: 'Client Tax/VAT Name', value: '[CLIENT_TAX_NAME]' },
         { label: 'Client Signature', value: '[CLIENT_SIGNATURE]' },
 
         // Company Details

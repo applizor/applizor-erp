@@ -1,5 +1,7 @@
 import api from '../api';
 
+const BASE_URL = '/clients';
+
 export interface Client {
   id: string;
   name: string;
@@ -15,6 +17,8 @@ export interface Client {
   status: string;
   clientType: string;
   createdAt: string;
+  profilePicture?: string;
+  companyLogo?: string;
 }
 
 export const clientsApi = {
@@ -48,4 +52,15 @@ export const clientsApi = {
     const response = await api.delete(`/clients/${id}`);
     return response.data;
   },
+
+  // Category APIs
+  getCategories: () => api.get('/client-categories'),
+  createCategory: (data: any) => api.post('/client-categories', data),
+  createSubCategory: (data: any) => api.post('/client-categories/sub', data),
+  getSubCategories: (categoryId: string) => api.get(`/client-categories/${categoryId}/sub`),
+
+  // Media Uploads
+  uploadLogo: (formData: FormData) => api.post(`${BASE_URL}/upload`, formData),
+
+  uploadProfile: (formData: FormData) => api.post(`${BASE_URL}/upload-profile`, formData),
 };

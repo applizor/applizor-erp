@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.sendQuotationReminder = exports.sendQuotationRejectionToCompany = exports.sendQuotationAcceptanceToCompany = exports.sendQuotationAcceptanceToClient = exports.sendContractNotification = exports.sendQuotationToClient = exports.sendInvoiceEmail = exports.sendEmail = void 0;
+exports.sendQuotationReminder = exports.sendQuotationRejectionToCompany = exports.sendQuotationAcceptanceToCompany = exports.sendQuotationAcceptanceToClient = exports.sendContractSignedNotificationToCompany = exports.sendContractNotification = exports.sendQuotationToClient = exports.sendInvoiceEmail = exports.sendEmail = void 0;
 const nodemailer_1 = __importDefault(require("nodemailer"));
 // Configure transporter
 // In production, these should come from environment variables or database settings
@@ -136,6 +136,29 @@ const sendContractNotification = async (contract, publicUrl) => {
     return (0, exports.sendEmail)(contract.client.email, subject, html);
 };
 exports.sendContractNotification = sendContractNotification;
+// Send Notification to Company when Client signs
+const sendContractSignedNotificationToCompany = async (contract) => {
+    const subject = `Contract Signed: ${contract.title} by ${contract.signerName || contract.client.name}`;
+    const html = `
+        <div style="font-family: Arial, sans-serif;">
+            <h2>Excellent News!</h2>
+            <p>The contract <strong>${contract.title}</strong> has been digitally signed by <strong>${contract.signerName || contract.client.name}</strong>.</p>
+            <div style="margin: 20px 0; padding: 15px; border-left: 4px solid #10B981; background: #F0FDF4;">
+                <p><strong>Signatory:</strong> ${contract.signerName || contract.client.name}</p>
+                <p><strong>Signed At:</strong> ${new Date(contract.signedAt).toLocaleString()}</p>
+                <p><strong>IP Address:</strong> ${contract.signerIp}</p>
+            </div>
+            <p>You can now view the signed contract and download the final PDF from your dashboard.</p>
+            <br/>
+            <p>Best regards,<br/>${process.env.COMPANY_NAME || 'Applizor'} Team</p>
+        </div>
+    `;
+    const companyEmail = contract.company?.email || process.env.SMTP_USER;
+    if (!companyEmail)
+        return;
+    return (0, exports.sendEmail)(companyEmail, subject, html);
+};
+exports.sendContractSignedNotificationToCompany = sendContractSignedNotificationToCompany;
 // Send Acceptance Confirmation to Client
 const sendQuotationAcceptanceToClient = async (quotationData) => {
     const subject = `Quotation #${quotationData.quotationNumber} - Accepted`;

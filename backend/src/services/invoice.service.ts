@@ -344,4 +344,85 @@ export class InvoiceService {
         }
         return results;
     }
+
+    /**
+     * Update an existing invoice
+     */
+    static async updateInvoice(id: string, data: CreateInvoiceInput) {
+        // Explicitly remove createdBy if present in the input
+        const { items: rawItems, createdBy, ...invoiceData } = data as any;
+        const items = rawItems as InvoiceItemInput[];
+
+        // Ensure dates are valid Date objects
+        const invoiceDate = new Date(invoiceData.invoiceDate);
+        const dueDate = new Date(invoiceData.dueDate);
+
+        // Calculate subtotal and totax tax
+        let subtotal = 0;
+        let totalTax = 0;
+
+        const processedItems = items.map(item => {
+            const amount = Number(item.quantity) * Number(item.rate);
+            const itemTax = amount * ((item.taxRate || 0) / 100);
+            subtotal += amount;
+            totalTax += itemTax;
+            return {
+                ...item,
+                amount: new Decimal(amount),
+                taxRate: new Decimal(item.taxRate || 0)
+            };
+        });
+
+        const discount = Number(invoiceData.discount || 0);
+        const total = subtotal + totalTax - discount;
+
+        try {
+            return await prisma.$transaction(async (tx) => {
+                // Delete existing items
+                await tx.invoiceItem.deleteMany({
+                    where: { invoiceId: id }
+                });
+
+                // Update invoice and create new items
+                const invoice = await tx.invoice.update({
+                    where: { id },
+                    data: {
+                        ...invoiceData,
+                        invoiceDate,
+                        dueDate,
+                        subtotal: new Decimal(subtotal),
+                        tax: new Decimal(totalTax),
+                        total: new Decimal(total),
+                        isRecurring: invoiceData.isRecurring || false,
+                        recurringInterval: invoiceData.recurringInterval,
+                        nextOccurrence: invoiceData.nextOccurrence,
+                        items: {
+                            create: processedItems
+                        }
+                    },
+                    include: {
+                        client: true,
+                        items: true
+                    }
+                });
+
+                // Log activity
+                await tx.auditLog.create({
+                    data: {
+                        companyId: invoiceData.companyId,
+                        action: 'UPDATE',
+                        module: 'INVOICE',
+                        entityType: 'Invoice',
+                        entityId: invoice.id,
+                        details: `Updated invoice ${invoice.invoiceNumber}`
+                    }
+                });
+
+                return invoice;
+            });
+        } catch (error) {
+            console.error('Update Invoice Failed:', error);
+            throw error;
+        }
+    }
 }

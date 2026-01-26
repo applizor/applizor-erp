@@ -6,7 +6,13 @@ import {
     getMyProjects,
     getInvoiceDetails,
     getInvoicePdf,
-    exportInvoices
+    exportInvoices,
+    getMyQuotations,
+    getQuotationDetails,
+    getQuotationPdf,
+    getContractPdf,
+    getMyContracts,
+    getContractDetails
 } from '../controllers/portal.controller';
 import { authenticateClient } from '../middleware/client.auth';
 
@@ -17,6 +23,17 @@ router.post('/login', login);
 
 // Protected routes
 router.get('/dashboard', authenticateClient, getDashboardStats);
+// Quotations
+router.get('/quotations', authenticateClient, getMyQuotations);
+router.get('/quotations/:id', authenticateClient, getQuotationDetails);
+router.get('/quotations/:id/pdf', authenticateClient, getQuotationPdf);
+
+// Contracts
+router.get('/contracts', authenticateClient, getMyContracts);
+router.get('/contracts/:id', authenticateClient, getContractDetails);
+router.get('/contracts/:id/pdf', authenticateClient, getContractPdf);
+
+// Projects & Invoices
 router.get('/invoices', authenticateClient, getMyInvoices);
 router.get('/invoices/export', authenticateClient, exportInvoices); // Must be before /:id
 router.get('/invoices/:id', authenticateClient, getInvoiceDetails);
