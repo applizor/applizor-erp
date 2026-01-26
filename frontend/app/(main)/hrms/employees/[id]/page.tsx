@@ -576,7 +576,13 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
                                                                     </p>
                                                                 </div>
                                                             </div>
-                                                            <a href={doc.filePath} target="_blank" rel="noopener noreferrer" className="p-2 text-slate-400 hover:text-primary-600 transition-colors" title="Download Asset">
+                                                            <a
+                                                                href={doc.filePath.startsWith('http') ? doc.filePath : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000'}${doc.filePath}`}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="p-2 text-slate-400 hover:text-primary-600 transition-colors"
+                                                                title="Download Asset"
+                                                            >
                                                                 <Download size={14} />
                                                             </a>
                                                         </div>

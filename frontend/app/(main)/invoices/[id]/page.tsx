@@ -379,17 +379,6 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
                     </div>
 
                     {/* Digital Portal Intelligence */}
-                    <div className="bg-gray-900 rounded-lg p-6 shadow-xl space-y-4">
-                        <h3 className="text-white text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2">
-                            <Share2 size={14} className="text-primary-400" /> Network Portal
-                        </h3>
-                        <p className="text-gray-400 text-[10px] font-bold leading-relaxed">
-                            Access credentials for the secure client environment. Synchronized across enterprise nodes.
-                        </p>
-                        <button className="w-full py-2 bg-primary-600 hover:bg-primary-700 text-white font-black rounded text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-primary-900/50">
-                            Synchronize Portal
-                        </button>
-                    </div>
 
                     {/* Administrative Protocol Override */}
                     <div className="pt-2">

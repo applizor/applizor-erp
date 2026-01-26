@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -85,6 +86,7 @@ export default function Sidebar() {
         { name: 'Accounting', href: '/accounting', icon: Activity, category: 'Finance', module: 'Invoice' },
 
         // Ops & Docs
+        { name: 'Projects', href: '/projects', icon: LayoutDashboard, category: 'Operations', module: 'Project' },
         { name: 'Documents', href: '/documents', icon: FileText, category: 'Operations', module: 'Document' },
 
         // Settings

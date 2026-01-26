@@ -17,7 +17,7 @@ import PageHeader from '@/components/ui/PageHeader';
 export default function EmployeesPage() {
     const toast = useToast();
     const router = useRouter();
-    const { can, user } = usePermission();
+    const { can, user, getScope } = usePermission();
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [departments, setDepartments] = useState<Department[]>([]);
     const [loading, setLoading] = useState(true);
@@ -41,20 +41,32 @@ export default function EmployeesPage() {
     const checkAccessAndRedirect = async () => {
         if (!user) return;
 
-        const permissions = user.permissions?.['Employee'];
-        const hasOwnedAccess = permissions?.readLevel === 'owned';
+        const readScope = getScope('Employee', 'read');
+        const hasOwnedAccess = readScope === 'owned';
 
-        if (hasOwnedAccess) {
+        // Check if user is Admin - they should see the list
+        const isAdmin = user.roles?.some(r => r.toLowerCase() === 'admin' || r.toLowerCase() === 'administrator');
+
+        // If not admin and has owned access (or restricted), redirect
+        if (!isAdmin && hasOwnedAccess) {
             setRedirecting(true);
             try {
+                // Fetch only pertinent records (managed by backend perms)
                 const employees = await employeesApi.getAll();
-                if (employees.length > 0) {
-                    router.push(`/hrms/employees/${employees[0].id}`);
+
+                // Find the employee record linked to this user
+                // Fallback to first record if owned scope works correctly on backend (returns only 1)
+                const mySemployee = employees.find(e => e.userId === user.id) || employees[0];
+
+                if (mySemployee) {
+                    router.push(`/hrms/employees/${mySemployee.id}`);
                 } else {
+                    // If no employee record found for this user, assume they are a system user without profile
+                    // Stop redirecting to show empty list or they can create one if allowed
                     setRedirecting(false);
                 }
             } catch (error) {
-                console.error('Failed to fetch employee:', error);
+                console.error('Failed to fetch employee for redirect:', error);
                 setRedirecting(false);
             }
         }

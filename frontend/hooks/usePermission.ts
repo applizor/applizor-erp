@@ -26,6 +26,8 @@ export type PermissionModule =
     | 'Holiday'
     | 'Shift'
     | 'ShiftRoster'
+    | 'Project'
+    | 'ProjectTask'
     | 'Recruitment'
     | 'Document';
 

@@ -1,9 +1,9 @@
 {
-  "/portal/invoices/[id]/page": "app/portal/invoices/[id]/page.js",
-  "/(main)/invoices/[id]/page": "app/(main)/invoices/[id]/page.js",
+  "/login/page": "app/login/page.js",
+  "/(main)/settings/roles/page": "app/(main)/settings/roles/page.js",
+  "/(main)/crm/contracts/page": "app/(main)/crm/contracts/page.js",
+  "/(main)/settings/roles/[id]/page": "app/(main)/settings/roles/[id]/page.js",
   "/(main)/dashboard/page": "app/(main)/dashboard/page.js",
-  "/portal/login/page": "app/portal/login/page.js",
-  "/portal/projects/page": "app/portal/projects/page.js",
-  "/portal/contracts/page": "app/portal/contracts/page.js",
-  "/(main)/hrms/employees/[id]/page": "app/(main)/hrms/employees/[id]/page.js"
+  "/(main)/projects/page": "app/(main)/projects/page.js",
+  "/(main)/projects/[id]/page": "app/(main)/projects/[id]/page.js"
 }

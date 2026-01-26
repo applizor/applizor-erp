@@ -43,7 +43,9 @@ export default function EditRolePage({ params }: { params: { id: string } }) {
             ]);
 
             const moduleList = metaRes.data.modules || [];
-            setModules(moduleList);
+            // De-duplicate modules to prevent repeating rows
+            const uniqueModules = Array.from(new Set(moduleList)) as string[];
+            setModules(uniqueModules);
 
             // Initialize empty matrix
             const initMatrix: any = {};
