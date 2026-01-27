@@ -27,18 +27,27 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
     const [employees, setEmployees] = useState<any[]>([]);
 
     useEffect(() => {
-        fetchEmployees();
+        fetchProjectMembers();
         if (!isNew && taskId) {
             fetchTaskDetails();
             fetchComments();
         }
     }, [taskId]);
 
-    const fetchEmployees = async () => {
+    const fetchProjectMembers = async () => {
         try {
-            // Fetch project members ideally, fallback to all employees for now
-            const res = await api.get('/employees'); // or /projects/:id/members
-            setEmployees(res.data);
+            // Fetch project details to get members
+            const res = await api.get(`/projects/${projectId}`);
+            if (res.data && res.data.members) {
+                // Map project members to a flat list for the dropdown
+                const members = res.data.members.map((m: any) => ({
+                    id: m.employeeId,
+                    userId: m.employee.userId, // fallback if needed
+                    firstName: m.employee.firstName,
+                    lastName: m.employee.lastName
+                }));
+                setEmployees(members);
+            }
         } catch (error) { console.error(error); }
     };
 
@@ -290,7 +299,7 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                         >
                             <option value="">Unassigned</option>
                             {employees.map(emp => (
-                                <option key={emp.employeeId || emp.id} value={emp.userId || emp.id}>
+                                <option key={emp.id} value={emp.userId || emp.id}>
                                     {emp.firstName} {emp.lastName}
                                 </option>
                             ))}
