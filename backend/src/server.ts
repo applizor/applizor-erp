@@ -151,7 +151,9 @@ app.use('/api/portal/contracts', portalContractRouter);
 
 // Project Routes
 import projectRoutes from './routes/project.routes';
+import taskRoutes from './routes/task.routes';
 app.use('/api/projects', projectRoutes);
+app.use('/api/tasks', taskRoutes);
 
 // Scheduler
 import { SchedulerService } from './services/scheduler.service';

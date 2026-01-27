@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import api from '@/lib/api';
+import { useProjectPermissions } from '@/hooks/useProjectPermissions';
 import { EditProjectModal } from '@/components/projects/EditProjectModal';
 import {
     LayoutDashboard, CheckSquare, Flag, FileText,
@@ -42,15 +43,29 @@ export default function ProjectLayout({
         }
     };
 
-    const tabs = [
-        { id: '', label: 'Overview', icon: LayoutDashboard },
-        { id: '/milestones', label: 'Milestones', icon: Flag },
-        { id: '/tasks', label: 'Tasks', icon: CheckSquare },
-        { id: '/files', label: 'Files', icon: FileText },
-        { id: '/wiki', label: 'Wiki', icon: BookOpen },
-        { id: '/financials', label: 'Financials', icon: DollarSign },
-        { id: '/settings', label: 'Settings', icon: Settings },
+    const { role, can } = useProjectPermissions(project);
+
+    const allTabs = [
+        { id: '', label: 'Overview', icon: LayoutDashboard, permission: 'tasks', action: 'view' }, // Overview typically visible if can view tasks/project
+        { id: '/milestones', label: 'Milestones', icon: Flag, permission: 'milestones', action: 'view' },
+        { id: '/tasks', label: 'Tasks', icon: CheckSquare, permission: 'tasks', action: 'view' },
+        { id: '/members', label: 'Members', icon: Users, permission: 'team', action: 'view' },
+        { id: '/files', label: 'Files', icon: FileText, permission: 'tasks', action: 'view' }, // Grouped with tasks for now or add specific
+        { id: '/wiki', label: 'Wiki', icon: BookOpen, permission: 'tasks', action: 'view' },
+        { id: '/financials', label: 'Financials', icon: DollarSign, permission: 'financials', action: 'view' },
+        { id: '/settings', label: 'Settings', icon: Settings, permission: 'settings', action: 'view' },
     ];
+
+    // Filter tabs
+    const tabs = allTabs.filter(tab => {
+        if (!project) return false;
+        // Overview is always visible if they can access project
+        if (tab.id === '') return true;
+        // Wiki/Files currently mapped to tasks view permission for simplicity, or default loose
+        // Ideally we add 'wiki' and 'files' to permission matrix. 
+        // For strict compliance as requested:
+        return can(tab.permission as any, tab.action as any);
+    });
 
     const getStatusColor = (status: string) => {
         switch (status) {
@@ -87,12 +102,14 @@ export default function ProjectLayout({
                     <div>
                         <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none mb-2 flex items-center gap-3">
                             {project.name}
-                            <button
-                                onClick={() => setIsEditModalOpen(true)}
-                                className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-primary-600 transition-colors"
-                            >
-                                <Pencil size={14} />
-                            </button>
+                            {can('settings', 'edit') && (
+                                <button
+                                    onClick={() => setIsEditModalOpen(true)}
+                                    className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-primary-600 transition-colors"
+                                >
+                                    <Pencil size={14} />
+                                </button>
+                            )}
                         </h1>
                         <div className="flex items-center gap-4 text-xs font-bold text-gray-500">
                             <div className="flex items-center gap-1.5">

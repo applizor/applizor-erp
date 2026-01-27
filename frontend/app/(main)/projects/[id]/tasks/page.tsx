@@ -1,81 +1,252 @@
-
 'use client';
 
-import { useState, useEffect } from 'react';
-import api from '@/lib/api';
-import { Plus, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { useToast } from '@/hooks/useToast';
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import api from '@/lib/api';
+import { useParams } from 'next/navigation';
+import { Plus, MoreVertical, Paperclip, MessageSquare } from 'lucide-react';
+import TaskDetailModal from '@/components/tasks/TaskDetailModal';
 
-export default function ProjectTasks({ params }: { params: { id: string } }) {
-    const [tasks, setTasks] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
+// Types
+interface Task {
+    id: string;
+    title: string;
+    description: string;
+    status: string; // todo, in-progress, review, done
+    type: string;
+    priority: string;
+    assignee?: { firstName: string, lastName: string };
+    _count?: { comments: number, documents: number };
+}
+
+const COLUMNS = {
+    'todo': { title: 'To Do', color: 'bg-gray-100 border-gray-200' },
+    'in-progress': { title: 'In Progress', color: 'bg-blue-50 border-blue-200' },
+    'review': { title: 'Review', color: 'bg-purple-50 border-purple-200' },
+    'done': { title: 'Done', color: 'bg-green-50 border-green-200' },
+};
+
+import { useProjectPermissions } from '@/hooks/useProjectPermissions';
+
+// ... (other imports)
+
+export default function KanbanBoard() {
+    const { id: projectId } = useParams();
+    const [tasks, setTasks] = useState<Task[]>([]);
+    const [columns, setColumns] = useState<any>({ todo: [], 'in-progress': [], review: [], done: [] });
+    const toast = useToast();
+    const [isDetailOpen, setIsDetailOpen] = useState(false);
+    const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+    const [project, setProject] = useState<any>(null); // Need project for permissions
+    const { can } = useProjectPermissions(project);
 
     useEffect(() => {
-        // In a real implementation this would fetch tasks.
-        // For now, we simulate standard empty state or use passed down stats if we were lifting state.
-        // Assuming we'd fetch from /projects/:id/tasks eventually.
-        setLoading(false);
-    }, []);
+        fetchTasks();
+        fetchProjectSettings();
+    }, [projectId]);
 
-    if (loading) return <div className="p-12"><LoadingSpinner /></div>;
+    const fetchProjectSettings = async () => {
+        try {
+            const res = await api.get(`/projects/${projectId}`);
+            setProject(res.data);
+        } catch (error) {
+            console.error('Failed to load project settings');
+        }
+    };
+
+    const fetchTasks = async () => {
+        try {
+            const res = await api.get(`/tasks?projectId=${projectId}`);
+            const data = res.data;
+            setTasks(data);
+            distributeTasks(data);
+        } catch (error) {
+            toast.error('Failed to load tasks');
+        }
+    };
+
+    const distributeTasks = (taskList: Task[]) => {
+        const newCols: any = { todo: [], 'in-progress': [], review: [], done: [] };
+        taskList.forEach(task => {
+            if (newCols[task.status]) {
+                newCols[task.status].push(task);
+            } else {
+                newCols['todo'].push(task); // Fallback
+            }
+        });
+        setColumns(newCols);
+    };
+
+    const onDragEnd = async (result: DropResult) => {
+        const { source, destination, draggableId } = result;
+
+        if (!destination) return;
+        if (source.droppableId === destination.droppableId && source.index === destination.index) return;
+
+        // Optimistic Update
+        const startCol = columns[source.droppableId];
+        const finishCol = columns[destination.droppableId];
+
+        if (source.droppableId === destination.droppableId) {
+            // Reorder in same column (if we stored order, currently purely optimistic visual)
+            const newTasks = Array.from(startCol);
+            const [moved] = newTasks.splice(source.index, 1);
+            newTasks.splice(destination.index, 0, moved);
+            setColumns({ ...columns, [source.droppableId]: newTasks });
+        } else {
+            // Move across columns
+            const startTasks = Array.from(startCol);
+            const finishTasks = Array.from(finishCol);
+            const [moved] = startTasks.splice(source.index, 1);
+
+            // Update status internally
+            const updatedTask = { ...moved, status: destination.droppableId };
+            finishTasks.splice(destination.index, 0, updatedTask);
+
+            setColumns({
+                ...columns,
+                [source.droppableId]: startTasks,
+                [destination.droppableId]: finishTasks
+            });
+
+            // API Call
+            try {
+                await api.put(`/tasks/${draggableId}`, { status: destination.droppableId });
+            } catch (error) {
+                toast.error('Failed to update status');
+                fetchTasks(); // Revert
+            }
+        }
+    };
+
+    const openTask = (taskId: string) => {
+        setSelectedTaskId(taskId);
+        setIsDetailOpen(true);
+    };
 
     return (
-        <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <div>
-                    <h2 className="text-lg font-black text-gray-900 uppercase tracking-tight">Task Execution</h2>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Active Tickets & Assignments</p>
-                </div>
-                <button className="btn-primary flex items-center gap-2 py-1.5 px-3">
-                    <Plus size={12} /> <span className="text-[10px]">New Task</span>
-                </button>
-            </div>
-
-            {/* Kanban Board Placeholder (Enterprise Style) */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Column: Todo */}
-                <div className="ent-card p-0 bg-gray-50 flex flex-col h-[500px]">
-                    <div className="p-3 border-b border-gray-100 flex justify-between items-center bg-white rounded-t-lg">
-                        <span className="text-[9px] font-black text-gray-900 uppercase tracking-widest flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-gray-400" /> To Do
-                        </span>
-                        <span className="bg-gray-100 text-gray-500 text-[9px] font-bold px-1.5 rounded">0</span>
-                    </div>
-                    <div className="flex-1 p-3 overflow-y-auto flex flex-col items-center justify-center text-gray-400 gap-2">
-                        <CheckCircle className="w-8 h-8 opacity-20" />
-                        <span className="text-[10px] font-bold uppercase tracking-wide opacity-50">No Tasks</span>
-                    </div>
-                </div>
-
-                {/* Column: In Progress */}
-                <div className="ent-card p-0 bg-gray-50 flex flex-col h-[500px]">
-                    <div className="p-3 border-b border-gray-100 flex justify-between items-center bg-white rounded-t-lg">
-                        <span className="text-[9px] font-black text-indigo-900 uppercase tracking-widest flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-indigo-500" /> In Progress
-                        </span>
-                        <span className="bg-indigo-50 text-indigo-600 text-[9px] font-bold px-1.5 rounded">0</span>
-                    </div>
-                    <div className="flex-1 p-3 overflow-y-auto flex flex-col items-center justify-center text-gray-400 gap-2">
-                        <Clock className="w-8 h-8 opacity-20" />
-                        <span className="text-[10px] font-bold uppercase tracking-wide opacity-50">No Active Tasks</span>
-                    </div>
-                </div>
-
-                {/* Column: Done */}
-                <div className="ent-card p-0 bg-gray-50 flex flex-col h-[500px]">
-                    <div className="p-3 border-b border-gray-100 flex justify-between items-center bg-white rounded-t-lg">
-                        <span className="text-[9px] font-black text-emerald-900 uppercase tracking-widest flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-emerald-500" /> Completed
-                        </span>
-                        <span className="bg-emerald-50 text-emerald-600 text-[9px] font-bold px-1.5 rounded">0</span>
-                    </div>
-                    <div className="flex-1 p-3 overflow-y-auto flex flex-col items-center justify-center text-gray-400 gap-2">
-                        <CheckCircle className="w-8 h-8 opacity-20" />
-                        <span className="text-[10px] font-bold uppercase tracking-wide opacity-50">All Clear</span>
-                    </div>
+        <div className="h-full flex flex-col">
+            {/* Header */}
+            <div className="flex justify-between items-center mb-6 px-1">
+                <h2 className="text-xl font-bold text-slate-800">Board</h2>
+                <div className="flex gap-2">
+                    {/* Add Task Button */}
+                    {can('tasks', 'create') && (
+                        <button
+                            onClick={() => openTask('new')}
+                            className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm text-sm font-medium"
+                        >
+                            <Plus size={16} />
+                            Create Issue
+                        </button>
+                    )}
                 </div>
             </div>
+
+            {/* Board */}
+            <DragDropContext onDragEnd={onDragEnd}>
+                <div className="flex-1 flex gap-4 overflow-x-auto pb-4">
+                    {Object.entries(COLUMNS).map(([colId, colDef]: [string, any]) => (
+                        <div key={colId} className={`flex-shrink-0 w-80 flex flex-col rounded-xl bg-gray-50/50 border border-gray-100`}>
+                            {/* Column Header */}
+                            <div className={`p-3 border-b ${colDef.color.split(' ')[1]} flex justify-between items-center sticky top-0 bg-inherit rounded-t-xl z-10`}>
+                                <div className="flex items-center gap-2">
+                                    <span className={`w-2 h-2 rounded-full ${colId === 'done' ? 'bg-green-500' : colId === 'review' ? 'bg-purple-500' : colId === 'in-progress' ? 'bg-blue-500' : 'bg-gray-400'}`} />
+                                    <h3 className="font-semibold text-slate-700 text-sm uppercase tracking-wide">{colDef.title}</h3>
+                                    <span className="bg-slate-200 text-slate-600 text-[10px] px-2 py-0.5 rounded-full font-bold">
+                                        {columns[colId]?.length || 0}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Droppable Area */}
+                            <Droppable droppableId={colId}>
+                                {(provided, snapshot) => (
+                                    <div
+                                        ref={provided.innerRef}
+                                        {...provided.droppableProps}
+                                        className={`flex-1 p-2 space-y-2 min-h-[150px] transition-colors ${snapshot.isDraggingOver ? 'bg-indigo-50/50' : ''}`}
+                                    >
+                                        {columns[colId]?.map((task: Task, index: number) => (
+                                            <Draggable key={task.id} draggableId={task.id} index={index}>
+                                                {(provided, snapshot) => (
+                                                    <div
+                                                        ref={provided.innerRef}
+                                                        {...provided.draggableProps}
+                                                        {...provided.dragHandleProps}
+                                                        onClick={() => openTask(task.id)}
+                                                        className={`bg-white p-3 rounded-lg border border-slate-200 shadow-sm hover:shadow-md transition-shadow group cursor-pointer ${snapshot.isDragging ? 'rotate-2 shadow-lg ring-2 ring-indigo-500/20' : ''}`}
+                                                    >
+                                                        <div className="flex justify-between items-start mb-2">
+                                                            <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${task.priority === 'urgent' ? 'bg-red-100 text-red-600' :
+                                                                task.priority === 'high' ? 'bg-orange-100 text-orange-600' :
+                                                                    'bg-slate-100 text-slate-500'
+                                                                }`}>
+                                                                {task.priority}
+                                                            </span>
+                                                            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <button className="text-slate-400 hover:text-slate-600 p-1 rounded hover:bg-slate-100">
+                                                                    <MoreVertical size={14} />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+
+                                                        <h4 className="text-sm font-medium text-slate-800 mb-3 leading-snug line-clamp-2">
+                                                            {task.title}
+                                                        </h4>
+
+                                                        <div className="flex items-center justify-between mt-auto">
+                                                            {/* Type Indicator */}
+                                                            <div title={task.type} className="w-5 h-5 rounded flex items-center justify-center bg-slate-50 border border-slate-100 text-[10px]">
+                                                                {task.type === 'bug' ? '🐞' : task.type === 'issue' ? '⚠️' : '✓'}
+                                                            </div>
+
+                                                            <div className="flex items-center gap-3 text-slate-400">
+                                                                {(task._count?.documents || 0) > 0 && (
+                                                                    <div className="flex items-center gap-1 text-[10px]">
+                                                                        <Paperclip size={12} />
+                                                                        <span>{task._count?.documents}</span>
+                                                                    </div>
+                                                                )}
+                                                                {(task._count?.comments || 0) > 0 && (
+                                                                    <div className="flex items-center gap-1 text-[10px]">
+                                                                        <MessageSquare size={12} />
+                                                                        <span>{task._count?.comments}</span>
+                                                                    </div>
+                                                                )}
+
+                                                                <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-[10px] font-bold border-2 border-white ring-1 ring-slate-100">
+                                                                    {task.assignee?.firstName?.[0] || '?'}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </Draggable>
+                                        ))}
+                                        {provided.placeholder}
+                                    </div>
+                                )}
+                            </Droppable>
+                        </div>
+                    ))}
+                </div>
+            </DragDropContext>
+
+            {/* Modal Placeholder */}
+            {/* Task Detail Modal */}
+            {isDetailOpen && (
+                <TaskDetailModal
+                    taskId={selectedTaskId}
+                    projectId={projectId as string}
+                    onClose={() => setIsDetailOpen(false)}
+                    onUpdate={() => {
+                        fetchTasks();
+                        // fetchProjectSettings(); // Optional: if tasks affect project stats
+                    }}
+                />
+            )}
         </div>
     );
 }

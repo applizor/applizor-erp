@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
+import { useProjectPermissions } from '@/hooks/useProjectPermissions';
 import { MemberManagementModal } from '@/components/projects/MemberManagementModal';
 import {
     Clock, CheckCircle, TrendingUp, AlertCircle,
@@ -16,6 +17,7 @@ export default function ProjectDashboard({ params }: { params: { id: string } })
     const [project, setProject] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
+    const { can } = useProjectPermissions(project);
 
     useEffect(() => {
         fetchStats();
@@ -137,33 +139,37 @@ export default function ProjectDashboard({ params }: { params: { id: string } })
             {/* Right Column: Financials & Team */}
             <div className="space-y-6">
 
-                {/* Financial Overview */}
-                <div className="ent-card p-5 border-t-4 border-t-emerald-500">
-                    <h3 className="text-[9px] font-black text-gray-900 uppercase tracking-widest mb-5 flex items-center gap-2">
-                        <Wallet size={12} className="text-emerald-600" />
-                        Project Financials
-                    </h3>
-
-                    <div className="space-y-4">
-                        <div className="flex justify-between items-end pb-3 border-b border-gray-50">
-                            <div>
-                                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Total Budget</p>
-                                <p className="text-lg font-black text-gray-900">${financials.budget.toLocaleString()}</p>
+                {/* Financials */}
+                {can('financials', 'view') && (
+                    <div className="ent-card p-5">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-[9px] font-black text-gray-900 uppercase tracking-widest flex items-center gap-2">
+                                <Wallet size={12} className="text-primary-600" />
+                                Financial Overview
+                            </h3>
+                            <span className="text-[9px] font-bold text-gray-400 uppercase">FY 2024-25</span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                            <div className="p-2 bg-gray-50 rounded border border-gray-100">
+                                <span className="text-[9px] font-bold text-gray-400 uppercase block mb-1">Budget</span>
+                                <span className="text-xs font-black text-gray-900">
+                                    ${project.budget?.toLocaleString() || '0'}
+                                </span>
+                            </div>
+                            <div className="p-2 bg-emerald-50 rounded border border-emerald-100">
+                                <span className="text-[9px] font-bold text-emerald-600 uppercase block mb-1">Revenue</span>
+                                <span className="text-xs font-black text-emerald-700">
+                                    ${project.actualRevenue?.toLocaleString() || '0'}
+                                </span>
+                            </div>
+                            <div className="p-2 bg-rose-50 rounded border border-rose-100">
+                                <span className="text-[9px] font-bold text-rose-600 uppercase block mb-1">Expenses</span>
+                                <span className="text-xs font-black text-rose-700">
+                                    ${project.actualExpenses?.toLocaleString() || '0'}
+                                </span>
                             </div>
                         </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Revenue</p>
-                                <p className="text-xs font-black text-emerald-600">${financials.revenue.toLocaleString()}</p>
-                            </div>
-                            <div>
-                                <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Expenses</p>
-                                <p className="text-xs font-black text-rose-500">${financials.expenses.toLocaleString()}</p>
-                            </div>
-                        </div>
-
-                        <div className="pt-3 border-t border-gray-100 flex justify-between items-center">
+                        <div className="pt-3 border-t border-gray-100 flex justify-between items-center mt-4">
                             <span className="text-[9px] font-black text-gray-900 uppercase tracking-widest">Net Profit</span>
                             <div className="text-right">
                                 <span className={`text-xs font-black ${financials.netProfit >= 0 ? 'text-gray-900' : 'text-rose-600'}`}>
@@ -173,7 +179,7 @@ export default function ProjectDashboard({ params }: { params: { id: string } })
                             </div>
                         </div>
                     </div>
-                </div>
+                )}
 
                 {/* Team Members */}
                 <div className="ent-card p-5">
@@ -182,13 +188,15 @@ export default function ProjectDashboard({ params }: { params: { id: string } })
                             <Users size={12} className="text-primary-600" />
                             Assigned Core Team
                         </h3>
-                        <button
-                            onClick={() => setIsMemberModalOpen(true)}
-                            className="p-1.5 hover:bg-gray-100 rounded text-gray-400 hover:text-primary-600 transition-colors"
-                            title="Manage Team"
-                        >
-                            <Settings2 size={12} />
-                        </button>
+                        {can('settings', 'edit') && (
+                            <button
+                                onClick={() => setIsMemberModalOpen(true)}
+                                className="p-1.5 hover:bg-gray-100 rounded text-gray-400 hover:text-primary-600 transition-colors"
+                                title="Manage Team"
+                            >
+                                <Settings2 size={12} />
+                            </button>
+                        )}
                     </div>
                     <div className="space-y-3">
                         {project.members?.map((member: any) => (
@@ -230,6 +238,6 @@ export default function ProjectDashboard({ params }: { params: { id: string } })
                 currentMembers={project.members || []}
                 onUpdate={fetchStats}
             />
-        </div>
+        </div >
     );
 }

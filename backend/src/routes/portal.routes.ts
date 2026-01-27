@@ -35,9 +35,17 @@ router.get('/contracts/:id/pdf', authenticateClient, getContractPdf);
 
 // Projects & Invoices
 router.get('/invoices', authenticateClient, getMyInvoices);
-router.get('/invoices/export', authenticateClient, exportInvoices); // Must be before /:id
+router.get('/invoices/export', authenticateClient, exportInvoices);
 router.get('/invoices/:id', authenticateClient, getInvoiceDetails);
 router.get('/invoices/:id/pdf', authenticateClient, getInvoicePdf);
 router.get('/projects', authenticateClient, getMyProjects);
+
+// Portal Task Management
+import * as portalTaskController from '../controllers/portal.task.controller';
+import { upload } from '../middleware/upload';
+
+router.get('/tasks', authenticateClient, portalTaskController.getPortalTasks);
+router.post('/tasks', authenticateClient, upload.array('files'), portalTaskController.createPortalTask);
+router.post('/tasks/:id/comments', authenticateClient, portalTaskController.addPortalComment);
 
 export default router;

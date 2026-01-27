@@ -15,6 +15,7 @@ This document outlines the mandatory development standards and rules for the App
 - **Rule**: Implement smooth micro-animations and transitions to make the interface feel alive.
 
 ### 3. Data Integrity & Sync
+- **Rule**: MANDATORY BACKUP: Before running ANY database migration (`prisma migrate`), you MUST update the `docs/MIGRATION_RULES.md` and follow the backup procedure.
 - **Rule**: Ensure seamless data synchronization between modules (e.g., Lead to Client conversion). All captured data must be preserved.
 - **Rule**: Use Zod for strict schema validation on both frontend and backend.
 

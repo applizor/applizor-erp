@@ -1,6 +1,7 @@
 
 import { Router } from 'express';
 import { authenticate, checkPermission } from '../middleware/auth';
+import { upload } from '../middleware/upload';
 import * as projectController from '../controllers/project.controller';
 
 const router = Router();
@@ -23,6 +24,16 @@ router.delete('/:id/members/:memberId', checkPermission('Project', 'update'), pr
 
 // Milestones
 router.post('/:id/milestones', checkPermission('Project', 'update'), projectController.createMilestone);
+
+// Notes (Wiki)
+router.get('/:id/notes', checkPermission('Project', 'read'), projectController.getProjectNotes);
+router.post('/:id/notes', checkPermission('Project', 'update'), projectController.createProjectNote);
+router.put('/notes/:noteId', checkPermission('Project', 'update'), projectController.updateProjectNote);
+
+// Documents (Files)
+router.get('/:id/documents', checkPermission('Project', 'read'), projectController.getProjectDocuments);
+router.post('/:id/documents', checkPermission('Project', 'update'), upload.single('file'), projectController.uploadProjectDocument);
+router.delete('/documents/:docId', checkPermission('Project', 'update'), projectController.deleteProjectDocument);
 
 // Tasks (handled via Task controller usually but can be here too)
 

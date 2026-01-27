@@ -3,6 +3,8 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import prisma from '../prisma/client';
 import { PermissionService } from '../services/permission.service';
+import fs from 'fs';
+import path from 'path';
 
 export const createProject = async (req: AuthRequest, res: Response) => {
     try {
@@ -14,7 +16,7 @@ export const createProject = async (req: AuthRequest, res: Response) => {
         const {
             name, description, clientId, status,
             startDate, endDate, budget, isBillable,
-            tags, priority
+            tags, priority, currency
         } = req.body;
 
         // Check if creator has an employee record
@@ -29,6 +31,7 @@ export const createProject = async (req: AuthRequest, res: Response) => {
             startDate: startDate ? new Date(startDate) : null,
             endDate: endDate ? new Date(endDate) : null,
             budget,
+            currency: currency || 'INR',
             isBillable: isBillable ?? true,
             tags: tags || [],
             priority: priority || 'medium',
@@ -253,17 +256,133 @@ export const removeProjectMember = async (req: AuthRequest, res: Response) => {
 export const createMilestone = async (req: AuthRequest, res: Response) => {
     try {
         const { id } = req.params; // projectId
-        const { title, date, amount } = req.body;
+        const { title, date, amount, currency } = req.body;
         const milestone = await prisma.milestone.create({
             data: {
                 projectId: id,
                 title,
                 dueDate: date ? new Date(date) : undefined,
-                amount
+                amount,
+                currency: currency || 'INR'
             }
         });
         res.status(201).json(milestone);
     } catch (error) {
         res.status(500).json({ error: 'Failed to create milestone' });
+    }
+};
+
+// --- Project Notes (Wiki) ---
+
+export const getProjectNotes = async (req: AuthRequest, res: Response) => {
+    try {
+        const { id } = req.params;
+        const notes = await prisma.projectNote.findMany({
+            where: { projectId: id },
+            orderBy: { updatedAt: 'desc' },
+            include: { creator: { select: { firstName: true, lastName: true } } }
+        });
+        res.json(notes);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch notes' });
+    }
+};
+
+export const createProjectNote = async (req: AuthRequest, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { title, content, isPinned } = req.body;
+        const note = await prisma.projectNote.create({
+            data: {
+                projectId: id,
+                title,
+                content,
+                isPinned: isPinned || false,
+                createdBy: req.user!.id
+            }
+        });
+        res.status(201).json(note);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to create note' });
+    }
+};
+
+export const updateProjectNote = async (req: AuthRequest, res: Response) => {
+    try {
+        const { noteId } = req.params;
+        const { title, content, isPinned } = req.body;
+        const note = await prisma.projectNote.update({
+            where: { id: noteId },
+            data: { title, content, isPinned }
+        });
+        res.json(note);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to update note' });
+    }
+};
+
+// --- Project Documents (Files) ---
+
+export const getProjectDocuments = async (req: AuthRequest, res: Response) => {
+    try {
+        const { id } = req.params;
+        const documents = await prisma.document.findMany({
+            where: { projectId: id },
+            orderBy: { createdAt: 'desc' },
+            include: { employee: { select: { firstName: true, lastName: true } } }
+        });
+        res.json(documents);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch documents' });
+    }
+};
+
+export const uploadProjectDocument = async (req: AuthRequest, res: Response) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+
+        const { id } = req.params; // projectId
+        const { category, tags } = req.body;
+
+        const document = await prisma.document.create({
+            data: {
+                projectId: id,
+                name: req.file.originalname,
+                type: 'project_file', // Generic type
+                category: category || 'General',
+                filePath: req.file.path,
+                fileSize: req.file.size,
+                mimeType: req.file.mimetype,
+                companyId: req.user!.companyId,
+                employeeId: req.user!.employeeId, // Assuming linked employee
+                tags: tags ? JSON.parse(tags) : []
+            }
+        });
+
+        res.status(201).json(document);
+    } catch (error: any) {
+        console.error("Upload Error", error);
+        res.status(500).json({ error: 'Failed to upload document' });
+    }
+};
+
+export const deleteProjectDocument = async (req: AuthRequest, res: Response) => {
+    try {
+        const { docId } = req.params;
+        const document = await prisma.document.findUnique({ where: { id: docId } });
+
+        if (!document) return res.status(404).json({ error: 'Document not found' });
+
+        // Delete file from filesystem
+        if (fs.existsSync(document.filePath)) {
+            fs.unlinkSync(document.filePath);
+        }
+
+        await prisma.document.delete({ where: { id: docId } });
+        res.json({ message: 'Document deleted' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to delete document' });
     }
 };

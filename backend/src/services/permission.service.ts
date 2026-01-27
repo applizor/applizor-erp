@@ -132,4 +132,29 @@ export class PermissionService {
 
         return { OR: orConditions };
     }
+    static async checkProjectAccess(userId: string, projectId: string, action: 'view' | 'edit' | 'delete'): Promise<boolean> {
+        // 1. Super Admin / Admin Check
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            include: { roles: { include: { role: true } } }
+        });
+        if (this.hasBasicPermission(user, 'Projects', 'update')) return true;
+
+        // 2. Fetch Employee Profile
+        const employee = await prisma.employee.findUnique({ where: { userId } });
+        if (!employee) return false;
+
+        // 3. Project Member Check
+        const membership = await prisma.projectMember.findUnique({
+            where: { projectId_employeeId: { projectId, employeeId: employee.id } }
+        });
+
+        if (!membership) return false;
+
+        if (action === 'view') return true;
+        if (action === 'edit') return ['manager', 'admin', 'member'].includes(membership.role); // Added 'member'
+        if (action === 'delete') return membership.role === 'manager';
+
+        return false;
+    }
 }

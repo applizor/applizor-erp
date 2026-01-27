@@ -10,6 +10,7 @@ import api from '@/lib/api';
 import { useCurrency } from '@/context/CurrencyContext';
 import { usePermission } from '@/hooks/usePermission';
 import AccessDenied from '@/components/AccessDenied';
+import { CurrencySelect } from '@/components/ui/CurrencySelect';
 
 export default function CreateLeadPage() {
     const toast = useToast();
@@ -33,6 +34,7 @@ export default function CreateLeadPage() {
         website: '',
         industry: '',
         value: '',
+        currency: 'INR',
         source: 'website',
         sourceDetails: '',
         status: 'new',
@@ -222,15 +224,22 @@ export default function CreateLeadPage() {
                                     </select>
                                 </div>
                                 <div className="ent-form-group">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Strategic Valuation ({currency})</label>
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        step="0.01"
-                                        className="ent-input w-full bg-emerald-50/30 border-emerald-100 font-bold text-emerald-900"
-                                        value={formData.value}
-                                        onChange={(e) => setFormData({ ...formData, value: e.target.value })}
-                                    />
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Strategic Valuation</label>
+                                    <div className="flex gap-2">
+                                        <CurrencySelect
+                                            value={formData.currency}
+                                            onChange={(val) => setFormData({ ...formData, currency: val })}
+                                            className="w-24 mt-1"
+                                        />
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            className="ent-input w-full bg-emerald-50/30 border-emerald-100 font-bold text-emerald-900"
+                                            value={formData.value}
+                                            onChange={(e) => setFormData({ ...formData, value: e.target.value })}
+                                        />
+                                    </div>
                                 </div>
                                 <div className="ent-form-group">
                                     <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Inbound Protocol (Source)</label>

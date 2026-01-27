@@ -3,6 +3,7 @@
 ## 🚨 GOLDEN RULE: ALWAYS BACKUP BEFORE MIGRATION
 
 **NEVER run migrations without backup in production or with important data!**
+**Update 2026:** You must use `docker exec` to pull backups if running in containers. See specific commands below.
 
 ---
 

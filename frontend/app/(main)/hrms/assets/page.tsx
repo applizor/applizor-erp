@@ -8,6 +8,7 @@ import PageHeader from '@/components/ui/PageHeader';
 
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
+import { CurrencySelect } from '@/components/ui/CurrencySelect';
 
 interface Employee {
     id: string;
@@ -24,6 +25,7 @@ interface Asset {
     status: string;
     purchaseDate?: string;
     price?: number;
+    currency?: string;
     employeeId?: string | null;
     employee?: Employee;
     assignedDate?: string;
@@ -45,6 +47,7 @@ export default function AssetsPage() {
         status: 'Available',
         purchaseDate: '',
         price: 0,
+        currency: 'INR',
         employeeId: ''
     });
 
@@ -158,7 +161,7 @@ export default function AssetsPage() {
                                     <tr key={asset.id} className="hover:bg-gray-50">
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="text-sm font-medium text-gray-900">{asset.name}</div>
-                                            {asset.price && <div className="text-xs text-gray-500">₹{asset.price}</div>}
+                                            {asset.price && <div className="text-xs text-gray-500">{asset.currency || 'INR'} {asset.price}</div>}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                             {asset.type}
@@ -264,13 +267,20 @@ export default function AssetsPage() {
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700">Price</label>
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            value={currentAsset.price}
-                                            onChange={(e) => setCurrentAsset({ ...currentAsset, price: parseFloat(e.target.value) })}
-                                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
-                                        />
+                                        <div className="flex gap-2">
+                                            <CurrencySelect
+                                                value={currentAsset.currency || 'INR'}
+                                                onChange={(val) => setCurrentAsset({ ...currentAsset, currency: val })}
+                                                className="w-24 mt-1"
+                                            />
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                value={currentAsset.price}
+                                                onChange={(e) => setCurrentAsset({ ...currentAsset, price: parseFloat(e.target.value) })}
+                                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                                            />
+                                        </div>
                                     </div>
                                 </div>
 

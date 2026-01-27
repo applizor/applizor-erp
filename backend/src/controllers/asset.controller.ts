@@ -82,7 +82,7 @@ export const createAsset = async (req: AuthRequest, res: Response) => {
         const user = await prisma.user.findUnique({ where: { id: userId } });
         if (!user?.companyId) return res.status(400).json({ error: 'User/Company not found' });
 
-        const { name, type, serialNumber, status, purchaseDate, price, employeeId, assignedDate } = req.body;
+        const { name, type, serialNumber, status, purchaseDate, price, currency, employeeId, assignedDate } = req.body;
 
         // Check for duplicate serial number if provided
         if (serialNumber) {
@@ -104,6 +104,7 @@ export const createAsset = async (req: AuthRequest, res: Response) => {
                 status: employeeId ? 'Assigned' : (status || 'Available'),
                 purchaseDate: purchaseDate ? new Date(purchaseDate) : undefined,
                 price: price ? parseFloat(price) : undefined,
+                currency: currency || 'INR',
                 employeeId: employeeId || null,
                 assignedDate: employeeId ? (assignedDate ? new Date(assignedDate) : new Date()) : null
             }
@@ -127,7 +128,7 @@ export const updateAsset = async (req: AuthRequest, res: Response) => {
         }
 
         const { id } = req.params;
-        const { name, type, serialNumber, status, purchaseDate, price, employeeId, assignedDate } = req.body;
+        const { name, type, serialNumber, status, purchaseDate, price, currency, employeeId, assignedDate } = req.body;
 
         // Separate assignment logic
         let updateData: any = {
@@ -137,6 +138,7 @@ export const updateAsset = async (req: AuthRequest, res: Response) => {
             status,
             purchaseDate: purchaseDate ? new Date(purchaseDate) : undefined,
             price: price ? parseFloat(price) : undefined,
+            currency: currency || 'INR',
         };
 
         // If employee assignment is changing

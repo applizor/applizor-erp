@@ -4,6 +4,8 @@ import api from '@/lib/api';
 import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
+import { CurrencySelect } from '@/components/ui/CurrencySelect';
+
 interface EditProjectModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -20,6 +22,7 @@ export function EditProjectModal({ isOpen, onClose, project, onUpdate }: EditPro
         startDate: '',
         endDate: '',
         budget: '',
+        currency: 'INR',
         description: ''
     });
 
@@ -31,6 +34,7 @@ export function EditProjectModal({ isOpen, onClose, project, onUpdate }: EditPro
                 startDate: project.startDate ? new Date(project.startDate).toISOString().split('T')[0] : '',
                 endDate: project.endDate ? new Date(project.endDate).toISOString().split('T')[0] : '',
                 budget: project.budget || '',
+                currency: project.currency || 'INR',
                 description: project.description || ''
             });
         }
@@ -102,15 +106,21 @@ export function EditProjectModal({ isOpen, onClose, project, onUpdate }: EditPro
 
                     <div className="ent-form-group">
                         <label className="ent-label">Allocated Budget</label>
-                        <div className="relative">
-                            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-3.5 h-3.5" />
-                            <input
-                                type="number"
-                                className="ent-input pl-9"
-                                value={formData.budget}
-                                onChange={e => setFormData({ ...formData, budget: e.target.value })}
-                                placeholder="0.00"
+                        <div className="flex gap-2">
+                            <CurrencySelect
+                                value={formData.currency}
+                                onChange={(val) => setFormData({ ...formData, currency: val })}
+                                className="w-24"
                             />
+                            <div className="relative flex-1">
+                                <input
+                                    type="number"
+                                    className="ent-input pl-3"
+                                    value={formData.budget}
+                                    onChange={e => setFormData({ ...formData, budget: e.target.value })}
+                                    placeholder="0.00"
+                                />
+                            </div>
                         </div>
                     </div>
 

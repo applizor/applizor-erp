@@ -7,6 +7,7 @@ import * as z from 'zod';
 import { Plus, Trash2, Calculator, Info, Calendar, DollarSign, User, ShieldCheck, FileType } from 'lucide-react';
 import { useCurrency } from '@/context/CurrencyContext';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { CurrencySelect } from '@/components/ui/CurrencySelect';
 
 const itemSchema = z.object({
     description: z.string().min(1, 'Description required'),
@@ -163,15 +164,11 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
                             <DollarSign className="w-3 h-3" />
                             Currency Base
                         </label>
-                        <select
-                            {...register('currency')}
-                            className="ent-input w-full font-bold text-xs"
-                        >
-                            <option value="USD">USD - US Dollar ($)</option>
-                            <option value="INR">INR - Indian Rupee (₹)</option>
-                            <option value="EUR">EUR - Euro (€)</option>
-                            <option value="GBP">GBP - British Pound (£)</option>
-                        </select>
+                        <CurrencySelect
+                            value={watch('currency')}
+                            onChange={(val) => setValue('currency', val)}
+                            className="w-full"
+                        />
                     </div>
 
                     {/* Automation Logic */}

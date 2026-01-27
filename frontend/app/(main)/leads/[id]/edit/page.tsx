@@ -8,6 +8,7 @@ import api from '@/lib/api';
 import { useToast } from '@/hooks/useToast';
 import { usePermission } from '@/hooks/usePermission';
 import AccessDenied from '@/components/AccessDenied';
+import { CurrencySelect } from '@/components/ui/CurrencySelect';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
 export default function EditLeadPage() {
@@ -27,7 +28,9 @@ export default function EditLeadPage() {
         jobTitle: '',
         website: '',
         industry: '',
+        industry: '',
         value: '',
+        currency: 'INR',
         source: 'website',
         sourceDetails: '',
         status: 'new',
@@ -55,6 +58,7 @@ export default function EditLeadPage() {
                 website: leadData.website || '',
                 industry: leadData.industry || '',
                 value: leadData.value || '',
+                currency: leadData.currency || 'INR',
                 source: leadData.source || 'website',
                 sourceDetails: leadData.sourceDetails || '',
                 status: leadData.status || 'new',
@@ -284,12 +288,19 @@ export default function EditLeadPage() {
                                 </div>
                                 <div className="ent-form-group">
                                     <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Strategic Valuation</label>
-                                    <input
-                                        type="number"
-                                        className="ent-input w-full bg-emerald-50/30 border-emerald-100 font-bold text-emerald-900"
-                                        value={formData.value}
-                                        onChange={(e) => handleChange('value', e.target.value)}
-                                    />
+                                    <div className="flex gap-2">
+                                        <CurrencySelect
+                                            value={formData.currency}
+                                            onChange={(val) => handleChange('currency', val)}
+                                            className="w-24 mt-1"
+                                        />
+                                        <input
+                                            type="number"
+                                            className="ent-input w-full bg-emerald-50/30 border-emerald-100 font-bold text-emerald-900"
+                                            value={formData.value}
+                                            onChange={(e) => handleChange('value', e.target.value)}
+                                        />
+                                    </div>
                                 </div>
                                 <div className="ent-form-group">
                                     <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Inbound Protocol (Source)</label>

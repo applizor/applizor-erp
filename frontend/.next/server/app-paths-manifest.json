@@ -1,8 +1,7 @@
 {
-  "/(main)/settings/roles/page": "app/(main)/settings/roles/page.js",
+  "/(main)/settings/roles/create/page": "app/(main)/settings/roles/create/page.js",
   "/(main)/settings/roles/[id]/page": "app/(main)/settings/roles/[id]/page.js",
+  "/(main)/settings/roles/page": "app/(main)/settings/roles/page.js",
   "/(main)/projects/page": "app/(main)/projects/page.js",
-  "/(main)/attendance/admin/page": "app/(main)/attendance/admin/page.js",
-  "/(main)/projects/[id]/page": "app/(main)/projects/[id]/page.js",
   "/(main)/projects/[id]/tasks/page": "app/(main)/projects/[id]/tasks/page.js"
 }
