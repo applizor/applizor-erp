@@ -5,6 +5,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { X, Paperclip, Send, Clock, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
 import api from '@/lib/api';
+import Portal from '@/components/ui/Portal';
 import RichTextEditor from '@/components/ui/RichTextEditor'; // Assuming this exists or using Paged
 // import { format } from 'date-fns';
 
@@ -51,11 +52,19 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
         } catch (error) { console.error(error); }
     };
 
+
+
+    // ...
+
     const fetchTaskDetails = async () => {
         try {
             const res = await api.get(`/tasks/${taskId}`);
             setTask(res.data);
-            reset(res.data); // Populate form
+            // Fix: Map assignedToId (DB) to assigneeId (Form)
+            reset({
+                ...res.data,
+                assigneeId: res.data.assignedToId || ''
+            });
         } catch (error) {
             toast.error('Failed to load task details');
         }
@@ -118,216 +127,282 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 z-50 flex justify-center overflow-y-auto py-10">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl h-fit relative flex flex-col md:flex-row overflow-hidden my-auto mx-4">
+        <Portal>
+            <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100000] flex justify-center items-center overflow-hidden p-4 md:p-6 animate-fade-in" style={{ zIndex: 100000 }}>
+                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col md:flex-row overflow-hidden border border-white/20">
 
-                {/* Close Button */}
-                <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10">
-                    <X size={24} />
-                </button>
+                    {/* Close Button */}
+                    <button
+                        onClick={onClose}
+                        className="absolute top-4 right-4 z-20 p-2 bg-white text-slate-400 hover:text-slate-600 rounded-full shadow-sm hover:shadow transition-all border border-slate-100"
+                    >
+                        <X size={20} />
+                    </button>
 
-                {/* Left: Main details */}
-                <div className="flex-1 p-8 border-r border-gray-100">
-                    <form id="task-form" onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+                    {/* Left: Main Content (Scrollable) */}
+                    <div className="flex-1 flex flex-col h-full overflow-hidden bg-white">
+                        <div className="flex-1 overflow-y-auto p-8 md:p-10 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
 
-                        {/* Title */}
-                        <div>
-                            <input
-                                {...register('title', { required: true })}
-                                placeholder="Issue Summary"
-                                className="w-full text-2xl font-bold text-slate-800 placeholder:text-slate-300 border-none focus:ring-0 p-0"
-                            />
-                        </div>
-
-                        {/* Description Editor */}
-                        <div>
-                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Description</label>
-                            <Controller
-                                name="description"
-                                control={control}
-                                defaultValue=""
-                                render={({ field }) => (
-                                    <RichTextEditor
-                                        value={field.value}
-                                        onChange={field.onChange}
-                                        placeholder="Describe the issue..."
-                                        className="min-h-[200px]"
-                                    />
-                                )}
-                            />
-                        </div>
-
-                        {/* Attachments (Creation Mode) */}
-                        {isNew && (
-                            <div className="border-2 border-dashed border-slate-200 rounded-lg p-6 text-center hover:bg-slate-50 transition-colors">
-                                <input type="file" multiple id="file-upload" className="hidden" onChange={handleFileChange} />
-                                <label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center gap-2">
-                                    <Paperclip className="text-slate-400" />
-                                    <span className="text-sm text-slate-600">
-                                        {files.length > 0 ? `${files.length} files selected` : 'Drag files or click to upload'}
-                                    </span>
-                                </label>
-                            </div>
-                        )}
-
-                        {/* Existing Attachments */}
-                        {!isNew && task?.documents && task.documents.length > 0 && (
-                            <div>
-                                <h4 className="text-sm font-semibold mb-2">Attachments</h4>
-                                <div className="flex gap-2 flex-wrap">
-                                    {task.documents.map((doc: any) => (
-                                        <div key={doc.id} className="p-2 border rounded flex items-center gap-2 text-sm bg-gray-50">
-                                            <Paperclip size={14} />
-                                            <a href={`http://localhost:5000/${doc.filePath}`} target="_blank" className="hover:underline">{doc.name}</a>
-                                        </div>
-                                    ))}
+                            {/* Header Section */}
+                            <div className="mb-8">
+                                {/* Breadcrumbs */}
+                                <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">
+                                    <span className="hover:text-primary-600 transition-colors cursor-pointer">Project</span>
+                                    <span className="text-slate-300">/</span>
+                                    <span className="text-slate-600">{isNew ? 'New Issue' : `TASK-${task?.id?.split('-')[0].toUpperCase()}`}</span>
                                 </div>
+
+                                {/* Title Input */}
+                                <input
+                                    {...register('title', { required: true })}
+                                    placeholder="Task Title"
+                                    className="w-full text-3xl md:text-4xl font-black text-slate-900 placeholder:text-slate-200 border-none focus:ring-0 p-0 bg-transparent leading-tight"
+                                />
                             </div>
-                        )}
 
-                    </form>
+                            <form id="task-form" onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+                                {/* Description Editor Wrapper */}
+                                <div className="group">
+                                    <label className="flex items-center gap-2 text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3 select-none">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+                                        Description
+                                    </label>
+                                    <div className="prose-editor-wrapper border border-slate-200 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-indigo-100 focus-within:border-indigo-400 transition-all shadow-sm">
+                                        <Controller
+                                            name="description"
+                                            control={control}
+                                            defaultValue=""
+                                            render={({ field }) => (
+                                                <RichTextEditor
+                                                    value={field.value}
+                                                    onChange={field.onChange}
+                                                    placeholder="Describe the task details, acceptance criteria, and technical notes..."
+                                                    className="min-h-[200px] border-none"
+                                                />
+                                            )}
+                                        />
+                                    </div>
+                                </div>
 
-                    {/* Comments Section (Only for existing tasks) */}
-                    {!isNew && (
-                        <div className="mt-8 pt-8 border-t border-gray-100">
-                            <h3 className="font-semibold text-slate-800 mb-4">Activity</h3>
+                                {/* Attachments Section */}
+                                <div>
+                                    <h4 className="flex items-center gap-2 text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">
+                                        <Paperclip size={12} /> Attachments
+                                    </h4>
 
-                            {/* Comment List */}
-                            <div className="space-y-6 mb-6">
-                                {comments.map((comment: any) => {
-                                    const authorName = comment.user
-                                        ? `${comment.user.firstName} ${comment.user.lastName}`
-                                        : comment.client
-                                            ? `${comment.client.name} (Client)`
-                                            : 'Unknown';
-                                    const initial = authorName[0];
-
-                                    return (
-                                        <div key={comment.id} className="flex gap-3">
-                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${comment.client ? 'bg-orange-100 text-orange-700' : 'bg-indigo-100 text-indigo-700'}`}>
-                                                {initial}
-                                            </div>
-                                            <div className="flex-1 space-y-1">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-sm font-semibold text-slate-700">
-                                                        {authorName}
-                                                    </span>
-                                                    <span className="text-xs text-slate-400">
-                                                        {new Date(comment.createdAt).toLocaleString()}
-                                                    </span>
+                                    {isNew ? (
+                                        <div className="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center hover:bg-slate-50 hover:border-slate-300 transition-all cursor-pointer group relative">
+                                            <input type="file" multiple id="file-upload" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onChange={handleFileChange} />
+                                            <div className="flex flex-col items-center gap-2 pointer-events-none">
+                                                <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center group-hover:bg-white group-hover:shadow-sm transition-all text-slate-400">
+                                                    <Paperclip size={18} />
                                                 </div>
-                                                <div className="text-sm text-slate-600 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: comment.content }} />
+                                                <span className="text-xs font-bold text-slate-500">
+                                                    {files.length > 0 ? `${files.length} files attached` : 'Drop files here or click to upload'}
+                                                </span>
                                             </div>
                                         </div>
-                                    );
-                                })}
+                                    ) : (
+                                        <div className="flex gap-3 flex-wrap">
+                                            {task?.documents?.map((doc: any) => (
+                                                <a
+                                                    key={doc.id}
+                                                    href={`http://localhost:5000/${doc.filePath}`}
+                                                    target="_blank"
+                                                    className="flex items-center gap-3 px-4 py-3 bg-slate-50 border border-slate-100 rounded-lg hover:border-indigo-200 hover:bg-indigo-50/50 transition-all group no-underline"
+                                                >
+                                                    <div className="w-8 h-8 rounded bg-white border border-slate-100 flex items-center justify-center text-slate-500 group-hover:text-indigo-600">
+                                                        <Paperclip size={14} />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-xs font-bold text-slate-700 truncate max-w-[150px]">{doc.name}</p>
+                                                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                                                            {(doc.fileSize / 1024).toFixed(0)} KB
+                                                        </p>
+                                                    </div>
+                                                </a>
+                                            ))}
+                                            {(!task?.documents || task.documents.length === 0) && (
+                                                <p className="text-xs text-slate-400 italic">No attachments.</p>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            </form>
+
+                            {/* Activity / Comments */}
+                            {!isNew && (
+                                <div className="mt-12 pt-8 border-t border-slate-100">
+                                    <h3 className="text-sm font-black text-slate-800 mb-6 flex items-center gap-2">
+                                        <Clock size={16} className="text-slate-400" />
+                                        Activity Stream
+                                    </h3>
+
+                                    <div className="space-y-8 mb-8 relative before:absolute before:left-4 before:top-4 before:bottom-0 before:w-px before:bg-slate-100">
+                                        {comments.map((comment: any) => {
+                                            const authorName = comment.user
+                                                ? `${comment.user.firstName} ${comment.user.lastName}`
+                                                : comment.client ? `${comment.client.name} (Client)` : 'Unknown';
+
+                                            return (
+                                                <div key={comment.id} className="relative flex gap-4">
+                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 relative z-10 ring-4 ring-white ${comment.client ? 'bg-amber-100 text-amber-700' : 'bg-slate-900 text-white'}`}>
+                                                        {authorName[0]}
+                                                    </div>
+                                                    <div className="flex-1 bg-slate-50 rounded-lg p-4 rounded-tl-none border border-slate-100 relative">
+                                                        <div className="flex items-center justify-between mb-2">
+                                                            <span className="text-xs font-bold text-slate-900">{authorName}</span>
+                                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{new Date(comment.createdAt).toLocaleString()}</span>
+                                                        </div>
+                                                        <div className="text-xs text-slate-600 prose prose-sm max-w-none leading-relaxed" dangerouslySetInnerHTML={{ __html: comment.content }} />
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+
+                                    <div className="flex gap-4 relative z-10 bg-white p-1">
+                                        <div className="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 shrink-0" />
+                                        <div className="flex-1 space-y-3">
+                                            <RichTextEditor
+                                                value={newComment}
+                                                onChange={setNewComment}
+                                                placeholder="Write a comment..."
+                                                className="min-h-[100px] border border-slate-200 rounded-lg"
+                                            />
+                                            <div className="flex justify-end">
+                                                <button
+                                                    onClick={postComment}
+                                                    disabled={!newComment.trim()}
+                                                    className="bg-slate-900 text-white px-5 py-2 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-slate-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-slate-900/10 flex items-center gap-2"
+                                                >
+                                                    Post Comment <Send size={12} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Right: Meta Details Sidebar */}
+                    <div className="w-full md:w-80 bg-slate-50/80 backdrop-blur border-l border-slate-200 p-6 flex flex-col gap-6 overflow-y-auto h-full shadow-[inset_10px_0_20px_-10px_rgba(0,0,0,0.02)]">
+
+                        {/* Status */}
+                        <div className="bg-white p-4 rounded-xl border border-slate-200/60 shadow-sm">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3">Status</label>
+                            <select
+                                {...register('status')}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20"
+                            >
+                                <option value="todo">To Do</option>
+                                <option value="in-progress">In Progress</option>
+                                <option value="review">Review</option>
+                                <option value="done">Done</option>
+                            </select>
+                        </div>
+
+                        {/* Meta Group */}
+                        <div className="space-y-6">
+                            {/* Priority */}
+                            <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Priority</label>
+                                <div className="relative">
+                                    <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10">
+                                        <div className={`w-2 h-2 rounded-full ${watch('priority') === 'urgent' ? 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]' :
+                                            watch('priority') === 'high' ? 'bg-orange-500' :
+                                                watch('priority') === 'medium' ? 'bg-amber-400' : 'bg-emerald-500'
+                                            }`} />
+                                    </div>
+                                    <select
+                                        {...register('priority')}
+                                        className="w-full pl-8 bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-indigo-400 transition-colors cursor-pointer appearance-none"
+                                    >
+                                        <option value="medium">Medium Priority</option>
+                                        <option value="high">High Priority</option>
+                                        <option value="urgent">Urgent</option>
+                                        <option value="low">Low Priority</option>
+                                    </select>
+                                </div>
                             </div>
 
-                            {/* Add Comment */}
-                            <div className="flex gap-3">
-                                <div className="w-8 h-8 rounded-full bg-gray-200 shrink-0" />
-                                <div className="flex-1">
-                                    <RichTextEditor
-                                        value={newComment}
-                                        onChange={setNewComment}
-                                        placeholder="Add a comment..."
-                                        className="mb-2"
-                                    />
-                                    <button
-                                        onClick={postComment}
-                                        disabled={!newComment.trim()}
-                                        className="bg-indigo-600 text-white px-4 py-2 rounded text-sm font-medium disabled:opacity-50"
+                            {/* Type */}
+                            <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Issue Type</label>
+                                <select
+                                    {...register('type')}
+                                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-indigo-400 transition-colors"
+                                >
+                                    <option value="task">Task</option>
+                                    <option value="bug">Bug</option>
+                                    <option value="issue">Issue</option>
+                                    <option value="story">Story</option>
+                                </select>
+                            </div>
+
+                            {/* Assignee */}
+                            <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Assignee</label>
+                                <div className="relative">
+                                    <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10 flex items-center justify-center">
+                                        {watch('assigneeId') ? (
+                                            <div className="w-5 h-5 rounded bg-indigo-600 text-[8px] font-black text-white flex items-center justify-center uppercase">
+                                                {(() => {
+                                                    const uid = watch('assigneeId');
+                                                    const user = employees.find(e => (e.userId || e.id) === uid);
+                                                    return user ? `${user.firstName[0]}${user.lastName[0]}` : '?';
+                                                })()}
+                                            </div>
+                                        ) : (
+                                            <div className="w-5 h-5 rounded bg-slate-200 flex items-center justify-center">
+                                                <span className="text-[10px] text-slate-400">?</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <select
+                                        {...register('assigneeId')}
+                                        className="w-full pl-10 bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-indigo-400 transition-colors"
                                     >
-                                        Save
-                                    </button>
+                                        <option value="">Unassigned</option>
+                                        {employees.filter(e => e.userId).map(emp => (
+                                            <option key={emp.id} value={emp.userId}>
+                                                {emp.firstName} {emp.lastName}
+                                            </option>
+                                        ))}
+                                    </select>
                                 </div>
                             </div>
                         </div>
-                    )}
-                </div>
 
-                {/* Right: Meta Details Sidebar */}
-                <div className="w-full md:w-80 bg-gray-50/50 p-8 space-y-6 border-l border-gray-100">
+                        {/* Metadata Box */}
+                        {!isNew && task && (
+                            <div className="mt-auto bg-slate-100 rounded-xl p-4 space-y-2">
+                                <div className="flex justify-between text-[10px] text-slate-500">
+                                    <span>Created</span>
+                                    <span className="font-mono">{new Date(task.createdAt).toLocaleDateString()}</span>
+                                </div>
+                                <div className="flex justify-between text-[10px] text-slate-500">
+                                    <span>Updated</span>
+                                    <span className="font-mono">{new Date(task.updatedAt).toLocaleDateString()}</span>
+                                </div>
+                            </div>
+                        )}
 
-                    {/* Status */}
-                    <div>
-                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Status</label>
-                        <select
-                            {...register('status')}
-                            className="w-full bg-white border border-gray-200 rounded px-3 py-2 text-sm focus:outline-none focus:border-indigo-500"
-                        >
-                            <option value="todo">To Do</option>
-                            <option value="in-progress">In Progress</option>
-                            <option value="review">Review</option>
-                            <option value="done">Done</option>
-                        </select>
-                    </div>
-
-                    {/* Priority */}
-                    <div>
-                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Priority</label>
-                        <select
-                            {...register('priority')}
-                            className="w-full bg-white border border-gray-200 rounded px-3 py-2 text-sm"
-                        >
-                            <option value="medium">Medium</option>
-                            <option value="high">High</option>
-                            <option value="urgent">Urgent</option>
-                            <option value="low">Low</option>
-                        </select>
-                    </div>
-
-                    {/* Type */}
-                    <div>
-                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Type</label>
-                        <select
-                            {...register('type')}
-                            className="w-full bg-white border border-gray-200 rounded px-3 py-2 text-sm"
-                        >
-                            <option value="task">Task</option>
-                            <option value="bug">Bug</option>
-                            <option value="issue">Issue</option>
-                        </select>
-                    </div>
-
-                    {/* Assignee */}
-                    <div>
-                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Assignee</label>
-                        <select
-                            {...register('assigneeId')}
-                            className="w-full bg-white border border-gray-200 rounded px-3 py-2 text-sm"
-                        >
-                            <option value="">Unassigned</option>
-                            {employees.map(emp => (
-                                <option key={emp.id} value={emp.userId || emp.id}>
-                                    {emp.firstName} {emp.lastName}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="pt-8 mt-auto">
+                        {/* Action Button */}
                         <button
                             type="submit"
                             form="task-form"
                             disabled={isLoading}
-                            className="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-semibold hover:bg-indigo-700 transition-colors shadow-sm"
+                            className="w-full bg-slate-900 text-white py-3 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-lg shadow-slate-900/10 flex items-center justify-center gap-2"
                         >
-                            {isLoading ? 'Saving...' : (isNew ? 'Create Issue' : 'Save Changes')}
+                            {isLoading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : (isNew ? 'Create Issue' : 'Save Changes')}
                         </button>
+
                     </div>
-
-                    {/* Metadata */}
-                    {!isNew && task && (
-                        <div className="text-xs text-slate-400 mt-4 space-y-1">
-                            <p>Created {new Date(task.createdAt).toLocaleDateString()}</p>
-                            <p>Updated {new Date(task.updatedAt).toLocaleDateString()}</p>
-                        </div>
-                    )}
-
                 </div>
             </div>
-        </div>
+        </Portal>
     );
 }
+

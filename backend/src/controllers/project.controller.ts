@@ -110,7 +110,7 @@ export const getProjectById = async (req: AuthRequest, res: Response) => {
                     include: {
                         employee: {
                             select: {
-                                id: true, firstName: true, lastName: true,
+                                id: true, firstName: true, lastName: true, userId: true,
                                 position: { select: { title: true } },
                                 // profilePicture: true // Removed: Field does not exist on Employee
                             }

@@ -413,3 +413,130 @@ export const sendQuotationReminder = async (quotationData: any, publicUrl: strin
 
     return sendEmail(quotationData.lead?.email || quotationData.clientEmail, subject, html);
 };
+// --- Task Notifications ---
+
+export const notifyTaskAssigned = async (task: any, assignee: any, project: any) => {
+    const subject = `[${project.name}] Task Assigned: ${task.title}`;
+
+    // Determine priority color
+    const priorityColor = task.priority === 'urgent' ? '#e11d48' :
+        task.priority === 'high' ? '#ea580c' :
+            task.priority === 'medium' ? '#ca8a04' : '#65a30d';
+
+    const html = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; line-height: 1.6;">
+            <div style="max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+                <div style="background-color: #f8fafc; padding: 20px; border-bottom: 1px solid #e2e8f0;">
+                    <h2 style="margin: 0; font-size: 18px; font-weight: 600; color: #0f172a;">New Task Assignment</h2>
+                    <p style="margin: 5px 0 0; color: #64748b; font-size: 14px;">Project: ${project.name}</p>
+                </div>
+                
+                <div style="padding: 24px;">
+                    <p style="margin-top: 0;">Hello <strong>${assignee.firstName}</strong>,</p>
+                    <p>You have been assigned to the following task:</p>
+                    
+                    <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 16px; margin: 20px 0;">
+                        <div style="display: flex; align-items: center; margin-bottom: 12px;">
+                            <span style="font-size: 16px; font-weight: 600; color: #0f172a;">${task.title}</span>
+                            <span style="margin-left: auto; font-size: 12px; font-weight: 600; text-transform: uppercase; padding: 2px 8px; border-radius: 4px; background-color: ${priorityColor}20; color: ${priorityColor}; border: 1px solid ${priorityColor}40;">
+                                ${task.priority}
+                            </span>
+                        </div>
+                        <div style="color: #475569; font-size: 14px; margin-bottom: 16px;">
+                            ${task.description ? task.description.replace(/<[^>]*>?/g, '').substring(0, 150) + (task.description.length > 150 ? '...' : '') : 'No description provided.'}
+                        </div>
+                        <div style="display: flex; gap: 24px; font-size: 13px; color: #64748b;">
+                            <div>
+                                <span style="display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px;">Status</span>
+                                <span style="font-weight: 500; color: #334155;">${task.status.replace('-', ' ')}</span>
+                            </div>
+                            <div>
+                                <span style="display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px;">Due Date</span>
+                                <span style="font-weight: 500; color: #334155;">${task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No due date'}</span>
+                            </div>
+                             <div>
+                                <span style="display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px;">Type</span>
+                                <span style="font-weight: 500; color: #334155;">${task.type}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/projects/${project.id}/tasks" style="display: inline-block; background-color: #0f172a; color: #ffffff; font-weight: 600; font-size: 14px; padding: 10px 20px; text-decoration: none; border-radius: 6px;">View Task</a>
+                </div>
+                
+                <div style="background-color: #f8fafc; padding: 16px; text-align: center; color: #94a3b8; font-size: 12px; border-top: 1px solid #e2e8f0;">
+                    Sent via Applizor ERP
+                </div>
+            </div>
+        </div>
+    `;
+
+    return sendEmail(assignee.email, subject, html);
+};
+
+export const notifyTaskUpdated = async (task: any, assignee: any, project: any, changes: string[]) => {
+    const subject = `[${project.name}] Update on: ${task.title}`;
+
+    const html = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; line-height: 1.6;">
+            <div style="max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+                <div style="background-color: #f8fafc; padding: 20px; border-bottom: 1px solid #e2e8f0;">
+                    <h2 style="margin: 0; font-size: 18px; font-weight: 600; color: #0f172a;">Task Updated</h2>
+                    <p style="margin: 5px 0 0; color: #64748b; font-size: 14px;">Project: ${project.name}</p>
+                </div>
+                
+                <div style="padding: 24px;">
+                    <p style="margin-top: 0;">Hello <strong>${assignee.firstName}</strong>,</p>
+                    <p>There have been updates to a task you are assigned to:</p>
+                    
+                    <div style="background-color: #fff7ed; border: 1px solid #ffedd5; border-radius: 6px; padding: 12px; margin: 20px 0;">
+                        <strong>Changes:</strong> ${changes.join(', ')}
+                    </div>
+                    
+                    <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 16px; margin: 20px 0;">
+                        <div style="font-size: 16px; font-weight: 600; color: #0f172a; margin-bottom: 4px;">${task.title}</div>
+                        <div style="font-size: 13px; color: #64748b;">Current Status: <span style="color: #0f172a; font-weight: 500;">${task.status}</span></div>
+                    </div>
+
+                    <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/projects/${project.id}/tasks" style="display: inline-block; background-color: #0f172a; color: #ffffff; font-weight: 600; font-size: 14px; padding: 10px 20px; text-decoration: none; border-radius: 6px;">View Task</a>
+                </div>
+            </div>
+        </div>
+    `;
+
+    return sendEmail(assignee.email, subject, html);
+};
+
+export const notifyNewTask = async (task: any, project: any, recipientEmail: string) => {
+    const subject = `[${project.name}] New Task Created: ${task.title}`;
+
+    const html = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; line-height: 1.6;">
+            <div style="max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+                <div style="background-color: #f8fafc; padding: 20px; border-bottom: 1px solid #e2e8f0;">
+                    <h2 style="margin: 0; font-size: 18px; font-weight: 600; color: #0f172a;">New Task Created</h2>
+                    <p style="margin: 5px 0 0; color: #64748b; font-size: 14px;">Project: ${project.name}</p>
+                </div>
+                
+                <div style="padding: 24px;">
+                    <p style="margin-top: 0;">A new task has been added to the project.</p>
+                    
+                    <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 16px; margin: 20px 0;">
+                        <div style="font-size: 16px; font-weight: 600; color: #0f172a; margin-bottom: 8px;">${task.title}</div>
+                         <div style="color: #475569; font-size: 14px; margin-bottom: 16px;">
+                            ${task.description ? task.description.replace(/<[^>]*>?/g, '').substring(0, 150) + (task.description.length > 150 ? '...' : '') : 'No description provided.'}
+                        </div>
+                        <div style="display: flex; gap: 24px; font-size: 13px; color: #64748b;">
+                            <div><span style="color: #94a3b8;">Type:</span> ${task.type}</div>
+                            <div><span style="color: #94a3b8;">Priority:</span> ${task.priority}</div>
+                        </div>
+                    </div>
+
+                    <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/projects/${project.id}/tasks" style="display: inline-block; background-color: #0f172a; color: #ffffff; font-weight: 600; font-size: 14px; padding: 10px 20px; text-decoration: none; border-radius: 6px;">View Dashboard</a>
+                </div>
+            </div>
+        </div>
+    `;
+
+    return sendEmail(recipientEmail, subject, html);
+};

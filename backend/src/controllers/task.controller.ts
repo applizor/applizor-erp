@@ -68,22 +68,14 @@ export const createTask = async (req: AuthRequest, res: Response) => {
 
         // Internal Email Notification
         if (settings?.notificationEmail) {
-            const { sendEmail } = await import('../services/email.service');
-            const emailSubject = `[${project?.name}] New ${type}: ${title}`;
-            const emailHtml = `
-                <div style="font-family: Arial, sans-serif;">
-                    <h2>New ${type} Created</h2>
-                    <p><strong>Project:</strong> ${project?.name}</p>
-                    <p><strong>Title:</strong> ${title}</p>
-                    <p><strong>Priority:</strong> ${priority}</p>
-                    <p><strong>Assigned To:</strong> ${task.assignee?.firstName || 'Unassigned'}</p>
-                    <br/>
-                    <div style="background: #f5f5f5; padding: 15px; border-radius: 5px;">
-                        ${description || 'No description provided.'}
-                    </div>
-                </div>
-            `;
-            await sendEmail(settings.notificationEmail, emailSubject, emailHtml);
+            const { notifyNewTask } = await import('../services/email.service');
+            await notifyNewTask(task, project, settings.notificationEmail);
+        }
+
+        // Assignee Notification (if assigned immediately)
+        if (task.assignee?.email) {
+            const { notifyTaskAssigned } = await import('../services/email.service');
+            await notifyTaskAssigned(task, task.assignee, project);
         }
 
         res.status(201).json(task);
@@ -98,22 +90,58 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
         const { id } = req.params;
         const { title, description, status, priority, type, tags, assigneeId, dueDate, milestoneId } = req.body;
 
+        // Fetch old task to compare changes
+        const oldTask = await prisma.task.findUnique({
+            where: { id },
+            select: { status: true, assignedToId: true }
+        });
+
         const task = await prisma.task.update({
             where: { id },
             data: {
                 title, description, status, priority, type,
                 tags: tags ? (Array.isArray(tags) ? tags : [tags]) : undefined,
                 dueDate: dueDate ? new Date(dueDate) : undefined,
-                assignedToId: assigneeId,
-                milestoneId
-            }
+                assignedToId: assigneeId || null,
+                milestoneId: milestoneId || null
+            },
+            include: { assignee: { select: { firstName: true, email: true } } }
         });
 
-        // Notify if status changed to 'review' or 'done'?
-        // Skipped for brevity
+        // Notifications
+        // Notifications (Non-blocking)
+        if (oldTask) {
+            try {
+                const project = await prisma.project.findUnique({ where: { id: task.projectId }, select: { id: true, name: true, settings: true } });
+
+                if (project) {
+                    // 1. Assignee Changed
+                    if ((!oldTask.assignedToId && task.assignedToId) || (oldTask.assignedToId && task.assignedToId && oldTask.assignedToId !== task.assignedToId)) {
+                        if (task.assignee?.email) {
+                            const { notifyTaskAssigned } = await import('../services/email.service');
+                            await notifyTaskAssigned(task, task.assignee, project);
+                        }
+                    }
+
+                    // 2. Status/Details Updated (Alert Assignee)
+                    else if (task.assignedToId && task.assignee?.email) {
+                        const changes = [];
+                        if (oldTask.status !== task.status) changes.push(`Status changed from ${oldTask.status} to ${task.status}`);
+
+                        if (changes.length > 0) {
+                            const { notifyTaskUpdated } = await import('../services/email.service');
+                            await notifyTaskUpdated(task, task.assignee, project, changes);
+                        }
+                    }
+                }
+            } catch (notifyError) {
+                console.error("Notification Error (Non-fatal):", notifyError);
+            }
+        }
 
         res.json(task);
     } catch (error) {
+        console.error("Update Task Error:", error);
         res.status(500).json({ error: 'Failed to update task' });
     }
 };
