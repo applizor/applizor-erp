@@ -222,9 +222,11 @@ export default function ProjectDashboard({ params }: { params: { id: string } })
 
                 {/* Quick Actions */}
                 <div className="grid grid-cols-2 gap-3">
-                    <button className="py-2.5 bg-gray-900 text-white rounded text-[9px] font-black uppercase tracking-widest hover:bg-gray-800 transition-all shadow-lg shadow-gray-900/10">
-                        Create Invoice
-                    </button>
+                    {can('financials', 'create') && (
+                        <button className="py-2.5 bg-gray-900 text-white rounded text-[9px] font-black uppercase tracking-widest hover:bg-gray-800 transition-all shadow-lg shadow-gray-900/10">
+                            Create Invoice
+                        </button>
+                    )}
                     <button className="py-2.5 bg-white text-gray-900 border border-gray-200 rounded text-[9px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all">
                         Log Time
                     </button>
