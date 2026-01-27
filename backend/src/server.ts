@@ -22,6 +22,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Serve static files
+// Server Entry Point - Updated
 import path from 'path';
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 

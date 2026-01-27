@@ -17,27 +17,35 @@ export const createProject = async (req: AuthRequest, res: Response) => {
             tags, priority
         } = req.body;
 
-        const project = await prisma.project.create({
-            data: {
-                companyId,
-                name,
-                description,
-                clientId,
-                status: status || 'planning',
-                startDate: startDate ? new Date(startDate) : null,
-                endDate: endDate ? new Date(endDate) : null,
-                budget,
-                isBillable: isBillable ?? true,
-                tags: tags || [],
-                priority: priority || 'medium',
-                // Add creator as manager automatically? Optional.
-                members: {
-                    create: {
-                        employeeId: (await prisma.employee.findUnique({ where: { userId } }))?.id!,
-                        role: 'manager'
-                    }
+        // Check if creator has an employee record
+        const employee = await prisma.employee.findUnique({ where: { userId } });
+
+        const projectData: any = {
+            companyId,
+            name,
+            description,
+            clientId,
+            status: status || 'planning',
+            startDate: startDate ? new Date(startDate) : null,
+            endDate: endDate ? new Date(endDate) : null,
+            budget,
+            isBillable: isBillable ?? true,
+            tags: tags || [],
+            priority: priority || 'medium',
+        };
+
+        // Only add as member if employee record exists
+        if (employee) {
+            projectData.members = {
+                create: {
+                    employeeId: employee.id,
+                    role: 'manager'
                 }
-            }
+            };
+        }
+
+        const project = await prisma.project.create({
+            data: projectData
         });
 
         res.status(201).json(project);
@@ -83,12 +91,14 @@ export const getProjects = async (req: AuthRequest, res: Response) => {
     }
 };
 
+// Enterprise Upgrade: Detailed Project Stats
 export const getProjectById = async (req: AuthRequest, res: Response) => {
     try {
         if (!PermissionService.hasBasicPermission(req.user, 'Project', 'read')) {
             return res.status(403).json({ error: 'Access denied: No read rights for Project' });
         }
         const { id } = req.params;
+
         const project = await prisma.project.findUnique({
             where: { id },
             include: {
@@ -98,7 +108,8 @@ export const getProjectById = async (req: AuthRequest, res: Response) => {
                         employee: {
                             select: {
                                 id: true, firstName: true, lastName: true,
-                                position: { select: { title: true } }
+                                position: { select: { title: true } },
+                                // profilePicture: true // Removed: Field does not exist on Employee
                             }
                         }
                     }
@@ -107,25 +118,68 @@ export const getProjectById = async (req: AuthRequest, res: Response) => {
                     include: {
                         tasks: true
                     },
-                    orderBy: { order: 'asc' }
+                    orderBy: { dueDate: 'asc' } // Critical Path: Sort by Date
                 },
-                notes: true,
-                // Only most recent tasks? Or handle tasks in separate endpoint?
-                // Let's include summary stats here mostly.
+                tasks: {
+                    select: { status: true }
+                },
+                // Include Timesheets for efficiency calculation
+                timesheets: {
+                    select: { hours: true }
+                }
             }
         });
 
         if (!project) return res.status(404).json({ error: 'Project not found' });
 
-        // Calculate Stats
-        const taskStats = await prisma.task.groupBy({
-            by: ['status'],
-            where: { projectId: id },
-            _count: true
-        });
+        // --- 1. Financial Calculations ---
+        const budget = Number(project.budget) || 0;
+        const revenue = Number(project.actualRevenue) || 0;
+        const expenses = Number(project.actualExpenses) || 0;
+        const netProfit = revenue - expenses;
+        const margin = revenue > 0 ? (netProfit / revenue) * 100 : 0;
 
-        res.json({ ...project, taskStats });
+        // --- 2. Efficiency Index & Task Velocity ---
+        const totalTasks = project.tasks.length;
+        const completedTasks = project.tasks.filter(t => t.status === 'done' || t.status === 'completed').length;
+        const taskCompletionRate = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+
+        // Calculate total logged hours
+        const totalLoggedHours = project.timesheets.reduce((acc, t) => acc + Number(t.hours), 0);
+
+        // Simple Efficiency Score (Example Logic: High completion + Low hours = High Efficiency)
+        // Ideally compare vs Estimated Hours. For now, we return raw metrics.
+        let efficiencyStatus = 'optimal';
+        if (taskCompletionRate < 50 && totalLoggedHours > (budget / 100)) efficiencyStatus = 'at-risk'; // Arbitrary threshold
+
+        // --- 3. Critical Path (Next Milestone) ---
+        const futureMilestones = project.milestones.filter(m => m.status !== 'completed' && m.dueDate && new Date(m.dueDate) >= new Date());
+        const nextMilestone = futureMilestones.length > 0 ? futureMilestones[0] : null;
+
+        res.json({
+            ...project,
+            stats: {
+                financials: {
+                    budget,
+                    revenue,
+                    expenses,
+                    netProfit,
+                    margin: Math.round(margin * 100) / 100
+                },
+                efficiency: {
+                    totalTasks,
+                    completedTasks,
+                    completionRate: Math.round(taskCompletionRate),
+                    totalLoggedHours: Math.round(totalLoggedHours * 100) / 100,
+                    status: efficiencyStatus
+                },
+                criticalPath: {
+                    nextMilestone
+                }
+            }
+        });
     } catch (error: any) {
+        console.error("Get Project Details Error:", error);
         res.status(500).json({ error: 'Failed to fetch project details' });
     }
 };

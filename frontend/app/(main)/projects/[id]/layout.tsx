@@ -5,10 +5,11 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import api from '@/lib/api';
+import { EditProjectModal } from '@/components/projects/EditProjectModal';
 import {
     LayoutDashboard, CheckSquare, Flag, FileText,
     DollarSign, BookOpen, Settings, ChevronLeft,
-    Calendar, Users, Building2
+    Calendar, Users, Building2, Pencil
 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
@@ -22,6 +23,7 @@ export default function ProjectLayout({
     const pathname = usePathname();
     const [project, setProject] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
     useEffect(() => {
         fetchProjectHeader();
@@ -83,8 +85,14 @@ export default function ProjectLayout({
             <div className="ent-card p-6 border-l-4 border-l-primary-600">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                     <div>
-                        <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none mb-2">
+                        <h1 className="text-2xl font-black text-gray-900 tracking-tight leading-none mb-2 flex items-center gap-3">
                             {project.name}
+                            <button
+                                onClick={() => setIsEditModalOpen(true)}
+                                className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-primary-600 transition-colors"
+                            >
+                                <Pencil size={14} />
+                            </button>
                         </h1>
                         <div className="flex items-center gap-4 text-xs font-bold text-gray-500">
                             <div className="flex items-center gap-1.5">
@@ -156,6 +164,13 @@ export default function ProjectLayout({
             <div className="animate-fade-in">
                 {children}
             </div>
+
+            <EditProjectModal
+                isOpen={isEditModalOpen}
+                onClose={() => setIsEditModalOpen(false)}
+                project={project}
+                onUpdate={fetchProjectHeader}
+            />
         </div>
     );
 }

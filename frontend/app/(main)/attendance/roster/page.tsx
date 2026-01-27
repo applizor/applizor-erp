@@ -22,7 +22,7 @@ import {
     X
 } from 'lucide-react';
 import { usePermission } from '@/hooks/usePermission';
-import { RosterGrid } from './components/RosterGrid';
+// import { RosterGrid } from './components/RosterGrid';
 import { useConfirm } from '@/context/ConfirmationContext';
 import { PermissionGuard } from '@/components/PermissionGuard';
 import AccessDenied from '@/components/AccessDenied';

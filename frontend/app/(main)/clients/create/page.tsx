@@ -45,6 +45,8 @@ const clientSchema = z.object({
     notes: z.string().optional(),
     clientType: z.enum(['customer', 'vendor', 'partner']).default('customer'),
     status: z.enum(['active', 'inactive']).default('active'),
+    profilePicture: z.string().optional(),
+    companyLogo: z.string().optional(),
 }).refine(data => {
     if (data.portalAccess && (!data.password || data.password.length < 8)) {
         return false;
@@ -187,6 +189,8 @@ export default function CreateClientPage() {
         notes: '',
         clientType: 'customer',
         status: 'active',
+        profilePicture: '',
+        companyLogo: '',
     });
 
     const validateField = (field: keyof ClientFormData, value: any) => {
@@ -516,3 +520,4 @@ export default function CreateClientPage() {
         </div>
     );
 }
+// trigger rebuild
