@@ -12,7 +12,11 @@ const notifyTeams = async (webhookUrl: string, message: string) => {
 
 export const createTask = async (req: AuthRequest, res: Response) => {
     try {
-        const { projectId, title, description, status, priority, type, tags, assigneeId, dueDate, milestoneId } = req.body;
+        const {
+            projectId, title, description, status, priority, type, tags,
+            assigneeId, dueDate, milestoneId,
+            storyPoints, parentId, epicId, sprintId, startDate, position
+        } = req.body;
 
         // Verify Project Access
         const hasAccess = await PermissionService.checkProjectAccess(req.user!.id, projectId, 'edit');
@@ -27,12 +31,22 @@ export const createTask = async (req: AuthRequest, res: Response) => {
                 priority: priority || 'medium',
                 type: type || 'task',
                 tags: tags ? (Array.isArray(tags) ? tags : [tags]) : [],
+                storyPoints: storyPoints ? parseInt(storyPoints) : 0,
                 dueDate: dueDate ? new Date(dueDate) : null,
+                startDate: startDate ? new Date(startDate) : null,
+                position: position ? parseFloat(position) : 0,
                 createdById: req.user!.id,
                 assignedToId: assigneeId || null,
-                milestoneId: milestoneId || null
+                milestoneId: milestoneId || null,
+                sprintId: sprintId || null,
+                parentId: parentId || null,
+                epicId: epicId || null
             },
-            include: { assignee: { select: { firstName: true, email: true } } }
+            include: {
+                assignee: { select: { firstName: true, email: true } },
+                epic: { select: { title: true } },
+                parent: { select: { title: true } }
+            }
         });
 
         // Handle Attachments if any (middleware puts them in req.files)
@@ -88,7 +102,11 @@ export const createTask = async (req: AuthRequest, res: Response) => {
 export const updateTask = async (req: AuthRequest, res: Response) => {
     try {
         const { id } = req.params;
-        const { title, description, status, priority, type, tags, assigneeId, dueDate, milestoneId } = req.body;
+        const {
+            title, description, status, priority, type, tags,
+            assigneeId, dueDate, milestoneId,
+            storyPoints, parentId, epicId, sprintId, startDate, position
+        } = req.body;
 
         // Fetch old task to compare changes
         const oldTask = await prisma.task.findUnique({
@@ -101,11 +119,21 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
             data: {
                 title, description, status, priority, type,
                 tags: tags ? (Array.isArray(tags) ? tags : [tags]) : undefined,
+                storyPoints: storyPoints !== undefined ? parseInt(storyPoints) : undefined,
                 dueDate: dueDate ? new Date(dueDate) : undefined,
-                assignedToId: assigneeId || null,
-                milestoneId: milestoneId || null
+                startDate: startDate ? new Date(startDate) : undefined,
+                position: position !== undefined ? parseFloat(position) : undefined,
+                assignedToId: assigneeId !== undefined ? (assigneeId || null) : undefined,
+                milestoneId: milestoneId !== undefined ? (milestoneId || null) : undefined,
+                sprintId: sprintId !== undefined ? (sprintId || null) : undefined,
+                parentId: parentId !== undefined ? (parentId || null) : undefined,
+                epicId: epicId !== undefined ? (epicId || null) : undefined
             },
-            include: { assignee: { select: { firstName: true, email: true } } }
+            include: {
+                assignee: { select: { firstName: true, email: true } },
+                epic: { select: { title: true } },
+                parent: { select: { title: true } }
+            }
         });
 
         // Notifications

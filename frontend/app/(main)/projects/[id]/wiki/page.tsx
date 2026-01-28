@@ -5,6 +5,7 @@ import { BookOpen, Edit3, Save, Pin, Clock, Plus } from 'lucide-react';
 import api from '@/lib/api';
 import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import RichTextEditor from '@/components/ui/RichTextEditor';
 
 export default function ProjectWiki({ params }: { params: { id: string } }) {
     const toast = useToast();
@@ -12,6 +13,7 @@ export default function ProjectWiki({ params }: { params: { id: string } }) {
     const [loading, setLoading] = useState(true);
     const [activeNote, setActiveNote] = useState<any | null>(null);
     const [isEditing, setIsEditing] = useState(false);
+    const [members, setMembers] = useState<any[]>([]);
 
     // Editor State
     const [title, setTitle] = useState('');
@@ -20,7 +22,22 @@ export default function ProjectWiki({ params }: { params: { id: string } }) {
 
     useEffect(() => {
         fetchNotes();
+        fetchMembers();
     }, [params.id]);
+
+    const fetchMembers = async () => {
+        try {
+            const res = await api.get(`/projects/${params.id}`);
+            if (res.data.members) {
+                setMembers(res.data.members.map((m: any) => ({
+                    id: m.employee.id,
+                    name: `${m.employee.firstName} ${m.employee.lastName}`
+                })));
+            }
+        } catch (error) {
+            console.error('Failed to fetch members');
+        }
+    };
 
     const fetchNotes = async () => {
         try {
@@ -143,11 +160,12 @@ export default function ProjectWiki({ params }: { params: { id: string } }) {
                         />
                     </div>
 
-                    <textarea
-                        className="flex-1 w-full p-6 focus:outline-none resize-none font-mono text-sm leading-relaxed"
-                        placeholder="Start typing documentation here..."
+                    <RichTextEditor
                         value={content}
-                        onChange={(e) => setContent(e.target.value)}
+                        onChange={setContent}
+                        mentions={members}
+                        className="flex-1 overflow-y-auto"
+                        placeholder="Start typing documentation here..."
                     />
                 </div>
             </div>

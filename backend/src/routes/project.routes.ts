@@ -35,6 +35,12 @@ router.get('/:id/documents', checkPermission('Project', 'read'), projectControll
 router.post('/:id/documents', checkPermission('Project', 'update'), upload.single('file'), projectController.uploadProjectDocument);
 router.delete('/documents/:docId', checkPermission('Project', 'update'), projectController.deleteProjectDocument);
 
+// Sprints
+router.get('/:id/sprints', checkPermission('Project', 'read'), projectController.getSprints);
+router.post('/:id/sprints', checkPermission('Project', 'update'), projectController.createSprint);
+router.put('/sprints/:sprintId', checkPermission('Project', 'update'), projectController.updateSprint);
+router.delete('/sprints/:sprintId', checkPermission('Project', 'update'), projectController.deleteSprint);
+
 // Tasks (handled via Task controller usually but can be here too)
 
 export default router;

@@ -1,9 +1,10 @@
 {
-  "/(main)/dashboard/page": "app/(main)/dashboard/page.js",
-  "/(main)/settings/company/page": "app/(main)/settings/company/page.js",
+  "/login/page": "app/login/page.js",
+  "/portal/login/page": "app/portal/login/page.js",
+  "/portal/dashboard/page": "app/portal/dashboard/page.js",
+  "/portal/projects/page": "app/portal/projects/page.js",
   "/(main)/invoices/page": "app/(main)/invoices/page.js",
-  "/(main)/invoices/create/page": "app/(main)/invoices/create/page.js",
   "/(main)/projects/[id]/tasks/page": "app/(main)/projects/[id]/tasks/page.js",
-  "/(main)/attendance/my-attendance/page": "app/(main)/attendance/my-attendance/page.js",
-  "/(main)/projects/[id]/page": "app/(main)/projects/[id]/page.js"
+  "/(main)/projects/[id]/backlog/page": "app/(main)/projects/[id]/backlog/page.js",
+  "/(main)/projects/[id]/settings/page": "app/(main)/projects/[id]/settings/page.js"
 }

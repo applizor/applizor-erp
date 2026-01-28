@@ -386,3 +386,79 @@ export const deleteProjectDocument = async (req: AuthRequest, res: Response) => 
         res.status(500).json({ error: 'Failed to delete document' });
     }
 };
+
+// --- Sprints ---
+
+export const getSprints = async (req: AuthRequest, res: Response) => {
+    try {
+        const { id } = req.params;
+        const sprints = await prisma.sprint.findMany({
+            where: { projectId: id },
+            orderBy: { createdAt: 'desc' },
+            include: {
+                _count: { select: { tasks: true } }
+            }
+        });
+        res.json(sprints);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch sprints' });
+    }
+};
+
+export const createSprint = async (req: AuthRequest, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { name, goal, startDate, endDate } = req.body;
+        const sprint = await prisma.sprint.create({
+            data: {
+                projectId: id,
+                name,
+                goal,
+                startDate: startDate ? new Date(startDate) : null,
+                endDate: endDate ? new Date(endDate) : null,
+                status: 'future'
+            }
+        });
+        res.status(201).json(sprint);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to create sprint' });
+    }
+};
+
+export const updateSprint = async (req: AuthRequest, res: Response) => {
+    try {
+        const { sprintId } = req.params;
+        const { name, goal, startDate, endDate, status } = req.body;
+        const sprint = await prisma.sprint.update({
+            where: { id: sprintId },
+            data: {
+                name,
+                goal,
+                startDate: startDate ? new Date(startDate) : undefined,
+                endDate: endDate ? new Date(endDate) : undefined,
+                status
+            }
+        });
+        res.json(sprint);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to update sprint' });
+    }
+};
+
+export const deleteSprint = async (req: AuthRequest, res: Response) => {
+    try {
+        const { sprintId } = req.params;
+
+        // Unassign all tasks from this sprint before deleting
+        await prisma.task.updateMany({
+            where: { sprintId },
+            data: { sprintId: null }
+        });
+
+        await prisma.sprint.delete({ where: { id: sprintId } });
+        res.json({ message: 'Sprint deleted' });
+    } catch (error) {
+        console.error('Delete Sprint Error:', error);
+        res.status(500).json({ error: 'Failed to delete sprint' });
+    }
+};

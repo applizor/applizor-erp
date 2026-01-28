@@ -10,7 +10,7 @@ import { EditProjectModal } from '@/components/projects/EditProjectModal';
 import {
     LayoutDashboard, CheckSquare, Flag, FileText,
     DollarSign, BookOpen, Settings, ChevronLeft,
-    Calendar, Users, Building2, Pencil
+    Calendar, Users, Building2, Pencil, MapPin
 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
@@ -46,11 +46,13 @@ export default function ProjectLayout({
     const { role, can } = useProjectPermissions(project);
 
     const allTabs = [
-        { id: '', label: 'Overview', icon: LayoutDashboard, permission: 'tasks', action: 'view' }, // Overview typically visible if can view tasks/project
+        { id: '', label: 'Overview', icon: LayoutDashboard, permission: 'tasks', action: 'view' },
+        { id: '/roadmap', label: 'Roadmap', icon: MapPin, permission: 'tasks', action: 'view' },
+        { id: '/backlog', label: 'Backlog', icon: BookOpen, permission: 'tasks', action: 'view' },
+        { id: '/tasks', label: 'Board', icon: CheckSquare, permission: 'tasks', action: 'view' },
         { id: '/milestones', label: 'Milestones', icon: Flag, permission: 'milestones', action: 'view' },
-        { id: '/tasks', label: 'Tasks', icon: CheckSquare, permission: 'tasks', action: 'view' },
         { id: '/members', label: 'Members', icon: Users, permission: 'team', action: 'view' },
-        { id: '/files', label: 'Files', icon: FileText, permission: 'tasks', action: 'view' }, // Grouped with tasks for now or add specific
+        { id: '/files', label: 'Files', icon: FileText, permission: 'tasks', action: 'view' },
         { id: '/wiki', label: 'Wiki', icon: BookOpen, permission: 'tasks', action: 'view' },
         { id: '/financials', label: 'Financials', icon: DollarSign, permission: 'financials', action: 'view' },
         { id: '/settings', label: 'Settings', icon: Settings, permission: 'settings', action: 'view' },

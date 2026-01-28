@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { useToast } from '@/hooks/useToast';
 import api from '@/lib/api';
 import { useParams } from 'next/navigation';
-import { Plus, MoreVertical, Paperclip, MessageSquare } from 'lucide-react';
+import { Plus, MoreVertical, Paperclip, MessageSquare, Bug, Bookmark, Layout, CheckSquare } from 'lucide-react';
 import TaskDetailModal from '@/components/tasks/TaskDetailModal';
 
 // Types
@@ -14,9 +14,11 @@ interface Task {
     title: string;
     description: string;
     status: string; // todo, in-progress, review, done
-    type: string;
+    type: string; // epic, story, task, bug
     priority: string;
+    storyPoints?: number;
     assignee?: { firstName: string, lastName: string };
+    epic?: { id: string, title: string };
     _count?: { comments: number, documents: number };
 }
 
@@ -34,6 +36,8 @@ import { useProjectPermissions } from '@/hooks/useProjectPermissions';
 export default function KanbanBoard() {
     const { id: projectId } = useParams();
     const [tasks, setTasks] = useState<Task[]>([]);
+    const [sprints, setSprints] = useState<any[]>([]);
+    const [selectedSprintId, setSelectedSprintId] = useState<string>('all');
     const [columns, setColumns] = useState<any>({ todo: [], 'in-progress': [], review: [], done: [] });
     const toast = useToast();
     const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -41,30 +45,49 @@ export default function KanbanBoard() {
     const [project, setProject] = useState<any>(null); // Need project for permissions
     const { can } = useProjectPermissions(project);
 
-    useEffect(() => {
-        fetchTasks();
-        fetchProjectSettings();
-    }, [projectId]);
-
-    const fetchProjectSettings = async () => {
+    const fetchProjectSettings = useCallback(async () => {
         try {
             const res = await api.get(`/projects/${projectId}`);
             setProject(res.data);
         } catch (error) {
             console.error('Failed to load project settings');
         }
-    };
+    }, [projectId]);
 
-    const fetchTasks = async () => {
+    const fetchSprints = useCallback(async () => {
         try {
-            const res = await api.get(`/tasks?projectId=${projectId}`);
+            const res = await api.get(`/projects/${projectId}/sprints`);
+            setSprints(res.data);
+
+            // Set active sprint as default if nothing selected yet
+            const active = res.data.find((s: any) => s.status === 'active');
+            if (active && selectedSprintId === 'all') {
+                setSelectedSprintId(active.id);
+            }
+        } catch (error) {
+            console.error('Failed to load sprints');
+        }
+    }, [projectId, selectedSprintId]);
+
+    const fetchTasks = useCallback(async () => {
+        try {
+            const sprintQuery = selectedSprintId !== 'all' ? `&sprintId=${selectedSprintId}` : '';
+            const res = await api.get(`/tasks?projectId=${projectId}${sprintQuery}`);
             const data = res.data;
             setTasks(data);
             distributeTasks(data);
         } catch (error) {
             toast.error('Failed to load tasks');
         }
-    };
+    }, [projectId, selectedSprintId, toast]);
+
+    useEffect(() => {
+        if (projectId) {
+            fetchTasks();
+            fetchProjectSettings();
+            fetchSprints();
+        }
+    }, [projectId, fetchTasks, fetchProjectSettings, fetchSprints]);
 
     const distributeTasks = (taskList: Task[]) => {
         const newCols: any = { todo: [], 'in-progress': [], review: [], done: [] };
@@ -93,7 +116,7 @@ export default function KanbanBoard() {
             const newTasks = Array.from(startCol);
             const [moved] = newTasks.splice(source.index, 1);
             newTasks.splice(destination.index, 0, moved);
-            setColumns({ ...columns, [source.droppableId]: newTasks });
+            setColumns((prev: any) => ({ ...prev, [source.droppableId]: newTasks }));
         } else {
             // Move across columns
             const startTasks = Array.from(startCol);
@@ -104,11 +127,11 @@ export default function KanbanBoard() {
             const updatedTask = { ...moved, status: destination.droppableId };
             finishTasks.splice(destination.index, 0, updatedTask);
 
-            setColumns({
-                ...columns,
+            setColumns((prev: any) => ({
+                ...prev,
                 [source.droppableId]: startTasks,
                 [destination.droppableId]: finishTasks
-            });
+            }));
 
             // API Call
             try {
@@ -130,7 +153,17 @@ export default function KanbanBoard() {
             {/* Header */}
             <div className="flex justify-between items-center mb-6 px-1">
                 <h2 className="text-xl font-bold text-slate-800">Board</h2>
-                <div className="flex gap-2">
+                <div className="flex items-center gap-3">
+                    <select
+                        value={selectedSprintId}
+                        onChange={(e) => setSelectedSprintId(e.target.value)}
+                        className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-widest focus:ring-2 focus:ring-indigo-100 outline-none transition-all"
+                    >
+                        <option value="all">All Issues</option>
+                        {sprints.map(s => (
+                            <option key={s.id} value={s.id}>{s.name} ({s.status})</option>
+                        ))}
+                    </select>
                     {/* Add Task Button */}
                     {can('tasks', 'create') && (
                         <button
@@ -192,14 +225,35 @@ export default function KanbanBoard() {
                                                             </div>
                                                         </div>
 
-                                                        <h4 className="text-sm font-medium text-slate-800 mb-3 leading-snug line-clamp-2">
+                                                        {/* Epic Label */}
+                                                        {task.epic && (
+                                                            <div className="mb-2">
+                                                                <span className="text-[8px] font-black uppercase tracking-widest bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded border border-purple-200 truncate inline-block max-w-full">
+                                                                    {task.epic.title}
+                                                                </span>
+                                                            </div>
+                                                        )}
+
+                                                        <h4 className="text-[13px] font-bold text-slate-800 mb-3 leading-snug line-clamp-2">
                                                             {task.title}
                                                         </h4>
 
-                                                        <div className="flex items-center justify-between mt-auto">
-                                                            {/* Type Indicator */}
-                                                            <div title={task.type} className="w-5 h-5 rounded flex items-center justify-center bg-slate-50 border border-slate-100 text-[10px]">
-                                                                {task.type === 'bug' ? '🐞' : task.type === 'issue' ? '⚠️' : '✓'}
+                                                        <div className="flex items-center justify-between mt-auto pt-2 border-t border-slate-50">
+                                                            <div className="flex items-center gap-2">
+                                                                {/* Type Indicator */}
+                                                                <div title={task.type} className="flex items-center">
+                                                                    {task.type === 'bug' ? <Bug size={14} className="text-rose-500" /> :
+                                                                        task.type === 'story' ? <Bookmark size={14} className="text-emerald-500" /> :
+                                                                            task.type === 'epic' ? <Layout size={14} className="text-purple-600" /> :
+                                                                                <CheckSquare size={14} className="text-blue-500" />}
+                                                                </div>
+
+                                                                {/* Story Points */}
+                                                                {task.storyPoints !== undefined && task.storyPoints > 0 && (
+                                                                    <span className="w-5 h-5 flex items-center justify-center bg-slate-100 text-slate-600 rounded-full text-[9px] font-black">
+                                                                        {task.storyPoints}
+                                                                    </span>
+                                                                )}
                                                             </div>
 
                                                             <div className="flex items-center gap-3 text-slate-400">

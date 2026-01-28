@@ -26,14 +26,28 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
     const [files, setFiles] = useState<File[]>([]);
     const toast = useToast();
     const [employees, setEmployees] = useState<any[]>([]);
+    const [sprints, setSprints] = useState<any[]>([]);
+    const [epics, setEpics] = useState<any[]>([]);
 
     useEffect(() => {
         fetchProjectMembers();
+        fetchSprintsAndEpics();
         if (!isNew && taskId) {
             fetchTaskDetails();
             fetchComments();
         }
     }, [taskId]);
+
+    const fetchSprintsAndEpics = async () => {
+        try {
+            const [sprintsRes, tasksRes] = await Promise.all([
+                api.get(`/projects/${projectId}/sprints`),
+                api.get(`/tasks?projectId=${projectId}&type=epic`)
+            ]);
+            setSprints(sprintsRes.data);
+            setEpics(tasksRes.data);
+        } catch (error) { console.error(error); }
+    };
 
     const fetchProjectMembers = async () => {
         try {
@@ -178,6 +192,7 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                                                     onChange={field.onChange}
                                                     placeholder="Describe the task details, acceptance criteria, and technical notes..."
                                                     className="min-h-[200px] border-none"
+                                                    mentions={employees.map(e => ({ id: e.userId || e.id, name: `${e.firstName} ${e.lastName}` }))}
                                                 />
                                             )}
                                         />
@@ -269,6 +284,7 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                                                 onChange={setNewComment}
                                                 placeholder="Write a comment..."
                                                 className="min-h-[100px] border border-slate-200 rounded-lg"
+                                                mentions={employees.map(e => ({ id: e.userId || e.id, name: `${e.firstName} ${e.lastName}` }))}
                                             />
                                             <div className="flex justify-end">
                                                 <button
@@ -338,6 +354,46 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                                     <option value="bug">Bug</option>
                                     <option value="issue">Issue</option>
                                     <option value="story">Story</option>
+                                    <option value="epic">Epic</option>
+                                </select>
+                            </div>
+
+                            {/* Story Points */}
+                            <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Story Points</label>
+                                <input
+                                    type="number"
+                                    {...register('storyPoints')}
+                                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-indigo-400 transition-colors"
+                                    placeholder="0"
+                                />
+                            </div>
+
+                            {/* Epic */}
+                            <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Epic</label>
+                                <select
+                                    {...register('epicId')}
+                                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-indigo-400 transition-colors"
+                                >
+                                    <option value="">No Epic</option>
+                                    {epics.map(epic => (
+                                        <option key={epic.id} value={epic.id}>{epic.title}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Sprint */}
+                            <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Sprint</label>
+                                <select
+                                    {...register('sprintId')}
+                                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-indigo-400 transition-colors"
+                                >
+                                    <option value="">Backlog</option>
+                                    {sprints.map(s => (
+                                        <option key={s.id} value={s.id}>{s.name} ({s.status})</option>
+                                    ))}
                                 </select>
                             </div>
 

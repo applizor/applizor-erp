@@ -11,6 +11,7 @@ export default function ProjectMembersPage({ params }: { params: { id: string } 
     const toast = useToast();
     const [project, setProject] = useState<any>(null);
     const [members, setMembers] = useState<any[]>([]);
+    const [tasks, setTasks] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
     // Search State
@@ -24,12 +25,16 @@ export default function ProjectMembersPage({ params }: { params: { id: string } 
 
     const fetchProject = async () => {
         try {
-            const res = await api.get(`/projects/${params.id}`);
-            setProject(res.data);
-            setMembers(res.data.members || []);
+            const [projRes, tasksRes] = await Promise.all([
+                api.get(`/projects/${params.id}`),
+                api.get(`/tasks?projectId=${params.id}`)
+            ]);
+            setProject(projRes.data);
+            setMembers(projRes.data.members || []);
+            setTasks(tasksRes.data || []);
         } catch (error) {
             console.error(error);
-            toast.error('Failed to load members');
+            toast.error('Failed to load project team data');
         } finally {
             setLoading(false);
         }
@@ -134,6 +139,38 @@ export default function ProjectMembersPage({ params }: { params: { id: string } 
                                                     {member.role}
                                                 </span>
                                             </div>
+
+                                            {/* Workload Indicator */}
+                                            <div className="mt-3 w-48">
+                                                <div className="flex justify-between items-center mb-1">
+                                                    <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Workload</span>
+                                                    <span className="text-[8px] font-black text-gray-900 uppercase">
+                                                        {(() => {
+                                                            const memberTasks = tasks.filter(t => t.assignedToId === member.employee.userId && t.status !== 'done');
+                                                            const points = memberTasks.reduce((acc, t) => acc + (t.storyPoints || 0), 0);
+                                                            return `${points} pts / ${memberTasks.length} issues`;
+                                                        })()}
+                                                    </span>
+                                                </div>
+                                                <div className="w-full bg-gray-100 h-1 rounded-full overflow-hidden">
+                                                    <div
+                                                        className={`h-full transition-all duration-500 ${(() => {
+                                                            const memberTasks = tasks.filter(t => t.assignedToId === member.employee.userId && t.status !== 'done');
+                                                            const points = memberTasks.reduce((acc, t) => acc + (t.storyPoints || 0), 0);
+                                                            if (points > 20) return 'bg-rose-500';
+                                                            if (points > 10) return 'bg-amber-500';
+                                                            return 'bg-emerald-500';
+                                                        })()}`}
+                                                        style={{
+                                                            width: `${(() => {
+                                                                const memberTasks = tasks.filter(t => t.assignedToId === member.employee.userId && t.status !== 'done');
+                                                                const points = memberTasks.reduce((acc, t) => acc + (t.storyPoints || 0), 0);
+                                                                return Math.min(100, (points / 25) * 100);
+                                                            })()}%`
+                                                        }}
+                                                    />
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                     <button
@@ -150,7 +187,7 @@ export default function ProjectMembersPage({ params }: { params: { id: string } 
                 </div>
 
                 {/* Right: Add Member */}
-                <div className="space-y-6">
+                < div className="space-y-6" >
                     <div className="ent-card p-6 border-t-4 border-t-primary-600">
                         <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-4 flex items-center gap-2">
                             <UserPlus size={14} className="text-primary-600" />
@@ -205,34 +242,36 @@ export default function ProjectMembersPage({ params }: { params: { id: string } 
                             Managers have full control over tasks, milestones, and settings. Members can view and edit tasks assigned to them.
                         </p>
                     </div>
-                </div>
-            </div>
+                </div >
+            </div >
 
             {/* Delete Confirmation Modal */}
-            {memberToDelete && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-                    <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
-                        <h3 className="text-lg font-black text-gray-900 mb-2">Remove Member?</h3>
-                        <p className="text-sm text-gray-500 mb-6">
-                            Are you sure you want to remove this member from the project? They will lose access to all tasks and files immediately.
-                        </p>
-                        <div className="flex justify-end gap-3">
-                            <button
-                                onClick={() => setMemberToDelete(null)}
-                                className="px-4 py-2 text-sm font-bold text-gray-600 hover:bg-gray-100 rounded transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={confirmDelete}
-                                className="px-4 py-2 text-sm font-bold text-white bg-rose-600 hover:bg-rose-700 rounded transition-colors"
-                            >
-                                Remove Member
-                            </button>
+            {
+                memberToDelete && (
+                    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+                        <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
+                            <h3 className="text-lg font-black text-gray-900 mb-2">Remove Member?</h3>
+                            <p className="text-sm text-gray-500 mb-6">
+                                Are you sure you want to remove this member from the project? They will lose access to all tasks and files immediately.
+                            </p>
+                            <div className="flex justify-end gap-3">
+                                <button
+                                    onClick={() => setMemberToDelete(null)}
+                                    className="px-4 py-2 text-sm font-bold text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={confirmDelete}
+                                    className="px-4 py-2 text-sm font-bold text-white bg-rose-600 hover:bg-rose-700 rounded transition-colors"
+                                >
+                                    Remove Member
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
         </>
     );
 }

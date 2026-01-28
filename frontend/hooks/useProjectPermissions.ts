@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import { useAuth } from '@/lib/auth';
 
 export type ProjectRole = 'manager' | 'member' | 'viewer';
@@ -20,22 +20,18 @@ export const useProjectPermissions = (project: any) => {
             effectiveRole = 'manager';
         } else {
             // Check Project Member List
-            // Note: Project member structure varies, checking both potential paths
             const memberRecord = project.members?.find(
-                (m: any) => m.employee?.userId === user.id || m.userId === user.id || m.employeeId === user.employeeId
+                (m: any) => m.employee?.userId === user.id || m.userId === user.id
             );
 
             if (memberRecord) {
                 effectiveRole = (memberRecord.role as ProjectRole) || 'member';
             } else {
-                // Not a member? If they can see the page (e.g. public link or simple view), effectively a viewer
-                // But for strict control, we might want to return 'none'
                 effectiveRole = 'viewer';
             }
         }
 
         // 2. Get Permissions Matrix
-        // If no settings/permissions exist, use defaults
         const matrix = project.settings?.permissions || {
             member: {
                 tasks: { view: true, create: true, edit: true, delete: false },
@@ -56,22 +52,21 @@ export const useProjectPermissions = (project: any) => {
         return { role: effectiveRole, permissions: matrix };
     }, [project, user]);
 
-    const can = (module: ProjectPermissionModule, action: ProjectPermissionAction): boolean => {
+    const can = useCallback((module: ProjectPermissionModule, action: ProjectPermissionAction): boolean => {
         if (!role || !permissions) return false;
 
         // Managers always have full access
         if (role === 'manager') return true;
 
         // Check specific permission
-        // Safety check for undefined modules/roles in legacy data
-        const rolePermissions = permissions[role];
+        const rolePermissions = (permissions as any)[role];
         if (!rolePermissions) return false;
 
-        const modulePermissions = rolePermissions[module];
+        const modulePermissions = (rolePermissions as any)[module];
         if (!modulePermissions) return false;
 
-        return !!modulePermissions[action];
-    };
+        return !!(modulePermissions as any)[action];
+    }, [role, permissions]);
 
     return { role, can };
 };
