@@ -266,6 +266,11 @@ export const createMilestone = async (req: AuthRequest, res: Response) => {
                 currency: currency || 'INR'
             }
         });
+
+        // Real-time Update
+        const { NotificationService } = await import('../services/notification.service');
+        NotificationService.emitProjectUpdate(id, 'MILESTONE_CREATED', milestone);
+
         res.status(201).json(milestone);
     } catch (error) {
         res.status(500).json({ error: 'Failed to create milestone' });
@@ -301,6 +306,11 @@ export const createProjectNote = async (req: AuthRequest, res: Response) => {
                 createdBy: req.user!.id
             }
         });
+
+        // Real-time Update
+        const { NotificationService } = await import('../services/notification.service');
+        NotificationService.emitProjectUpdate(id, 'NOTE_CREATED', note);
+
         res.status(201).json(note);
     } catch (error) {
         res.status(500).json({ error: 'Failed to create note' });
@@ -419,6 +429,11 @@ export const createSprint = async (req: AuthRequest, res: Response) => {
                 status: 'future'
             }
         });
+
+        // Real-time Update
+        const { NotificationService } = await import('../services/notification.service');
+        NotificationService.emitProjectUpdate(id, 'SPRINT_CREATED', sprint);
+
         res.status(201).json(sprint);
     } catch (error) {
         res.status(500).json({ error: 'Failed to create sprint' });
@@ -439,6 +454,11 @@ export const updateSprint = async (req: AuthRequest, res: Response) => {
                 status
             }
         });
+
+        // Real-time Update
+        const { NotificationService } = await import('../services/notification.service');
+        NotificationService.emitProjectUpdate(sprint.projectId, 'SPRINT_UPDATED', sprint);
+
         res.json(sprint);
     } catch (error) {
         res.status(500).json({ error: 'Failed to update sprint' });
@@ -449,6 +469,9 @@ export const deleteSprint = async (req: AuthRequest, res: Response) => {
     try {
         const { sprintId } = req.params;
 
+        const sprint = await prisma.sprint.findUnique({ where: { id: sprintId } });
+        if (!sprint) return res.status(404).json({ error: 'Sprint not found' });
+
         // Unassign all tasks from this sprint before deleting
         await prisma.task.updateMany({
             where: { sprintId },
@@ -456,6 +479,11 @@ export const deleteSprint = async (req: AuthRequest, res: Response) => {
         });
 
         await prisma.sprint.delete({ where: { id: sprintId } });
+
+        // Real-time Update
+        const { NotificationService } = await import('../services/notification.service');
+        NotificationService.emitProjectUpdate(sprint.projectId, 'SPRINT_DELETED', { id: sprintId, projectId: sprint.projectId });
+
         res.json({ message: 'Sprint deleted' });
     } catch (error) {
         console.error('Delete Sprint Error:', error);

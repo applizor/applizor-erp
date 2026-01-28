@@ -10,7 +10,7 @@ import { EditProjectModal } from '@/components/projects/EditProjectModal';
 import {
     LayoutDashboard, CheckSquare, Flag, FileText,
     DollarSign, BookOpen, Settings, ChevronLeft,
-    Calendar, Users, Building2, Pencil, MapPin
+    Calendar, Users, Building2, Pencil, MapPin, Zap, Clock
 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
@@ -55,6 +55,8 @@ export default function ProjectLayout({
         { id: '/files', label: 'Files', icon: FileText, permission: 'tasks', action: 'view' },
         { id: '/wiki', label: 'Wiki', icon: BookOpen, permission: 'tasks', action: 'view' },
         { id: '/financials', label: 'Financials', icon: DollarSign, permission: 'financials', action: 'view' },
+        { id: '/timesheets', label: 'Timesheets', icon: Clock, permission: 'tasks', action: 'view' },
+        { id: '/automation', label: 'Automation', icon: Zap, permission: 'settings', action: 'edit' },
         { id: '/settings', label: 'Settings', icon: Settings, permission: 'settings', action: 'view' },
     ];
 

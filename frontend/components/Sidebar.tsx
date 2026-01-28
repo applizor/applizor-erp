@@ -87,6 +87,7 @@ export default function Sidebar() {
 
         // Ops & Docs
         { name: 'Projects', href: '/projects', icon: LayoutDashboard, category: 'Operations', module: 'Project' },
+        { name: 'Timesheets', href: '/timesheets', icon: CalendarCheck, category: 'Operations', module: 'Timesheet' },
         { name: 'Documents', href: '/documents', icon: FileText, category: 'Operations', module: 'Document' },
 
         // Settings

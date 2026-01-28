@@ -6,6 +6,7 @@ import { useToast } from '@/hooks/useToast';
 import api from '@/lib/api';
 import Portal from '@/components/ui/Portal';
 import RichTextEditor from '@/components/ui/RichTextEditor';
+import { useSocket } from '@/contexts/SocketContext';
 
 interface PortalTaskDetailModalProps {
     taskId: string;
@@ -16,14 +17,39 @@ interface PortalTaskDetailModalProps {
 export default function PortalTaskDetailModal({ taskId, onClose, onUpdate }: PortalTaskDetailModalProps) {
     const [task, setTask] = useState<any>(null);
     const [comments, setComments] = useState<any[]>([]);
+    const [history, setHistory] = useState<any[]>([]);
+    const [activeTab, setActiveTab] = useState<'comments' | 'history'>('comments');
     const [newComment, setNewComment] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const toast = useToast();
+    const { socket } = useSocket();
 
     useEffect(() => {
-        fetchTaskDetails();
-        fetchComments();
+        if (taskId) {
+            fetchTaskDetails();
+            fetchComments();
+            fetchHistory();
+        }
     }, [taskId]);
+
+    useEffect(() => {
+        if (!socket || !taskId) return;
+
+        socket.on('TASK_UPDATED', (data) => {
+            if (data.id === taskId) {
+                fetchTaskDetails();
+                fetchHistory();
+            }
+        });
+        socket.on('COMMENT_ADDED', (data) => {
+            if (data.taskId === taskId) fetchComments();
+        });
+
+        return () => {
+            socket.off('TASK_UPDATED');
+            socket.off('COMMENT_ADDED');
+        };
+    }, [socket, taskId]);
 
     const fetchTaskDetails = async () => {
         try {
@@ -61,6 +87,13 @@ export default function PortalTaskDetailModal({ taskId, onClose, onUpdate }: Por
         try {
             const res = await api.get(`/portal/tasks/${taskId}/comments`);
             setComments(res.data);
+        } catch (error) { console.error(error); }
+    };
+
+    const fetchHistory = async () => {
+        try {
+            const res = await api.get(`/portal/tasks/${taskId}/history`);
+            setHistory(res.data);
         } catch (error) { console.error(error); }
     };
 
@@ -264,39 +297,92 @@ export default function PortalTaskDetailModal({ taskId, onClose, onUpdate }: Por
 
                     {/* Right: Activity Stream / Comments */}
                     <div className="w-full md:w-80 bg-slate-50 border-l border-slate-200 flex flex-col h-full">
-                        <div className="p-4 border-b border-slate-200 bg-white md:bg-transparent flex justify-between items-center">
-                            <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
-                                <MessageSquare size={14} /> Activity
-                            </h3>
-                            <button onClick={onClose} className="hidden md:block p-1 text-slate-400 hover:text-slate-600 rounded">
-                                <X size={18} />
+                        <div className="flex items-center border-b border-slate-200 bg-white md:bg-transparent">
+                            <button
+                                onClick={() => setActiveTab('comments')}
+                                className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest transition-colors ${activeTab === 'comments' ? 'text-primary-600 border-b-2 border-primary-600 bg-primary-50/50' : 'text-slate-400 hover:text-slate-600'}`}
+                            >
+                                Comments
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('history')}
+                                className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest transition-colors ${activeTab === 'history' ? 'text-primary-600 border-b-2 border-primary-600 bg-primary-50/50' : 'text-slate-400 hover:text-slate-600'}`}
+                            >
+                                History
+                            </button>
+                            <button onClick={onClose} className="md:block hidden px-4 text-slate-400 hover:text-slate-600">
+                                <X size={16} />
                             </button>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto p-4 space-y-6">
-                            {comments.length === 0 && (
-                                <p className="text-center text-xs text-slate-400 italic py-8">No activity yet.</p>
+                        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                            {/* COMMENTS VIEW */}
+                            {activeTab === 'comments' && (
+                                <>
+                                    {comments.length === 0 && (
+                                        <p className="text-center text-xs text-slate-400 italic py-8">No comments yet.</p>
+                                    )}
+                                    {comments.map((comment: any) => {
+                                        const isClient = !!comment.clientId;
+                                        return (
+                                            <div key={comment.id} className={`flex gap-3 ${isClient ? 'flex-row-reverse' : ''}`}>
+                                                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[8px] font-black shrink-0 shadow-sm ${isClient ? 'bg-primary-100 text-primary-700' : 'bg-white text-slate-700 border border-slate-200'}`}>
+                                                    {isClient ? 'ME' : 'TM'}
+                                                </div>
+                                                <div className={`max-w-[85%] rounded-xl p-3 text-xs leading-relaxed shadow-sm ${isClient
+                                                    ? 'bg-primary-600 text-white rounded-tr-none'
+                                                    : 'bg-white border border-slate-100 text-slate-600 rounded-tl-none'
+                                                    }`}>
+                                                    {!isClient && <p className="text-[10px] font-bold text-slate-900 mb-1 block">{comment.user?.firstName || 'Team Member'}</p>}
+                                                    <div dangerouslySetInnerHTML={{ __html: comment.content }} />
+                                                    <div className={`text-[9px] mt-1.5 font-medium ${isClient ? 'text-primary-200' : 'text-slate-300'}`}>
+                                                        {new Date(comment.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </>
                             )}
-                            {comments.map((comment: any) => {
-                                const isClient = !!comment.clientId;
-                                return (
-                                    <div key={comment.id} className={`flex gap-3 ${isClient ? 'flex-row-reverse' : ''}`}>
-                                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[8px] font-black shrink-0 shadow-sm ${isClient ? 'bg-primary-100 text-primary-700' : 'bg-white text-slate-700 border border-slate-200'}`}>
-                                            {isClient ? 'ME' : 'TM'}
-                                        </div>
-                                        <div className={`max-w-[85%] rounded-xl p-3 text-xs leading-relaxed shadow-sm ${isClient
-                                            ? 'bg-primary-600 text-white rounded-tr-none'
-                                            : 'bg-white border border-slate-100 text-slate-600 rounded-tl-none'
-                                            }`}>
-                                            {!isClient && <p className="text-[10px] font-bold text-slate-900 mb-1 block">{comment.user?.firstName || 'Team Member'}</p>}
-                                            <div dangerouslySetInnerHTML={{ __html: comment.content }} />
-                                            <div className={`text-[9px] mt-1.5 font-medium ${isClient ? 'text-primary-200' : 'text-slate-300'}`}>
-                                                {new Date(comment.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+
+                            {/* HISTORY VIEW */}
+                            {activeTab === 'history' && (
+                                <>
+                                    {history.length === 0 && (
+                                        <p className="text-center text-xs text-slate-400 italic py-8">No history recorded yet.</p>
+                                    )}
+                                    {history.map((item: any) => (
+                                        <div key={item.id} className="flex gap-3 items-start group">
+                                            <div className="w-6 h-6 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 mt-0.5 shrink-0">
+                                                <Clock size={12} />
+                                            </div>
+                                            <div className="flex-1">
+                                                <p className="text-xs text-slate-700">
+                                                    <span className="font-bold text-slate-900">
+                                                        {item.user?.firstName || item.client?.name || 'System'}
+                                                    </span>
+                                                    {' '}changed{' '}
+                                                    <span className="font-medium text-slate-500 bg-slate-100 px-1 rounded">
+                                                        {item.field}
+                                                    </span>
+                                                </p>
+                                                <div className="flex items-center gap-2 mt-1.5 text-[10px]">
+                                                    <span className="bg-rose-50 text-rose-600 px-1.5 py-0.5 rounded border border-rose-100 line-through decoration-rose-300/50">
+                                                        {item.oldValue || 'Empty'}
+                                                    </span>
+                                                    <span className="text-slate-300">→</span>
+                                                    <span className="bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded border border-emerald-100 font-bold">
+                                                        {item.newValue}
+                                                    </span>
+                                                </div>
+                                                <span className="text-[9px] text-slate-400 mt-1 block">
+                                                    {new Date(item.createdAt).toLocaleString()}
+                                                </span>
                                             </div>
                                         </div>
-                                    </div>
-                                );
-                            })}
+                                    ))}
+                                </>
+                            )}
                         </div>
                     </div>
 

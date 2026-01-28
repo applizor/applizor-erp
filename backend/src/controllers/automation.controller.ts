@@ -1,40 +1,80 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
+import { AuthRequest } from '../middleware/auth';
+import prisma from '../prisma/client';
 import { SchedulerService } from '../services/scheduler.service';
 import { leaveAccrualService } from '../services/leave-accrual.service';
 
-/**
- * Controller for manually triggering automated tasks (Cron Jobs)
- * Useful for testing and manual overrides.
- */
-export const triggerMonthlyAccrual = async (req: Request, res: Response) => {
+export const getRules = async (req: AuthRequest, res: Response) => {
     try {
-        console.log('Manual Trigger: Processing Monthly Accruals...');
+        const { projectId } = req.params;
+        const rules = await prisma.automationRule.findMany({
+            where: { projectId },
+            orderBy: { createdAt: 'desc' }
+        });
+        res.json(rules);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch rules' });
+    }
+};
+
+export const createRule = async (req: AuthRequest, res: Response) => {
+    try {
+        const { projectId } = req.params;
+        const { name, triggerType, triggerConfig, actionType, actionConfig } = req.body;
+
+        const rule = await prisma.automationRule.create({
+            data: {
+                projectId,
+                name,
+                triggerType,
+                triggerConfig,
+                actionType,
+                actionConfig
+            }
+        });
+
+        res.status(201).json(rule);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to create rule' });
+    }
+};
+
+export const deleteRule = async (req: AuthRequest, res: Response) => {
+    try {
+        const { ruleId } = req.params;
+        await prisma.automationRule.delete({ where: { id: ruleId } });
+        res.json({ message: 'Rule deleted' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to delete rule' });
+    }
+};
+
+export const triggerMonthlyAccrual = async (req: AuthRequest, res: Response) => {
+    try {
         await leaveAccrualService.processMonthlyAccruals();
-        res.json({ message: 'Monthly leave accrual process triggered successfully.' });
-    } catch (error: any) {
-        console.error('Manual Trigger Error (Accrual):', error);
-        res.status(500).json({ error: 'Failed to trigger monthly accrual', details: error.message });
+        res.json({ message: 'Monthly accruals triggered successfully' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Failed to trigger accruals' });
     }
 };
 
-export const triggerProbationConfirmation = async (req: Request, res: Response) => {
+export const triggerProbationConfirmation = async (req: AuthRequest, res: Response) => {
     try {
-        console.log('Manual Trigger: Processing Probation Confirmations...');
         await leaveAccrualService.processProbationConfirmations();
-        res.json({ message: 'Probation confirmation process triggered successfully.' });
-    } catch (error: any) {
-        console.error('Manual Trigger Error (Probation):', error);
-        res.status(500).json({ error: 'Failed to trigger probation confirmation', details: error.message });
+        res.json({ message: 'Probation confirmations triggered successfully' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Failed to trigger probation check' });
     }
 };
 
-export const triggerQuotationReminders = async (req: Request, res: Response) => {
+export const triggerQuotationReminders = async (req: AuthRequest, res: Response) => {
     try {
-        console.log('Manual Trigger: Processing Quotation Reminders...');
         await SchedulerService.processQuotationReminders();
-        res.json({ message: 'Quotation reminder process triggered successfully.' });
-    } catch (error: any) {
-        console.error('Manual Trigger Error (Quotation):', error);
-        res.status(500).json({ error: 'Failed to trigger quotation reminders', details: error.message });
+        res.json({ message: 'Quotation reminders triggered successfully' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Failed to trigger reminders' });
     }
 };

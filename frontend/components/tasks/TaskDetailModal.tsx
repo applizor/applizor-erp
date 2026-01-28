@@ -2,11 +2,15 @@
 
 import React, { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
-import { X, Paperclip, Send, Clock, Trash2 } from 'lucide-react';
+import { X, Paperclip, Send, Clock, Trash2, Briefcase, Plus } from 'lucide-react';
+import { PermissionGuard } from '@/components/PermissionGuard'; // Ensure correct path
+import TaskTimesheetList from '@/components/timesheets/TaskTimesheetList';
+import BulkTimeLogModal from '@/components/timesheets/BulkTimeLogModal';
 import { useToast } from '@/hooks/useToast';
 import api from '@/lib/api';
 import Portal from '@/components/ui/Portal';
-import RichTextEditor from '@/components/ui/RichTextEditor'; // Assuming this exists or using Paged
+import RichTextEditor from '@/components/ui/RichTextEditor';
+import { useSocket } from '@/contexts/SocketContext';
 // import { format } from 'date-fns';
 
 interface TaskDetailModalProps {
@@ -22,12 +26,22 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
     const [isLoading, setIsLoading] = useState(false);
     const [task, setTask] = useState<any>(null);
     const [comments, setComments] = useState<any[]>([]);
+    const [history, setHistory] = useState<any[]>([]);
+    const [activeTab, setActiveTab] = useState<'comments' | 'history' | 'worklog'>('comments');
     const [newComment, setNewComment] = useState('');
     const [files, setFiles] = useState<File[]>([]);
     const toast = useToast();
     const [employees, setEmployees] = useState<any[]>([]);
     const [sprints, setSprints] = useState<any[]>([]);
     const [epics, setEpics] = useState<any[]>([]);
+    const [spentHours, setSpentHours] = useState(0);
+    const [isLogModalOpen, setIsLogModalOpen] = useState(false);
+
+    // Timer state
+    const [timerActive, setTimerActive] = useState(false);
+    const [startTime, setStartTime] = useState<number | null>(null);
+    const [elapsedSeconds, setElapsedSeconds] = useState(0);
+    const { socket } = useSocket();
 
     useEffect(() => {
         fetchProjectMembers();
@@ -35,8 +49,102 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
         if (!isNew && taskId) {
             fetchTaskDetails();
             fetchComments();
+            fetchHistory();
+            fetchSpentHours();
+            syncTimerWithServer();
         }
     }, [taskId]);
+
+    useEffect(() => {
+        if (!socket || !taskId || isNew) return;
+
+        socket.on('TASK_UPDATED', (data) => {
+            if (data.id === taskId) {
+                fetchTaskDetails();
+                fetchHistory(); // Refresh history too
+            }
+        });
+        socket.on('COMMENT_ADDED', (data) => {
+            if (data.taskId === taskId) fetchComments();
+        });
+        socket.on('TASK_DELETED', (data) => {
+            if (data.id === taskId) onClose();
+        });
+
+        return () => {
+            socket.off('TASK_UPDATED');
+            socket.off('COMMENT_ADDED');
+            socket.off('TASK_DELETED');
+        };
+    }, [socket, taskId, isNew]);
+
+    const syncTimerWithServer = async () => {
+        try {
+            const res = await api.get('/timesheets/timer/active');
+            if (res.data && res.data.taskId === taskId) {
+                setTimerActive(true);
+                const serverStartTime = new Date(res.data.startTime).getTime();
+                setElapsedSeconds(Math.floor((Date.now() - serverStartTime) / 1000));
+            } else {
+                setTimerActive(false);
+                setElapsedSeconds(0);
+            }
+        } catch (error) { console.error('Failed to sync timer'); }
+    };
+
+    // Timer effect
+    useEffect(() => {
+        let interval: any;
+        if (timerActive) {
+            interval = setInterval(() => {
+                setElapsedSeconds(prev => prev + 1);
+            }, 1000);
+        } else {
+            clearInterval(interval);
+        }
+        return () => clearInterval(interval);
+    }, [timerActive]);
+
+    const fetchSpentHours = async () => {
+        try {
+            const res = await api.get(`/timesheets?taskId=${taskId}`);
+            const total = res.data.reduce((acc: number, curr: any) => acc + Number(curr.hours), 0);
+            setSpentHours(total);
+        } catch (error) { console.error(error); }
+    };
+
+    const toggleTimer = async () => {
+        try {
+            if (!timerActive) {
+                const res = await api.post('/timesheets/timer/start', { projectId, taskId });
+                setTimerActive(true);
+                const serverStartTime = new Date(res.data.startTime).getTime();
+                setElapsedSeconds(Math.floor((Date.now() - serverStartTime) / 1000));
+            } else {
+                const res = await api.post('/timesheets/timer/stop');
+                setTimerActive(false);
+                // Sync elapsed seconds with server duration for accuracy
+                const serverSeconds = Math.floor(res.data.durationHours * 3600);
+                setElapsedSeconds(serverSeconds);
+
+                // Open modal with duration from server
+                if (res.data.durationHours > 0.01) {
+                    setIsLogModalOpen(true);
+                } else {
+                    setElapsedSeconds(0);
+                }
+            }
+        } catch (error) {
+            toast.error('Failed to update timer');
+        }
+    };
+
+    const formatTime = (seconds: number) => {
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        const s = seconds % 60;
+        return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    };
 
     const fetchSprintsAndEpics = async () => {
         try {
@@ -88,6 +196,13 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
         try {
             const res = await api.get(`/tasks/${taskId}/comments`);
             setComments(res.data);
+        } catch (error) { console.error(error); }
+    };
+
+    const fetchHistory = async () => {
+        try {
+            const res = await api.get(`/tasks/${taskId}/history`);
+            setHistory(res.data);
         } catch (error) { console.error(error); }
     };
 
@@ -248,55 +363,120 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                             {/* Activity / Comments */}
                             {!isNew && (
                                 <div className="mt-12 pt-8 border-t border-slate-100">
-                                    <h3 className="text-sm font-black text-slate-800 mb-6 flex items-center gap-2">
-                                        <Clock size={16} className="text-slate-400" />
-                                        Activity Stream
-                                    </h3>
+                                    <div className="flex items-center gap-6 mb-6 border-b border-slate-100">
+                                        <button
+                                            onClick={() => setActiveTab('comments')}
+                                            className={`pb-4 text-sm font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${activeTab === 'comments' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+                                        >
+                                            <div className="flex items-center gap-2">Comments {comments.length > 0 && <span className="bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded text-[9px]">{comments.length}</span>}</div>
+                                        </button>
+                                        <button
+                                            onClick={() => setActiveTab('history')}
+                                            className={`pb-4 text-sm font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${activeTab === 'history' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+                                        >
+                                            <div className="flex items-center gap-2">History <Clock size={14} /></div>
+                                        </button>
+                                        <button
+                                            onClick={() => setActiveTab('worklog')}
+                                            className={`pb-4 text-sm font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${activeTab === 'worklog' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+                                        >
+                                            <div className="flex items-center gap-2">Work Log <Briefcase size={14} /></div>
+                                        </button>
+                                    </div>
 
-                                    <div className="space-y-8 mb-8 relative before:absolute before:left-4 before:top-4 before:bottom-0 before:w-px before:bg-slate-100">
-                                        {comments.map((comment: any) => {
-                                            const authorName = comment.user
-                                                ? `${comment.user.firstName} ${comment.user.lastName}`
-                                                : comment.client ? `${comment.client.name} (Client)` : 'Unknown';
+                                    {/* COMMENTS TAB */}
+                                    {activeTab === 'comments' && (
+                                        <>
+                                            <div className="space-y-8 mb-8 relative before:absolute before:left-4 before:top-4 before:bottom-0 before:w-px before:bg-slate-100">
+                                                {comments.map((comment: any) => {
+                                                    const authorName = comment.user
+                                                        ? `${comment.user.firstName} ${comment.user.lastName}`
+                                                        : comment.client ? `${comment.client.name} (Client)` : 'Unknown';
 
-                                            return (
-                                                <div key={comment.id} className="relative flex gap-4">
-                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 relative z-10 ring-4 ring-white ${comment.client ? 'bg-amber-100 text-amber-700' : 'bg-slate-900 text-white'}`}>
-                                                        {authorName[0]}
-                                                    </div>
-                                                    <div className="flex-1 bg-slate-50 rounded-lg p-4 rounded-tl-none border border-slate-100 relative">
-                                                        <div className="flex items-center justify-between mb-2">
-                                                            <span className="text-xs font-bold text-slate-900">{authorName}</span>
-                                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{new Date(comment.createdAt).toLocaleString()}</span>
+                                                    return (
+                                                        <div key={comment.id} className="relative flex gap-4">
+                                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 relative z-10 ring-4 ring-white ${comment.client ? 'bg-amber-100 text-amber-700' : 'bg-slate-900 text-white'}`}>
+                                                                {authorName[0]}
+                                                            </div>
+                                                            <div className="flex-1 bg-slate-50 rounded-lg p-4 rounded-tl-none border border-slate-100 relative">
+                                                                <div className="flex items-center justify-between mb-2">
+                                                                    <span className="text-xs font-bold text-slate-900">{authorName}</span>
+                                                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{new Date(comment.createdAt).toLocaleString()}</span>
+                                                                </div>
+                                                                <div className="text-xs text-slate-600 prose prose-sm max-w-none leading-relaxed" dangerouslySetInnerHTML={{ __html: comment.content }} />
+                                                            </div>
                                                         </div>
-                                                        <div className="text-xs text-slate-600 prose prose-sm max-w-none leading-relaxed" dangerouslySetInnerHTML={{ __html: comment.content }} />
+                                                    );
+                                                })}
+                                            </div>
+
+                                            <div className="flex gap-4 relative z-10 bg-white p-1">
+                                                <div className="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 shrink-0" />
+                                                <div className="flex-1 space-y-3">
+                                                    <RichTextEditor
+                                                        value={newComment}
+                                                        onChange={setNewComment}
+                                                        placeholder="Write a comment..."
+                                                        className="min-h-[100px] border border-slate-200 rounded-lg"
+                                                        mentions={employees.map(e => ({ id: e.userId || e.id, name: `${e.firstName} ${e.lastName}` }))}
+                                                    />
+                                                    <div className="flex justify-end">
+                                                        <button
+                                                            onClick={postComment}
+                                                            disabled={!newComment.trim()}
+                                                            className="bg-slate-900 text-white px-5 py-2 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-slate-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-slate-900/10 flex items-center gap-2"
+                                                        >
+                                                            Post Comment <Send size={12} />
+                                                        </button>
                                                     </div>
                                                 </div>
-                                            );
-                                        })}
-                                    </div>
-
-                                    <div className="flex gap-4 relative z-10 bg-white p-1">
-                                        <div className="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 shrink-0" />
-                                        <div className="flex-1 space-y-3">
-                                            <RichTextEditor
-                                                value={newComment}
-                                                onChange={setNewComment}
-                                                placeholder="Write a comment..."
-                                                className="min-h-[100px] border border-slate-200 rounded-lg"
-                                                mentions={employees.map(e => ({ id: e.userId || e.id, name: `${e.firstName} ${e.lastName}` }))}
-                                            />
-                                            <div className="flex justify-end">
-                                                <button
-                                                    onClick={postComment}
-                                                    disabled={!newComment.trim()}
-                                                    className="bg-slate-900 text-white px-5 py-2 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-slate-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-slate-900/10 flex items-center gap-2"
-                                                >
-                                                    Post Comment <Send size={12} />
-                                                </button>
                                             </div>
+                                        </>
+                                    )}
+
+                                    {/* HISTORY TAB */}
+                                    {activeTab === 'history' && (
+                                        <div className="py-4 space-y-4">
+                                            {history.length === 0 && <p className="text-slate-400 italic text-sm">No changes recorded yet.</p>}
+                                            {history.map((item: any) => (
+                                                <div key={item.id} className="flex gap-4 items-start group">
+                                                    <div className="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-500 shrink-0 mt-1">
+                                                        <Clock size={16} />
+                                                    </div>
+                                                    <div className="flex-1 bg-white border border-slate-100 rounded-lg p-3 shadow-sm group-hover:border-indigo-100 transition-all">
+                                                        <p className="text-sm text-slate-700">
+                                                            <span className="font-bold text-slate-900">
+                                                                {item.user ? `${item.user.firstName} ${item.user.lastName}` : (item.client?.name || 'System')}
+                                                            </span>
+                                                            {' '}updated{' '}
+                                                            <span className="font-bold text-slate-600 bg-slate-100 px-1.5 rounded text-xs uppercase tracking-wide">
+                                                                {item.field}
+                                                            </span>
+                                                        </p>
+                                                        <div className="flex items-center gap-3 mt-2 text-xs">
+                                                            <span className="bg-rose-50 text-rose-700 px-2 py-1 rounded border border-rose-100 line-through opacity-70">
+                                                                {item.oldValue || 'Empty'}
+                                                            </span>
+                                                            <span className="text-slate-300">➜</span>
+                                                            <span className="bg-emerald-50 text-emerald-700 px-2 py-1 rounded border border-emerald-100 font-bold">
+                                                                {item.newValue}
+                                                            </span>
+                                                        </div>
+                                                        <span className="text-[10px] text-slate-400 mt-2 block font-medium uppercase tracking-wider">
+                                                            {new Date(item.createdAt).toLocaleString()}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            ))}
                                         </div>
-                                    </div>
+                                    )}
+
+                                    {/* WORK LOG TAB */}
+                                    {activeTab === 'worklog' && (
+                                        <div className="mb-8 py-4 px-1">
+                                            <TaskTimesheetList taskId={taskId!} projectId={projectId} />
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -304,6 +484,44 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
 
                     {/* Right: Meta Details Sidebar */}
                     <div className="w-full md:w-80 bg-slate-50/80 backdrop-blur border-l border-slate-200 p-6 flex flex-col gap-6 overflow-y-auto h-full shadow-[inset_10px_0_20px_-10px_rgba(0,0,0,0.02)]">
+
+                        {/* Time Tracking Section */}
+                        {!isNew && (
+                            <div className="bg-white p-4 rounded-xl border border-slate-200/60 shadow-sm space-y-4">
+                                <div className="flex justify-between items-center">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Time Tracking</label>
+                                    <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900">
+                                        <Clock size={12} className="text-indigo-500" />
+                                        {spentHours.toFixed(2)}h
+                                    </div>
+                                </div>
+
+                                {/* Timer Bar */}
+                                <div className={`p-3 rounded-lg flex items-center justify-between transition-all ${timerActive ? 'bg-rose-50 border border-rose-100' : 'bg-slate-50 border border-slate-100'}`}>
+                                    <div className="flex flex-col">
+                                        <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider leading-none mb-1">
+                                            {timerActive ? 'Timer Running' : 'Idle'}
+                                        </span>
+                                        <span className={`text-sm font-mono font-black ${timerActive ? 'text-rose-600' : 'text-slate-600'}`}>
+                                            {formatTime(elapsedSeconds)}
+                                        </span>
+                                    </div>
+                                    <button
+                                        onClick={toggleTimer}
+                                        className={`w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-sm ${timerActive ? 'bg-rose-600 text-white hover:bg-rose-700 shadow-rose-200' : 'bg-slate-900 text-white hover:bg-slate-800 shadow-slate-200'}`}
+                                    >
+                                        {timerActive ? <div className="w-3 h-3 bg-white rounded-sm" /> : <div className="w-0 h-0 border-t-[6px] border-t-transparent border-l-[10px] border-l-white border-b-[6px] border-b-transparent ml-1" />}
+                                    </button>
+                                </div>
+
+                                <button
+                                    onClick={() => setIsLogModalOpen(true)}
+                                    className="w-full py-2.5 rounded-lg border border-slate-200 bg-white text-slate-600 text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 hover:border-slate-300 transition-all flex items-center justify-center gap-2"
+                                >
+                                    <Plus size={12} /> Log Work
+                                </button>
+                            </div>
+                        )}
 
                         {/* Status */}
                         <div className="bg-white p-4 rounded-xl border border-slate-200/60 shadow-sm">
@@ -458,6 +676,21 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                     </div>
                 </div>
             </div>
+            {/* Log Work Modal */}
+            <BulkTimeLogModal
+                open={isLogModalOpen}
+                onClose={() => {
+                    setIsLogModalOpen(false);
+                    setElapsedSeconds(0); // Reset timer after logging
+                    fetchSpentHours();
+                    onUpdate();
+                }}
+                defaultEntry={{
+                    projectId,
+                    taskId: taskId ?? undefined,
+                    hours: timerActive ? undefined : (elapsedSeconds > 0 ? (elapsedSeconds / 3600).toFixed(2) : undefined)
+                }}
+            />
         </Portal>
     );
 }

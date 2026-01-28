@@ -7,6 +7,9 @@ import api from '@/lib/api';
 import { useParams } from 'next/navigation';
 import { Plus, MoreVertical, Paperclip, MessageSquare, Bug, Bookmark, Layout, CheckSquare } from 'lucide-react';
 import TaskDetailModal from '@/components/tasks/TaskDetailModal';
+import BulkTimeLogModal from '@/components/timesheets/BulkTimeLogModal';
+import { Clock as ClockIcon } from 'lucide-react';
+import { useSocket } from '@/contexts/SocketContext';
 
 // Types
 interface Task {
@@ -40,8 +43,11 @@ export default function KanbanBoard() {
     const [selectedSprintId, setSelectedSprintId] = useState<string>('all');
     const [columns, setColumns] = useState<any>({ todo: [], 'in-progress': [], review: [], done: [] });
     const toast = useToast();
+    const { socket } = useSocket();
     const [isDetailOpen, setIsDetailOpen] = useState(false);
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+    const [isBulkLogOpen, setIsBulkLogOpen] = useState(false);
+    const [quickLogTask, setQuickLogTask] = useState<any>(null);
     const [project, setProject] = useState<any>(null); // Need project for permissions
     const { can } = useProjectPermissions(project);
 
@@ -89,6 +95,38 @@ export default function KanbanBoard() {
         }
     }, [projectId, fetchTasks, fetchProjectSettings, fetchSprints]);
 
+    useEffect(() => {
+        if (!socket || !projectId) return;
+
+        const onConnect = () => {
+            console.log('Socket connected/reconnected, joining project room:', projectId);
+            socket.emit('join-project', projectId);
+        };
+
+        // Join immediately if already connected
+        if (socket.connected) {
+            onConnect();
+        }
+
+        socket.on('connect', onConnect);
+        socket.on('TASK_CREATED', (data) => {
+            if (data.projectId === projectId) fetchTasks();
+        });
+        socket.on('TASK_UPDATED', (data) => {
+            if (data.projectId === projectId) fetchTasks();
+        });
+        socket.on('TASK_DELETED', (data) => {
+            if (data.projectId === projectId) fetchTasks();
+        });
+
+        return () => {
+            socket.off('connect', onConnect);
+            socket.off('TASK_CREATED');
+            socket.off('TASK_UPDATED');
+            socket.off('TASK_DELETED');
+        };
+    }, [socket, projectId, fetchTasks]);
+
     const distributeTasks = (taskList: Task[]) => {
         const newCols: any = { todo: [], 'in-progress': [], review: [], done: [] };
         taskList.forEach(task => {
@@ -124,10 +162,10 @@ export default function KanbanBoard() {
             const [moved] = startTasks.splice(source.index, 1);
 
             // Update status internally
-            const updatedTask = { ...moved, status: destination.droppableId };
+            const updatedTask = { ...(moved as any), status: destination.droppableId };
             finishTasks.splice(destination.index, 0, updatedTask);
 
-            setColumns((prev: any) => ({
+            setColumns((prev: Record<string, Task[]>) => ({
                 ...prev,
                 [source.droppableId]: startTasks,
                 [destination.droppableId]: finishTasks
@@ -274,6 +312,21 @@ export default function KanbanBoard() {
                                                                     {task.assignee?.firstName?.[0] || '?'}
                                                                 </div>
                                                             </div>
+
+                                                            {/* Quick Actions */}
+                                                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setQuickLogTask(task);
+                                                                        setIsBulkLogOpen(true);
+                                                                    }}
+                                                                    className="p-1.5 rounded-md hover:bg-slate-100 text-slate-400 hover:text-indigo-600 transition-all"
+                                                                    title="Quick Log Time"
+                                                                >
+                                                                    <ClockIcon size={14} />
+                                                                </button>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 )}
@@ -301,6 +354,20 @@ export default function KanbanBoard() {
                     }}
                 />
             )}
+
+            {/* Quick Log Modal */}
+            <BulkTimeLogModal
+                open={isBulkLogOpen}
+                onClose={() => {
+                    setIsBulkLogOpen(false);
+                    setQuickLogTask(null);
+                    fetchTasks();
+                }}
+                defaultEntry={{
+                    projectId: projectId as string,
+                    taskId: quickLogTask?.id
+                }}
+            />
         </div>
     );
 }

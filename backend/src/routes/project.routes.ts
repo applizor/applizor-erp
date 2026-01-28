@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { authenticate, checkPermission } from '../middleware/auth';
 import { upload } from '../middleware/upload';
 import * as projectController from '../controllers/project.controller';
+import * as automationController from '../controllers/automation.controller';
 
 const router = Router();
 
@@ -40,6 +41,11 @@ router.get('/:id/sprints', checkPermission('Project', 'read'), projectController
 router.post('/:id/sprints', checkPermission('Project', 'update'), projectController.createSprint);
 router.put('/sprints/:sprintId', checkPermission('Project', 'update'), projectController.updateSprint);
 router.delete('/sprints/:sprintId', checkPermission('Project', 'update'), projectController.deleteSprint);
+
+// Automation
+router.get('/:projectId/automation', checkPermission('Project', 'read'), automationController.getRules);
+router.post('/:projectId/automation', checkPermission('Project', 'update'), automationController.createRule);
+router.delete('/automation/:ruleId', checkPermission('Project', 'update'), automationController.deleteRule);
 
 // Tasks (handled via Task controller usually but can be here too)
 

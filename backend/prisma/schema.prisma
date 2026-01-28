@@ -46,6 +46,8 @@ model User {
   projectNotes       ProjectNote[]
   taskComments       TaskComment[]
   watchedTasks       TaskWatcher[]
+  taskHistory        TaskHistory[]
+  notifications      Notification[]
 
   @@index([email])
   @@index([companyId])
@@ -248,6 +250,7 @@ model Client {
 
   createdTasks   Task[]    @relation("ClientTaskCreator")
   taskComments   TaskComment[]
+  taskHistory    TaskHistory[]
   
   // Portal Access
   password       String?   // Hashed password
@@ -618,10 +621,31 @@ model Project {
   invoices   Invoice[]
   contracts  Contract[]
   sprints    Sprint[]
+  automationRules AutomationRule[]
+  activeTimers    ActiveTimer[]
 
   @@index([companyId])
   @@index([clientId])
   @@index([status])
+}
+
+// ... existing code ...
+
+model AutomationRule {
+  id          String   @id @default(uuid())
+  projectId   String
+  name        String
+  triggerType String   // 'TASK_STATUS_CHANGE', 'TASK_CREATED'
+  triggerConfig Json   // e.g. { from: '*', to: 'done' }
+  actionType  String   // 'SEND_EMAIL'
+  actionConfig Json    // e.g. { recipient: 'client', subject: '...', body: '...' }
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
 }
 
 model Task {
@@ -674,6 +698,9 @@ model Task {
   watchers     TaskWatcher[]
   linksAsSource TaskLink[] @relation("SourceTask")
   linksAsTarget TaskLink[] @relation("TargetTask")
+  history       TaskHistory[]
+  timesheets    Timesheet[]
+  activeTimers  ActiveTimer[]
 
   @@index([projectId])
   @@index([status])
@@ -706,6 +733,58 @@ model TaskComment {
   @@index([taskId])
   @@index([userId])
   @@index([clientId])
+}
+
+model TaskHistory {
+  id        String   @id @default(uuid())
+  taskId    String
+  userId    String?
+  clientId  String?
+  field     String   // e.g., 'status', 'priority'
+  oldValue  String?
+  newValue  String?
+  createdAt DateTime @default(now())
+
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user      User?    @relation(fields: [userId], references: [id])
+  client    Client?  @relation(fields: [clientId], references: [id])
+
+  @@index([taskId])
+}
+
+model ActiveTimer {
+  // ... existing fields ...
+  id          String   @id @default(uuid())
+  companyId   String
+  employeeId  String   @unique
+  projectId   String
+  taskId      String?
+  startTime   DateTime @default(now())
+  
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  task        Task?    @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@index([employeeId])
+  @@map("active_timers")
+}
+
+model Notification {
+  id          String   @id @default(uuid())
+  companyId   String
+  userId      String   // Target user
+  title       String
+  message     String
+  type        String   @default("info") // info, success, warning, error, task_update, task_assigned
+  isRead      Boolean  @default(false)
+  link        String?  // Optional link to redirect
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([companyId])
+  @@map("notifications")
 }
 
 model Sprint {
@@ -823,13 +902,20 @@ model Timesheet {
   updatedAt   DateTime @updatedAt
 
   // Relations
+  taskId      String?
+  startTime   DateTime? // For timer-based logging
+  endTime     DateTime?
+
+  // Relations
   project  Project? @relation(fields: [projectId], references: [id])
   employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  task     Task?    @relation(fields: [taskId], references: [id])
 
-  @@unique([employeeId, projectId, date])
+  // Removed unique constraint to allow multiple entries per day
   @@index([companyId])
   @@index([employeeId])
   @@index([projectId])
+  @@index([taskId])
   @@index([date])
 }
 
@@ -947,6 +1033,7 @@ model Employee {
   salaryStructureDetails EmployeeSalaryStructure?
   shiftRosters           ShiftRoster[]
   projectMemberships     ProjectMember[]
+  activeTimer            ActiveTimer?
 
   @@unique([companyId, employeeId])
   @@index([companyId])

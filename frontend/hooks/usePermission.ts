@@ -29,6 +29,7 @@ export type PermissionModule =
     | 'Project'
     | 'ProjectTask'
     | 'Recruitment'
+    | 'Timesheet' // Phase 9
     | 'Document';
 
 export const usePermission = () => {

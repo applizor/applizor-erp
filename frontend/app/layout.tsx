@@ -3,6 +3,7 @@ import './globals.css'
 import { AlertProvider } from '@/context/AlertContext'
 import { ToastProvider } from '@/contexts/ToastContext'
 import { ConfirmationProvider } from '@/context/ConfirmationContext'
+import { SocketProvider } from '@/contexts/SocketContext'
 
 export const metadata: Metadata = {
   title: 'Applizor ERP',
@@ -20,7 +21,9 @@ export default function RootLayout({
         <ToastProvider>
           <AlertProvider>
             <ConfirmationProvider>
-              {children}
+              <SocketProvider>
+                {children}
+              </SocketProvider>
             </ConfirmationProvider>
           </AlertProvider>
         </ToastProvider>

@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import TaskDetailModal from '@/components/tasks/TaskDetailModal';
+import { useSocket } from '@/contexts/SocketContext';
 
 interface Task {
     id: string;
@@ -44,6 +45,7 @@ export default function BacklogPage() {
     const [creatingIn, setCreatingIn] = useState<string | null>(null);
     const [newTaskTitle, setNewTaskTitle] = useState('');
     const toast = useToast();
+    const { socket } = useSocket();
 
     const fetchData = useCallback(async () => {
         if (!projectId) return;
@@ -75,6 +77,50 @@ export default function BacklogPage() {
     useEffect(() => {
         if (projectId) fetchData();
     }, [projectId, fetchData]);
+
+    useEffect(() => {
+        if (!socket || !projectId) return;
+
+        const onConnect = () => {
+            console.log('Socket connected/reconnected, joining project room:', projectId);
+            socket.emit('join-project', projectId);
+        };
+
+        // Join immediately if already connected
+        if (socket.connected) {
+            onConnect();
+        }
+
+        socket.on('connect', onConnect);
+        socket.on('TASK_CREATED', (data) => {
+            if (data.projectId === projectId) fetchData();
+        });
+        socket.on('TASK_UPDATED', (data) => {
+            if (data.projectId === projectId) fetchData();
+        });
+        socket.on('TASK_DELETED', (data) => {
+            if (data.projectId === projectId) fetchData();
+        });
+        socket.on('SPRINT_CREATED', (data) => {
+            if (data.projectId === projectId) fetchData();
+        });
+        socket.on('SPRINT_UPDATED', (data) => {
+            if (data.projectId === projectId) fetchData();
+        });
+        socket.on('SPRINT_DELETED', (data) => {
+            if (data.projectId === projectId) fetchData();
+        });
+
+        return () => {
+            socket.off('connect', onConnect);
+            socket.off('TASK_CREATED');
+            socket.off('TASK_UPDATED');
+            socket.off('TASK_DELETED');
+            socket.off('SPRINT_CREATED');
+            socket.off('SPRINT_UPDATED');
+            socket.off('SPRINT_DELETED');
+        };
+    }, [socket, projectId, fetchData]);
 
     const onDragEnd = async (result: DropResult) => {
         const { source, destination, draggableId } = result;

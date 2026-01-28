@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import http from 'http';
+import { initSocket } from './socket';
 
 // Routes
 import authRoutes from './routes/auth.routes';
@@ -152,8 +154,10 @@ app.use('/api/portal/contracts', portalContractRouter);
 // Project Routes
 import projectRoutes from './routes/project.routes';
 import taskRoutes from './routes/task.routes';
+import timesheetRoutes from './routes/timesheet.routes';
 app.use('/api/projects', projectRoutes);
 app.use('/api/tasks', taskRoutes);
+app.use('/api/timesheets', timesheetRoutes);
 
 // Scheduler
 import { SchedulerService } from './services/scheduler.service';
@@ -161,7 +165,10 @@ import { SchedulerService } from './services/scheduler.service';
 // Start server
 SchedulerService.init();
 
-app.listen(PORT, () => {
+const server = http.createServer(app);
+initSocket(server);
+
+server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📊 Health check: http://localhost:${PORT}/health`);
   console.log(`🔐 Auth API: http://localhost:${PORT}/api/auth`);

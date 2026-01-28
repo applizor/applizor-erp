@@ -50,5 +50,6 @@ router.post('/tasks', authenticateClient, upload.array('files'), portalTaskContr
 router.get('/tasks/:id/comments', authenticateClient, portalTaskController.getPortalComments);
 router.post('/tasks/:id/comments', authenticateClient, portalTaskController.addPortalComment);
 router.put('/tasks/:id/status', authenticateClient, portalTaskController.updatePortalTaskStatus);
+router.get('/tasks/:id/history', authenticateClient, portalTaskController.getPortalTaskHistory);
 
 export default router;

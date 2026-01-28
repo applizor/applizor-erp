@@ -1,6 +1,7 @@
 import { Response, Request } from 'express';
 // import { ClientAuthRequest } from '../middleware/client.auth'; // Need to import this type or redefine
 import prisma from '../prisma/client';
+import { NotificationService } from '../services/notification.service';
 
 // Reusing interface normally, but here define locally to avoid circular deps if needed
 interface ClientAuthRequest extends Request {
@@ -41,6 +42,9 @@ export const createPortalTask = async (req: ClientAuthRequest, res: Response) =>
                 // createdById is optional now
             }
         });
+
+        // Real-time Update
+        NotificationService.emitProjectUpdate(projectId, 'TASK_CREATED', task);
 
         // 3. Handle Attachments
         if (req.files && Array.isArray(req.files)) {
@@ -187,6 +191,7 @@ export const addPortalComment = async (req: ClientAuthRequest, res: Response) =>
         });
 
         // Notify Team (Optional - could be enhanced)
+        NotificationService.emitProjectUpdate(task.projectId, 'COMMENT_ADDED', { taskId: id, comment });
 
         res.status(201).json(comment);
     } catch (error) {
@@ -224,6 +229,11 @@ export const getPortalComments = async (req: ClientAuthRequest, res: Response) =
     }
 };
 
+import { AutomationService } from '../services/automation.service';
+import { HistoryService } from '../services/history.service';
+
+// ... (existing code)
+
 export const updatePortalTaskStatus = async (req: ClientAuthRequest, res: Response) => {
     try {
         const { id } = req.params;
@@ -232,7 +242,10 @@ export const updatePortalTaskStatus = async (req: ClientAuthRequest, res: Respon
 
         const task = await prisma.task.findUnique({
             where: { id },
-            include: { project: true }
+            include: {
+                project: true,
+                assignee: { select: { email: true } }
+            }
         });
 
         if (!task || task.project.clientId !== clientId) {
@@ -266,9 +279,63 @@ export const updatePortalTaskStatus = async (req: ClientAuthRequest, res: Respon
             return res.status(400).json({ error: 'Invalid action' });
         }
 
+        // Real-time Update
+        NotificationService.emitProjectUpdate(task.projectId, 'TASK_UPDATED', { ...task, status: newStatus });
+
+        // Trigger Automation
+        const newStatus = action === 'approve' ? 'done' : 'in-progress';
+        if (task.status !== newStatus) {
+            await AutomationService.evaluateRules(task.projectId, 'TASK_STATUS_CHANGE', {
+                taskId: id,
+                projectId: task.projectId,
+                oldStatus: task.status,
+                newStatus: newStatus,
+                taskTitle: task.title,
+                assigneeEmail: task.assignee?.email || undefined
+            });
+
+            // Record History
+            await HistoryService.recordTaskChanges(
+                id,
+                task,
+                { ...task, status: newStatus },
+                req.clientId!,
+                'client'
+            );
+        }
+
         res.json({ message: 'Task updated successfully' });
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Failed to update status' });
+    }
+};
+
+export const getPortalTaskHistory = async (req: ClientAuthRequest, res: Response) => {
+    try {
+        const { id } = req.params;
+        const clientId = req.clientId!;
+
+        // Verify Access
+        const task = await prisma.task.findUnique({
+            where: { id },
+            include: { project: true }
+        });
+
+        if (!task || task.project.clientId !== clientId) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        const history = await prisma.taskHistory.findMany({
+            where: { taskId: id },
+            include: {
+                user: { select: { firstName: true } },
+                client: { select: { name: true } }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+        res.json(history);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch history' });
     }
 };

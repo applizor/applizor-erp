@@ -10,6 +10,7 @@ import PortalCreateIssueModal from '@/components/portal/PortalCreateIssueModal';
 import PortalTaskDetailModal from '@/components/portal/PortalTaskDetailModal';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useSocket } from '@/contexts/SocketContext';
 
 export default function PortalProjectDetail({ params }: { params: { id: string } }) {
     const router = useRouter();
@@ -19,10 +20,43 @@ export default function PortalProjectDetail({ params }: { params: { id: string }
     const [loading, setLoading] = useState(true);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [selectedTask, setSelectedTask] = useState<any | null>(null);
+    const { socket } = useSocket();
 
     useEffect(() => {
-        fetchProjectData();
+        if (params.id) fetchProjectData();
     }, [params.id]);
+
+    useEffect(() => {
+        if (!socket || !params.id) return;
+
+        const onConnect = () => {
+            console.log('Portal: Socket connected/reconnected, joining project room:', params.id);
+            socket.emit('join-project', params.id);
+        };
+
+        // Join immediately if already connected
+        if (socket.connected) {
+            onConnect();
+        }
+
+        socket.on('connect', onConnect);
+        socket.on('TASK_CREATED', (data) => {
+            if (data.projectId === params.id) fetchProjectData();
+        });
+        socket.on('TASK_UPDATED', (data) => {
+            if (data.projectId === params.id) fetchProjectData();
+        });
+        socket.on('TASK_DELETED', (data) => {
+            if (data.projectId === params.id) fetchProjectData();
+        });
+
+        return () => {
+            socket.off('connect', onConnect);
+            socket.off('TASK_CREATED');
+            socket.off('TASK_UPDATED');
+            socket.off('TASK_DELETED');
+        };
+    }, [socket, params.id]);
 
     const fetchProjectData = async () => {
         try {

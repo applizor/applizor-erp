@@ -9,6 +9,7 @@ export const SYSTEM_MODULES = [
     'Department', 'Position', 'Employee', 'Attendance', 'Leave', 'LeaveType', 'LeaveBalance', 'Shift', 'ShiftRoster', 'Payroll', 'Asset',
     'Recruitment', 'Document',
     'Project', 'ProjectTask', // Added Project modules
+    'Timesheet', // Phase 9
     'Holiday', 'Contract'
 ];
 

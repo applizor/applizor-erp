@@ -2,6 +2,9 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import prisma from '../prisma/client';
 import { PermissionService } from '../services/permission.service';
+import { AutomationService } from '../services/automation.service';
+import { HistoryService } from '../services/history.service';
+import { NotificationService } from '../services/notification.service';
 
 // Basic Teams Webhook Stub
 // In a real app, this would be a proper service capable of sending rich cards
@@ -92,6 +95,28 @@ export const createTask = async (req: AuthRequest, res: Response) => {
             await notifyTaskAssigned(task, task.assignee, project);
         }
 
+        await AutomationService.evaluateRules(projectId, 'TASK_CREATED', {
+            taskId: task.id,
+            projectId,
+            taskTitle: title,
+            assigneeEmail: task.assignee?.email || undefined
+        });
+
+        // Real-time Update
+        NotificationService.emitProjectUpdate(projectId, 'TASK_CREATED', task);
+
+        // In-App Notification for Assignee
+        if (assigneeId && assigneeId !== req.user!.id) {
+            await NotificationService.createNotification({
+                companyId: req.user!.companyId,
+                userId: assigneeId,
+                title: 'New Task Assigned',
+                message: `Task: ${title}`,
+                type: 'task_assigned',
+                link: `/projects/${projectId}/tasks`
+            });
+        }
+
         res.status(201).json(task);
     } catch (error) {
         console.error("Create Task Error", error);
@@ -167,6 +192,33 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
             }
         }
 
+        // Trigger Automation (Status Change)
+        if (oldTask && oldTask.status !== task.status) {
+            await AutomationService.evaluateRules(task.projectId, 'TASK_STATUS_CHANGE', {
+                taskId: task.id,
+                projectId: task.projectId,
+                oldStatus: oldTask.status,
+                newStatus: task.status,
+                taskTitle: task.title,
+                assigneeEmail: task.assignee?.email || undefined
+            });
+        }
+
+        // Real-time Update
+        NotificationService.emitProjectUpdate(task.projectId, 'TASK_UPDATED', task);
+
+        // Notify Assignee if changed
+        if (oldTask && oldTask.assignedToId !== task.assignedToId && task.assignedToId && task.assignedToId !== req.user!.id) {
+            await NotificationService.createNotification({
+                companyId: req.user!.companyId,
+                userId: task.assignedToId,
+                title: 'Task Assigned',
+                message: `You are now assigned to: ${task.title}`,
+                type: 'task_assigned',
+                link: `/projects/${task.projectId}/tasks`
+            });
+        }
+
         res.json(task);
     } catch (error) {
         console.error("Update Task Error:", error);
@@ -177,7 +229,14 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
 export const deleteTask = async (req: AuthRequest, res: Response) => {
     try {
         const { id } = req.params;
+        const task = await prisma.task.findUnique({ where: { id } });
+        if (!task) return res.status(404).json({ error: 'Task not found' });
+
         await prisma.task.delete({ where: { id } });
+
+        // Real-time Update
+        NotificationService.emitProjectUpdate(task.projectId, 'TASK_DELETED', { id, projectId: task.projectId });
+
         res.json({ message: 'Task deleted' });
     } catch (error) {
         res.status(500).json({ error: 'Failed to delete task' });
@@ -244,6 +303,11 @@ export const addComment = async (req: AuthRequest, res: Response) => {
             include: { user: { select: { firstName: true, lastName: true, email: true } } }
         });
 
+        const task = await prisma.task.findUnique({ where: { id } });
+        if (task) {
+            NotificationService.emitProjectUpdate(task.projectId, 'COMMENT_ADDED', { taskId: id, comment });
+        }
+
         res.status(201).json(comment);
     } catch (error) {
         res.status(500).json({ error: 'Failed to add comment' });
@@ -264,5 +328,22 @@ export const getComments = async (req: AuthRequest, res: Response) => {
         res.json(comments);
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch comments' });
+    }
+};
+
+export const getTaskHistory = async (req: AuthRequest, res: Response) => {
+    try {
+        const { id } = req.params;
+        const history = await prisma.taskHistory.findMany({
+            where: { taskId: id },
+            include: {
+                user: { select: { firstName: true, lastName: true } },
+                client: { select: { name: true } }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+        res.json(history);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch history' });
     }
 };
