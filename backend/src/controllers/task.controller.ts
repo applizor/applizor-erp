@@ -256,7 +256,10 @@ export const getComments = async (req: AuthRequest, res: Response) => {
         const comments = await prisma.taskComment.findMany({
             where: { taskId: id },
             orderBy: { createdAt: 'asc' },
-            include: { user: { select: { firstName: true, lastName: true } } }
+            include: {
+                user: { select: { firstName: true, lastName: true } },
+                client: { select: { name: true } }
+            }
         });
         res.json(comments);
     } catch (error) {

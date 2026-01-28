@@ -45,7 +45,10 @@ import * as portalTaskController from '../controllers/portal.task.controller';
 import { upload } from '../middleware/upload';
 
 router.get('/tasks', authenticateClient, portalTaskController.getPortalTasks);
+router.get('/tasks/:id', authenticateClient, portalTaskController.getPortalTaskDetails);
 router.post('/tasks', authenticateClient, upload.array('files'), portalTaskController.createPortalTask);
+router.get('/tasks/:id/comments', authenticateClient, portalTaskController.getPortalComments);
 router.post('/tasks/:id/comments', authenticateClient, portalTaskController.addPortalComment);
+router.put('/tasks/:id/status', authenticateClient, portalTaskController.updatePortalTaskStatus);
 
 export default router;

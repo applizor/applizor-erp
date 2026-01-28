@@ -126,6 +126,41 @@ export const getPortalTasks = async (req: ClientAuthRequest, res: Response) => {
     }
 };
 
+// ... (existing code)
+
+export const getPortalTaskDetails = async (req: ClientAuthRequest, res: Response) => {
+    try {
+        const { id } = req.params;
+        const clientId = req.clientId!;
+
+        const task = await prisma.task.findUnique({
+            where: { id },
+            include: {
+                project: true,
+                assignee: { select: { firstName: true, lastName: true } },
+                documents: {
+                    where: { type: 'task_attachment' }
+                },
+                _count: {
+                    select: { comments: true }
+                }
+            }
+        });
+
+        if (!task) return res.status(404).json({ error: 'Task not found' });
+
+        // Security Check: Task must belong to a project assigned to this client
+        if (task.project.clientId !== clientId) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        res.json(task);
+    } catch (error) {
+        console.error("Portal: Get Task Details Error", error);
+        res.status(500).json({ error: 'Failed to fetch task details' });
+    }
+};
+
 export const addPortalComment = async (req: ClientAuthRequest, res: Response) => {
     try {
         const { id } = req.params; // taskId
@@ -151,8 +186,89 @@ export const addPortalComment = async (req: ClientAuthRequest, res: Response) =>
             include: { client: { select: { name: true } } }
         });
 
+        // Notify Team (Optional - could be enhanced)
+
         res.status(201).json(comment);
     } catch (error) {
         res.status(500).json({ error: 'Failed to add comment' });
+    }
+};
+
+export const getPortalComments = async (req: ClientAuthRequest, res: Response) => {
+    try {
+        const { id } = req.params; // taskId
+        const clientId = req.clientId!;
+
+        // Verify Task Access
+        const task = await prisma.task.findUnique({
+            where: { id },
+            include: { project: true }
+        });
+
+        if (!task || task.project.clientId !== clientId) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        const comments = await prisma.taskComment.findMany({
+            where: { taskId: id },
+            include: {
+                user: { select: { firstName: true, lastName: true } },
+                client: { select: { name: true } }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+
+        res.json(comments);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch comments' });
+    }
+};
+
+export const updatePortalTaskStatus = async (req: ClientAuthRequest, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { action, reason } = req.body; // action: 'approve' | 'reject'
+        const clientId = req.clientId!;
+
+        const task = await prisma.task.findUnique({
+            where: { id },
+            include: { project: true }
+        });
+
+        if (!task || task.project.clientId !== clientId) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        if (action === 'approve') {
+            await prisma.task.update({
+                where: { id },
+                data: { status: 'done' }
+            });
+            // Optional: Notify team
+        } else if (action === 'reject') {
+            if (!reason) return res.status(400).json({ error: 'Rejection reason required' });
+
+            // 1. Add comment explaining rejection
+            await prisma.taskComment.create({
+                data: {
+                    taskId: id,
+                    content: `<strong>Changes Requested:</strong> ${reason}`,
+                    clientId: clientId
+                }
+            });
+
+            // 2. Set status back to in-progress
+            await prisma.task.update({
+                where: { id },
+                data: { status: 'in-progress' }
+            });
+        } else {
+            return res.status(400).json({ error: 'Invalid action' });
+        }
+
+        res.json({ message: 'Task updated successfully' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Failed to update status' });
     }
 };

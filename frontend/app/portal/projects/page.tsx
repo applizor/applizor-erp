@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import api from '@/lib/api';
 import PageHeader from '@/components/ui/PageHeader';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
@@ -40,15 +41,15 @@ export default function PortalProjects() {
                     </div>
                 ) : (
                     projects.map((project) => (
-                        <div key={project.id} className="ent-card group hover:shadow-lg transition-all duration-300">
+                        <Link href={`/portal/projects/${project.id}`} key={project.id} className="ent-card group hover:shadow-lg transition-all duration-300 block">
                             <div className="p-6">
                                 <div className="flex justify-between items-start mb-4">
                                     <div className="p-2 bg-primary-50 rounded-lg text-primary-600 group-hover:bg-primary-600 group-hover:text-white transition-colors">
                                         <Briefcase size={20} />
                                     </div>
                                     <span className={`inline-flex items-center px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-widest ${project.status === 'active' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
-                                            project.status === 'completed' ? 'bg-blue-50 text-blue-600 border border-blue-100' :
-                                                'bg-slate-50 text-slate-600 border border-slate-100'
+                                        project.status === 'completed' ? 'bg-blue-50 text-blue-600 border border-blue-100' :
+                                            'bg-slate-50 text-slate-600 border border-slate-100'
                                         }`}>
                                         {project.status === 'active' && <CheckCircle2 size={10} className="mr-1" />}
                                         {project.status === 'completed' && <CheckCircle2 size={10} className="mr-1" />}
@@ -75,7 +76,7 @@ export default function PortalProjects() {
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        </Link>
                     ))
                 )}
             </div>
