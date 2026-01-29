@@ -17,6 +17,8 @@ interface TriggerPayload {
     commenterName?: string;
     mentions?: Array<{ id: string, name: string, email: string, firstName: string }>;
     companyId: string;
+    description?: string;
+    creatorName?: string;
 }
 
 export type AutomationTrigger = 'TASK_STATUS_CHANGE' | 'TASK_CREATED' | 'TASK_ASSIGNED' | 'COMMENT_ADDED' | 'MENTION_FOUND';

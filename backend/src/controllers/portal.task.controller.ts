@@ -2,6 +2,7 @@ import { Response, Request } from 'express';
 // import { ClientAuthRequest } from '../middleware/client.auth'; // Need to import this type or redefine
 import prisma from '../prisma/client';
 import { NotificationService } from '../services/notification.service';
+import { AutomationService } from '../services/automation.service';
 
 // Reusing interface normally, but here define locally to avoid circular deps if needed
 interface ClientAuthRequest extends Request {
@@ -47,6 +48,7 @@ export const createPortalTask = async (req: ClientAuthRequest, res: Response) =>
         NotificationService.emitProjectUpdate(projectId, 'TASK_CREATED', task);
 
         // 3. Handle Attachments
+        // 3. Handle Attachments
         if (req.files && Array.isArray(req.files)) {
             const files = req.files as Express.Multer.File[];
             await Promise.all(files.map(file =>
@@ -66,35 +68,17 @@ export const createPortalTask = async (req: ClientAuthRequest, res: Response) =>
             ));
         }
 
-        // 4. Teams Notification (Reuse logic?) & Internal Email
-        const settings = project?.settings as any;
-        if (settings?.teamsWebhookUrl) {
-            // Need to import/define notifyTeams or just stub it here for now
-            // console.log("Notify Teams from Portal");
-        }
-
-        // Internal Email Notification for Client-Created Task
-        if (settings?.notificationEmail) {
-            import('../services/email.service').then(({ sendEmail }) => {
-                const emailSubject = `[${project?.name}] New Client Issue: ${title}`;
-                const emailHtml = `
-                <div style="font-family: Arial, sans-serif;">
-                    <h2>New Issue Reported by Client</h2>
-                    <p><strong>Project:</strong> ${project?.name}</p>
-                    <p><strong>Title:</strong> ${title}</p>
-                    <p><strong>Priority:</strong> ${priority}</p>
-                    <p><strong>Reported By:</strong> Client via Portal</p>
-                    <br/>
-                    <div style="background: #f5f5f5; padding: 15px; border-radius: 5px;">
-                        ${description || 'No description provided.'}
-                    </div>
-                    <p><em>Please review this issue in the task board.</em></p>
-                </div>
-            `;
-                sendEmail(settings.notificationEmail, emailSubject, emailHtml)
-                    .catch(err => console.error('Portal task notification error:', err));
-            });
-        }
+        // 4. Trigger Automation (Task Created)
+        // Replaces legacy hardcoded email/teams notifications
+        AutomationService.evaluateRules(projectId, 'TASK_CREATED', {
+            taskId: task.id,
+            projectId: projectId,
+            taskTitle: task.title,
+            companyId: req.client.companyId,
+            // Additional context for client created tasks
+            description: `Client Report: ${type || 'Issue'}`,
+            creatorName: req.client.name
+        }).catch(err => console.error('Portal automation error:', err));
 
         res.status(201).json(task);
 
@@ -283,7 +267,6 @@ export const getPortalComments = async (req: ClientAuthRequest, res: Response) =
     }
 };
 
-import { AutomationService } from '../services/automation.service';
 import { HistoryService } from '../services/history.service';
 
 // ... (existing code)
@@ -346,7 +329,8 @@ export const updatePortalTaskStatus = async (req: ClientAuthRequest, res: Respon
                 oldStatus: task.status,
                 newStatus: newStatus,
                 taskTitle: task.title,
-                assigneeEmail: task.assignee?.email || undefined
+                assigneeEmail: task.assignee?.email || undefined,
+                companyId: clientId // Using client's ID/context or derive company from project
             }).catch(err => console.error('Portal status change automation error:', err));
 
             // Record History

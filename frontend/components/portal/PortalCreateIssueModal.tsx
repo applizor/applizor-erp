@@ -79,11 +79,11 @@ export default function PortalCreateIssueModal({ projectId, onClose, onSuccess }
                         <form id="issue-form" onSubmit={handleSubmit(onSubmit)} className="space-y-6">
 
                             {/* Title */}
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-black text-slate-700 uppercase tracking-wider block">Issue Title <span className="text-rose-500">*</span></label>
+                            <div className="ent-form-group">
+                                <label className="ent-label">Issue Title <span className="text-rose-500">*</span></label>
                                 <input
                                     {...register('title', { required: 'Title is required' })}
-                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
+                                    className="ent-input text-sm"
                                     placeholder="e.g., Login page not loading on mobile"
                                 />
                                 {errors.title && <span className="text-xs font-bold text-rose-500 flex items-center gap-1 mt-1"><AlertCircle size={10} /> {errors.title.message as string}</span>}
@@ -91,11 +91,11 @@ export default function PortalCreateIssueModal({ projectId, onClose, onSuccess }
 
                             <div className="grid grid-cols-2 gap-6">
                                 {/* Type */}
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-black text-slate-700 uppercase tracking-wider block">Issue Type</label>
+                                <div className="ent-form-group">
+                                    <label className="ent-label">Issue Type</label>
                                     <select
                                         {...register('type')}
-                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all appearance-none cursor-pointer"
+                                        className="ent-select"
                                     >
                                         <option value="issue">General Issue</option>
                                         <option value="bug">Bug Report</option>
@@ -104,11 +104,11 @@ export default function PortalCreateIssueModal({ projectId, onClose, onSuccess }
                                 </div>
 
                                 {/* Priority */}
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-black text-slate-700 uppercase tracking-wider block">Priority</label>
+                                <div className="ent-form-group">
+                                    <label className="ent-label">Priority</label>
                                     <select
                                         {...register('priority')}
-                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all appearance-none cursor-pointer"
+                                        className="ent-select"
                                     >
                                         <option value="medium">Medium</option>
                                         <option value="high">High</option>
@@ -119,9 +119,9 @@ export default function PortalCreateIssueModal({ projectId, onClose, onSuccess }
                             </div>
 
                             {/* Description */}
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-black text-slate-700 uppercase tracking-wider block">Description</label>
-                                <div className="border border-slate-200 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-primary-500/20 focus-within:border-primary-500 transition-all">
+                            <div className="ent-form-group">
+                                <label className="ent-label">Description</label>
+                                <div className="rounded-md border border-slate-200 overflow-hidden focus-within:ring-2 focus-within:ring-primary-500/10 focus-within:border-primary-500/50 transition-all">
                                     <Controller
                                         name="description"
                                         control={control}
@@ -139,8 +139,8 @@ export default function PortalCreateIssueModal({ projectId, onClose, onSuccess }
                             </div>
 
                             {/* Attachments */}
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-black text-slate-700 uppercase tracking-wider block">Attachments</label>
+                            <div className="ent-form-group">
+                                <label className="ent-label">Attachments</label>
                                 <div className="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center hover:bg-slate-50 hover:border-slate-300 transition-all cursor-pointer group relative">
                                     <input
                                         type="file"
@@ -154,7 +154,7 @@ export default function PortalCreateIssueModal({ projectId, onClose, onSuccess }
                                         </div>
                                         <div>
                                             <p className="text-xs font-bold text-slate-600 group-hover:text-slate-900">
-                                                {files.length > 0 ? `${files.length} files selected` : 'Drop screenshots or files here'}
+                                                {files.length > 0 ? `${files.length} files selected` : 'Drop details or screenshots here'}
                                             </p>
                                             <p className="text-[10px] text-slate-400 mt-1">Supports PNG, JPG, PDF, DOCX (Max 10MB)</p>
                                         </div>
@@ -163,7 +163,7 @@ export default function PortalCreateIssueModal({ projectId, onClose, onSuccess }
                                 {files.length > 0 && (
                                     <div className="flex flex-wrap gap-2 mt-2">
                                         {files.map((f, i) => (
-                                            <span key={i} className="inline-flex items-center px-2 py-1 rounded-md bg-slate-100 border border-slate-200 text-[10px] font-bold text-slate-600">
+                                            <span key={i} className="inline-flex items-center px-2 py-1 rounded bg-slate-100 border border-slate-200 text-[10px] font-bold text-slate-600">
                                                 {f.name}
                                             </span>
                                         ))}
@@ -175,10 +175,10 @@ export default function PortalCreateIssueModal({ projectId, onClose, onSuccess }
                     </div>
 
                     {/* Footer */}
-                    <div className="p-6 border-t border-slate-100 flex justify-end gap-3 bg-slate-50">
+                    <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-3 bg-slate-50">
                         <button
                             onClick={onClose}
-                            className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-all"
+                            className="ent-button-secondary"
                         >
                             Cancel
                         </button>
@@ -186,9 +186,9 @@ export default function PortalCreateIssueModal({ projectId, onClose, onSuccess }
                             type="submit"
                             form="issue-form"
                             disabled={isLoading}
-                            className="px-6 py-2.5 rounded-xl bg-slate-900 text-white text-xs font-black uppercase tracking-wider hover:bg-primary-600 transition-all shadow-lg shadow-primary-900/10 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="btn-primary"
                         >
-                            {isLoading && <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                            {isLoading && <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />}
                             Submit Issue
                         </button>
                     </div>
