@@ -517,7 +517,7 @@ export default function CreateQuotationPage() {
                                         </td>
                                         <td className="px-4 py-2">
                                             <CustomSelect
-                                                options={unitTypes.map(u => ({ label: u.symbol, value: u.symbol }))}
+                                                options={unitTypes.map(u => ({ label: `${u.name} (${u.symbol})`, value: u.symbol }))}
                                                 value={item.unit}
                                                 onChange={(val) => updateItem(index, 'unit', val)}
                                                 placeholder="-"

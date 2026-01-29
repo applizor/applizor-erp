@@ -395,7 +395,7 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
                                             control={control}
                                             render={({ field }) => (
                                                 <CustomSelect
-                                                    options={unitTypes.map(u => ({ label: u.symbol, value: u.symbol }))}
+                                                    options={unitTypes.map(u => ({ label: `${u.name} (${u.symbol})`, value: u.symbol }))}
                                                     value={field.value}
                                                     onChange={field.onChange}
                                                     placeholder="-"

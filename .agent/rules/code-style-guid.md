@@ -15,10 +15,12 @@ This document outlines the mandatory development standards and rules for the App
 
 - **Alternative**: Use the custom `CustomSelect` or `MultiSelect` components from `@/components/ui`.
 
-### 3. Dropdown Positioning & Clipping Prevention
+### 3. Dropdown Positioning & Layout
 - **Rule**: All `CustomSelect` and `MultiSelect` components must implement a `min-width` (typically `240px`) for their dropdown menus to ensure readability in high-density views.
-- **Rule**: Dropdown menus should use `left-0` alignment and high `z-index` (e.g., `z-[100]`) to float over narrow containers like table cells without being clipped.
-- **Reason**: Standard absolute positioning can be constrained by parent `overflow-hidden` or narrow column widths, disrupting the UX.
+- **Rule (Clipping Protection)**: Dropdown menus **MUST** be implemented using **React Portals** (`createPortal`) to render directly into `document.body`. This prevents them from being clipped by `overflow: hidden` or `overflow: auto` containers (e.g., data tables).
+- **Rule (Alignment)**: For right-aligned columns (e.g., Currency, Amounts), use the `align="right"` prop to ensure the menu aligns perfectly with the input's right edge.
+- **Rule (Z-Index)**: Portals should use extremely high z-indices (e.g., `z-[9999]`) to float above all application layers (modals, sidemenus).
+- **Reason**: Standard absolute positioning fails in high-density, scrollable layouts. Portals ensure consistent visibility.
 
 ### 2. Premium Aesthetics
 - **Rule**: Always prioritize visual excellence. Use vibrant colors, sleek dark modes (if applicable), and modern typography.
@@ -238,7 +240,7 @@ Ensure buttons have high-density tracking:
 
 ### Forms & Inputs
 - **Inputs**: Use `.ent-input` class for consistent borders and high-density text.
-- **Selects**: Always use `CustomSelect` for single value and `MultiSelect` for multiple values (e.g., taxes). Ensure `min-w` and `left-0` constraints are applied to the menu.
+- **Selects**: Always use `CustomSelect` for single value and `MultiSelect` for multiple values (e.g., taxes). Ensure they use **React Portals** to avoid clipping in tables. Use `align="right"` for numeric inputs.
 - **Focus State**: `focus:ring-primary-500 focus:border-primary-500`.
 
 ### Cards & Tables
