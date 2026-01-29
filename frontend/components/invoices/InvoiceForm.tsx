@@ -12,8 +12,10 @@ import { CurrencySelect } from '@/components/ui/CurrencySelect';
 const itemSchema = z.object({
     description: z.string().min(1, 'Description required'),
     quantity: z.number().min(0.01, 'Min 0.01'),
+    unit: z.string().optional(),
     rate: z.number().min(0, 'Min 0'),
     taxRate: z.number().min(0).default(0),
+    taxRateId: z.string().optional(),
     hsnCode: z.string().optional(),
 });
 
@@ -30,6 +32,8 @@ const invoiceSchema = z.object({
     discount: z.number().min(0).default(0),
     isRecurring: z.boolean().default(false),
     recurringInterval: z.string().optional(),
+    recurringStartDate: z.string().optional(),
+    recurringEndDate: z.string().optional(),
 });
 
 type InvoiceFormValues = z.infer<typeof invoiceSchema>;
@@ -74,22 +78,16 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
     useEffect(() => {
         if (watchClientId) {
             setLoadingProjects(true);
-            // Check if client has currency and set it
             const client = clients.find(c => c.id === watchClientId);
-            if (client?.currency) {
-                setValue('currency', client.currency);
-            } else if (globalCurrency) {
-                setValue('currency', globalCurrency);
-            }
+            if (client?.currency) setValue('currency', client.currency);
+            else if (globalCurrency) setValue('currency', globalCurrency);
 
-            // Fetch projects
             const token = localStorage.getItem('token');
             fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/projects?clientId=${watchClientId}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             })
                 .then(res => res.json())
                 .then(data => {
-                    // Handle different response structures if necessary
                     const projectList = Array.isArray(data) ? data : (data.projects || []);
                     setProjects(projectList);
                 })
@@ -99,6 +97,28 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
             setProjects([]);
         }
     }, [watchClientId, clients, globalCurrency, setValue]);
+
+    // Fetch Tax Rates and Units
+    const [taxRates, setTaxRates] = useState<any[]>([]);
+    const [unitTypes, setUnitTypes] = useState<any[]>([]);
+
+    useEffect(() => {
+        const fetchSettings = async () => {
+            try {
+                const token = localStorage.getItem('token');
+                const [taxesRes, unitsRes] = await Promise.all([
+                    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/settings/taxes`, { headers: { Authorization: `Bearer ${token}` } }),
+                    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/settings/units`, { headers: { Authorization: `Bearer ${token}` } })
+                ]);
+
+                if (taxesRes.ok) setTaxRates(await taxesRes.json());
+                if (unitsRes.ok) setUnitTypes(await unitsRes.json());
+            } catch (error) {
+                console.error('Failed to fetch invoice settings', error);
+            }
+        };
+        fetchSettings();
+    }, []);
 
     const { fields, append, remove } = useFieldArray({
         control,
@@ -244,7 +264,7 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
                             </div>
 
                             {watch('isRecurring') && (
-                                <div className="animate-in fade-in slide-in-from-top-1 duration-200">
+                                <div className="space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
                                     <select
                                         {...register('recurringInterval')}
                                         className="w-full bg-white border-primary-200 rounded py-1 px-2 text-[10px] font-black uppercase tracking-widest text-primary-700 outline-none focus:ring-0 shadow-sm"
@@ -254,6 +274,24 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
                                         <option value="quarterly">Quarterly Cycle</option>
                                         <option value="yearly">Yearly Cycle</option>
                                     </select>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div>
+                                            <label className="text-[9px] font-black text-primary-900 uppercase tracking-widest block mb-1">Start Date</label>
+                                            <input
+                                                type="date"
+                                                {...register('recurringStartDate')}
+                                                className="w-full bg-white border-primary-200 rounded py-1 px-2 text-[10px] font-bold text-gray-700 outline-none focus:ring-0 shadow-sm"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-[9px] font-black text-primary-900 uppercase tracking-widest block mb-1">End Date (Opt)</label>
+                                            <input
+                                                type="date"
+                                                {...register('recurringEndDate')}
+                                                className="w-full bg-white border-primary-200 rounded py-1 px-2 text-[10px] font-bold text-gray-700 outline-none focus:ring-0 shadow-sm"
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -282,6 +320,7 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
                         <thead>
                             <tr className="bg-gray-50/30 text-left border-b border-gray-50">
                                 <th className="px-4 py-2 text-[9px] font-black text-gray-400 uppercase tracking-[0.1em]">Resource Description</th>
+                                <th className="px-4 py-2 text-[9px] font-black text-gray-400 uppercase tracking-[0.1em] w-20">UoM</th>
                                 <th className="px-4 py-2 text-[9px] font-black text-gray-400 uppercase tracking-[0.1em] w-24">Units</th>
                                 <th className="px-4 py-2 text-[9px] font-black text-gray-400 uppercase tracking-[0.1em] w-32">Unit Rate</th>
                                 <th className="px-4 py-2 text-[9px] font-black text-gray-400 uppercase tracking-[0.1em] w-24">Tax Factor %</th>
@@ -303,6 +342,17 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
                                         )}
                                     </td>
                                     <td className="px-4 py-2">
+                                        <select
+                                            {...register(`items.${index}.unit`)}
+                                            className="w-full bg-gray-50/50 border border-transparent focus:border-gray-200 focus:bg-white rounded px-1.5 py-1 text-[10px] font-black text-gray-900 transition-all uppercase"
+                                        >
+                                            <option value="">-</option>
+                                            {unitTypes.map(u => (
+                                                <option key={u.id} value={u.symbol}>{u.symbol}</option>
+                                            ))}
+                                        </select>
+                                    </td>
+                                    <td className="px-4 py-2">
                                         <input
                                             type="number"
                                             step="any"
@@ -319,12 +369,35 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
                                         />
                                     </td>
                                     <td className="px-4 py-2">
-                                        <input
-                                            type="number"
-                                            step="any"
-                                            {...register(`items.${index}.taxRate`, { valueAsNumber: true })}
-                                            className="w-full bg-gray-50/50 border border-transparent focus:border-gray-200 focus:bg-white rounded px-1.5 py-1 text-[11px] font-black text-gray-900 transition-all text-center"
-                                        />
+                                        {/* Tax Rate Select */}
+                                        <div className="relative">
+                                            <select
+                                                {...register(`items.${index}.taxRateId`, {
+                                                    onChange: (e) => {
+                                                        const rateId = e.target.value;
+                                                        const rate = taxRates.find(r => r.id === rateId);
+                                                        if (rate) {
+                                                            setValue(`items.${index}.taxRate`, parseFloat(rate.percentage));
+                                                        } else {
+                                                            setValue(`items.${index}.taxRate`, 0);
+                                                        }
+                                                    }
+                                                })}
+                                                className="w-full bg-gray-50/50 border border-transparent focus:border-gray-200 focus:bg-white rounded px-1.5 py-1 text-[10px] font-black text-gray-900 transition-all text-center appearance-none"
+                                            >
+                                                <option value="">0%</option>
+                                                {taxRates.map(t => (
+                                                    <option key={t.id} value={t.id}>
+                                                        {t.name} ({Number(t.percentage)}%)
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            {/* Hidden input to store the actual rate percentage for calculations */}
+                                            <input
+                                                type="hidden"
+                                                {...register(`items.${index}.taxRate`, { valueAsNumber: true })}
+                                            />
+                                        </div>
                                     </td>
                                     <td className="px-4 py-2 text-right text-[11px] font-black text-gray-900">
                                         {formatCurrency((watchItems[index]?.quantity || 0) * (watchItems[index]?.rate || 0))}
