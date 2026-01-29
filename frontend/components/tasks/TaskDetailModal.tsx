@@ -291,8 +291,8 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
 
     return (
         <Portal>
-            <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex justify-center items-center overflow-hidden p-4 md:p-6 animate-fade-in">
-                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col md:flex-row overflow-hidden border border-white/20">
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex justify-center items-center overflow-hidden p-4 md:p-6 animate-fade-in text-left">
+                <div className="bg-white rounded-md shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col md:flex-row overflow-hidden border border-slate-200">
 
                     {/* Close Button */}
                     <button
@@ -326,11 +326,11 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                             <form id="task-form" onSubmit={handleSubmit(onSubmit)} className="space-y-8">
                                 {/* Description Editor Wrapper */}
                                 <div className="group">
-                                    <label className="flex items-center gap-2 text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3 select-none">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+                                    <label className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 select-none">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-primary-500"></span>
                                         Description
                                     </label>
-                                    <div className="prose-editor-wrapper border border-slate-200 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-indigo-100 focus-within:border-indigo-400 transition-all shadow-sm">
+                                    <div className="prose-editor-wrapper border border-slate-200 rounded-md overflow-hidden focus-within:ring-1 focus-within:ring-primary-500 focus-within:border-primary-500 transition-all shadow-sm">
                                         <Controller
                                             name="description"
                                             control={control}
@@ -350,12 +350,12 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
 
                                 {/* Attachments Section */}
                                 <div>
-                                    <h4 className="flex items-center gap-2 text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">
+                                    <h4 className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">
                                         <Paperclip size={12} /> Attachments
                                     </h4>
 
                                     {isNew ? (
-                                        <div className="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center hover:bg-slate-50 hover:border-slate-300 transition-all cursor-pointer group relative">
+                                        <div className="border border-dashed border-slate-300 rounded-md p-8 text-center hover:bg-slate-50 hover:border-slate-400 transition-all cursor-pointer group relative">
                                             <input type="file" multiple id="file-upload" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onChange={handleFileChange} />
                                             <div className="flex flex-col items-center gap-2 pointer-events-none">
                                                 <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center group-hover:bg-white group-hover:shadow-sm transition-all text-slate-400">
@@ -373,21 +373,21 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                                                     key={doc.id}
                                                     href={`http://localhost:5000/${doc.filePath}`}
                                                     target="_blank"
-                                                    className="flex items-center gap-3 px-4 py-3 bg-slate-50 border border-slate-100 rounded-lg hover:border-indigo-200 hover:bg-indigo-50/50 transition-all group no-underline"
+                                                    className="flex items-center gap-3 px-3 py-2 bg-slate-50 border border-slate-200 rounded-md hover:border-primary-200 hover:bg-primary-50/50 transition-all group no-underline"
                                                 >
-                                                    <div className="w-8 h-8 rounded bg-white border border-slate-100 flex items-center justify-center text-slate-500 group-hover:text-indigo-600">
-                                                        <Paperclip size={14} />
+                                                    <div className="w-6 h-6 rounded bg-white border border-slate-200 flex items-center justify-center text-slate-500 group-hover:text-primary-600">
+                                                        <Paperclip size={12} />
                                                     </div>
                                                     <div>
-                                                        <p className="text-xs font-bold text-slate-700 truncate max-w-[150px]">{doc.name}</p>
-                                                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                                                        <p className="text-[10px] font-bold text-slate-700 truncate max-w-[150px]">{doc.name}</p>
+                                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">
                                                             {(doc.fileSize / 1024).toFixed(0)} KB
                                                         </p>
                                                     </div>
                                                 </a>
                                             ))}
                                             {(!task?.documents || task.documents.length === 0) && (
-                                                <p className="text-xs text-slate-400 italic">No attachments.</p>
+                                                <p className="text-[10px] text-slate-400 italic">No attachments.</p>
                                             )}
                                         </div>
                                     )}
@@ -400,19 +400,19 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                                     <div className="flex items-center gap-6 mb-6 border-b border-slate-100">
                                         <button
                                             onClick={() => setActiveTab('comments')}
-                                            className={`pb-4 text-sm font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${activeTab === 'comments' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+                                            className={`pb-4 text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${activeTab === 'comments' ? 'text-primary-900 border-b-2 border-primary-900' : 'text-slate-400 hover:text-slate-600'}`}
                                         >
                                             <div className="flex items-center gap-2">Comments {comments.length > 0 && <span className="bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded text-[9px]">{comments.length}</span>}</div>
                                         </button>
                                         <button
                                             onClick={() => setActiveTab('history')}
-                                            className={`pb-4 text-sm font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${activeTab === 'history' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+                                            className={`pb-4 text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${activeTab === 'history' ? 'text-primary-900 border-b-2 border-primary-900' : 'text-slate-400 hover:text-slate-600'}`}
                                         >
                                             <div className="flex items-center gap-2">History <Clock size={14} /></div>
                                         </button>
                                         <button
                                             onClick={() => setActiveTab('worklog')}
-                                            className={`pb-4 text-sm font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${activeTab === 'worklog' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+                                            className={`pb-4 text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${activeTab === 'worklog' ? 'text-primary-900 border-b-2 border-primary-900' : 'text-slate-400 hover:text-slate-600'}`}
                                         >
                                             <div className="flex items-center gap-2">Work Log <Briefcase size={14} /></div>
                                         </button>
@@ -434,15 +434,15 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                                                 ))}
                                             </div>
 
-                                            <div id="comment-editor-section" className="relative z-10 bg-white border border-slate-200 rounded-xl overflow-hidden shadow-lg transition-all focus-within:ring-2 focus-within:ring-indigo-500/10 focus-within:border-indigo-500/50">
+                                            <div id="comment-editor-section" className="relative z-10 bg-white border border-slate-200 rounded-md overflow-hidden shadow-sm transition-all focus-within:ring-1 focus-within:ring-primary-500/20 focus-within:border-primary-500/50">
                                                 {replyTo && (
-                                                    <div className="bg-indigo-50 px-4 py-2 border-b border-indigo-100 flex items-center justify-between animate-in slide-in-from-top-2 duration-300">
-                                                        <span className="text-[10px] font-black text-indigo-700 uppercase tracking-widest flex items-center gap-2">
+                                                    <div className="bg-primary-50 px-4 py-2 border-b border-primary-100 flex items-center justify-between animate-in slide-in-from-top-2 duration-300">
+                                                        <span className="text-[9px] font-black text-primary-700 uppercase tracking-widest flex items-center gap-2">
                                                             <Send size={10} className="rotate-180" /> Replying to {replyTo.user ? `${replyTo.user.firstName}` : replyTo.client?.name}
                                                         </span>
                                                         <button
                                                             onClick={() => setReplyTo(null)}
-                                                            className="text-indigo-400 hover:text-indigo-600 transition-colors"
+                                                            className="text-primary-400 hover:text-primary-600 transition-colors"
                                                         >
                                                             <X size={12} />
                                                         </button>
@@ -454,7 +454,7 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                                                         onChange={setNewComment}
                                                         onPost={postComment}
                                                         placeholder={replyTo ? `Replying to ${replyTo.user?.firstName || replyTo.client?.name}...` : "Add a comment..."}
-                                                        className="min-h-[120px] border-none"
+                                                        className="min-h-[100px] border-none"
                                                         mentions={employees.map(e => ({ id: e.userId || e.id, name: `${e.firstName} ${e.lastName}` }))}
                                                     />
                                                 </div>
@@ -462,7 +462,7 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                                                     <button
                                                         onClick={postComment}
                                                         disabled={!newComment.trim()}
-                                                        className="bg-slate-900 text-white px-6 py-2.5 rounded-lg text-xs font-black uppercase tracking-[0.1em] hover:bg-slate-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md flex items-center gap-2"
+                                                        className="btn-primary text-[10px] flex items-center gap-2"
                                                     >
                                                         {replyTo ? 'Post Reply' : 'Post Comment'} <Send size={12} />
                                                     </button>
@@ -477,29 +477,29 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                                             {history.length === 0 && <p className="text-slate-400 italic text-sm">No changes recorded yet.</p>}
                                             {history.map((item: any) => (
                                                 <div key={item.id} className="flex gap-4 items-start group">
-                                                    <div className="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-500 shrink-0 mt-1">
-                                                        <Clock size={16} />
+                                                    <div className="w-6 h-6 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-400 shrink-0 mt-1">
+                                                        <Clock size={12} />
                                                     </div>
-                                                    <div className="flex-1 bg-white border border-slate-100 rounded-lg p-3 shadow-sm group-hover:border-indigo-100 transition-all">
-                                                        <p className="text-sm text-slate-700">
+                                                    <div className="flex-1 bg-white border border-slate-100 rounded-md p-3 shadow-sm group-hover:border-primary-100 transition-all">
+                                                        <p className="text-secondary text-[11px]">
                                                             <span className="font-bold text-slate-900">
                                                                 {item.user ? `${item.user.firstName} ${item.user.lastName}` : (item.client?.name || 'System')}
                                                             </span>
                                                             {' '}updated{' '}
-                                                            <span className="font-bold text-slate-600 bg-slate-100 px-1.5 rounded text-xs uppercase tracking-wide">
+                                                            <span className="font-black text-slate-500 bg-slate-50 px-1.5 rounded text-[9px] uppercase tracking-wide">
                                                                 {item.field}
                                                             </span>
                                                         </p>
-                                                        <div className="flex items-center gap-3 mt-2 text-xs">
-                                                            <span className="bg-rose-50 text-rose-700 px-2 py-1 rounded border border-rose-100 line-through opacity-70">
+                                                        <div className="flex items-center gap-3 mt-2 text-[10px]">
+                                                            <span className="bg-rose-50 text-rose-700 px-1.5 py-0.5 rounded border border-rose-100 line-through opacity-70">
                                                                 {item.oldValue || 'Empty'}
                                                             </span>
                                                             <span className="text-slate-300">➜</span>
-                                                            <span className="bg-emerald-50 text-emerald-700 px-2 py-1 rounded border border-emerald-100 font-bold">
+                                                            <span className="bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-100 font-bold">
                                                                 {item.newValue}
                                                             </span>
                                                         </div>
-                                                        <span className="text-[10px] text-slate-400 mt-2 block font-medium uppercase tracking-wider">
+                                                        <span className="text-[9px] text-slate-400 mt-2 block font-medium uppercase tracking-wider">
                                                             {new Date(item.createdAt).toLocaleString()}
                                                         </span>
                                                     </div>
@@ -520,76 +520,16 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                     </div>
 
                     {/* Right: Meta Details Sidebar */}
-                    <div className="w-full md:w-80 bg-slate-50/80 backdrop-blur border-l border-slate-200 p-6 flex flex-col gap-6 overflow-y-auto h-full shadow-[inset_10px_0_20px_-10px_rgba(0,0,0,0.02)]">
+                    <div className="w-full md:w-80 bg-slate-50 border-l border-slate-200 p-6 flex flex-col gap-6 overflow-y-auto h-full shadow-[inset_4px_0_10px_-4px_rgba(0,0,0,0.02)]">
 
-                        {/* Time Tracking Section */}
-                        {!isNew && (
-                            <div className="bg-white p-4 rounded-xl border border-slate-200/60 shadow-sm space-y-4">
-                                <div className="flex justify-between items-center">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Time Tracking</label>
-                                    <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900">
-                                        <Clock size={12} className="text-indigo-500" />
-                                        {spentHours.toFixed(2)}h
-                                    </div>
-                                </div>
-
-                                {/* Timer Bar */}
-                                <div className={`p-3 rounded-lg flex items-center justify-between transition-all ${timerActive ? 'bg-rose-50 border border-rose-100' : (task?.activeTimers?.length > 0 ? 'bg-amber-50 border border-amber-100' : 'bg-slate-50 border border-slate-100')}`}>
-                                    <div className="flex flex-col">
-                                        <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider leading-none mb-1">
-                                            {timerActive ? 'Timer Running' : (task?.activeTimers?.length > 0 ? 'Team Active' : 'Idle')}
-                                        </span>
-                                        <span className={`text-sm font-mono font-black ${timerActive ? 'text-rose-600' : (task?.activeTimers?.length > 0 ? 'text-amber-600' : 'text-slate-600')}`}>
-                                            {timerActive && timerStartTime ? (
-                                                <LiveTimerDisplay startTime={timerStartTime} formatTime={formatTime} />
-                                            ) : formatTime(elapsedSeconds)}
-                                        </span>
-                                    </div>
-                                    <button
-                                        onClick={toggleTimer}
-                                        disabled={!timerActive && task?.activeTimers?.length > 0}
-                                        title={!timerActive && task?.activeTimers?.length > 0 ? `${task.activeTimers[0].employee.firstName} is working on this` : ''}
-                                        className={`w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-sm ${timerActive ? 'bg-rose-600 text-white hover:bg-rose-700 shadow-rose-200' : (task?.activeTimers?.length > 0 ? 'bg-amber-400 text-white cursor-not-allowed opacity-80' : 'bg-slate-900 text-white hover:bg-slate-800 shadow-slate-200')}`}
-                                    >
-                                        {timerActive ? <div className="w-3 h-3 bg-white rounded-sm" /> : (task?.activeTimers?.length > 0 ? <Clock size={16} /> : <div className="w-0 h-0 border-t-[6px] border-t-transparent border-l-[10px] border-l-white border-b-[6px] border-b-transparent ml-1" />)}
-                                    </button>
-                                </div>
-
-                                {(!task?.activeTimers?.length || timerActive) && (
-                                    <button
-                                        onClick={() => setIsLogModalOpen(true)}
-                                        className="w-full py-2.5 rounded-lg border border-slate-200 bg-white text-slate-600 text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 hover:border-slate-300 transition-all flex items-center justify-center gap-2"
-                                    >
-                                        <Plus size={12} /> Log Work
-                                    </button>
-                                )}
-
-                                {/* Team Members working on this task */}
-                                {task?.activeTimers && task.activeTimers.length > 0 && (
-                                    <div className="pt-2 animate-in fade-in duration-500">
-                                        <div className="flex items-center gap-2 mb-2 p-1.5 bg-amber-50 border border-amber-100 rounded-md">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                                            <span className="text-[9px] font-black text-amber-900 uppercase tracking-widest">Team Working</span>
-                                        </div>
-                                        <div className="space-y-1.5">
-                                            {task.activeTimers.map((timer: any) => (
-                                                <div key={timer.id} className="flex items-center justify-between text-[10px] text-slate-600 bg-slate-50/50 p-2 rounded-lg border border-slate-100">
-                                                    <span className="font-bold">{timer.employee.firstName} {timer.employee.lastName}</span>
-                                                    <span className="font-mono text-[9px] bg-slate-200/50 px-1.5 py-0.5 rounded leading-none">WORKING</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
+                        {/* STATUS */}
+                        <div className="ent-card p-4 bg-white shadow-sm border border-slate-200">
+                            <div className="flex justify-between items-center mb-1">
+                                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Status</label>
                             </div>
-                        )}
-
-                        {/* Status */}
-                        <div className="bg-white p-4 rounded-xl border border-slate-200/60 shadow-sm">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3">Status</label>
                             <select
                                 {...register('status')}
-                                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/20"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-[11px] font-bold text-slate-900 outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-all uppercase tracking-wide"
                             >
                                 <option value="todo">To Do</option>
                                 <option value="in-progress">In Progress</option>
@@ -598,36 +538,36 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                             </select>
                         </div>
 
-                        {/* Meta Group */}
-                        <div className="space-y-6">
-                            {/* Priority */}
-                            <div>
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Priority</label>
-                                <div className="relative">
-                                    <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10">
-                                        <div className={`w-2 h-2 rounded-full ${watch('priority') === 'urgent' ? 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]' :
-                                            watch('priority') === 'high' ? 'bg-orange-500' :
-                                                watch('priority') === 'medium' ? 'bg-amber-400' : 'bg-emerald-500'
-                                            }`} />
-                                    </div>
-                                    <select
-                                        {...register('priority')}
-                                        className="w-full pl-8 bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-indigo-400 transition-colors cursor-pointer appearance-none"
-                                    >
-                                        <option value="medium">Medium Priority</option>
-                                        <option value="high">High Priority</option>
-                                        <option value="urgent">Urgent</option>
-                                        <option value="low">Low Priority</option>
-                                    </select>
+                        {/* PRIORITY */}
+                        <div className="ent-card p-4 bg-white shadow-sm border border-slate-200">
+                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2">Priority</label>
+                            <div className="relative">
+                                <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10">
+                                    <div className={`w-1.5 h-1.5 rounded-full ${watch('priority') === 'urgent' ? 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]' :
+                                        watch('priority') === 'high' ? 'bg-orange-500' :
+                                            watch('priority') === 'medium' ? 'bg-amber-400' : 'bg-emerald-500'
+                                        }`} />
                                 </div>
+                                <select
+                                    {...register('priority')}
+                                    className="w-full pl-7 bg-white border border-slate-200 rounded-md px-3 py-2 text-[11px] font-bold text-slate-900 outline-none focus:border-primary-500 transition-colors cursor-pointer appearance-none uppercase tracking-wide"
+                                >
+                                    <option value="medium">Medium</option>
+                                    <option value="high">High</option>
+                                    <option value="urgent">Urgent</option>
+                                    <option value="low">Low</option>
+                                </select>
                             </div>
+                        </div>
 
+                        {/* OTHER META */}
+                        <div className="space-y-4">
                             {/* Type */}
                             <div>
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Issue Type</label>
+                                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Issue Type</label>
                                 <select
                                     {...register('type')}
-                                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-indigo-400 transition-colors"
+                                    className="w-full bg-white border border-slate-200 rounded-md px-3 py-2 text-[11px] font-bold text-slate-700 outline-none focus:border-primary-500 transition-colors"
                                 >
                                     <option value="task">Task</option>
                                     <option value="bug">Bug</option>
@@ -639,21 +579,21 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
 
                             {/* Story Points */}
                             <div>
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Story Points</label>
+                                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Story Points</label>
                                 <input
                                     type="number"
                                     {...register('storyPoints')}
-                                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-indigo-400 transition-colors"
+                                    className="w-full bg-white border border-slate-200 rounded-md px-3 py-2 text-[11px] font-bold text-slate-700 outline-none focus:border-primary-500 transition-colors"
                                     placeholder="0"
                                 />
                             </div>
 
                             {/* Epic */}
                             <div>
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Epic</label>
+                                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Epic</label>
                                 <select
                                     {...register('epicId')}
-                                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-indigo-400 transition-colors"
+                                    className="w-full bg-white border border-slate-200 rounded-md px-3 py-2 text-[11px] font-bold text-slate-700 outline-none focus:border-primary-500 transition-colors"
                                 >
                                     <option value="">No Epic</option>
                                     {epics.map(epic => (
@@ -664,10 +604,10 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
 
                             {/* Sprint */}
                             <div>
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Sprint</label>
+                                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Sprint</label>
                                 <select
                                     {...register('sprintId')}
-                                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-indigo-400 transition-colors"
+                                    className="w-full bg-white border border-slate-200 rounded-md px-3 py-2 text-[11px] font-bold text-slate-700 outline-none focus:border-primary-500 transition-colors"
                                 >
                                     <option value="">Backlog</option>
                                     {sprints.map(s => (
@@ -678,11 +618,11 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
 
                             {/* Assignee */}
                             <div>
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Assignee</label>
+                                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Assignee</label>
                                 <div className="relative">
                                     <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10 flex items-center justify-center">
                                         {watch('assigneeId') ? (
-                                            <div className="w-5 h-5 rounded bg-indigo-600 text-[8px] font-black text-white flex items-center justify-center uppercase">
+                                            <div className="w-4 h-4 rounded bg-primary-900 text-[7px] font-black text-white flex items-center justify-center uppercase">
                                                 {(() => {
                                                     const uid = watch('assigneeId');
                                                     const user = employees.find(e => (e.userId || e.id) === uid);
@@ -690,14 +630,14 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                                                 })()}
                                             </div>
                                         ) : (
-                                            <div className="w-5 h-5 rounded bg-slate-200 flex items-center justify-center">
-                                                <span className="text-[10px] text-slate-400">?</span>
+                                            <div className="w-4 h-4 rounded bg-slate-200 flex items-center justify-center">
+                                                <span className="text-[8px] text-slate-400">?</span>
                                             </div>
                                         )}
                                     </div>
                                     <select
                                         {...register('assigneeId')}
-                                        className="w-full pl-10 bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-indigo-400 transition-colors"
+                                        className="w-full pl-9 bg-white border border-slate-200 rounded-md px-3 py-2 text-[11px] font-bold text-slate-700 outline-none focus:border-primary-500 transition-colors"
                                     >
                                         <option value="">Unassigned</option>
                                         {employees.filter(e => e.userId).map(emp => (
@@ -712,12 +652,12 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
 
                         {/* Metadata Box */}
                         {!isNew && task && (
-                            <div className="mt-auto bg-slate-100 rounded-xl p-4 space-y-2">
-                                <div className="flex justify-between text-[10px] text-slate-500">
+                            <div className="mt-auto bg-slate-100 rounded-md p-3 space-y-1.5 border border-slate-200">
+                                <div className="flex justify-between text-[9px] font-bold text-slate-500 uppercase tracking-wide">
                                     <span>Created</span>
                                     <span className="font-mono">{new Date(task.createdAt).toLocaleDateString()}</span>
                                 </div>
-                                <div className="flex justify-between text-[10px] text-slate-500">
+                                <div className="flex justify-between text-[9px] font-bold text-slate-500 uppercase tracking-wide">
                                     <span>Updated</span>
                                     <span className="font-mono">{new Date(task.updatedAt).toLocaleDateString()}</span>
                                 </div>
@@ -729,9 +669,9 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                             type="submit"
                             form="task-form"
                             disabled={isLoading}
-                            className="w-full bg-slate-900 text-white py-3 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-lg shadow-slate-900/10 flex items-center justify-center gap-2"
+                            className="w-full btn-primary py-3 rounded-md shadow-lg shadow-primary-900/10 flex items-center justify-center gap-2"
                         >
-                            {isLoading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : (isNew ? 'Create Issue' : 'Save Changes')}
+                            {isLoading ? <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : (isNew ? 'Create Issue' : 'Save Changes')}
                         </button>
 
                     </div>

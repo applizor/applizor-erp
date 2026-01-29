@@ -13,6 +13,7 @@ import {
     Calendar, Users, Building2, Pencil, MapPin, Zap, Clock
 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { ScrollArea } from '@/components/ui/ScrollArea';
 
 export default function ProjectLayout({
     children,
@@ -157,7 +158,7 @@ export default function ProjectLayout({
                 </div>
 
                 {/* Tab Navigation */}
-                <div className="flex items-center gap-1 mt-8 overflow-x-auto pb-1 no-scrollbar border-b border-gray-100">
+                <ScrollArea className="flex items-center gap-1 mt-8 border-b border-gray-100 pb-1">
                     {tabs.map((tab) => {
                         // Exact match for root, partial for sub-routes
                         const fullPath = `/projects/${params.id}${tab.id}`;
@@ -167,6 +168,7 @@ export default function ProjectLayout({
                             <Link
                                 key={tab.id}
                                 href={fullPath}
+                                draggable={false}
                                 className={`flex items-center gap-2 px-4 py-2.5 rounded-t-md text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap
                                     ${isActive
                                         ? 'bg-gray-900 text-white border-b-2 border-primary-500 shadow-sm'
@@ -178,7 +180,7 @@ export default function ProjectLayout({
                             </Link>
                         );
                     })}
-                </div>
+                </ScrollArea>
             </div>
 
             {/* Dynamic Content */}

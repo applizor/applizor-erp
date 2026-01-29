@@ -21,7 +21,7 @@ interface RichTextEditorProps {
     showSuggestions?: boolean;
 }
 
-export default function RichTextEditor({ value, onChange, onPost, placeholder, className, mentions, showSuggestions = true }: RichTextEditorProps) {
+export default function RichTextEditor({ value, onChange, onPost, placeholder, className, mentions, showSuggestions = false }: RichTextEditorProps) {
     const editorRef = useRef<any>(null);
     const [mentionSearch, setMentionSearch] = useState<string | null>(null);
     const [mentionIndex, setMentionIndex] = useState(0);

@@ -220,17 +220,7 @@ export default function ProjectDashboard({ params }: { params: { id: string } })
                     </div>
                 </div>
 
-                {/* Quick Actions */}
-                <div className="grid grid-cols-2 gap-3">
-                    {can('financials', 'create') && (
-                        <button className="btn-primary py-3 text-[9px] shadow-lg shadow-primary-900/20">
-                            Create Invoice
-                        </button>
-                    )}
-                    <button className="btn-secondary py-3 text-[9px]">
-                        Log Time
-                    </button>
-                </div>
+                {/* Quick Actions removed as per user request */}
             </div>
 
             <MemberManagementModal
