@@ -46,6 +46,7 @@ import { upload } from '../middleware/upload';
 
 router.get('/tasks', authenticateClient, portalTaskController.getPortalTasks);
 router.get('/tasks/:id', authenticateClient, portalTaskController.getPortalTaskDetails);
+router.get('/projects/:projectId/members', authenticateClient, portalTaskController.getPortalProjectMembers);
 router.post('/tasks', authenticateClient, upload.array('files'), portalTaskController.createPortalTask);
 router.get('/tasks/:id/comments', authenticateClient, portalTaskController.getPortalComments);
 router.post('/tasks/:id/comments', authenticateClient, portalTaskController.addPortalComment);

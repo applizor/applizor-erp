@@ -14,12 +14,14 @@ interface MentionItem {
 interface RichTextEditorProps {
     value: string;
     onChange: (value: string) => void;
+    onPost?: () => void;
     placeholder?: string;
     className?: string;
     mentions?: MentionItem[];
+    showSuggestions?: boolean;
 }
 
-export default function RichTextEditor({ value, onChange, placeholder, className, mentions }: RichTextEditorProps) {
+export default function RichTextEditor({ value, onChange, onPost, placeholder, className, mentions, showSuggestions = true }: RichTextEditorProps) {
     const editorRef = useRef<any>(null);
     const [mentionSearch, setMentionSearch] = useState<string | null>(null);
     const [mentionIndex, setMentionIndex] = useState(0);
@@ -31,6 +33,19 @@ export default function RichTextEditor({ value, onChange, placeholder, className
         return mentions.filter(m => m.name.toLowerCase().includes(mentionSearch.toLowerCase()));
     }, [mentionSearch, mentions]);
 
+    const suggestions = [
+        { label: 'Looks good!', emoji: '🎉' },
+        { label: 'Need help?', emoji: '👋' },
+        { label: 'This is blocked...', emoji: '⛔' }
+    ];
+
+    const insertSuggestion = (suggestion: string) => {
+        if (!editorRef.current) return;
+        const editor = editorRef.current.editor;
+        editor.s.insertHTML(`<p>${suggestion}</p>`);
+        onChange(editor.value);
+    };
+
     const insertMention = (mention: MentionItem) => {
         if (!editorRef.current) return;
         const editor = editorRef.current.editor;
@@ -39,8 +54,12 @@ export default function RichTextEditor({ value, onChange, placeholder, className
         // We need to replace the @query with the mention
         const selection = editor.s;
         const range = selection.range;
+
+        // JIRA Style Mention: Blue background, white text, pill shape
+        const mentionHtml = `<span class="mention" data-id="${mention.id}" style="color: #ffffff; font-weight: 700; background: #0052cc; padding: 2px 8px; border-radius: 12px; cursor: default; font-size: 0.9em;" contenteditable="false">@${mention.name}</span>&nbsp;`;
+
         if (!range) {
-            editor.s.insertHTML(`<span class="mention" data-id="${mention.id}" style="color: #4f46e5; font-weight: 800; background: #f5f3ff; padding: 2px 6px; border-radius: 4px; border: 1px solid #ddd6fe; cursor: default;" contenteditable="false">@${mention.name}</span>&nbsp;`);
+            editor.s.insertHTML(mentionHtml);
             setMentionSearch(null);
             return;
         }
@@ -60,8 +79,7 @@ export default function RichTextEditor({ value, onChange, placeholder, className
             }
         }
 
-        editor.s.insertHTML(`<span class="mention" data-id="${mention.id}" style="color: #4f46e5; font-weight: 800; background: #f5f3ff; padding: 2px 6px; border-radius: 4px; border: 1px solid #ddd6fe; cursor: default;" contenteditable="false">@${mention.name}</span>&nbsp;`);
-
+        editor.s.insertHTML(mentionHtml);
         setMentionSearch(null);
     };
 
@@ -82,29 +100,39 @@ export default function RichTextEditor({ value, onChange, placeholder, className
                 } else if (e.key === 'Escape') {
                     setMentionSearch(null);
                 }
+            } else if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                if (onPost) {
+                    e.preventDefault();
+                    onPost();
+                }
             }
         };
 
         window.addEventListener('keydown', handleKeyDown, true);
         return () => window.removeEventListener('keydown', handleKeyDown, true);
-    }, [mentionSearch, filteredMentions, mentionIndex]);
+    }, [mentionSearch, filteredMentions, mentionIndex, onPost]);
 
     const config = useMemo(() => ({
         readonly: false,
-        placeholder: placeholder || 'Start typing...',
+        placeholder: placeholder || 'Add a comment...',
         toolbarButtonSize: 'middle' as 'middle',
         zIndex: 0,
         spellcheck: false,
         showCharsCounter: false,
         showWordsCounter: false,
         showXPathInStatusbar: false,
+        theme: 'default',
+        style: {
+            fontSize: '12px',
+            fontFamily: 'Inter, sans-serif'
+        },
         buttons: [
             'bold', 'italic', 'underline', 'strikethrough', '|',
             'ul', 'ol', '|',
             'font', 'fontsize', 'paragraph', '|',
             'image', 'table', 'link', '|',
             'align', 'undo', 'redo', '|',
-            'fullsize', 'about'
+            'fullsize'
         ],
         uploader: {
             insertImageAsBase64URI: true
@@ -137,8 +165,8 @@ export default function RichTextEditor({ value, onChange, placeholder, className
                         const search = text.slice(lastAt + 1, cursor);
                         setMentionSearch(search);
 
-                        // Positioning relative to the editor container
-                        if (editor.container && typeof editor.container.getBoundingClientRect === 'function') {
+                        // Positioning
+                        if (editor.container) {
                             const containerRect = editor.container.getBoundingClientRect();
                             setMentionCoords({
                                 top: containerRect.top + 40,
@@ -158,7 +186,21 @@ export default function RichTextEditor({ value, onChange, placeholder, className
     }), [placeholder, mentions]);
 
     return (
-        <div className={`relative ${className}`}>
+        <div id="rich-text-editor-container" className={`relative ${className} group/editor`}>
+            {showSuggestions && !value.trim() && (
+                <div className="absolute top-10 left-12 z-10 flex gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                    {suggestions.map(s => (
+                        <button
+                            key={s.label}
+                            onClick={() => insertSuggestion(s.label)}
+                            className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-[10px] font-bold text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-all flex items-center gap-2 shadow-sm"
+                        >
+                            <span>{s.emoji}</span> {s.label}
+                        </button>
+                    ))}
+                </div>
+            )}
+
             <JoditEditor
                 ref={editorRef}
                 value={value}
@@ -167,11 +209,22 @@ export default function RichTextEditor({ value, onChange, placeholder, className
                 onChange={() => { }}
             />
 
+            <div className="flex items-center justify-between px-3 py-2 border-t border-slate-100 bg-slate-50/50 rounded-b-lg">
+                <p className="text-[10px] text-slate-400 font-medium">
+                    Pro tip: press <kbd className="bg-white border border-slate-200 px-1 rounded shadow-sm text-slate-600 font-bold uppercase">M</kbd> to comment
+                </p>
+                <div className="flex items-center gap-2">
+                    <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest hidden group-focus-within/editor:block animate-in fade-in">
+                        Cmd + Enter to post
+                    </span>
+                </div>
+            </div>
+
             {mentionSearch !== null && filteredMentions.length > 0 && (
                 <div
-                    className="fixed z-[1000000] bg-white border border-slate-200 shadow-2xl rounded-xl w-64 overflow-hidden animate-in fade-in zoom-in-95 duration-200 border-t-4 border-t-indigo-500"
+                    className="fixed z-[1000] bg-white border border-slate-200 shadow-2xl rounded-xl w-64 overflow-hidden animate-in fade-in zoom-in-95 duration-200 border-t-4 border-t-indigo-500"
                     style={{
-                        top: mentionCoords?.top || 0,
+                        top: (mentionCoords?.top || 0) + 20,
                         left: mentionCoords?.left || 0
                     }}
                     onMouseDown={e => e.preventDefault()}

@@ -540,3 +540,40 @@ export const notifyNewTask = async (task: any, project: any, recipientEmail: str
 
     return sendEmail(recipientEmail, subject, html);
 };
+
+export const notifyMention = async (recipient: { email: string, firstName: string }, commenterName: string, task: any, project: any, commentContent: string) => {
+    const subject = `[${project.name}] You were mentioned in a comment`;
+
+    const html = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; line-height: 1.6;">
+            <div style="max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: #ffffff;">
+                <div style="background-color: #f8fafc; padding: 20px; border-bottom: 1px solid #e2e8f0;">
+                    <h2 style="margin: 0; font-size: 18px; font-weight: 600; color: #0f172a;">You were mentioned</h2>
+                    <p style="margin: 5px 0 0; color: #64748b; font-size: 14px;">Project: ${project.name}</p>
+                </div>
+                
+                <div style="padding: 24px;">
+                    <p style="margin-top: 0;">Hello <strong>${recipient.firstName}</strong>,</p>
+                    <p><strong>${commenterName}</strong> mentioned you in a comment on task:</p>
+                    
+                    <div style="background-color: #f1f5f9; border-radius: 6px; padding: 16px; margin: 20px 0;">
+                        <div style="font-weight: 700; color: #0f172a; margin-bottom: 8px;">${task.title}</div>
+                        <div style="color: #475569; font-size: 13px; font-style: italic; border-left: 3px solid #cbd5e1; padding-left: 12px;">
+                            "${commentContent.replace(/<[^>]*>?/g, '').substring(0, 200)}${commentContent.length > 200 ? '...' : ''}"
+                        </div>
+                    </div>
+
+                    <div style="text-align: center;">
+                        <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/projects/${project.id}/tasks" style="display: inline-block; background-color: #0052cc; color: #ffffff; font-weight: 600; font-size: 14px; padding: 12px 24px; text-decoration: none; border-radius: 6px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">View Comment</a>
+                    </div>
+                </div>
+                
+                <div style="background-color: #f8fafc; padding: 16px; text-align: center; color: #94a3b8; font-size: 12px; border-top: 1px solid #e2e8f0;">
+                    Sent via Applizor ERP • Modern Workspace
+                </div>
+            </div>
+        </div>
+    `;
+
+    return sendEmail(recipient.email, subject, html);
+};

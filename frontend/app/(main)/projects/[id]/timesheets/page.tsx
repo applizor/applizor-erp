@@ -8,15 +8,31 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { format } from 'date-fns';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { useSocket } from '@/contexts/SocketContext';
 
 export default function ProjectTimesheetPage({ params }: { params: { id: string } }) {
     const { error: showError } = useToast();
     const [timesheets, setTimesheets] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
+    const { socket } = useSocket();
+
     useEffect(() => {
         fetchTimesheets();
     }, [params.id]);
+
+    useEffect(() => {
+        if (!socket) return;
+        socket.on('TASK_UPDATED', (data: any) => {
+            // Refresh if update is in this project
+            if (data.projectId === params.id) {
+                fetchTimesheets();
+            }
+        });
+        return () => {
+            socket.off('TASK_UPDATED');
+        };
+    }, [socket, params.id]);
 
     const fetchTimesheets = async () => {
         try {

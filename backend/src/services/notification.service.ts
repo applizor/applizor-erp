@@ -60,4 +60,49 @@ export class NotificationService {
             console.error('Error emitting company update:', error);
         }
     }
+
+    /**
+     * Parses HTML content for mentions and notifies users
+     */
+    static async handleMentions(content: string, commenterName: string, task: any, project: any, companyId: string) {
+        try {
+            // Regex to find data-id in mention tags
+            const mentionRegex = /class="mention" data-id="([^"]+)"/g;
+            const matches = [...content.matchAll(mentionRegex)];
+            const uniqueUserIds = [...new Set(matches.map(m => m[1]))];
+
+            if (uniqueUserIds.length === 0) return;
+
+            // Fetch user emails and names
+            const users = await prisma.user.findMany({
+                where: { id: { in: uniqueUserIds } },
+                select: { id: true, email: true, firstName: true, lastName: true }
+            });
+
+            const { notifyMention } = await import('./email.service');
+
+            for (const user of users) {
+                // 1. In-app Notification
+                await this.createNotification({
+                    companyId,
+                    userId: user.id,
+                    title: 'New Mention',
+                    message: `${commenterName} mentioned you in task: ${task.title}`,
+                    type: 'info',
+                    link: `/projects/${project.id}/tasks?taskId=${task.id}`
+                });
+
+                // 2. Email Notification
+                await notifyMention(
+                    { email: user.email, firstName: user.firstName },
+                    commenterName,
+                    task,
+                    project,
+                    content
+                );
+            }
+        } catch (error) {
+            console.error('Mention handling error:', error);
+        }
+    }
 }

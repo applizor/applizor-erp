@@ -8,13 +8,13 @@ const router = Router();
 router.use(authenticate);
 
 // List & Create
-router.get('/', taskController.getTasks);
-router.post('/', upload.array('files'), taskController.createTask); // Support multiple files
+router.get('/', checkPermission('ProjectTask', 'read'), taskController.getTasks);
+router.post('/', checkPermission('ProjectTask', 'create'), upload.array('files'), taskController.createTask); // Support multiple files
 
 // Details, Update, Delete
-router.get('/:id', taskController.getTaskById);
-router.put('/:id', taskController.updateTask);
-router.delete('/:id', taskController.deleteTask);
+router.get('/:id', checkPermission('ProjectTask', 'read'), taskController.getTaskById);
+router.put('/:id', checkPermission('ProjectTask', 'update'), taskController.updateTask);
+router.delete('/:id', checkPermission('ProjectTask', 'delete'), taskController.deleteTask);
 
 // Comments
 router.get('/:id/comments', taskController.getComments);

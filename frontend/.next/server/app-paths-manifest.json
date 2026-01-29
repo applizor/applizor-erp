@@ -1,7 +1,8 @@
 {
-  "/(main)/settings/roles/[id]/page": "app/(main)/settings/roles/[id]/page.js",
-  "/portal/login/page": "app/portal/login/page.js",
-  "/portal/projects/[id]/page": "app/portal/projects/[id]/page.js",
+  "/portal/dashboard/page": "app/portal/dashboard/page.js",
   "/portal/projects/page": "app/portal/projects/page.js",
+  "/(main)/invoices/page": "app/(main)/invoices/page.js",
+  "/(main)/projects/[id]/timesheets/page": "app/(main)/projects/[id]/timesheets/page.js",
+  "/(main)/projects/[id]/page": "app/(main)/projects/[id]/page.js",
   "/(main)/projects/[id]/tasks/page": "app/(main)/projects/[id]/tasks/page.js"
 }

@@ -16,6 +16,9 @@ export const createTimeEntry = async (req: AuthRequest, res: Response) => {
 
         const { projectId, taskId, date, startTime, endTime, hours, description } = req.body;
 
+        const employeeId = user.employee?.id;
+        if (!employeeId) return res.status(400).json({ error: 'Employee profile not found' });
+
         // Validation
         if (!projectId || !date || !hours) {
             return res.status(400).json({ error: 'Project, Date, and Hours are required' });
@@ -24,7 +27,7 @@ export const createTimeEntry = async (req: AuthRequest, res: Response) => {
         const timesheet = await prisma.timesheet.create({
             data: {
                 companyId: user.companyId,
-                employeeId: user.employee?.id!,
+                employeeId,
                 projectId,
                 taskId,
                 date: new Date(date),
@@ -276,6 +279,12 @@ export const startTimer = async (req: AuthRequest, res: Response) => {
             }
         });
 
+        // Real-time Update
+        if (taskId) {
+            const { NotificationService } = await import('../services/notification.service');
+            NotificationService.emitProjectUpdate(projectId, 'TASK_UPDATED', { id: taskId, projectId });
+        }
+
         res.status(200).json(activeTimer);
     } catch (error) {
         console.error('Start Timer Error:', error);
@@ -321,17 +330,42 @@ export const stopTimer = async (req: AuthRequest, res: Response) => {
         // Calculate duration in hours
         const endTime = new Date();
         const durationMs = endTime.getTime() - activeTimer.startTime.getTime();
-        const durationHours = (durationMs / (1000 * 60 * 60)).toFixed(2);
+        const durationHours = parseFloat((durationMs / (1000 * 60 * 60)).toFixed(2));
+
+        // Create Timesheet entry automatically (prevents data loss)
+        let timesheetEntry = null;
+        if (durationHours > 0) {
+            timesheetEntry = await prisma.timesheet.create({
+                data: {
+                    companyId: user.companyId,
+                    employeeId,
+                    projectId: activeTimer.projectId,
+                    taskId: activeTimer.taskId,
+                    date: new Date(),
+                    startTime: activeTimer.startTime,
+                    endTime,
+                    hours: durationHours,
+                    description: 'Timer Session'
+                }
+            });
+        }
 
         // Delete active timer
         await prisma.activeTimer.delete({
             where: { employeeId }
         });
 
+        // Real-time Update
+        if (activeTimer.taskId) {
+            const { NotificationService } = await import('../services/notification.service');
+            NotificationService.emitProjectUpdate(activeTimer.projectId, 'TASK_UPDATED', { id: activeTimer.taskId, projectId: activeTimer.projectId });
+        }
+
         res.status(200).json({
             ...activeTimer,
             endTime,
-            durationHours: Number(durationHours)
+            durationHours: Number(durationHours),
+            loggedEntry: timesheetEntry
         });
     } catch (error) {
         console.error('Stop Timer Error:', error);

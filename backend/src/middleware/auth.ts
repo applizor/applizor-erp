@@ -44,6 +44,9 @@ export const authenticate = async (
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
       include: {
+        employee: {
+          select: { id: true, companyId: true }
+        },
         roles: {
           include: {
             role: {

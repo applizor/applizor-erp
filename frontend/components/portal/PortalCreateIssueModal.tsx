@@ -57,7 +57,7 @@ export default function PortalCreateIssueModal({ projectId, onClose, onSuccess }
 
     return (
         <Portal>
-            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex justify-center items-center p-4 animate-fade-in">
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex justify-center items-center p-4 animate-fade-in">
                 <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-zoom-in">
 
                     {/* Header */}

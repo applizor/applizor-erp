@@ -723,6 +723,10 @@ model TaskComment {
   userId    String?
   clientId  String?
 
+  parentId  String?
+  parent    TaskComment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   TaskComment[] @relation("CommentReplies")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -733,6 +737,7 @@ model TaskComment {
   @@index([taskId])
   @@index([userId])
   @@index([clientId])
+  @@index([parentId])
 }
 
 model TaskHistory {

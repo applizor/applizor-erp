@@ -6,6 +6,7 @@ import { useToast } from '@/hooks/useToast';
 import api from '@/lib/api';
 import Portal from '@/components/ui/Portal';
 import RichTextEditor from '@/components/ui/RichTextEditor';
+import CommentItem from '@/components/tasks/CommentItem';
 import { useSocket } from '@/contexts/SocketContext';
 
 interface PortalTaskDetailModalProps {
@@ -20,9 +21,12 @@ export default function PortalTaskDetailModal({ taskId, onClose, onUpdate }: Por
     const [history, setHistory] = useState<any[]>([]);
     const [activeTab, setActiveTab] = useState<'comments' | 'history'>('comments');
     const [newComment, setNewComment] = useState('');
+    const [replyTo, setReplyTo] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
     const toast = useToast();
     const { socket } = useSocket();
+
+    const [members, setMembers] = useState<any[]>([]);
 
     useEffect(() => {
         if (taskId) {
@@ -31,6 +35,42 @@ export default function PortalTaskDetailModal({ taskId, onClose, onUpdate }: Por
             fetchHistory();
         }
     }, [taskId]);
+
+    useEffect(() => {
+        if (task?.projectId) {
+            fetchMembers(task.projectId);
+        }
+    }, [task?.projectId]);
+
+    const fetchMembers = async (pid: string) => {
+        try {
+            const res = await api.get(`/portal/projects/${pid}/members`);
+            setMembers(res.data);
+        } catch (error) { console.error(error); }
+    };
+
+    useEffect(() => {
+        const handleGlobalKeyDown = (e: KeyboardEvent) => {
+            // M to focus comment
+            if (e.key.toLowerCase() === 'm' &&
+                activeTab === 'comments' &&
+                document.activeElement?.tagName !== 'INPUT' &&
+                document.activeElement?.tagName !== 'TEXTAREA' &&
+                !document.activeElement?.hasAttribute('contenteditable')) {
+
+                e.preventDefault();
+                const editor = document.querySelector('#portal-comment-editor .jodit-wysiwyg') as HTMLElement;
+                if (editor) {
+                    editor.focus();
+                } else {
+                    document.getElementById('portal-comment-editor')?.scrollIntoView({ behavior: 'smooth' });
+                }
+            }
+        };
+
+        window.addEventListener('keydown', handleGlobalKeyDown);
+        return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+    }, [activeTab]);
 
     useEffect(() => {
         if (!socket || !taskId) return;
@@ -100,9 +140,14 @@ export default function PortalTaskDetailModal({ taskId, onClose, onUpdate }: Por
     const postComment = async () => {
         if (!newComment.trim()) return;
         try {
-            await api.post(`/portal/tasks/${taskId}/comments`, { content: newComment });
+            await api.post(`/portal/tasks/${taskId}/comments`, {
+                content: newComment,
+                parentId: replyTo?.id || null
+            });
             setNewComment('');
+            setReplyTo(null);
             fetchComments();
+            toast.success('Comment posted');
         } catch (error) {
             toast.error('Failed to post comment');
         }
@@ -143,7 +188,7 @@ export default function PortalTaskDetailModal({ taskId, onClose, onUpdate }: Por
 
     return (
         <Portal>
-            <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[200] flex justify-center items-center p-4 animate-fade-in">
+            <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex justify-center items-center p-4 animate-fade-in">
                 <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl h-[85vh] flex flex-col md:flex-row overflow-hidden animate-zoom-in">
 
                     {/* Close Button Mobile */}
@@ -219,6 +264,66 @@ export default function PortalTaskDetailModal({ taskId, onClose, onUpdate }: Por
                                 </div>
                             )}
 
+                            {/* COMMENTS SECTION (JIRA STYLE BOTTOM) */}
+                            <div className="mt-12 border-t border-slate-100 pt-10">
+                                <h4 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6 flex items-center gap-2">
+                                    <MessageSquare size={16} /> Comments
+                                </h4>
+
+                                <div className="space-y-6 mb-8">
+                                    {comments.length === 0 && (
+                                        <p className="text-xs text-slate-400 italic">No formal discussion yet.</p>
+                                    )}
+                                    {comments.map((comment: any) => (
+                                        <CommentItem
+                                            key={comment.id}
+                                            comment={comment}
+                                            onReply={(c) => {
+                                                setReplyTo(c);
+                                                document.getElementById('portal-comment-editor')?.scrollIntoView({ behavior: 'smooth' });
+                                            }}
+                                        />
+                                    ))}
+                                </div>
+
+                                {/* Comment Input */}
+                                <div id="portal-comment-editor" className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-lg transition-all focus-within:ring-2 focus-within:ring-primary-500/10 focus-within:border-primary-500/50">
+                                    {replyTo && (
+                                        <div className="bg-primary-50 px-4 py-2 border-b border-primary-100 flex items-center justify-between">
+                                            <span className="text-[10px] font-black text-primary-700 uppercase tracking-widest flex items-center gap-2">
+                                                <Send size={10} className="rotate-180" /> Replying to {replyTo.user ? `${replyTo.user.firstName}` : replyTo.client?.name}
+                                            </span>
+                                            <button
+                                                onClick={() => setReplyTo(null)}
+                                                className="text-primary-400 hover:text-primary-600 transition-colors"
+                                            >
+                                                <X size={12} />
+                                            </button>
+                                        </div>
+                                    )}
+                                    <div className="p-1">
+                                        <RichTextEditor
+                                            value={newComment}
+                                            onChange={setNewComment}
+                                            onPost={postComment}
+                                            placeholder={replyTo ? "Type your reply..." : "Add a comment..."}
+                                            className="min-h-[120px] border-none"
+                                            showSuggestions={true}
+                                            mentions={members.map(m => ({ id: m.id, name: `${m.firstName} ${m.lastName}` }))}
+                                        />
+                                    </div>
+                                    <div className="bg-slate-50/50 px-4 py-3 flex justify-end border-t border-slate-100">
+                                        <button
+                                            onClick={postComment}
+                                            disabled={!newComment.trim()}
+                                            className="bg-primary-900 text-white px-6 py-2.5 rounded-lg text-xs font-black uppercase tracking-widest hover:bg-primary-800 transition-all disabled:opacity-50 shadow-md flex items-center gap-2"
+                                        >
+                                            {replyTo ? 'Post Reply' : 'Share with team'} <Send size={12} />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
                         </div>
 
                         {/* Review Action Bar */}
@@ -273,26 +378,7 @@ export default function PortalTaskDetailModal({ taskId, onClose, onUpdate }: Por
                             </div>
                         )}
 
-                        {/* Comment Input Footer */}
-                        <div className="p-4 md:p-6 bg-white border-t border-slate-100 z-10">
-                            <div className="relative">
-                                <input
-                                    type="text"
-                                    value={newComment}
-                                    onChange={(e) => setNewComment(e.target.value)}
-                                    placeholder="Type a message to the team..."
-                                    className="w-full pl-4 pr-12 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
-                                    onKeyDown={(e) => e.key === 'Enter' && postComment()}
-                                />
-                                <button
-                                    onClick={postComment}
-                                    disabled={!newComment.trim()}
-                                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-slate-900 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50 disabled:bg-slate-300 transition-colors"
-                                >
-                                    <Send size={14} />
-                                </button>
-                            </div>
-                        </div>
+                        {/* Removed Old Footer */}
                     </div>
 
                     {/* Right: Activity Stream / Comments */}
@@ -316,33 +402,13 @@ export default function PortalTaskDetailModal({ taskId, onClose, onUpdate }: Por
                         </div>
 
                         <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                            {/* COMMENTS VIEW */}
+                            {/* COMMENTS VIEW (MOVED TO MAIN AREA) */}
                             {activeTab === 'comments' && (
-                                <>
-                                    {comments.length === 0 && (
-                                        <p className="text-center text-xs text-slate-400 italic py-8">No comments yet.</p>
-                                    )}
-                                    {comments.map((comment: any) => {
-                                        const isClient = !!comment.clientId;
-                                        return (
-                                            <div key={comment.id} className={`flex gap-3 ${isClient ? 'flex-row-reverse' : ''}`}>
-                                                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[8px] font-black shrink-0 shadow-sm ${isClient ? 'bg-primary-100 text-primary-700' : 'bg-white text-slate-700 border border-slate-200'}`}>
-                                                    {isClient ? 'ME' : 'TM'}
-                                                </div>
-                                                <div className={`max-w-[85%] rounded-xl p-3 text-xs leading-relaxed shadow-sm ${isClient
-                                                    ? 'bg-primary-600 text-white rounded-tr-none'
-                                                    : 'bg-white border border-slate-100 text-slate-600 rounded-tl-none'
-                                                    }`}>
-                                                    {!isClient && <p className="text-[10px] font-bold text-slate-900 mb-1 block">{comment.user?.firstName || 'Team Member'}</p>}
-                                                    <div dangerouslySetInnerHTML={{ __html: comment.content }} />
-                                                    <div className={`text-[9px] mt-1.5 font-medium ${isClient ? 'text-primary-200' : 'text-slate-300'}`}>
-                                                        {new Date(comment.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </>
+                                <div className="p-4 bg-primary-50/50 rounded-lg border border-primary-100">
+                                    <p className="text-[10px] font-black text-primary-700 uppercase tracking-widest text-center">
+                                        Discussion has been moved to the main task content for better focus.
+                                    </p>
+                                </div>
                             )}
 
                             {/* HISTORY VIEW */}

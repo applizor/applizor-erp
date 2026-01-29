@@ -295,7 +295,8 @@ export const forgotPassword = async (req: Request, res: Response) => {
       <p>This link expires in 1 hour.</p>
     `;
 
-    await sendEmail(user.email, 'Password Reset Request', message);
+    sendEmail(user.email, 'Password Reset Request', message)
+      .catch(err => console.error('Forgot password email error:', err));
 
     res.json({ message: 'If email exists, a reset link has been sent.' });
   } catch (error: any) {

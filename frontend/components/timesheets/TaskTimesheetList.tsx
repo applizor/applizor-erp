@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import BulkTimeLogModal from './BulkTimeLogModal';
 
+import { useSocket } from '@/contexts/SocketContext';
+
 interface TaskTimesheetListProps {
     taskId: string;
     projectId?: string;
@@ -19,10 +21,23 @@ export default function TaskTimesheetList({ taskId, projectId }: TaskTimesheetLi
     const [loading, setLoading] = useState(true);
     const [timesheets, setTimesheets] = useState<any[]>([]);
     const [isLogModalOpen, setIsLogModalOpen] = useState(false);
+    const { socket } = useSocket();
 
     useEffect(() => {
         fetchTimesheets();
     }, [taskId]);
+
+    useEffect(() => {
+        if (!socket) return;
+        socket.on('TASK_UPDATED', (data: any) => {
+            if (data.id === taskId) {
+                fetchTimesheets();
+            }
+        });
+        return () => {
+            socket.off('TASK_UPDATED');
+        };
+    }, [socket, taskId]);
 
     const fetchTimesheets = async () => {
         try {

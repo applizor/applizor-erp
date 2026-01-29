@@ -237,16 +237,20 @@ export const sendInvoice = async (req: AuthRequest, res: Response) => {
     });
 
     const publicUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/portal/invoices/${invoice.id}`;
-    await emailService.sendInvoiceEmail(invoice.client.email, invoice, pdfBuffer, false, publicUrl);
 
-    if (invoice.status === 'draft') {
-      await prisma.invoice.update({
-        where: { id },
-        data: { status: 'sent' }
-      });
-    }
+    // Send in background and update status
+    emailService.sendInvoiceEmail(invoice.client.email, invoice, pdfBuffer, false, publicUrl)
+      .then(async () => {
+        if (invoice.status === 'draft') {
+          await prisma.invoice.update({
+            where: { id },
+            data: { status: 'sent' }
+          });
+        }
+      })
+      .catch(err => console.error(`Failed to send invoice ${invoice.invoiceNumber}:`, err));
 
-    res.json({ message: 'Invoice sent successfully' });
+    res.json({ message: 'Invoice sending initiated' });
   } catch (error: any) {
     console.error('Send email error:', error);
     res.status(500).json({ error: 'Failed to send email' });

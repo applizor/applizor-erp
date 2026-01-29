@@ -78,29 +78,33 @@ export const createTask = async (req: AuthRequest, res: Response) => {
         const settings = project?.settings as any;
 
         if (settings?.teamsWebhookUrl) {
-            await notifyTeams(settings.teamsWebhookUrl,
+            notifyTeams(settings.teamsWebhookUrl,
                 `New ${type} in ${project?.name}: **${title}** assigned to ${task.assignee?.firstName || 'Unassigned'}`
-            );
+            ).catch(err => console.error('Teams notification error:', err));
         }
 
         // Internal Email Notification
         if (settings?.notificationEmail) {
-            const { notifyNewTask } = await import('../services/email.service');
-            await notifyNewTask(task, project, settings.notificationEmail);
+            import('../services/email.service').then(({ notifyNewTask }) => {
+                notifyNewTask(task, project, settings.notificationEmail)
+                    .catch(err => console.error('Email notification error:', err));
+            });
         }
 
         // Assignee Notification (if assigned immediately)
         if (task.assignee?.email) {
-            const { notifyTaskAssigned } = await import('../services/email.service');
-            await notifyTaskAssigned(task, task.assignee, project);
+            import('../services/email.service').then(({ notifyTaskAssigned }) => {
+                notifyTaskAssigned(task, task.assignee, project)
+                    .catch(err => console.error('Assignee notification error:', err));
+            });
         }
 
-        await AutomationService.evaluateRules(projectId, 'TASK_CREATED', {
+        AutomationService.evaluateRules(projectId, 'TASK_CREATED', {
             taskId: task.id,
             projectId,
             taskTitle: title,
             assigneeEmail: task.assignee?.email || undefined
-        });
+        }).catch(err => console.error('Automation error:', err));
 
         // Real-time Update
         NotificationService.emitProjectUpdate(projectId, 'TASK_CREATED', task);
@@ -133,11 +137,35 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
             storyPoints, parentId, epicId, sprintId, startDate, position
         } = req.body;
 
-        // Fetch old task to compare changes
+        // Fetch old task to compare changes and check permissions
         const oldTask = await prisma.task.findUnique({
             where: { id },
-            select: { status: true, assignedToId: true }
+            select: {
+                status: true,
+                assignedToId: true,
+                createdById: true,
+                projectId: true,
+                assignee: { select: { email: true } }
+            }
         });
+
+        if (!oldTask) return res.status(404).json({ error: 'Task not found' });
+
+        // Permission Scoping
+        const scope = PermissionService.getPermissionScope(req.user, 'ProjectTask', 'update');
+        const userId = req.user!.id;
+
+        if (!scope.all) {
+            const isAssigned = oldTask.assignedToId === userId;
+            const isCreator = oldTask.createdById === userId;
+
+            const canEditOwned = scope.owned && isAssigned;
+            const canEditAdded = scope.added && isCreator;
+
+            if (!canEditOwned && !canEditAdded) {
+                return res.status(403).json({ error: 'Access denied: You do not have permission to update this task' });
+            }
+        }
 
         const task = await prisma.task.update({
             where: { id },
@@ -171,19 +199,23 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
                     // 1. Assignee Changed
                     if ((!oldTask.assignedToId && task.assignedToId) || (oldTask.assignedToId && task.assignedToId && oldTask.assignedToId !== task.assignedToId)) {
                         if (task.assignee?.email) {
-                            const { notifyTaskAssigned } = await import('../services/email.service');
-                            await notifyTaskAssigned(task, task.assignee, project);
+                            import('../services/email.service').then(({ notifyTaskAssigned }) => {
+                                notifyTaskAssigned(task, task.assignee, project)
+                                    .catch(err => console.error('Assignee notify error:', err));
+                            });
                         }
                     }
 
                     // 2. Status/Details Updated (Alert Assignee)
                     else if (task.assignedToId && task.assignee?.email) {
-                        const changes = [];
+                        const changes: string[] = [];
                         if (oldTask.status !== task.status) changes.push(`Status changed from ${oldTask.status} to ${task.status}`);
 
                         if (changes.length > 0) {
-                            const { notifyTaskUpdated } = await import('../services/email.service');
-                            await notifyTaskUpdated(task, task.assignee, project, changes);
+                            import('../services/email.service').then(({ notifyTaskUpdated }) => {
+                                notifyTaskUpdated(task, task.assignee, project, changes)
+                                    .catch(err => console.error('Task update notify error:', err));
+                            });
                         }
                     }
                 }
@@ -194,14 +226,14 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
 
         // Trigger Automation (Status Change)
         if (oldTask && oldTask.status !== task.status) {
-            await AutomationService.evaluateRules(task.projectId, 'TASK_STATUS_CHANGE', {
+            AutomationService.evaluateRules(task.projectId, 'TASK_STATUS_CHANGE', {
                 taskId: task.id,
                 projectId: task.projectId,
                 oldStatus: oldTask.status,
                 newStatus: task.status,
                 taskTitle: task.title,
                 assigneeEmail: task.assignee?.email || undefined
-            });
+            }).catch(err => console.error('Status change automation error:', err));
         }
 
         // Real-time Update
@@ -229,8 +261,27 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
 export const deleteTask = async (req: AuthRequest, res: Response) => {
     try {
         const { id } = req.params;
-        const task = await prisma.task.findUnique({ where: { id } });
+        const task = await prisma.task.findUnique({
+            where: { id },
+            select: { id: true, projectId: true, assignedToId: true, createdById: true }
+        });
         if (!task) return res.status(404).json({ error: 'Task not found' });
+
+        // Permission Scoping
+        const scope = PermissionService.getPermissionScope(req.user, 'ProjectTask', 'delete');
+        const userId = req.user!.id;
+
+        if (!scope.all) {
+            const isAssigned = task.assignedToId === userId;
+            const isCreator = task.createdById === userId;
+
+            const canDeleteOwned = scope.owned && isAssigned;
+            const canDeleteAdded = scope.added && isCreator;
+
+            if (!canDeleteOwned && !canDeleteAdded) {
+                return res.status(403).json({ error: 'Access denied: You do not have permission to delete this task' });
+            }
+        }
 
         await prisma.task.delete({ where: { id } });
 
@@ -248,8 +299,44 @@ export const getTasks = async (req: AuthRequest, res: Response) => {
         const { projectId } = req.query;
         if (!projectId) return res.status(400).json({ error: 'Project ID required' });
 
+        const scope = PermissionService.getPermissionScope(req.user, 'ProjectTask', 'read');
+        const userId = req.user!.id;
+
+        const where: any = { projectId: String(projectId) };
+
+        // Apply Scope Filtering (if not 'all' access)
+        if (!scope.all) {
+            const orConditions: any[] = [];
+
+            if (scope.owned) {
+                // Show items assigned to user OR unassigned (as per client request for visibility)
+                orConditions.push({ assignedToId: userId });
+                orConditions.push({ assignedToId: null });
+            }
+
+            if (scope.added) {
+                orConditions.push({ createdById: userId });
+            }
+
+            // If no OR conditions, it means they shouldn't see anything or we default to none
+            if (orConditions.length > 0) {
+                where.AND = [
+                    { projectId: String(projectId) },
+                    { OR: orConditions }
+                ];
+                // We overwrite our simple 'where' with this complex one
+                // But wait, the complex one already includes projectId.
+                // It's cleaner to just build the whole where object.
+            } else {
+                // Fallback: strictly show nothing if they have no scope but passed checkPermission
+                // This happens if level is 'none' but somehow middleware allowed it? 
+                //Middleware shouldn't allow 'none', but safety first.
+                return res.json([]);
+            }
+        }
+
         const tasks = await prisma.task.findMany({
-            where: { projectId: String(projectId) },
+            where,
             include: {
                 assignee: { select: { id: true, firstName: true, lastName: true, email: true } },
                 creator: { select: { firstName: true, lastName: true } },
@@ -266,21 +353,54 @@ export const getTasks = async (req: AuthRequest, res: Response) => {
 export const getTaskById = async (req: AuthRequest, res: Response) => {
     try {
         const { id } = req.params;
+        const scope = PermissionService.getPermissionScope(req.user, 'ProjectTask', 'read');
+        const userId = req.user!.id;
+
         const task = await prisma.task.findUnique({
             where: { id },
             include: {
                 assignee: { select: { id: true, firstName: true, lastName: true } },
                 documents: true,
+                activeTimers: {
+                    include: {
+                        employee: { select: { firstName: true, lastName: true } }
+                    }
+                },
                 comments: {
+                    where: { parentId: null }, // Only get top-level comments
                     include: {
                         user: { select: { firstName: true, lastName: true, email: true } },
-                        client: { select: { name: true, email: true } }
+                        client: { select: { name: true, email: true } },
+                        replies: {
+                            include: {
+                                user: { select: { firstName: true, lastName: true, email: true } },
+                                client: { select: { name: true, email: true } },
+                                replies: true
+                            },
+                            orderBy: { createdAt: 'asc' }
+                        }
                     },
                     orderBy: { createdAt: 'asc' }
                 }
             }
         });
+
         if (!task) return res.status(404).json({ error: 'Task not found' });
+
+        // Enforce same scope visibility check for individual task access
+        if (!scope.all) {
+            const isAssigned = task.assignedToId === userId;
+            const isUnassigned = task.assignedToId === null;
+            const isCreator = task.createdById === userId;
+
+            const canSeeByOwned = scope.owned && (isAssigned || isUnassigned);
+            const canSeeByAdded = scope.added && isCreator;
+
+            if (!canSeeByOwned && !canSeeByAdded) {
+                return res.status(403).json({ error: 'Access denied: You do not have permission to view this task' });
+            }
+        }
+
         res.json(task);
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch task details' });
@@ -292,20 +412,32 @@ export const getTaskById = async (req: AuthRequest, res: Response) => {
 export const addComment = async (req: AuthRequest, res: Response) => {
     try {
         const { id } = req.params; // taskId
-        const { content } = req.body;
+        const { content, parentId } = req.body;
 
         const comment = await prisma.taskComment.create({
             data: {
                 taskId: id,
                 content,
+                parentId: parentId || null,
                 userId: req.user!.id
             },
-            include: { user: { select: { firstName: true, lastName: true, email: true } } }
+            include: {
+                user: { select: { firstName: true, lastName: true, email: true } },
+                client: { select: { name: true, email: true } }
+            }
         });
 
-        const task = await prisma.task.findUnique({ where: { id } });
+        const task = await prisma.task.findUnique({
+            where: { id },
+            include: { project: true }
+        });
+
         if (task) {
             NotificationService.emitProjectUpdate(task.projectId, 'COMMENT_ADDED', { taskId: id, comment });
+
+            // Handle Mentions
+            const commenterName = `${req.user!.firstName} ${req.user!.lastName}`;
+            NotificationService.handleMentions(content, commenterName, task, task.project, req.user!.companyId);
         }
 
         res.status(201).json(comment);
@@ -318,11 +450,21 @@ export const getComments = async (req: AuthRequest, res: Response) => {
     try {
         const { id } = req.params; // taskId
         const comments = await prisma.taskComment.findMany({
-            where: { taskId: id },
+            where: {
+                taskId: id,
+                parentId: null // Top-level only
+            },
             orderBy: { createdAt: 'asc' },
             include: {
                 user: { select: { firstName: true, lastName: true } },
-                client: { select: { name: true } }
+                client: { select: { name: true } },
+                replies: {
+                    include: {
+                        user: { select: { firstName: true, lastName: true } },
+                        client: { select: { name: true } }
+                    },
+                    orderBy: { createdAt: 'asc' }
+                }
             }
         });
         res.json(comments);

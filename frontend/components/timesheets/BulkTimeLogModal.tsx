@@ -185,7 +185,7 @@ export default function BulkTimeLogModal({ open, onClose, defaultEntry }: BulkTi
                                             type="number"
                                             step="0.25"
                                             placeholder="0.0"
-                                            {...register(`entries.${index}.hours` as const, { required: true, min: 0.1 })}
+                                            {...register(`entries.${index}.hours` as const, { required: true, min: 0.0001 })}
                                         />
                                     </div>
 

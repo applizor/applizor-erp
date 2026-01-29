@@ -75,9 +75,9 @@ export const createPortalTask = async (req: ClientAuthRequest, res: Response) =>
 
         // Internal Email Notification for Client-Created Task
         if (settings?.notificationEmail) {
-            const { sendEmail } = await import('../services/email.service');
-            const emailSubject = `[${project?.name}] New Client Issue: ${title}`;
-            const emailHtml = `
+            import('../services/email.service').then(({ sendEmail }) => {
+                const emailSubject = `[${project?.name}] New Client Issue: ${title}`;
+                const emailHtml = `
                 <div style="font-family: Arial, sans-serif;">
                     <h2>New Issue Reported by Client</h2>
                     <p><strong>Project:</strong> ${project?.name}</p>
@@ -91,7 +91,9 @@ export const createPortalTask = async (req: ClientAuthRequest, res: Response) =>
                     <p><em>Please review this issue in the task board.</em></p>
                 </div>
             `;
-            await sendEmail(settings.notificationEmail, emailSubject, emailHtml);
+                sendEmail(settings.notificationEmail, emailSubject, emailHtml)
+                    .catch(err => console.error('Portal task notification error:', err));
+            });
         }
 
         res.status(201).json(task);
@@ -127,6 +129,40 @@ export const getPortalTasks = async (req: ClientAuthRequest, res: Response) => {
         res.json(tasks);
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch tasks' });
+    }
+};
+
+export const getPortalProjectMembers = async (req: ClientAuthRequest, res: Response) => {
+    try {
+        const { projectId } = req.params;
+        const clientId = req.clientId!;
+
+        // Verify Access
+        const project = await prisma.project.findFirst({
+            where: { id: projectId, clientId }
+        });
+
+        if (!project) return res.status(403).json({ error: 'Access denied' });
+
+        const members = await prisma.projectMember.findMany({
+            where: { projectId },
+            include: {
+                employee: {
+                    select: { id: true, userId: true, firstName: true, lastName: true, email: true }
+                }
+            }
+        });
+
+        // Map to flat user-like objects for the mention system
+        const users = members.map(m => ({
+            id: m.employee.userId || m.employee.id, // Fallback to employeeId if no user linked
+            firstName: m.employee.firstName,
+            lastName: m.employee.lastName,
+            email: m.employee.email
+        }));
+        res.json(users);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch members' });
     }
 };
 
@@ -168,7 +204,7 @@ export const getPortalTaskDetails = async (req: ClientAuthRequest, res: Response
 export const addPortalComment = async (req: ClientAuthRequest, res: Response) => {
     try {
         const { id } = req.params; // taskId
-        const { content } = req.body;
+        const { content, parentId } = req.body;
         const clientId = req.clientId!;
 
         // Verify Task Access via Project
@@ -185,13 +221,21 @@ export const addPortalComment = async (req: ClientAuthRequest, res: Response) =>
             data: {
                 taskId: id,
                 content,
+                parentId: parentId || null,
                 clientId: clientId // Use new field
             },
-            include: { client: { select: { name: true } } }
+            include: {
+                client: { select: { name: true } },
+                user: { select: { firstName: true, lastName: true } }
+            }
         });
 
-        // Notify Team (Optional - could be enhanced)
+        // Notify Team
         NotificationService.emitProjectUpdate(task.projectId, 'COMMENT_ADDED', { taskId: id, comment });
+
+        // Handle Mentions (Client mentioning Team)
+        const commenterName = `${req.client!.name} (Client)`;
+        NotificationService.handleMentions(content, commenterName, task, task.project, task.project.companyId);
 
         res.status(201).json(comment);
     } catch (error) {
@@ -215,12 +259,22 @@ export const getPortalComments = async (req: ClientAuthRequest, res: Response) =
         }
 
         const comments = await prisma.taskComment.findMany({
-            where: { taskId: id },
+            where: {
+                taskId: id,
+                parentId: null // Only get top-level
+            },
             include: {
                 user: { select: { firstName: true, lastName: true } },
-                client: { select: { name: true } }
+                client: { select: { name: true } },
+                replies: {
+                    include: {
+                        user: { select: { firstName: true, lastName: true } },
+                        client: { select: { name: true } }
+                    },
+                    orderBy: { createdAt: 'asc' }
+                }
             },
-            orderBy: { createdAt: 'desc' }
+            orderBy: { createdAt: 'asc' }
         });
 
         res.json(comments);
@@ -279,20 +333,21 @@ export const updatePortalTaskStatus = async (req: ClientAuthRequest, res: Respon
             return res.status(400).json({ error: 'Invalid action' });
         }
 
+        const newStatus = action === 'approve' ? 'done' : 'in-progress';
+
         // Real-time Update
         NotificationService.emitProjectUpdate(task.projectId, 'TASK_UPDATED', { ...task, status: newStatus });
 
         // Trigger Automation
-        const newStatus = action === 'approve' ? 'done' : 'in-progress';
         if (task.status !== newStatus) {
-            await AutomationService.evaluateRules(task.projectId, 'TASK_STATUS_CHANGE', {
+            AutomationService.evaluateRules(task.projectId, 'TASK_STATUS_CHANGE', {
                 taskId: id,
                 projectId: task.projectId,
                 oldStatus: task.status,
                 newStatus: newStatus,
                 taskTitle: task.title,
                 assigneeEmail: task.assignee?.email || undefined
-            });
+            }).catch(err => console.error('Portal status change automation error:', err));
 
             // Record History
             await HistoryService.recordTaskChanges(

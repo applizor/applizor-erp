@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
-import { X, Paperclip, Send, Clock, Trash2, Briefcase, Plus } from 'lucide-react';
+import { X, Paperclip, Send, Clock, Trash2, Briefcase, Plus, MessageSquare, Heart, Smile, MoreHorizontal } from 'lucide-react';
 import { PermissionGuard } from '@/components/PermissionGuard'; // Ensure correct path
 import TaskTimesheetList from '@/components/timesheets/TaskTimesheetList';
 import BulkTimeLogModal from '@/components/timesheets/BulkTimeLogModal';
@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/useToast';
 import api from '@/lib/api';
 import Portal from '@/components/ui/Portal';
 import RichTextEditor from '@/components/ui/RichTextEditor';
+import CommentItem from '@/components/tasks/CommentItem';
 import { useSocket } from '@/contexts/SocketContext';
 // import { format } from 'date-fns';
 
@@ -18,6 +19,21 @@ interface TaskDetailModalProps {
     projectId: string; // Needed for new task creation to know context
     onClose: () => void;
     onUpdate: () => void;
+}
+
+// --- Helper Components ---
+
+function LiveTimerDisplay({ startTime, formatTime }: { startTime: number, formatTime: (s: number) => string }) {
+    const [seconds, setSeconds] = useState(Math.floor((Date.now() - startTime) / 1000));
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setSeconds(Math.max(0, Math.floor((Date.now() - startTime) / 1000)));
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [startTime]);
+
+    return <span>{formatTime(seconds)}</span>;
 }
 
 export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }: TaskDetailModalProps) {
@@ -36,10 +52,11 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
     const [epics, setEpics] = useState<any[]>([]);
     const [spentHours, setSpentHours] = useState(0);
     const [isLogModalOpen, setIsLogModalOpen] = useState(false);
+    const [replyTo, setReplyTo] = useState<any>(null);
 
     // Timer state
     const [timerActive, setTimerActive] = useState(false);
-    const [startTime, setStartTime] = useState<number | null>(null);
+    const [timerStartTime, setTimerStartTime] = useState<number | null>(null);
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
     const { socket } = useSocket();
 
@@ -54,6 +71,29 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
             syncTimerWithServer();
         }
     }, [taskId]);
+
+    useEffect(() => {
+        const handleGlobalKeyDown = (e: KeyboardEvent) => {
+            // M to focus comment
+            if (e.key.toLowerCase() === 'm' &&
+                activeTab === 'comments' &&
+                document.activeElement?.tagName !== 'INPUT' &&
+                document.activeElement?.tagName !== 'TEXTAREA' &&
+                !document.activeElement?.hasAttribute('contenteditable')) {
+
+                e.preventDefault();
+                const editor = document.querySelector('#comment-editor-section .jodit-wysiwyg') as HTMLElement;
+                if (editor) {
+                    editor.focus();
+                } else {
+                    document.getElementById('comment-editor-section')?.scrollIntoView({ behavior: 'smooth' });
+                }
+            }
+        };
+
+        window.addEventListener('keydown', handleGlobalKeyDown);
+        return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+    }, [activeTab]);
 
     useEffect(() => {
         if (!socket || !taskId || isNew) return;
@@ -84,26 +124,16 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
             if (res.data && res.data.taskId === taskId) {
                 setTimerActive(true);
                 const serverStartTime = new Date(res.data.startTime).getTime();
-                setElapsedSeconds(Math.floor((Date.now() - serverStartTime) / 1000));
+                setTimerStartTime(serverStartTime);
             } else {
                 setTimerActive(false);
+                setTimerStartTime(null);
                 setElapsedSeconds(0);
             }
         } catch (error) { console.error('Failed to sync timer'); }
     };
 
-    // Timer effect
-    useEffect(() => {
-        let interval: any;
-        if (timerActive) {
-            interval = setInterval(() => {
-                setElapsedSeconds(prev => prev + 1);
-            }, 1000);
-        } else {
-            clearInterval(interval);
-        }
-        return () => clearInterval(interval);
-    }, [timerActive]);
+    // No longer using a main interval here to avoid full modal re-renders
 
     const fetchSpentHours = async () => {
         try {
@@ -118,22 +148,21 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
             if (!timerActive) {
                 const res = await api.post('/timesheets/timer/start', { projectId, taskId });
                 setTimerActive(true);
-                const serverStartTime = new Date(res.data.startTime).getTime();
-                setElapsedSeconds(Math.floor((Date.now() - serverStartTime) / 1000));
+                setTimerStartTime(new Date(res.data.startTime).getTime());
             } else {
                 const res = await api.post('/timesheets/timer/stop');
                 setTimerActive(false);
-                // Sync elapsed seconds with server duration for accuracy
-                const serverSeconds = Math.floor(res.data.durationHours * 3600);
-                setElapsedSeconds(serverSeconds);
+                setElapsedSeconds(0);
+                setTimerStartTime(null);
 
-                // Open modal with duration from server
-                if (res.data.durationHours > 0.01) {
-                    setIsLogModalOpen(true);
-                } else {
-                    setElapsedSeconds(0);
-                }
+                toast.success(`Work logged: ${res.data.durationHours}h`);
+
+                // Refresh data
+                fetchSpentHours();
+                onUpdate();
             }
+            // Refresh task to update working team list
+            fetchTaskDetails();
         } catch (error) {
             toast.error('Failed to update timer');
         }
@@ -241,9 +270,14 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
     const postComment = async () => {
         if (!newComment.trim()) return;
         try {
-            await api.post(`/tasks/${taskId}/comments`, { content: newComment });
+            await api.post(`/tasks/${taskId}/comments`, {
+                content: newComment,
+                parentId: replyTo?.id || null
+            });
             setNewComment('');
-            fetchComments(); // Refresh
+            setReplyTo(null);
+            fetchComments();
+            toast.success('Comment posted');
         } catch (error) {
             toast.error('Failed to post comment');
         }
@@ -257,7 +291,7 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
 
     return (
         <Portal>
-            <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100000] flex justify-center items-center overflow-hidden p-4 md:p-6 animate-fade-in" style={{ zIndex: 100000 }}>
+            <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex justify-center items-center overflow-hidden p-4 md:p-6 animate-fade-in">
                 <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col md:flex-row overflow-hidden border border-white/20">
 
                     {/* Close Button */}
@@ -387,48 +421,51 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                                     {/* COMMENTS TAB */}
                                     {activeTab === 'comments' && (
                                         <>
-                                            <div className="space-y-8 mb-8 relative before:absolute before:left-4 before:top-4 before:bottom-0 before:w-px before:bg-slate-100">
-                                                {comments.map((comment: any) => {
-                                                    const authorName = comment.user
-                                                        ? `${comment.user.firstName} ${comment.user.lastName}`
-                                                        : comment.client ? `${comment.client.name} (Client)` : 'Unknown';
-
-                                                    return (
-                                                        <div key={comment.id} className="relative flex gap-4">
-                                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 relative z-10 ring-4 ring-white ${comment.client ? 'bg-amber-100 text-amber-700' : 'bg-slate-900 text-white'}`}>
-                                                                {authorName[0]}
-                                                            </div>
-                                                            <div className="flex-1 bg-slate-50 rounded-lg p-4 rounded-tl-none border border-slate-100 relative">
-                                                                <div className="flex items-center justify-between mb-2">
-                                                                    <span className="text-xs font-bold text-slate-900">{authorName}</span>
-                                                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{new Date(comment.createdAt).toLocaleString()}</span>
-                                                                </div>
-                                                                <div className="text-xs text-slate-600 prose prose-sm max-w-none leading-relaxed" dangerouslySetInnerHTML={{ __html: comment.content }} />
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })}
+                                            <div className="space-y-6 mb-8 relative">
+                                                {comments.map((comment: any) => (
+                                                    <CommentItem
+                                                        key={comment.id}
+                                                        comment={comment}
+                                                        onReply={(c) => {
+                                                            setReplyTo(c);
+                                                            document.getElementById('comment-editor-section')?.scrollIntoView({ behavior: 'smooth' });
+                                                        }}
+                                                    />
+                                                ))}
                                             </div>
 
-                                            <div className="flex gap-4 relative z-10 bg-white p-1">
-                                                <div className="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 shrink-0" />
-                                                <div className="flex-1 space-y-3">
+                                            <div id="comment-editor-section" className="relative z-10 bg-white border border-slate-200 rounded-xl overflow-hidden shadow-lg transition-all focus-within:ring-2 focus-within:ring-indigo-500/10 focus-within:border-indigo-500/50">
+                                                {replyTo && (
+                                                    <div className="bg-indigo-50 px-4 py-2 border-b border-indigo-100 flex items-center justify-between animate-in slide-in-from-top-2 duration-300">
+                                                        <span className="text-[10px] font-black text-indigo-700 uppercase tracking-widest flex items-center gap-2">
+                                                            <Send size={10} className="rotate-180" /> Replying to {replyTo.user ? `${replyTo.user.firstName}` : replyTo.client?.name}
+                                                        </span>
+                                                        <button
+                                                            onClick={() => setReplyTo(null)}
+                                                            className="text-indigo-400 hover:text-indigo-600 transition-colors"
+                                                        >
+                                                            <X size={12} />
+                                                        </button>
+                                                    </div>
+                                                )}
+                                                <div className="p-1">
                                                     <RichTextEditor
                                                         value={newComment}
                                                         onChange={setNewComment}
-                                                        placeholder="Write a comment..."
-                                                        className="min-h-[100px] border border-slate-200 rounded-lg"
+                                                        onPost={postComment}
+                                                        placeholder={replyTo ? `Replying to ${replyTo.user?.firstName || replyTo.client?.name}...` : "Add a comment..."}
+                                                        className="min-h-[120px] border-none"
                                                         mentions={employees.map(e => ({ id: e.userId || e.id, name: `${e.firstName} ${e.lastName}` }))}
                                                     />
-                                                    <div className="flex justify-end">
-                                                        <button
-                                                            onClick={postComment}
-                                                            disabled={!newComment.trim()}
-                                                            className="bg-slate-900 text-white px-5 py-2 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-slate-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-slate-900/10 flex items-center gap-2"
-                                                        >
-                                                            Post Comment <Send size={12} />
-                                                        </button>
-                                                    </div>
+                                                </div>
+                                                <div className="bg-slate-50/50 px-4 py-3 flex justify-end border-t border-slate-100">
+                                                    <button
+                                                        onClick={postComment}
+                                                        disabled={!newComment.trim()}
+                                                        className="bg-slate-900 text-white px-6 py-2.5 rounded-lg text-xs font-black uppercase tracking-[0.1em] hover:bg-slate-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md flex items-center gap-2"
+                                                    >
+                                                        {replyTo ? 'Post Reply' : 'Post Comment'} <Send size={12} />
+                                                    </button>
                                                 </div>
                                             </div>
                                         </>
@@ -497,29 +534,53 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                                 </div>
 
                                 {/* Timer Bar */}
-                                <div className={`p-3 rounded-lg flex items-center justify-between transition-all ${timerActive ? 'bg-rose-50 border border-rose-100' : 'bg-slate-50 border border-slate-100'}`}>
+                                <div className={`p-3 rounded-lg flex items-center justify-between transition-all ${timerActive ? 'bg-rose-50 border border-rose-100' : (task?.activeTimers?.length > 0 ? 'bg-amber-50 border border-amber-100' : 'bg-slate-50 border border-slate-100')}`}>
                                     <div className="flex flex-col">
                                         <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider leading-none mb-1">
-                                            {timerActive ? 'Timer Running' : 'Idle'}
+                                            {timerActive ? 'Timer Running' : (task?.activeTimers?.length > 0 ? 'Team Active' : 'Idle')}
                                         </span>
-                                        <span className={`text-sm font-mono font-black ${timerActive ? 'text-rose-600' : 'text-slate-600'}`}>
-                                            {formatTime(elapsedSeconds)}
+                                        <span className={`text-sm font-mono font-black ${timerActive ? 'text-rose-600' : (task?.activeTimers?.length > 0 ? 'text-amber-600' : 'text-slate-600')}`}>
+                                            {timerActive && timerStartTime ? (
+                                                <LiveTimerDisplay startTime={timerStartTime} formatTime={formatTime} />
+                                            ) : formatTime(elapsedSeconds)}
                                         </span>
                                     </div>
                                     <button
                                         onClick={toggleTimer}
-                                        className={`w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-sm ${timerActive ? 'bg-rose-600 text-white hover:bg-rose-700 shadow-rose-200' : 'bg-slate-900 text-white hover:bg-slate-800 shadow-slate-200'}`}
+                                        disabled={!timerActive && task?.activeTimers?.length > 0}
+                                        title={!timerActive && task?.activeTimers?.length > 0 ? `${task.activeTimers[0].employee.firstName} is working on this` : ''}
+                                        className={`w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-sm ${timerActive ? 'bg-rose-600 text-white hover:bg-rose-700 shadow-rose-200' : (task?.activeTimers?.length > 0 ? 'bg-amber-400 text-white cursor-not-allowed opacity-80' : 'bg-slate-900 text-white hover:bg-slate-800 shadow-slate-200')}`}
                                     >
-                                        {timerActive ? <div className="w-3 h-3 bg-white rounded-sm" /> : <div className="w-0 h-0 border-t-[6px] border-t-transparent border-l-[10px] border-l-white border-b-[6px] border-b-transparent ml-1" />}
+                                        {timerActive ? <div className="w-3 h-3 bg-white rounded-sm" /> : (task?.activeTimers?.length > 0 ? <Clock size={16} /> : <div className="w-0 h-0 border-t-[6px] border-t-transparent border-l-[10px] border-l-white border-b-[6px] border-b-transparent ml-1" />)}
                                     </button>
                                 </div>
 
-                                <button
-                                    onClick={() => setIsLogModalOpen(true)}
-                                    className="w-full py-2.5 rounded-lg border border-slate-200 bg-white text-slate-600 text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 hover:border-slate-300 transition-all flex items-center justify-center gap-2"
-                                >
-                                    <Plus size={12} /> Log Work
-                                </button>
+                                {(!task?.activeTimers?.length || timerActive) && (
+                                    <button
+                                        onClick={() => setIsLogModalOpen(true)}
+                                        className="w-full py-2.5 rounded-lg border border-slate-200 bg-white text-slate-600 text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 hover:border-slate-300 transition-all flex items-center justify-center gap-2"
+                                    >
+                                        <Plus size={12} /> Log Work
+                                    </button>
+                                )}
+
+                                {/* Team Members working on this task */}
+                                {task?.activeTimers && task.activeTimers.length > 0 && (
+                                    <div className="pt-2 animate-in fade-in duration-500">
+                                        <div className="flex items-center gap-2 mb-2 p-1.5 bg-amber-50 border border-amber-100 rounded-md">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                                            <span className="text-[9px] font-black text-amber-900 uppercase tracking-widest">Team Working</span>
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            {task.activeTimers.map((timer: any) => (
+                                                <div key={timer.id} className="flex items-center justify-between text-[10px] text-slate-600 bg-slate-50/50 p-2 rounded-lg border border-slate-100">
+                                                    <span className="font-bold">{timer.employee.firstName} {timer.employee.lastName}</span>
+                                                    <span className="font-mono text-[9px] bg-slate-200/50 px-1.5 py-0.5 rounded leading-none">WORKING</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
 
@@ -694,4 +755,5 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
         </Portal>
     );
 }
+
 
