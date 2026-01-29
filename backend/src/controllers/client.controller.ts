@@ -50,7 +50,9 @@ export const createClient = async (req: AuthRequest, res: Response) => {
       receiveNotifications = true,
       categoryId,
       subCategoryId,
+
       companyName,
+      currency, // Added currency support
     } = req.body;
 
     if (!name) {
@@ -94,6 +96,7 @@ export const createClient = async (req: AuthRequest, res: Response) => {
         portalAccess: Boolean(portalAccess),
         password: hashedPassword,
         createdById: userId,
+        currency: currency || 'INR', // Default to INR if not provided
       },
     });
 
@@ -256,6 +259,7 @@ export const updateClient = async (req: AuthRequest, res: Response) => {
       categoryId,
       subCategoryId,
       companyName,
+      currency,
     } = req.body;
 
     const data: any = {
@@ -285,6 +289,7 @@ export const updateClient = async (req: AuthRequest, res: Response) => {
       companyName,
       status,
       clientType,
+      currency, // Allow updating currency
       portalAccess: portalAccess !== undefined ? Boolean(portalAccess) : undefined,
     };
 

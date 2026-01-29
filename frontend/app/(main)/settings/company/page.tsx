@@ -563,6 +563,23 @@ export default function CompanySettingsPage() {
                                             className="ent-input w-full"
                                         />
                                     </div>
+                                    <div className="ent-form-group">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Base Currency</label>
+                                        <select
+                                            value={company.currency || 'INR'}
+                                            onChange={e => setCompany({ ...company, currency: e.target.value })}
+                                            className="ent-input w-full"
+                                        >
+                                            <option value="INR">INR - Indian Rupee</option>
+                                            <option value="USD">USD - US Dollar</option>
+                                            <option value="EUR">EUR - Euro</option>
+                                            <option value="GBP">GBP - British Pound</option>
+                                            <option value="AUD">AUD - Australian Dollar</option>
+                                            <option value="CAD">CAD - Canadian Dollar</option>
+                                            <option value="SGD">SGD - Singapore Dollar</option>
+                                            <option value="AED">AED - UAE Dirham</option>
+                                        </select>
+                                    </div>
                                 </div>
                             </div>
                         </div>

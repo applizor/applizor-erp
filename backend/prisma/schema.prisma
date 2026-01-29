@@ -228,6 +228,7 @@ model Client {
 
   status         String    @default("active") // active, inactive, blocked
   clientType     String    @default("customer") // customer, prospect, lead
+  currency       String    @default("INR")
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 

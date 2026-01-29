@@ -33,12 +33,25 @@ export class ContractService {
         console.log('Keys of prisma.contract:', Object.keys(prisma.contract));
         console.log('Sample data being sent:', { ...data, projectId, templateId, status: 'draft' });
 
+        // Determine currency if not provided
+        let finalCurrency = data.currency;
+        if (!finalCurrency && data.clientId) {
+            const client = await prisma.client.findUnique({
+                where: { id: data.clientId },
+                select: { currency: true }
+            });
+            if (client?.currency) finalCurrency = client.currency;
+        }
+        // Fallback to INR or Company default (could fetch company but defaulting INR for now as per schema)
+        if (!finalCurrency) finalCurrency = 'INR';
+
         return await prisma.contract.create({
             data: {
                 ...data,
                 projectId,
                 templateId,
-                status: 'draft'
+                status: 'draft',
+                currency: finalCurrency
             }
         });
     }

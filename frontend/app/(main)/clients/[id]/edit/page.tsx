@@ -23,6 +23,7 @@ const clientSchema = z.object({
     mobile: z.string().optional(),
     password: z.string().optional(), // Optional for edit
     country: z.string().default('India'),
+    currency: z.string().default('INR'), // Added Currency
     gender: z.enum(['male', 'female', 'other']).optional(),
     language: z.string().default('English'),
     categoryId: z.string().optional(),
@@ -133,6 +134,7 @@ export default function EditClientPage() {
         mobile: '',
         password: '',
         country: 'India',
+        currency: 'INR', // Default
         gender: 'male',
         language: 'English',
         categoryId: '',
@@ -177,6 +179,7 @@ export default function EditClientPage() {
                 mobile: data.mobile || '',
                 password: '',
                 country: data.country || 'India',
+                currency: data.currency || 'INR',
                 gender: data.gender || 'male',
                 language: data.language || 'English',
                 categoryId: data.categoryId || '',
@@ -364,6 +367,27 @@ export default function EditClientPage() {
                             <select value={formData.country} onChange={e => handleChange('country', e.target.value)} className="ent-input">
                                 <option value="India">India</option>
                                 <option value="United States">United States</option>
+                                <option value="United Kingdom">United Kingdom</option>
+                                <option value="Australia">Australia</option>
+                                <option value="Canada">Canada</option>
+                                <option value="Germany">Germany</option>
+                                <option value="France">France</option>
+                                <option value="UAE">UAE</option>
+                                <option value="Singapore">Singapore</option>
+                            </select>
+                        </div>
+
+                        <div className="ent-form-group">
+                            <label className="ent-label">Currency Base</label>
+                            <select value={formData.currency} onChange={e => handleChange('currency', e.target.value)} className="ent-input">
+                                <option value="INR">INR - Indian Rupee</option>
+                                <option value="USD">USD - US Dollar</option>
+                                <option value="EUR">EUR - Euro</option>
+                                <option value="GBP">GBP - British Pound</option>
+                                <option value="AUD">AUD - Australian Dollar</option>
+                                <option value="CAD">CAD - Canadian Dollar</option>
+                                <option value="SGD">SGD - Singapore Dollar</option>
+                                <option value="AED">AED - UAE Dirham</option>
                             </select>
                         </div>
 

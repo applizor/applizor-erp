@@ -339,6 +339,7 @@ export const convertLeadToClient = async (req: AuthRequest, res: Response) => {
         phone: lead.phone,
         clientType: 'customer',
         status: 'active',
+        currency: lead.currency || 'INR', // Carry over currency
       },
     });
 
@@ -576,7 +577,8 @@ export const convertLeadToClientEnhanced = async (req: AuthRequest, res: Respons
         createdById: userId,
         // New UI fields from account details (if they existed in lead)
         language: 'English',
-        receiveNotifications: true
+        receiveNotifications: true,
+        currency: lead.currency || 'INR', // Carry over currency
       }
     });
 

@@ -1,4 +1,10 @@
 {
-  "/not-found": "app/not-found.js",
-  "/(main)/projects/[id]/tasks/page": "app/(main)/projects/[id]/tasks/page.js"
+  "/(main)/quotations/page": "app/(main)/quotations/page.js",
+  "/(main)/crm/contracts/page": "app/(main)/crm/contracts/page.js",
+  "/(main)/quotations/create/page": "app/(main)/quotations/create/page.js",
+  "/portal/dashboard/page": "app/portal/dashboard/page.js",
+  "/portal/login/page": "app/portal/login/page.js",
+  "/portal/quotations/page": "app/portal/quotations/page.js",
+  "/(main)/quotations/templates/page": "app/(main)/quotations/templates/page.js",
+  "/(main)/quotations/templates/create/page": "app/(main)/quotations/templates/create/page.js"
 }

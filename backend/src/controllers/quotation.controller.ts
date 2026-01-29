@@ -59,10 +59,28 @@ export const createQuotation = async (req: AuthRequest, res: Response) => {
         const total = subtotal + totalTax - totalDiscount;
 
         // Fetch company currency
-        const company = await prisma.company.findUnique({
-            where: { id: user.companyId },
-            select: { currency: true }
-        });
+
+        // Fetch Client or Lead to determine currency
+        let currency = 'INR';
+        if (clientId) {
+            const client = await prisma.client.findUnique({
+                where: { id: clientId },
+                select: { currency: true }
+            });
+            if (client?.currency) currency = client.currency;
+        } else if (leadId) {
+            const lead = await prisma.lead.findUnique({
+                where: { id: leadId },
+                select: { currency: true }
+            });
+            if (lead?.currency) currency = lead.currency;
+        } else {
+            const company = await prisma.company.findUnique({
+                where: { id: user.companyId },
+                select: { currency: true }
+            });
+            if (company?.currency) currency = company.currency;
+        }
 
         // Calculate next reminder date if frequency is set
         let nextReminderAt = null;
@@ -93,7 +111,7 @@ export const createQuotation = async (req: AuthRequest, res: Response) => {
                 tax: totalTax,
                 discount: totalDiscount,
                 total,
-                currency: company?.currency || 'INR', // Store currency at time of creation
+                currency: currency, // Store determined currency
                 paymentTerms,
                 deliveryTerms,
                 notes,

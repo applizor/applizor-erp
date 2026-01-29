@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Plus, Trash2, Calculator, Info, Calendar, DollarSign, User, ShieldCheck, FileType } from 'lucide-react';
+import { Plus, Trash2, Calculator, Info, Calendar, DollarSign, User, ShieldCheck, FileType, FileCode2 } from 'lucide-react';
 import { useCurrency } from '@/context/CurrencyContext';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { CurrencySelect } from '@/components/ui/CurrencySelect';
@@ -20,6 +20,7 @@ const itemSchema = z.object({
 const invoiceSchema = z.object({
     type: z.enum(['invoice', 'quotation', 'proforma']),
     clientId: z.string().min(1, 'Client selection required'),
+    projectId: z.string().optional(), // Optional Project
     invoiceDate: z.string(),
     dueDate: z.string(),
     currency: z.string(),
@@ -43,6 +44,9 @@ interface InvoiceFormProps {
 export function InvoiceForm({ initialData, clients, onSubmit, loading }: InvoiceFormProps) {
     const { currency: globalCurrency, formatCurrency } = useCurrency();
 
+    const [projects, setProjects] = useState<any[]>([]);
+    const [loadingProjects, setLoadingProjects] = useState(false);
+
     const {
         register,
         control,
@@ -55,6 +59,7 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
         defaultValues: initialData || {
             type: 'invoice',
             clientId: '',
+            projectId: '',
             invoiceDate: new Date().toISOString().split('T')[0],
             dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
             currency: globalCurrency || 'USD',
@@ -62,6 +67,38 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
             discount: 0,
         },
     });
+
+    const watchClientId = watch('clientId');
+
+    // Fetch Projects when Client Changes
+    useEffect(() => {
+        if (watchClientId) {
+            setLoadingProjects(true);
+            // Check if client has currency and set it
+            const client = clients.find(c => c.id === watchClientId);
+            if (client?.currency) {
+                setValue('currency', client.currency);
+            } else if (globalCurrency) {
+                setValue('currency', globalCurrency);
+            }
+
+            // Fetch projects
+            const token = localStorage.getItem('token');
+            fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/projects?clientId=${watchClientId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+                .then(res => res.json())
+                .then(data => {
+                    // Handle different response structures if necessary
+                    const projectList = Array.isArray(data) ? data : (data.projects || []);
+                    setProjects(projectList);
+                })
+                .catch(err => console.error('Failed to fetch projects', err))
+                .finally(() => setLoadingProjects(false));
+        } else {
+            setProjects([]);
+        }
+    }, [watchClientId, clients, globalCurrency, setValue]);
 
     const { fields, append, remove } = useFieldArray({
         control,
@@ -127,6 +164,26 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
                             ))}
                         </select>
                         {errors.clientId && <p className="mt-1 text-[9px] font-black text-rose-500 uppercase tracking-tight">{errors.clientId.message}</p>}
+                    </div>
+
+                    {/* Optional Project Selection */}
+                    <div className="ent-form-group">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5 mb-2">
+                            <FileCode2 className="w-3 h-3" /> {/* Using FileCode2 for Project icon */}
+                            Project Reference (Optional)
+                        </label>
+                        <select
+                            {...register('projectId')}
+                            disabled={!watchClientId || loadingProjects}
+                            className={`ent-input w-full font-bold text-xs ${!watchClientId ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                            <option value="">-- No Specific Project --</option>
+                            {projects.map((project) => (
+                                <option key={project.id} value={project.id}>
+                                    {project.name}
+                                </option>
+                            ))}
+                        </select>
                     </div>
                 </div>
 

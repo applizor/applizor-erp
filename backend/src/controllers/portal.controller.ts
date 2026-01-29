@@ -59,7 +59,7 @@ export const getDashboardStats = async (req: ClientAuthRequest, res: Response) =
             .filter(inv => inv.status !== 'paid' && inv.status !== 'cancelled')
             .reduce((sum, inv) => sum + Number(inv.total), 0);
 
-        const currency = invoices[0]?.currency || 'USD';
+        const currency = req.client?.currency || req.client?.company?.currency || invoices[0]?.currency || 'USD';
 
         res.json({
             activeProjects: projects,
