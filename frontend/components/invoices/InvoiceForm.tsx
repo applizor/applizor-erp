@@ -8,14 +8,16 @@ import { Plus, Trash2, Calculator, Info, Calendar, DollarSign, User, ShieldCheck
 import { useCurrency } from '@/context/CurrencyContext';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { CurrencySelect } from '@/components/ui/CurrencySelect';
+import { CustomSelect } from '@/components/ui/CustomSelect';
+import { MultiSelect } from '@/components/ui/MultiSelect';
+import { Controller } from 'react-hook-form';
 
 const itemSchema = z.object({
     description: z.string().min(1, 'Description required'),
     quantity: z.number().min(0.01, 'Min 0.01'),
     unit: z.string().optional(),
     rate: z.number().min(0, 'Min 0'),
-    taxRate: z.number().min(0).default(0),
-    taxRateId: z.string().optional(),
+    taxRateIds: z.array(z.string()).default([]),
     hsnCode: z.string().optional(),
 });
 
@@ -67,7 +69,7 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
             invoiceDate: new Date().toISOString().split('T')[0],
             dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
             currency: globalCurrency || 'USD',
-            items: [{ description: '', quantity: 1, rate: 0, taxRate: 0 }],
+            items: [{ description: '', quantity: 1, rate: 0, taxRateIds: [] }],
             discount: 0,
         },
     });
@@ -135,9 +137,17 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
 
         watchItems.forEach((item) => {
             const amount = (item.quantity || 0) * (item.rate || 0);
-            const tax = amount * ((item.taxRate || 0) / 100);
+
+            let itemTax = 0;
+            (item.taxRateIds || []).forEach((taxId: string) => {
+                const taxConfig = taxRates.find(t => t.id === taxId);
+                if (taxConfig) {
+                    itemTax += amount * (Number(taxConfig.percentage) / 100);
+                }
+            });
+
             subtotal += amount;
-            totalTax += tax;
+            totalTax += itemTax;
         });
 
         const total = subtotal + totalTax - (watchDiscount || 0);
@@ -157,14 +167,22 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
                             <FileType className="w-3 h-3" />
                             Protocol Type
                         </label>
-                        <select
-                            {...register('type')}
-                            className="ent-input w-full font-bold text-xs"
-                        >
-                            <option value="invoice">Standard Tax Invoice</option>
-                            <option value="quotation">Commercial Quotation</option>
-                            <option value="proforma">Proforma Memorandum</option>
-                        </select>
+                        <Controller
+                            name="type"
+                            control={control}
+                            render={({ field }) => (
+                                <CustomSelect
+                                    options={[
+                                        { label: 'Standard Tax Invoice', value: 'invoice' },
+                                        { label: 'Commercial Quotation', value: 'quotation' },
+                                        { label: 'Proforma Memorandum', value: 'proforma' }
+                                    ]}
+                                    value={field.value}
+                                    onChange={field.onChange}
+                                    className="w-full"
+                                />
+                            )}
+                        />
                     </div>
 
                     <div className="ent-form-group">
@@ -172,17 +190,24 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
                             <User className="w-3 h-3" />
                             Consignee Entity
                         </label>
-                        <select
-                            {...register('clientId')}
-                            className={`ent-input w-full font-bold text-xs ${errors.clientId ? 'border-rose-500 ring-rose-500/10' : ''}`}
-                        >
-                            <option value="">Select Target Entity...</option>
-                            {clients.map((client) => (
-                                <option key={client.id} value={client.id}>
-                                    {client.name} {client.email ? `(${client.email})` : ''}
-                                </option>
-                            ))}
-                        </select>
+                        <Controller
+                            name="clientId"
+                            control={control}
+                            render={({ field }) => (
+                                <CustomSelect
+                                    options={clients.map(client => ({
+                                        label: `${client.name} ${client.email ? `(${client.email})` : ''}`,
+                                        value: client.id,
+                                        description: client.companyName
+                                    }))}
+                                    value={field.value}
+                                    onChange={field.onChange}
+                                    placeholder="Select Target Entity..."
+                                    error={errors.clientId?.message}
+                                    className="w-full"
+                                />
+                            )}
+                        />
                         {errors.clientId && <p className="mt-1 text-[9px] font-black text-rose-500 uppercase tracking-tight">{errors.clientId.message}</p>}
                     </div>
 
@@ -192,18 +217,20 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
                             <FileCode2 className="w-3 h-3" /> {/* Using FileCode2 for Project icon */}
                             Project Reference (Optional)
                         </label>
-                        <select
-                            {...register('projectId')}
-                            disabled={!watchClientId || loadingProjects}
-                            className={`ent-input w-full font-bold text-xs ${!watchClientId ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        >
-                            <option value="">-- No Specific Project --</option>
-                            {projects.map((project) => (
-                                <option key={project.id} value={project.id}>
-                                    {project.name}
-                                </option>
-                            ))}
-                        </select>
+                        <Controller
+                            name="projectId"
+                            control={control}
+                            render={({ field }) => (
+                                <CustomSelect
+                                    options={projects.map(p => ({ label: p.name, value: p.id }))}
+                                    value={field.value}
+                                    onChange={field.onChange}
+                                    placeholder="-- No Specific Project --"
+                                    disabled={!watchClientId || loadingProjects}
+                                    className="w-full"
+                                />
+                            )}
+                        />
                     </div>
                 </div>
 
@@ -241,10 +268,23 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
                             <DollarSign className="w-3 h-3" />
                             Currency Base
                         </label>
-                        <CurrencySelect
-                            value={watch('currency')}
-                            onChange={(val) => setValue('currency', val)}
-                            className="w-full"
+                        <Controller
+                            name="currency"
+                            control={control}
+                            render={({ field }) => (
+                                <CustomSelect
+                                    options={[
+                                        { label: 'INR (₹)', value: 'INR' },
+                                        { label: 'USD ($)', value: 'USD' },
+                                        { label: 'EUR (€)', value: 'EUR' },
+                                        { label: 'GBP (£)', value: 'GBP' },
+                                        { label: 'AED (د.إ)', value: 'AED' }
+                                    ]}
+                                    value={field.value}
+                                    onChange={field.onChange}
+                                    className="w-full"
+                                />
+                            )}
                         />
                     </div>
 
@@ -265,15 +305,23 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
 
                             {watch('isRecurring') && (
                                 <div className="space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
-                                    <select
-                                        {...register('recurringInterval')}
-                                        className="w-full bg-white border-primary-200 rounded py-1 px-2 text-[10px] font-black uppercase tracking-widest text-primary-700 outline-none focus:ring-0 shadow-sm"
-                                    >
-                                        <option value="monthly">Monthly Cycle</option>
-                                        <option value="weekly">Weekly Cycle</option>
-                                        <option value="quarterly">Quarterly Cycle</option>
-                                        <option value="yearly">Yearly Cycle</option>
-                                    </select>
+                                    <Controller
+                                        name="recurringInterval"
+                                        control={control}
+                                        render={({ field }) => (
+                                            <CustomSelect
+                                                options={[
+                                                    { label: 'Monthly Cycle', value: 'monthly' },
+                                                    { label: 'Weekly Cycle', value: 'weekly' },
+                                                    { label: 'Quarterly Cycle', value: 'quarterly' },
+                                                    { label: 'Yearly Cycle', value: 'yearly' }
+                                                ]}
+                                                value={field.value}
+                                                onChange={field.onChange}
+                                                className="w-full"
+                                            />
+                                        )}
+                                    />
                                     <div className="grid grid-cols-2 gap-2">
                                         <div>
                                             <label className="text-[9px] font-black text-primary-900 uppercase tracking-widest block mb-1">Start Date</label>
@@ -308,7 +356,7 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
                     </h3>
                     <button
                         type="button"
-                        onClick={() => append({ description: '', quantity: 1, rate: 0, taxRate: 0 })}
+                        onClick={() => append({ description: '', quantity: 1, rate: 0, taxRateIds: [] })}
                         className="text-[10px] font-black text-primary-600 hover:text-primary-700 uppercase tracking-widest flex items-center gap-1 transition-all"
                     >
                         <Plus size={14} /> Append Component
@@ -342,15 +390,20 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
                                         )}
                                     </td>
                                     <td className="px-4 py-2">
-                                        <select
-                                            {...register(`items.${index}.unit`)}
-                                            className="w-full bg-gray-50/50 border border-transparent focus:border-gray-200 focus:bg-white rounded px-1.5 py-1 text-[10px] font-black text-gray-900 transition-all uppercase"
-                                        >
-                                            <option value="">-</option>
-                                            {unitTypes.map(u => (
-                                                <option key={u.id} value={u.symbol}>{u.symbol}</option>
-                                            ))}
-                                        </select>
+                                        <Controller
+                                            name={`items.${index}.unit`}
+                                            control={control}
+                                            render={({ field }) => (
+                                                <CustomSelect
+                                                    options={unitTypes.map(u => ({ label: u.symbol, value: u.symbol }))}
+                                                    value={field.value}
+                                                    onChange={field.onChange}
+                                                    placeholder="-"
+                                                    className="w-full"
+                                                    align="right"
+                                                />
+                                            )}
+                                        />
                                     </td>
                                     <td className="px-4 py-2">
                                         <input
@@ -369,35 +422,24 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
                                         />
                                     </td>
                                     <td className="px-4 py-2">
-                                        {/* Tax Rate Select */}
-                                        <div className="relative">
-                                            <select
-                                                {...register(`items.${index}.taxRateId`, {
-                                                    onChange: (e) => {
-                                                        const rateId = e.target.value;
-                                                        const rate = taxRates.find(r => r.id === rateId);
-                                                        if (rate) {
-                                                            setValue(`items.${index}.taxRate`, parseFloat(rate.percentage));
-                                                        } else {
-                                                            setValue(`items.${index}.taxRate`, 0);
-                                                        }
-                                                    }
-                                                })}
-                                                className="w-full bg-gray-50/50 border border-transparent focus:border-gray-200 focus:bg-white rounded px-1.5 py-1 text-[10px] font-black text-gray-900 transition-all text-center appearance-none"
-                                            >
-                                                <option value="">0%</option>
-                                                {taxRates.map(t => (
-                                                    <option key={t.id} value={t.id}>
-                                                        {t.name} ({Number(t.percentage)}%)
-                                                    </option>
-                                                ))}
-                                            </select>
-                                            {/* Hidden input to store the actual rate percentage for calculations */}
-                                            <input
-                                                type="hidden"
-                                                {...register(`items.${index}.taxRate`, { valueAsNumber: true })}
-                                            />
-                                        </div>
+                                        <Controller
+                                            name={`items.${index}.taxRateIds`}
+                                            control={control}
+                                            render={({ field }) => (
+                                                <MultiSelect
+                                                    options={taxRates.map(t => ({
+                                                        label: `${t.name} (${Number(t.percentage)}%)`,
+                                                        value: t.id,
+                                                        description: `Rate: ${Number(t.percentage)}%`
+                                                    }))}
+                                                    value={field.value || []}
+                                                    onChange={field.onChange}
+                                                    placeholder="0%"
+                                                    className="w-full"
+                                                    align="right"
+                                                />
+                                            )}
+                                        />
                                     </td>
                                     <td className="px-4 py-2 text-right text-[11px] font-black text-gray-900">
                                         {formatCurrency((watchItems[index]?.quantity || 0) * (watchItems[index]?.rate || 0))}

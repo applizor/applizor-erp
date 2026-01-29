@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/useToast';
-import { Plus, Trash, Loader2, Box, Scale } from 'lucide-react';
+import { Plus, Trash2, Loader2, Box, Scale } from 'lucide-react';
 import api from '@/lib/api';
 
 interface UnitType {
@@ -113,6 +113,34 @@ export default function UnitConfiguration() {
                         </button>
                     </div>
                 </form>
+
+                {/* Suggestions Section */}
+                <div className="mt-6 pt-6 border-t border-slate-100">
+                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-3">Common Suggestions</p>
+                    <div className="flex flex-wrap gap-2">
+                        {[
+                            { name: 'Service', symbol: 'srv' },
+                            { name: 'Hours', symbol: 'hr' },
+                            { name: 'Month', symbol: 'mo' },
+                            { name: 'Year', symbol: 'yr' },
+                            { name: 'Quantity', symbol: 'qty' },
+                            { name: 'Each', symbol: 'ea' },
+                            { name: 'Numbers', symbol: 'nos' }
+                        ].map((sug) => (
+                            <button
+                                key={sug.symbol}
+                                type="button"
+                                onClick={() => {
+                                    setNewName(sug.name);
+                                    setNewSymbol(sug.symbol);
+                                }}
+                                className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded text-[10px] font-bold text-slate-600 hover:border-primary-600 hover:text-primary-600 transition-all cursor-pointer"
+                            >
+                                {sug.name} ({sug.symbol})
+                            </button>
+                        ))}
+                    </div>
+                </div>
             </div>
 
             <div className="ent-card overflow-hidden">
@@ -139,7 +167,7 @@ export default function UnitConfiguration() {
                                             onClick={() => handleDelete(unit.id)}
                                             className="text-slate-400 hover:text-red-600 transition-colors"
                                         >
-                                            <Trash size={14} />
+                                            <Trash2 size={14} />
                                         </button>
                                     </td>
                                 </tr>

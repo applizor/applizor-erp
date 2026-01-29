@@ -13,6 +13,7 @@ import { Plus, Users, Clock, Zap, Search, Filter, Trash2, UserPlus, Fingerprint,
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { EmployeeListSkeleton } from '@/components/hrms/EmployeeListSkeleton';
 import PageHeader from '@/components/ui/PageHeader';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 export default function EmployeesPage() {
     const toast = useToast();
@@ -56,7 +57,7 @@ export default function EmployeesPage() {
 
                 // Find the employee record linked to this user
                 // Fallback to first record if owned scope works correctly on backend (returns only 1)
-                const mySemployee = employees.find(e => e.userId === user.id) || employees[0];
+                const mySemployee = employees.find((e: Employee) => e.userId === user.id) || employees[0];
 
                 if (mySemployee) {
                     router.push(`/hrms/employees/${mySemployee.id}`);
@@ -148,28 +149,28 @@ export default function EmployeesPage() {
                     <Filter size={12} />
                     <span className="text-[9px] font-black uppercase tracking-widest">Refinement:</span>
                 </div>
-                <select
+                <CustomSelect
+                    options={[
+                        { label: 'Division Schema', value: '' },
+                        ...departments.map(dept => ({ label: dept.name, value: dept.id }))
+                    ]}
                     value={filters.departmentId}
-                    onChange={(e) => setFilters({ ...filters, departmentId: e.target.value })}
-                    className="bg-white border border-gray-200 rounded-md px-3 py-1 text-[10px] font-black uppercase tracking-widest text-gray-900 outline-none focus:ring-1 focus:ring-primary-500 shadow-sm min-w-[140px]"
-                >
-                    <option value="">Division Schema</option>
-                    {departments.map(dept => (
-                        <option key={dept.id} value={dept.id}>{dept.name}</option>
-                    ))}
-                </select>
+                    onChange={(val) => setFilters({ ...filters, departmentId: val })}
+                    className="min-w-[160px]"
+                />
 
-                <select
+                <CustomSelect
+                    options={[
+                        { label: 'Engagement Status', value: '' },
+                        { label: 'Active Duty', value: 'active' },
+                        { label: 'On Sabbatical', value: 'on-leave' },
+                        { label: 'Inactive Cache', value: 'inactive' },
+                        { label: 'Terminated', value: 'terminated' }
+                    ]}
                     value={filters.status}
-                    onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                    className="bg-white border border-gray-200 rounded-md px-3 py-1 text-[10px] font-black uppercase tracking-widest text-gray-900 outline-none focus:ring-1 focus:ring-primary-500 shadow-sm min-w-[140px]"
-                >
-                    <option value="">Engagement Status</option>
-                    <option value="active">Active Duty</option>
-                    <option value="on-leave">On Sabbatical</option>
-                    <option value="inactive">Inactive Cache</option>
-                    <option value="terminated">Terminated</option>
-                </select>
+                    onChange={(val) => setFilters({ ...filters, status: val })}
+                    className="min-w-[160px]"
+                />
 
                 <div className="ml-auto flex items-center gap-2 px-3 py-1 bg-white border border-gray-100 rounded-md shadow-sm">
                     <Zap className="w-3 h-3 text-amber-500" />

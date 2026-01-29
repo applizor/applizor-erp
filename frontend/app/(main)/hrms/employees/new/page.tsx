@@ -8,6 +8,7 @@ import api from '@/lib/api';
 import { usePermission } from '@/hooks/usePermission';
 import AccessDenied from '@/components/AccessDenied';
 import { UserPlus, ArrowLeft, ChevronRight, Shield, Globe, CreditCard, Activity, Briefcase } from 'lucide-react';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 export default function NewEmployeePage() {
     const router = useRouter();
@@ -171,26 +172,44 @@ export default function NewEmployeePage() {
                             </div>
                             <div className="ent-form-group">
                                 <label className={labelClass}>Division Schema</label>
-                                <select value={formData.departmentId} onChange={(e) => setFormData({ ...formData, departmentId: e.target.value })} className={inputClass}>
-                                    <option value="">SELECT DIVISION</option>
-                                    {departments.map(dept => <option key={dept.id} value={dept.id}>{dept.name.toUpperCase()}</option>)}
-                                </select>
+                                <CustomSelect
+                                    value={formData.departmentId}
+                                    onChange={(val) => setFormData({ ...formData, departmentId: val })}
+                                    options={[
+                                        { label: 'SELECT DIVISION', value: '' },
+                                        ...departments.map(dept => ({ label: dept.name.toUpperCase(), value: dept.id }))
+                                    ]}
+                                    placeholder="SELECT DIVISION"
+                                    className={inputClass}
+                                />
                             </div>
                             <div className="ent-form-group">
                                 <label className={labelClass}>Designation Node</label>
-                                <select value={formData.positionId} onChange={(e) => setFormData({ ...formData, positionId: e.target.value })} disabled={!formData.departmentId} className={`${inputClass} disabled:bg-gray-50 disabled:text-gray-400`}>
-                                    <option value="">SELECT DESIGNATION</option>
-                                    {positions.map(pos => <option key={pos.id} value={pos.id}>{pos.title.toUpperCase()}</option>)}
-                                </select>
+                                <CustomSelect
+                                    value={formData.positionId}
+                                    onChange={(val) => setFormData({ ...formData, positionId: val })}
+                                    options={[
+                                        { label: 'SELECT DESIGNATION', value: '' },
+                                        ...positions.map(pos => ({ label: pos.title.toUpperCase(), value: pos.id }))
+                                    ]}
+                                    placeholder="SELECT DESIGNATION"
+                                    disabled={!formData.departmentId}
+                                    className={`${inputClass}`}
+                                />
                             </div>
                             <div className="ent-form-group">
                                 <label className={labelClass}>Engagement Status</label>
-                                <select value={formData.status} onChange={(e) => setFormData({ ...formData, status: e.target.value })} className={inputClass}>
-                                    <option value="active">ACTIVE DUTY</option>
-                                    <option value="inactive">INACTIVE CACHE</option>
-                                    <option value="on-leave">ON SABBATICAL</option>
-                                    <option value="terminated">TERMINATED</option>
-                                </select>
+                                <CustomSelect
+                                    value={formData.status}
+                                    onChange={(val) => setFormData({ ...formData, status: val })}
+                                    options={[
+                                        { label: 'ACTIVE DUTY', value: 'active' },
+                                        { label: 'INACTIVE CACHE', value: 'inactive' },
+                                        { label: 'ON SABBATICAL', value: 'on-leave' },
+                                        { label: 'TERMINATED', value: 'terminated' }
+                                    ]}
+                                    className={inputClass}
+                                />
                             </div>
                         </div>
 
@@ -231,17 +250,16 @@ export default function NewEmployeePage() {
                                     </div>
                                     <div className="ent-form-group">
                                         <label className={labelClass}>Authorization Role <span className="text-rose-500">*</span></label>
-                                        <select
-                                            required={formData.createAccount}
+                                        <CustomSelect
                                             value={formData.roleId}
-                                            onChange={(e) => setFormData({ ...formData, roleId: e.target.value })}
+                                            onChange={(val) => setFormData({ ...formData, roleId: val })}
+                                            options={[
+                                                { label: 'SELECT ROLE SCHEMA', value: '' },
+                                                ...roles.map(role => ({ label: role.name.toUpperCase(), value: role.id }))
+                                            ]}
+                                            placeholder="SELECT ROLE SCHEMA"
                                             className={inputClass}
-                                        >
-                                            <option value="">SELECT ROLE SCHEMA</option>
-                                            {roles.map(role => (
-                                                <option key={role.id} value={role.id}>{role.name.toUpperCase()}</option>
-                                            ))}
-                                        </select>
+                                        />
                                     </div>
                                     <div className="md:col-span-2 p-3 bg-primary-50 rounded border border-primary-100 flex items-center gap-3">
                                         <div className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-pulse" />
@@ -263,12 +281,18 @@ export default function NewEmployeePage() {
                         </div>
                         <div className="ent-form-group">
                             <label className={labelClass}>Gender Identity</label>
-                            <select value={formData.gender} onChange={(e) => setFormData({ ...formData, gender: e.target.value })} className={inputClass}>
-                                <option value="">SELECT OPTION</option>
-                                <option value="Male">MALE</option>
-                                <option value="Female">FEMALE</option>
-                                <option value="Other">OTHER</option>
-                            </select>
+                            <CustomSelect
+                                value={formData.gender}
+                                onChange={(val) => setFormData({ ...formData, gender: val })}
+                                options={[
+                                    { label: 'SELECT OPTION', value: '' },
+                                    { label: 'MALE', value: 'Male' },
+                                    { label: 'FEMALE', value: 'Female' },
+                                    { label: 'OTHER', value: 'Other' }
+                                ]}
+                                placeholder="SELECT OPTION"
+                                className={inputClass}
+                            />
                         </div>
                         <div className="ent-form-group">
                             <label className={labelClass}>Biological Group (Blood)</label>
@@ -276,12 +300,18 @@ export default function NewEmployeePage() {
                         </div>
                         <div className="ent-form-group">
                             <label className={labelClass}>Social Lifecycle Status</label>
-                            <select value={formData.maritalStatus} onChange={(e) => setFormData({ ...formData, maritalStatus: e.target.value })} className={inputClass}>
-                                <option value="">SELECT STATUS</option>
-                                <option value="Single">SINGLE</option>
-                                <option value="Married">MARRIED</option>
-                                <option value="Divorced">DIVORCED</option>
-                            </select>
+                            <CustomSelect
+                                value={formData.maritalStatus}
+                                onChange={(val) => setFormData({ ...formData, maritalStatus: val })}
+                                options={[
+                                    { label: 'SELECT STATUS', value: '' },
+                                    { label: 'SINGLE', value: 'Single' },
+                                    { label: 'MARRIED', value: 'Married' },
+                                    { label: 'DIVORCED', value: 'Divorced' }
+                                ]}
+                                placeholder="SELECT STATUS"
+                                className={inputClass}
+                            />
                         </div>
                     </div>
                 );
@@ -328,14 +358,20 @@ export default function NewEmployeePage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="ent-form-group">
                             <label className={labelClass}>Engagement Type</label>
-                            <select value={formData.employmentType} onChange={(e) => setFormData({ ...formData, employmentType: e.target.value })} className={inputClass}>
-                                <option value="">SELECT TYPE</option>
-                                <option value="Full Time">FULL TIME</option>
-                                <option value="Part Time">PART TIME</option>
-                                <option value="Contract">CONTRACT</option>
-                                <option value="Internship">INTERNSHIP</option>
-                                <option value="Trainee">TRAINEE</option>
-                            </select>
+                            <CustomSelect
+                                value={formData.employmentType}
+                                onChange={(val) => setFormData({ ...formData, employmentType: val })}
+                                options={[
+                                    { label: 'SELECT TYPE', value: '' },
+                                    { label: 'FULL TIME', value: 'Full Time' },
+                                    { label: 'PART TIME', value: 'Part Time' },
+                                    { label: 'CONTRACT', value: 'Contract' },
+                                    { label: 'INTERNSHIP', value: 'Internship' },
+                                    { label: 'TRAINEE', value: 'Trainee' }
+                                ]}
+                                placeholder="SELECT TYPE"
+                                className={inputClass}
+                            />
                         </div>
                         <div className="ent-form-group">
                             <label className={labelClass}>Frequency Rate (Hourly)</label>

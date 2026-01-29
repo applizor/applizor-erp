@@ -10,6 +10,7 @@ import { usePermission } from '@/hooks/usePermission';
 import AccessDenied from '@/components/AccessDenied';
 import { CurrencySelect } from '@/components/ui/CurrencySelect';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 export default function EditLeadPage() {
     const router = useRouter();
@@ -27,7 +28,6 @@ export default function EditLeadPage() {
         company: '',
         jobTitle: '',
         website: '',
-        industry: '',
         industry: '',
         value: '',
         currency: 'INR',
@@ -259,32 +259,34 @@ export default function EditLeadPage() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="ent-form-group">
                                     <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Criticality Level (Priority)</label>
-                                    <select
-                                        className="ent-input w-full"
+                                    <CustomSelect
+                                        options={[
+                                            { label: 'LOW PRIORITY', value: 'low' },
+                                            { label: 'STANDARD PROTOCOL', value: 'medium' },
+                                            { label: 'HIGH CRITICALITY', value: 'high' },
+                                            { label: 'URGENT INTERVENTION', value: 'urgent' }
+                                        ]}
                                         value={formData.priority}
-                                        onChange={(e) => handleChange('priority', e.target.value)}
-                                    >
-                                        <option value="low">LOW PRIORITY</option>
-                                        <option value="medium">STANDARD PROTOCOL</option>
-                                        <option value="high">HIGH CRITICALITY</option>
-                                        <option value="urgent">URGENT INTERVENTION</option>
-                                    </select>
+                                        onChange={(val) => handleChange('priority', val)}
+                                        className="w-full"
+                                    />
                                 </div>
                                 <div className="ent-form-group">
                                     <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Pipeline Stage</label>
-                                    <select
-                                        className="ent-input w-full"
+                                    <CustomSelect
+                                        options={[
+                                            { label: 'RAW INQUIRY', value: 'new' },
+                                            { label: 'DISCOVERY PHASE', value: 'contacted' },
+                                            { label: 'ASSESSED & QUALIFIED', value: 'qualified' },
+                                            { label: 'PRICED & PROPOSAL', value: 'proposal' },
+                                            { label: 'ACTIVE REFINING', value: 'negotiation' },
+                                            { label: 'SECURED & WON', value: 'won' },
+                                            { label: 'SHELVED & LOST', value: 'lost' }
+                                        ]}
                                         value={formData.status}
-                                        onChange={(e) => handleChange('status', e.target.value)}
-                                    >
-                                        <option value="new">RAW INQUIRY</option>
-                                        <option value="contacted">DISCOVERY PHASE</option>
-                                        <option value="qualified">ASSESSED & QUALIFIED</option>
-                                        <option value="proposal">PRICED & PROPOSAL</option>
-                                        <option value="negotiation">ACTIVE REFINING</option>
-                                        <option value="won">SECURED & WON</option>
-                                        <option value="lost">SHELVED & LOST</option>
-                                    </select>
+                                        onChange={(val) => handleChange('status', val)}
+                                        className="w-full"
+                                    />
                                 </div>
                                 <div className="ent-form-group">
                                     <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Strategic Valuation</label>
@@ -304,18 +306,19 @@ export default function EditLeadPage() {
                                 </div>
                                 <div className="ent-form-group">
                                     <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Inbound Protocol (Source)</label>
-                                    <select
-                                        className="ent-input w-full"
+                                    <CustomSelect
+                                        options={[
+                                            { label: 'DIRECT WEB PORTAL', value: 'website' },
+                                            { label: 'TRUSTED REFERRAL', value: 'referral' },
+                                            { label: 'LINKEDIN INTELLIGENCE', value: 'linkedin' },
+                                            { label: 'OUTBOUND COLD PROTOCOL', value: 'cold_call' },
+                                            { label: 'SOCIAL ARCHIVAL', value: 'social_media' },
+                                            { label: 'MISCELLANEOUS DELEGATION', value: 'other' }
+                                        ]}
                                         value={formData.source}
-                                        onChange={(e) => handleChange('source', e.target.value)}
-                                    >
-                                        <option value="website">DIRECT WEB PORTAL</option>
-                                        <option value="referral">TRUSTED REFERRAL</option>
-                                        <option value="linkedin">LINKEDIN INTELLIGENCE</option>
-                                        <option value="cold_call">OUTBOUND COLD PROTOCOL</option>
-                                        <option value="social_media">SOCIAL ARCHIVAL</option>
-                                        <option value="other">MISCELLANEOUS DELEGATION</option>
-                                    </select>
+                                        onChange={(val) => handleChange('source', val)}
+                                        className="w-full"
+                                    />
                                 </div>
                             </div>
                         </div>

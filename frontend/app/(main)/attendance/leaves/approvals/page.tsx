@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { leavesApi, leaveTypesApi } from '@/lib/api/attendance';
 import { employeesApi, Employee } from '@/lib/api/hrms';
 import { Check, X, Clock, User, Plus, Calendar, AlertCircle, AlertTriangle, XCircle, Info, Search, Filter } from 'lucide-react';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 import { useAlert } from '@/context/AlertContext';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
@@ -297,46 +298,45 @@ export default function LeaveApprovalsPage() {
                         <form onSubmit={handleAssignSubmit} className="p-5 overflow-y-auto space-y-4">
                             <div className="ent-form-group">
                                 <label className="text-xs font-bold text-gray-700 uppercase mb-1.5 block">Select Personnel *</label>
-                                <select
-                                    required
+                                <CustomSelect
                                     value={assignFormData.employeeId}
-                                    onChange={(e) => setAssignFormData({ ...assignFormData, employeeId: e.target.value })}
-                                    className="ent-input text-xs font-bold"
-                                >
-                                    <option value="">Choose an employee...</option>
-                                    {employees.map(emp => (
-                                        <option key={emp.id} value={emp.id}>{emp.firstName} {emp.lastName} ({emp.employeeId})</option>
-                                    ))}
-                                </select>
+                                    onChange={(val) => setAssignFormData({ ...assignFormData, employeeId: val })}
+                                    options={[
+                                        { label: 'Choose an employee...', value: '' },
+                                        ...employees.map(emp => ({ label: `${emp.firstName} ${emp.lastName} (${emp.employeeId})`, value: emp.id }))
+                                    ]}
+                                    placeholder="Choose an employee..."
+                                    className="w-full"
+                                />
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="ent-form-group">
                                     <label className="text-xs font-bold text-gray-700 uppercase mb-1.5 block">Leave Type *</label>
-                                    <select
-                                        required
+                                    <CustomSelect
                                         value={assignFormData.leaveTypeId}
-                                        onChange={(e) => setAssignFormData({ ...assignFormData, leaveTypeId: e.target.value })}
-                                        className="ent-input text-xs font-bold"
-                                    >
-                                        <option value="">Select type...</option>
-                                        {leaveTypes.map(t => (
-                                            <option key={t.id} value={t.id}>{t.name}</option>
-                                        ))}
-                                    </select>
+                                        onChange={(val) => setAssignFormData({ ...assignFormData, leaveTypeId: val })}
+                                        options={[
+                                            { label: 'Select type...', value: '' },
+                                            ...leaveTypes.map(t => ({ label: t.name, value: t.id }))
+                                        ]}
+                                        placeholder="Select type..."
+                                        className="w-full"
+                                    />
                                 </div>
                                 <div className="ent-form-group">
                                     <label className="text-xs font-bold text-gray-700 uppercase mb-1.5 block">Duration</label>
-                                    <select
+                                    <CustomSelect
                                         value={assignFormData.durationType}
-                                        onChange={(e) => setAssignFormData({ ...assignFormData, durationType: e.target.value as any })}
-                                        className="ent-input text-xs font-bold"
-                                    >
-                                        <option value="full">Full Day</option>
-                                        <option value="multiple">Multiple Days</option>
-                                        <option value="first_half">First Half</option>
-                                        <option value="second_half">Second Half</option>
-                                    </select>
+                                        onChange={(val) => setAssignFormData({ ...assignFormData, durationType: val as any })}
+                                        options={[
+                                            { label: 'Full Day', value: 'full' },
+                                            { label: 'Multiple Days', value: 'multiple' },
+                                            { label: 'First Half', value: 'first_half' },
+                                            { label: 'Second Half', value: 'second_half' }
+                                        ]}
+                                        className="w-full"
+                                    />
                                 </div>
                             </div>
 

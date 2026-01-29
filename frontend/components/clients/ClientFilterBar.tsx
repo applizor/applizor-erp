@@ -1,5 +1,6 @@
 import React from 'react';
 import { Filter, X } from 'lucide-react';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 interface ClientFilterBarProps {
     filters: {
@@ -21,26 +22,30 @@ export function ClientFilterBar({ filters, onFilterChange, onClearFilters }: Cli
                     Filters:
                 </div>
 
-                <select
+                <CustomSelect
                     value={filters.clientType}
-                    onChange={(e) => onFilterChange('clientType', e.target.value)}
-                    className="block rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm"
-                >
-                    <option value="">All Types</option>
-                    <option value="customer">Customer</option>
-                    <option value="vendor">Vendor</option>
-                    <option value="partner">Partner</option>
-                </select>
+                    onChange={(val) => onFilterChange('clientType', val)}
+                    options={[
+                        { label: 'All Types', value: '' },
+                        { label: 'Customer', value: 'customer' },
+                        { label: 'Vendor', value: 'vendor' },
+                        { label: 'Partner', value: 'partner' }
+                    ]}
+                    placeholder="All Types"
+                    className="w-[180px]"
+                />
 
-                <select
+                <CustomSelect
                     value={filters.status}
-                    onChange={(e) => onFilterChange('status', e.target.value)}
-                    className="block rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm"
-                >
-                    <option value="">All Status</option>
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                </select>
+                    onChange={(val) => onFilterChange('status', val)}
+                    options={[
+                        { label: 'All Status', value: '' },
+                        { label: 'Active', value: 'active' },
+                        { label: 'Inactive', value: 'inactive' }
+                    ]}
+                    placeholder="All Status"
+                    className="w-[180px]"
+                />
 
                 {hasActiveFilters && (
                     <button

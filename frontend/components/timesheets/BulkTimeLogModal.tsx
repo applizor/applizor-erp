@@ -7,7 +7,7 @@ import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
-import { Select } from '@/components/ui/Select';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 import { Textarea } from '@/components/ui/Textarea';
 import api from '@/lib/api';
 import { Loader2, Plus, Trash2, Clock, Calculator } from 'lucide-react';
@@ -118,16 +118,23 @@ export default function BulkTimeLogModal({ open, onClose, defaultEntry }: BulkTi
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
                     <div className="space-y-1.5">
                         <Label htmlFor="projectId" className="text-[10px] uppercase font-black tracking-widest text-slate-400">Project Selection</Label>
-                        <Select
-                            id="projectId"
-                            {...register('projectId', { required: true })}
-                            className={errors.projectId ? 'border-red-500' : ''}
-                        >
-                            <option value="">Select Project</option>
-                            {projects.map((p) => (
-                                <option key={p.id} value={p.id}>{p.name}</option>
-                            ))}
-                        </Select>
+                        <Controller
+                            control={control}
+                            name="projectId"
+                            rules={{ required: true }}
+                            render={({ field }) => (
+                                <CustomSelect
+                                    value={field.value}
+                                    onChange={(val) => field.onChange(val)}
+                                    options={[
+                                        { label: 'Select Project', value: '' },
+                                        ...projects.map(p => ({ label: p.name, value: p.id }))
+                                    ]}
+                                    placeholder="Select Project"
+                                    className={`w-full ${errors.projectId ? 'border-red-500' : ''}`}
+                                />
+                            )}
+                        />
                     </div>
 
                     <div className="space-y-1.5">
@@ -168,15 +175,23 @@ export default function BulkTimeLogModal({ open, onClose, defaultEntry }: BulkTi
                                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                                     <div className="md:col-span-4 space-y-1.5">
                                         <Label className="text-[9px] uppercase font-black text-slate-400">Task</Label>
-                                        <Select
-                                            {...register(`entries.${index}.taskId` as const)}
-                                            disabled={!selectedProjectId}
-                                        >
-                                            <option value="">General Work (No Task)</option>
-                                            {tasks.map((t) => (
-                                                <option key={t.id} value={t.id}>{t.title}</option>
-                                            ))}
-                                        </Select>
+                                        <Controller
+                                            control={control}
+                                            name={`entries.${index}.taskId`}
+                                            render={({ field }) => (
+                                                <CustomSelect
+                                                    value={field.value}
+                                                    onChange={(val) => field.onChange(val)}
+                                                    disabled={!selectedProjectId}
+                                                    options={[
+                                                        { label: 'General Work (No Task)', value: '' },
+                                                        ...tasks.map(t => ({ label: t.title, value: t.id }))
+                                                    ]}
+                                                    placeholder="General Work (No Task)"
+                                                    className="w-full"
+                                                />
+                                            )}
+                                        />
                                     </div>
 
                                     <div className="md:col-span-2 space-y-1.5">

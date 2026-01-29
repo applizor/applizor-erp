@@ -10,6 +10,7 @@ import { auth } from '@/lib/auth';
 import { paymentsApi, Payment } from '@/lib/api/payments';
 import { useCurrency } from '@/context/CurrencyContext';
 import { invoicesApi } from '@/lib/api/invoices';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 export default function PaymentsPage() {
   const toast = useToast();
@@ -183,20 +184,16 @@ export default function PaymentsPage() {
 
               <form onSubmit={handleCreatePaymentLink} className="space-y-5">
                 <div className="ent-form-group">
-                  <label className="ent-label">Mapped Document (Invoice) *</label>
-                  <select
-                    required
+                  <label className="ent-label">Protocol Target (Invoice) *</label>
+                  <CustomSelect
+                    options={invoices.map((invoice) => ({
+                      label: `${invoice.invoiceNumber} - ${formatCurrency(invoice.total)}`,
+                      value: invoice.id
+                    }))}
                     value={formData.invoiceId}
-                    onChange={(e) => setFormData({ ...formData, invoiceId: e.target.value })}
-                    className="ent-input"
-                  >
-                    <option value="">Select Target Invoice</option>
-                    {invoices.map((invoice) => (
-                      <option key={invoice.id} value={invoice.id}>
-                        {invoice.invoiceNumber} - {formatCurrency(invoice.total)}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => setFormData({ ...formData, invoiceId: val })}
+                    placeholder="Identify target liability..."
+                  />
                 </div>
 
                 <div className="ent-form-group">

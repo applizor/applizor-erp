@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/useToast';
-import { Plus, Trash, Loader2, Percentage } from 'lucide-react';
+import { Plus, Trash2, Loader2, Percent } from 'lucide-react';
 import api from '@/lib/api';
 
 interface TaxRate {
@@ -80,7 +80,7 @@ export default function TaxConfiguration() {
         <div className="space-y-6">
             <div className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
                 <h3 className="text-sm font-black uppercase text-slate-800 mb-4 flex items-center gap-2">
-                    <Percentage size={16} className="text-primary-600" />
+                    <Percent size={16} className="text-primary-600" />
                     New Tax Rate
                 </h3>
                 <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
@@ -128,6 +128,34 @@ export default function TaxConfiguration() {
                         </button>
                     </div>
                 </form>
+
+                {/* Suggestions Section */}
+                <div className="mt-6 pt-6 border-t border-slate-100">
+                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-3">Common Suggestions</p>
+                    <div className="flex flex-wrap gap-2">
+                        {[
+                            { name: 'GST 18%', percentage: '18', description: 'Standard GST Rate' },
+                            { name: 'GST 12%', percentage: '12', description: 'Reduced GST Rate' },
+                            { name: 'GST 5%', percentage: '5', description: 'Essential GST Rate' },
+                            { name: 'GST 28%', percentage: '28', description: 'Luxury GST Rate' },
+                            { name: 'VAT 15%', percentage: '15', description: 'Standard VAT' },
+                            { name: 'No Tax', percentage: '0', description: 'Exempt' }
+                        ].map((sug) => (
+                            <button
+                                key={sug.name}
+                                type="button"
+                                onClick={() => {
+                                    setNewName(sug.name);
+                                    setNewPercentage(sug.percentage);
+                                    setNewDescription(sug.description);
+                                }}
+                                className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded text-[10px] font-bold text-slate-600 hover:border-primary-600 hover:text-primary-600 transition-all cursor-pointer"
+                            >
+                                {sug.name}
+                            </button>
+                        ))}
+                    </div>
+                </div>
             </div>
 
             <div className="ent-card overflow-hidden">
@@ -156,7 +184,7 @@ export default function TaxConfiguration() {
                                             onClick={() => handleDelete(tax.id)}
                                             className="text-slate-400 hover:text-red-600 transition-colors"
                                         >
-                                            <Trash size={14} />
+                                            <Trash2 size={14} />
                                         </button>
                                     </td>
                                 </tr>

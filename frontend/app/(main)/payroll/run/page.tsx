@@ -9,6 +9,7 @@ import { usePermission } from '@/hooks/usePermission';
 import AccessDenied from '@/components/AccessDenied';
 import { payrollApi } from '@/lib/api/payroll';
 import { PermissionGuard } from '@/components/PermissionGuard';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 export default function RunPayrollPage() {
     const toast = useToast();
@@ -80,17 +81,15 @@ export default function RunPayrollPage() {
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-5 items-end">
                         <div className="ent-form-group">
                             <label className="text-[9px] font-black text-primary-600 mb-1.5 uppercase tracking-widest">Pay Period (Month)</label>
-                            <select
-                                value={month}
-                                onChange={(e) => setMonth(Number(e.target.value))}
-                                className="ent-input w-full p-2.5 text-[11px] font-black tracking-widest uppercase cursor-pointer"
-                            >
-                                {Array.from({ length: 12 }, (_, i) => (
-                                    <option key={i + 1} value={i + 1}>
-                                        {new Date(0, i).toLocaleString('default', { month: 'long' }).toUpperCase()}
-                                    </option>
-                                ))}
-                            </select>
+                            <CustomSelect
+                                options={Array.from({ length: 12 }, (_, i) => ({
+                                    label: new Date(0, i).toLocaleString('default', { month: 'long' }).toUpperCase(),
+                                    value: String(i + 1)
+                                }))}
+                                value={String(month)}
+                                onChange={(val) => setMonth(Number(val))}
+                                className="w-full"
+                            />
                         </div>
                         <div className="ent-form-group">
                             <label className="text-[9px] font-black text-primary-600 mb-1.5 uppercase tracking-widest">Pay Period (Year)</label>

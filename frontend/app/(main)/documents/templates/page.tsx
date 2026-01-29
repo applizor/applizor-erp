@@ -7,6 +7,9 @@ import { useEffect, useState } from 'react';
 import api from '@/lib/api';
 import { documentTemplatesApi, DocumentTemplate } from '@/lib/api/documents';
 import { useConfirm } from '@/context/ConfirmationContext';
+import { FileText, Plus, ChevronRight, Activity, Shield, Download, Trash2, UploadCloud, LayoutTemplate } from 'lucide-react';
+import { CustomSelect } from '@/components/ui/CustomSelect';
+import PageHeader from '@/components/ui/PageHeader';
 
 export default function DocumentTemplatesPage() {
     const toast = useToast();
@@ -76,69 +79,95 @@ export default function DocumentTemplatesPage() {
     };
 
     return (
-        <div className="max-w-6xl mx-auto px-4 py-8">
-            <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-bold text-gray-900">Document Templates</h1>
-                <button
-                    onClick={() => setShowForm(!showForm)}
-                    className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700"
-                >
-                    {showForm ? 'Cancel' : '+ Add Template'}
-                </button>
-            </div>
+        <div className="flex flex-col gap-6">
+            {/* Standardized Header */}
+            <PageHeader
+                title="Management Templates"
+                subtitle="Global document structure and manifestation registry"
+                icon={LayoutTemplate}
+                actions={
+                    <button
+                        onClick={() => setShowForm(!showForm)}
+                        className="btn-primary flex items-center gap-2"
+                    >
+                        {showForm ? <Trash2 size={14} /> : <Plus size={14} />}
+                        {showForm ? 'Abort Operation' : 'Register Template'}
+                    </button>
+                }
+            />
 
             {showForm && (
-                <div className="bg-white p-6 rounded-lg shadow-md mb-8 border border-gray-200">
-                    <h2 className="text-lg font-medium mb-4">Upload New Template</h2>
-                    <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="ent-card p-6 border-primary-100/50 bg-gradient-to-br from-white to-gray-50/50">
+                    <div className="flex items-start gap-4 mb-6">
+                        <div className="p-2.5 rounded-md bg-primary-900 text-white">
+                            <UploadCloud size={16} />
+                        </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700">Template Name</label>
+                            <h3 className="text-[10px] font-black text-gray-900 uppercase tracking-widest mb-1">Registration protocol</h3>
+                            <p className="text-[10px] text-gray-500 font-bold leading-relaxed max-w-2xl italic">
+                                Initialize a new strategic document template. Supported format: .DOCX. These templates serve as the digital ledger
+                                for automated generation of offer letters, contracts, and financial manifestations.
+                            </p>
+                        </div>
+                    </div>
+                    <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-12 gap-5">
+                        <div className="md:col-span-6 ent-form-group">
+                            <label className="ent-label">Template Identifier</label>
                             <input
                                 type="text" required
                                 value={name} onChange={e => setName(e.target.value)}
-                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                                placeholder="e.g. Standard Offer Letter 2024"
+                                className="ent-input"
+                                placeholder="e.g. STRATEGIC_OFFER_MANIFEST_2024"
                             />
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Type</label>
-                            <select
-                                value={type} onChange={e => setType(e.target.value)}
-                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                            >
-                                <option value="OfferLetter">Offer Letter</option>
-                                <option value="Payslip">Payslip</option>
-                                <option value="Contract">Contract</option>
-                                <option value="Invoice">Invoice</option>
-                            </select>
+                        <div className="md:col-span-6 ent-form-group">
+                            <label className="ent-label">Classification node</label>
+                            <CustomSelect
+                                options={[
+                                    { label: 'Offer Letter', value: 'OfferLetter' },
+                                    { label: 'Payslip', value: 'Payslip' },
+                                    { label: 'Contract', value: 'Contract' },
+                                    { label: 'Invoice', value: 'Invoice' }
+                                ]}
+                                value={type}
+                                onChange={val => setType(val)}
+                            />
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Letterhead Overlay</label>
-                            <select
-                                value={letterheadMode} onChange={e => setLetterheadMode(e.target.value)}
-                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-                            >
-                                <option value="NONE">None (Use Template Design)</option>
-                                <option value="FIRST_PAGE">First Page Only</option>
-                                <option value="ALL_PAGES">All Pages</option>
-                            </select>
-                            <p className="text-xs text-gray-500 mt-1">Requires Company Letterhead PDF to be configured in Settings.</p>
+                        <div className="md:col-span-6 ent-form-group">
+                            <label className="ent-label">Letterhead overlay encryption</label>
+                            <CustomSelect
+                                options={[
+                                    { label: 'None (Use Native Design)', value: 'NONE' },
+                                    { label: 'Initial Page Only', value: 'FIRST_PAGE' },
+                                    { label: 'All Global Pages', value: 'ALL_PAGES' }
+                                ]}
+                                value={letterheadMode}
+                                onChange={val => setLetterheadMode(val)}
+                            />
+                            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tight mt-1.5 italic">Requires verified company letterhead PDF in settings.</p>
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">DOCX File</label>
+                        <div className="md:col-span-6 ent-form-group">
+                            <label className="ent-label">Source manifest (.DOCX)</label>
                             <input
                                 type="file" accept=".docx" required
                                 onChange={e => setFile(e.target.files?.[0] || null)}
-                                className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
+                                className="ent-input py-1.5"
                             />
                         </div>
 
-                        <div className="md:col-span-2 flex justify-end">
+                        <div className="md:col-span-12 flex justify-end gap-3 pt-4 border-t border-gray-100">
+                            <button
+                                type="button" onClick={() => setShowForm(false)}
+                                className="ent-button-secondary"
+                            >
+                                Abort
+                            </button>
                             <button
                                 type="submit" disabled={submitting}
-                                className="bg-primary-600 text-white px-6 py-2 rounded-md hover:bg-primary-700 disabled:opacity-50"
+                                className="btn-primary"
                             >
-                                {submitting ? 'Uploading...' : 'Save Template'}
+                                {submitting ? <LoadingSpinner size="sm" className="mr-2" /> : <UploadCloud size={14} className="mr-2" />}
+                                {submitting ? 'Executing Upload...' : 'Commit Template'}
                             </button>
                         </div>
                     </form>
@@ -146,32 +175,58 @@ export default function DocumentTemplatesPage() {
             )}
 
             {loading ? (
-                <div className="text-center py-8">Loading...</div>
+                <div className="p-20 flex flex-col items-center justify-center animate-pulse">
+                    <LoadingSpinner size="lg" />
+                    <p className="mt-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Synchronizing Template Intelligence...</p>
+                </div>
             ) : templates.length === 0 ? (
-                <div className="text-center py-12 bg-white rounded-lg border border-dashed border-gray-300 text-gray-500">
-                    No templates found. Upload your first DOCX template.
+                <div className="p-20 flex flex-col items-center justify-center bg-gray-50/50 rounded-md border border-dashed border-gray-200">
+                    <Shield size={40} className="text-gray-300 mb-4" />
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Zero document nodes detected. Initialize first registry.</p>
                 </div>
             ) : (
-                <div className="bg-white shadow overflow-hidden sm:rounded-md border border-gray-200">
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
+                <div className="ent-card overflow-hidden">
+                    <table className="ent-table">
+                        <thead>
                             <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mode</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                <th>Template Identity</th>
+                                <th>Classification</th>
+                                <th>Overlay Protocol</th>
+                                <th>Activation Date</th>
+                                <th className="text-right">Operations</th>
                             </tr>
                         </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
+                        <tbody>
                             {templates.map(t => (
                                 <tr key={t.id}>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{t.name}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{t.type}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{t.letterheadMode}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(t.createdAt).toLocaleDateString()}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                        <button onClick={() => handleDelete(t.id)} className="text-red-600 hover:text-red-900">Delete</button>
+                                    <td>
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 rounded bg-gray-50 text-primary-600 border border-gray-100">
+                                                <FileText size={14} />
+                                            </div>
+                                            <span className="text-[11px] font-black text-gray-900 uppercase tracking-tight">{t.name}</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-100 text-[8px] font-black uppercase tracking-widest">
+                                            {t.type}
+                                        </span>
+                                    </td>
+                                    <td className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                                        {t.letterheadMode}
+                                    </td>
+                                    <td className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                                        {new Date(t.createdAt).toLocaleDateString()}
+                                    </td>
+                                    <td className="text-right">
+                                        <div className="flex justify-end px-2">
+                                            <button
+                                                onClick={() => handleDelete(t.id)}
+                                                className="text-[9px] font-black text-gray-300 hover:text-rose-600 uppercase tracking-widest transition-colors"
+                                            >
+                                                Purge template
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}

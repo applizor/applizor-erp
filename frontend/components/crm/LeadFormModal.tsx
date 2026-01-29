@@ -5,6 +5,7 @@ import { X, Check } from 'lucide-react';
 import api from '@/lib/api';
 import { useToast } from '@/hooks/useToast';
 import { useCurrency } from '@/context/CurrencyContext';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 interface LeadFormModalProps {
     isOpen: boolean;
@@ -211,17 +212,17 @@ export default function LeadFormModal({ isOpen, onClose, onSuccess, lead }: Lead
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
                                         <label htmlFor="priority" className="block text-sm font-medium text-gray-700">Priority</label>
-                                        <select
-                                            id="priority"
-                                            className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md capitalize"
+                                        <CustomSelect
+                                            options={[
+                                                { label: 'Low', value: 'low' },
+                                                { label: 'Medium', value: 'medium' },
+                                                { label: 'High', value: 'high' },
+                                                { label: 'Urgent', value: 'urgent' }
+                                            ]}
                                             value={formData.priority}
-                                            onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-                                        >
-                                            <option value="low">Low</option>
-                                            <option value="medium">Medium</option>
-                                            <option value="high">High</option>
-                                            <option value="urgent">Urgent</option>
-                                        </select>
+                                            onChange={(val) => setFormData({ ...formData, priority: val })}
+                                            className="w-full"
+                                        />
                                     </div>
                                     <div>
                                         <label htmlFor="value" className="block text-sm font-medium text-gray-700">Estimated Value ({currency})</label>
@@ -241,19 +242,19 @@ export default function LeadFormModal({ isOpen, onClose, onSuccess, lead }: Lead
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
                                         <label htmlFor="source" className="block text-sm font-medium text-gray-700">Source</label>
-                                        <select
-                                            id="source"
-                                            className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
+                                        <CustomSelect
+                                            options={[
+                                                { label: 'Website', value: 'website' },
+                                                { label: 'Referral', value: 'referral' },
+                                                { label: 'LinkedIn', value: 'linkedin' },
+                                                { label: 'Cold Call', value: 'cold_call' },
+                                                { label: 'Social Media', value: 'social_media' },
+                                                { label: 'Other', value: 'other' }
+                                            ]}
                                             value={formData.source}
-                                            onChange={(e) => setFormData({ ...formData, source: e.target.value })}
-                                        >
-                                            <option value="website">Website</option>
-                                            <option value="referral">Referral</option>
-                                            <option value="linkedin">LinkedIn</option>
-                                            <option value="cold_call">Cold Call</option>
-                                            <option value="social_media">Social Media</option>
-                                            <option value="other">Other</option>
-                                        </select>
+                                            onChange={(val) => setFormData({ ...formData, source: val })}
+                                            className="w-full"
+                                        />
                                     </div>
                                     <div>
                                         <label htmlFor="sourceDetails" className="block text-sm font-medium text-gray-700">Source Details</label>

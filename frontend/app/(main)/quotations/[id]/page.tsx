@@ -402,9 +402,11 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
                                 <table className="min-w-full">
                                     <thead>
                                         <tr className="border-b-2 border-gray-100">
-                                            <th className="px-2 py-3 text-left text-xs font-black text-gray-400 uppercase tracking-wider w-1/2">Description</th>
+                                            <th className="px-2 py-3 text-left text-xs font-black text-gray-400 uppercase tracking-wider w-1/3">Description</th>
                                             <th className="px-2 py-3 text-right text-xs font-black text-gray-400 uppercase tracking-wider">Qty</th>
+                                            <th className="px-2 py-3 text-right text-xs font-black text-gray-400 uppercase tracking-wider">UoM</th>
                                             <th className="px-2 py-3 text-right text-xs font-black text-gray-400 uppercase tracking-wider">Rate</th>
+                                            <th className="px-2 py-3 text-right text-xs font-black text-gray-400 uppercase tracking-wider">Tax</th>
                                             <th className="px-2 py-3 text-right text-xs font-black text-gray-400 uppercase tracking-wider">Amount</th>
                                         </tr>
                                     </thead>
@@ -418,7 +420,13 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
                                                     {Number(item.quantity)}
                                                 </td>
                                                 <td className="px-2 py-4 text-right text-sm font-medium text-gray-600">
+                                                    {item.unit || '-'}
+                                                </td>
+                                                <td className="px-2 py-4 text-right text-sm font-medium text-gray-600">
                                                     {formatCurrency(item.unitPrice)}
+                                                </td>
+                                                <td className="px-2 py-4 text-right text-sm font-medium text-gray-600">
+                                                    {Number(item.tax)}%
                                                 </td>
                                                 <td className="px-2 py-4 text-right text-sm font-bold text-gray-900">
                                                     {formatCurrency(Number(item.quantity) * Number(item.unitPrice))}

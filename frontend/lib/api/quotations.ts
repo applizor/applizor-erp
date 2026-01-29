@@ -4,7 +4,10 @@ export interface QuotationHiearchyItem {
     description: string;
     quantity: number;
     unitPrice: number;
-    tax: number;
+    unit?: string;
+    tax?: number;
+    taxRateId?: string;
+    taxRateIds?: string[];
     discount: number;
     total: number;
 }

@@ -2,6 +2,7 @@ import cron from 'node-cron';
 import prisma from '../prisma/client';
 import { sendQuotationReminder } from './email.service';
 import { leaveAccrualService } from './leave-accrual.service';
+import { invoiceService } from './invoice.service';
 import { generatePublicLink } from '../controllers/quotation-public.controller'; // Careful: this might be a controller function
 // We might need to implement logic to get/generate valid public token without controller req/res
 
@@ -26,6 +27,22 @@ export class SchedulerService {
             console.log('⏰ Running daily probation check...');
             await leaveAccrualService.processProbationConfirmations();
         });
+
+        // Recurring Invoices: Run daily at 01:00
+        cron.schedule('0 1 * * *', async () => {
+            console.log('⏰ Running daily recurring invoice generation...');
+            await this.processRecurringInvoices();
+        });
+    }
+
+    static async processRecurringInvoices() {
+        try {
+            console.log('[Scheduler] Processing recurring invoices...');
+            const results = await invoiceService.processRecurringInvoices();
+            console.log(`[Scheduler] Processed ${results.length} recurring invoices.`);
+        } catch (error) {
+            console.error('[Scheduler] Error processing recurring invoices:', error);
+        }
     }
 
     static async processQuotationReminders() {

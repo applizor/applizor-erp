@@ -1,5 +1,5 @@
-import React from 'react';
-import { Filter, X, ChevronDown } from 'lucide-react';
+import { CustomSelect } from '@/components/ui/CustomSelect';
+import { Filter, X } from 'lucide-react';
 
 interface LeadFilterBarProps {
     filters: {
@@ -23,51 +23,54 @@ export function LeadFilterBar({ filters, onFilterChange, onClearFilters }: LeadF
 
             <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-2 w-full">
                 <div className="relative">
-                    <select
+                    <CustomSelect
                         value={filters.status}
-                        onChange={(e) => onFilterChange('status', e.target.value)}
-                        className="ent-input w-full py-1.5 text-[10px] font-bold uppercase tracking-wide appearance-none"
-                    >
-                        <option value="">Status: All</option>
-                        <option value="new">Raw Inquiry</option>
-                        <option value="contacted">Discovery</option>
-                        <option value="qualified">Qualified</option>
-                        <option value="proposal">Proposal</option>
-                        <option value="negotiation">Negotiation</option>
-                        <option value="won">Secured</option>
-                        <option value="lost">Shelved</option>
-                    </select>
-                    <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                        onChange={(val) => onFilterChange('status', val)}
+                        options={[
+                            { label: 'Status: All', value: '' },
+                            { label: 'Raw Inquiry', value: 'new' },
+                            { label: 'Discovery', value: 'contacted' },
+                            { label: 'Qualified', value: 'qualified' },
+                            { label: 'Proposal', value: 'proposal' },
+                            { label: 'Negotiation', value: 'negotiation' },
+                            { label: 'Secured', value: 'won' },
+                            { label: 'Shelved', value: 'lost' }
+                        ]}
+                        placeholder="Status: All"
+                        className="w-full"
+                    />
                 </div>
 
                 <div className="relative">
-                    <select
+                    <CustomSelect
                         value={filters.priority}
-                        onChange={(e) => onFilterChange('priority', e.target.value)}
-                        className="ent-input w-full py-1.5 text-[10px] font-bold uppercase tracking-wide appearance-none"
-                    >
-                        <option value="">Priority: All</option>
-                        <option value="low">Low</option>
-                        <option value="medium">Standard</option>
-                        <option value="high">Critical</option>
-                    </select>
-                    <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                        onChange={(val) => onFilterChange('priority', val)}
+                        options={[
+                            { label: 'Priority: All', value: '' },
+                            { label: 'Low', value: 'low' },
+                            { label: 'Standard', value: 'medium' },
+                            { label: 'Critical', value: 'high' }
+                        ]}
+                        placeholder="Priority: All"
+                        className="w-full"
+                    />
                 </div>
 
                 <div className="relative">
-                    <select
+                    <CustomSelect
                         value={filters.source}
-                        onChange={(e) => onFilterChange('source', e.target.value)}
-                        className="ent-input w-full py-1.5 text-[10px] font-bold uppercase tracking-wide appearance-none"
-                    >
-                        <option value="">Source: All</option>
-                        <option value="website">Web Portal</option>
-                        <option value="referral">Referral</option>
-                        <option value="linkedin">LinkedIn</option>
-                        <option value="cold_call">Cold Protocol</option>
-                        <option value="other">Misc.</option>
-                    </select>
-                    <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                        onChange={(val) => onFilterChange('source', val)}
+                        options={[
+                            { label: 'Source: All', value: '' },
+                            { label: 'Web Portal', value: 'website' },
+                            { label: 'Referral', value: 'referral' },
+                            { label: 'LinkedIn', value: 'linkedin' },
+                            { label: 'Cold Protocol', value: 'cold_call' },
+                            { label: 'Misc.', value: 'other' }
+                        ]}
+                        placeholder="Source: All"
+                        className="w-full"
+                    />
                 </div>
             </div>
 

@@ -5,7 +5,7 @@ export interface InvoiceItemInput {
     description: string;
     quantity: number;
     rate: number;
-    taxRate?: number;
+    taxRateIds?: string[]; // Multiple tax rates
     hsnCode?: string;
 }
 
@@ -14,43 +14,67 @@ export interface CreateInvoiceInput {
     clientId: string;
     invoiceDate: Date;
     dueDate: Date;
-    items: InvoiceItemInput[];
+    items: (InvoiceItemInput & { unit?: string; taxRateId?: string })[];
     currency?: string;
     notes?: string;
     terms?: string;
     discount?: number;
     type?: string;
+    projectId?: string;
     isRecurring?: boolean;
     recurringInterval?: string;
-    nextOccurrence?: Date;
+    recurringStartDate?: Date;
+    recurringEndDate?: Date;
+    recurringNextRun?: Date;
 }
 
 export class InvoiceService {
     /**
      * Create a new invoice with its items
      */
-    static async createInvoice(data: CreateInvoiceInput) {
+    async createInvoice(data: CreateInvoiceInput) {
         // Explicitly remove createdBy if present in the input (even if not in interface)
         const { items: rawItems, createdBy, ...invoiceData } = data as any;
-        const items = rawItems as InvoiceItemInput[];
+        const items = rawItems as (InvoiceItemInput & { unit?: string; taxRateId?: string })[];
 
         // Ensure dates are valid Date objects
         const invoiceDate = new Date(invoiceData.invoiceDate);
         const dueDate = new Date(invoiceData.dueDate);
 
-        // Calculate subtotal and totax tax
+        // Calculate subtotal and total tax
         let subtotal = 0;
         let totalTax = 0;
 
+        const taxRates = await prisma.taxRate.findMany({
+            where: {
+                id: { in: items.flatMap(item => item.taxRateIds || []) }
+            }
+        });
+
         const processedItems = items.map(item => {
             const amount = Number(item.quantity) * Number(item.rate);
-            const itemTax = amount * ((item.taxRate || 0) / 100);
+            let itemTotalTax = 0;
+
+            const appliedTaxes = (item.taxRateIds || []).map(taxId => {
+                const taxConfig = taxRates.find(t => t.id === taxId);
+                const taxPercentage = taxConfig ? Number(taxConfig.percentage) : 0;
+                const taxAmount = amount * (taxPercentage / 100);
+                itemTotalTax += taxAmount;
+                return {
+                    taxRateId: taxId,
+                    name: taxConfig?.name || 'Tax',
+                    percentage: new Decimal(taxPercentage),
+                    amount: new Decimal(taxAmount)
+                };
+            });
+
             subtotal += amount;
-            totalTax += itemTax;
+            totalTax += itemTotalTax;
+
             return {
                 ...item,
                 amount: new Decimal(amount),
-                taxRate: new Decimal(item.taxRate || 0)
+                appliedTaxes
             };
         });
 
@@ -84,9 +108,22 @@ export class InvoiceService {
                         status: invoiceData.type === 'quotation' ? 'sent' : 'draft',
                         isRecurring: invoiceData.isRecurring || false,
                         recurringInterval: invoiceData.recurringInterval,
-                        nextOccurrence: invoiceData.nextOccurrence,
+                        recurringStartDate: invoiceData.recurringStartDate ? new Date(invoiceData.recurringStartDate) : undefined,
+                        recurringEndDate: invoiceData.recurringEndDate ? new Date(invoiceData.recurringEndDate) : undefined,
+                        recurringNextRun: invoiceData.recurringNextRun ? new Date(invoiceData.recurringNextRun) : (invoiceData.isRecurring ? new Date(invoiceData.recurringStartDate || Date.now()) : undefined),
+                        recurringStatus: invoiceData.isRecurring ? 'active' : undefined,
                         items: {
-                            create: processedItems
+                            create: processedItems.map(item => ({
+                                description: item.description,
+                                quantity: new Decimal(item.quantity),
+                                rate: new Decimal(item.rate),
+                                unit: item.unit,
+                                amount: item.amount,
+                                hsnCode: item.hsnCode,
+                                appliedTaxes: {
+                                    create: item.appliedTaxes
+                                }
+                            }))
                         }
                     },
                     include: {
@@ -189,15 +226,24 @@ export class InvoiceService {
     /**
      * Process all recurring invoices that are due for generation
      */
-    static async processRecurringInvoices() {
+    async processRecurringInvoices() {
         const today = new Date();
         const dueInvoices = await prisma.invoice.findMany({
             where: {
                 isRecurring: true,
+                recurringStatus: 'active',
                 nextOccurrence: { lte: today },
+                OR: [
+                    { recurringEndDate: null },
+                    { recurringEndDate: { gte: today } }
+                ]
             },
             include: {
-                items: true,
+                items: {
+                    include: {
+                        appliedTaxes: true
+                    }
+                },
             }
         });
 
@@ -214,8 +260,9 @@ export class InvoiceService {
                         description: item.description,
                         quantity: Number(item.quantity),
                         rate: Number(item.rate),
-                        taxRate: Number(item.taxRate),
-                        hsnCode: item.hsnCode || undefined
+                        taxRateIds: item.appliedTaxes.map(at => at.taxRateId),
+                        hsnCode: item.hsnCode || undefined,
+                        unit: item.unit || undefined
                     })),
                     currency: source.currency,
                     notes: source.notes || undefined,
@@ -225,12 +272,13 @@ export class InvoiceService {
                 });
 
                 // Update the source invoice's next occurrence
-                const nextDate = this.calculateNextOccurrence(source.nextOccurrence || new Date(), source.recurringInterval || 'monthly');
+                const nextDate = this.calculateNextOccurrence(source.recurringNextRun || source.nextOccurrence || new Date(), source.recurringInterval || 'monthly');
 
                 await prisma.invoice.update({
                     where: { id: source.id },
                     data: {
-                        nextOccurrence: nextDate,
+                        recurringNextRun: nextDate,
+                        nextOccurrence: nextDate, // Keep both in sync for now
                     }
                 });
 
@@ -242,7 +290,7 @@ export class InvoiceService {
         return results;
     }
 
-    private static calculateNextOccurrence(startDate: Date, interval: string): Date {
+    private calculateNextOccurrence(startDate: Date, interval: string): Date {
         const date = new Date(startDate);
         switch (interval.toLowerCase()) {
             case 'daily': date.setDate(date.getDate() + 1); break;
@@ -258,11 +306,17 @@ export class InvoiceService {
     /**
      * Convert a quotation into a full invoice
      */
-    static async convertQuotationToInvoice(quotationId: string) {
+    async convertQuotationToInvoice(quotationId: string) {
         // Correctly fetch from Quotation model
         const quotation = await prisma.quotation.findUnique({
             where: { id: quotationId },
-            include: { items: true }
+            include: {
+                items: {
+                    include: {
+                        appliedTaxes: true
+                    }
+                }
+            }
         });
 
         if (!quotation) {
@@ -281,22 +335,13 @@ export class InvoiceService {
             clientId: quotation.clientId || '', // Handle optional clientId
             invoiceDate: new Date(),
             dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000), // Default 15 days for converted
-            items: quotation.items.map(item => {
-                const quantity = Number(item.quantity);
-                const rate = Number(item.unitPrice);
-                const taxAmount = Number(item.tax);
-                // Calculate tax rate percentage from tax amount
-                const taxableAmount = quantity * rate;
-                const taxRate = taxableAmount > 0 ? (taxAmount / taxableAmount) * 100 : 0;
-
-                return {
-                    description: item.description,
-                    quantity: quantity,
-                    rate: rate,
-                    taxRate: taxRate,
-                    // hsnCode not present in QuotationItem
-                };
-            }),
+            items: quotation.items.map(item => ({
+                description: item.description,
+                quantity: Number(item.quantity),
+                rate: Number(item.unitPrice),
+                taxRateIds: item.appliedTaxes.map(at => at.taxRateId),
+                unit: item.unit || undefined
+            })),
             currency: quotation.currency,
             notes: quotation.notes || undefined,
             terms: quotation.paymentTerms || undefined, // Map paymentTerms to terms
@@ -348,28 +393,49 @@ export class InvoiceService {
     /**
      * Update an existing invoice
      */
-    static async updateInvoice(id: string, data: CreateInvoiceInput) {
+    async updateInvoice(id: string, data: CreateInvoiceInput) {
         // Explicitly remove createdBy if present in the input
         const { items: rawItems, createdBy, ...invoiceData } = data as any;
-        const items = rawItems as InvoiceItemInput[];
+        const items = rawItems as (InvoiceItemInput & { unit?: string })[];
 
         // Ensure dates are valid Date objects
         const invoiceDate = new Date(invoiceData.invoiceDate);
         const dueDate = new Date(invoiceData.dueDate);
 
-        // Calculate subtotal and totax tax
+        // Calculate subtotal and total tax
         let subtotal = 0;
         let totalTax = 0;
 
+        const taxRates = await prisma.taxRate.findMany({
+            where: {
+                id: { in: items.flatMap(item => item.taxRateIds || []) }
+            }
+        });
+
         const processedItems = items.map(item => {
             const amount = Number(item.quantity) * Number(item.rate);
-            const itemTax = amount * ((item.taxRate || 0) / 100);
+            let itemTotalTax = 0;
+
+            const appliedTaxes = (item.taxRateIds || []).map(taxId => {
+                const taxConfig = taxRates.find(t => t.id === taxId);
+                const taxPercentage = taxConfig ? Number(taxConfig.percentage) : 0;
+                const taxAmount = amount * (taxPercentage / 100);
+                itemTotalTax += taxAmount;
+                return {
+                    taxRateId: taxId,
+                    name: taxConfig?.name || 'Tax',
+                    percentage: new Decimal(taxPercentage),
+                    amount: new Decimal(taxAmount)
+                };
+            });
+
             subtotal += amount;
-            totalTax += itemTax;
+            totalTax += itemTotalTax;
+
             return {
                 ...item,
                 amount: new Decimal(amount),
-                taxRate: new Decimal(item.taxRate || 0)
+                appliedTaxes
             };
         });
 
@@ -397,7 +463,17 @@ export class InvoiceService {
                         recurringInterval: invoiceData.recurringInterval,
                         nextOccurrence: invoiceData.nextOccurrence,
                         items: {
-                            create: processedItems
+                            create: processedItems.map(item => ({
+                                description: item.description,
+                                quantity: new Decimal(item.quantity),
+                                rate: new Decimal(item.rate),
+                                unit: item.unit,
+                                amount: item.amount,
+                                hsnCode: item.hsnCode,
+                                appliedTaxes: {
+                                    create: item.appliedTaxes
+                                }
+                            }))
                         }
                     },
                     include: {
@@ -426,3 +502,5 @@ export class InvoiceService {
         }
     }
 }
+
+export const invoiceService = new InvoiceService();

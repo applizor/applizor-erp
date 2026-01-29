@@ -21,6 +21,7 @@ import {
     RefreshCw,
     X
 } from 'lucide-react';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 import { usePermission } from '@/hooks/usePermission';
 // import { RosterGrid } from './components/RosterGrid';
 import { useConfirm } from '@/context/ConfirmationContext';
@@ -359,16 +360,17 @@ export default function RosterPage() {
                                             <td key={dateKey} className="p-1 px-1.5 border-r last:border-r-0 border-gray-50">
                                                 <div className="relative">
                                                     {(can('ShiftRoster', 'create') || can('ShiftRoster', 'update')) && !isLeave ? (
-                                                        <select
+                                                        <CustomSelect
                                                             value={shiftId}
-                                                            onChange={(e) => handleShiftChange(emp.id, day, e.target.value)}
-                                                            className={`w-full text-[10px] rounded border py-2.5 outline-none appearance-none cursor-pointer transition-all text-center pr-0 ${cellStyle} focus:ring-1 focus:ring-primary-500 hover:shadow-inner`}
-                                                        >
-                                                            <option value="" className="bg-white text-gray-400">REST</option>
-                                                            {shifts.map(s => (
-                                                                <option key={s.id} value={s.id} className="bg-white uppercase font-bold text-slate-900">{s.name}</option>
-                                                            ))}
-                                                        </select>
+                                                            onChange={(val) => handleShiftChange(emp.id, day, val)}
+                                                            options={[
+                                                                { label: 'REST', value: '' },
+                                                                ...shifts.map(s => ({ label: s.name, value: s.id }))
+                                                            ]}
+                                                            className={`w-full min-w-[100px] ${cellStyle}`}
+                                                            placeholder="REST"
+                                                            align="left"
+                                                        />
                                                     ) : (
                                                         <div className={`w-full py-2.5 rounded border text-[10px] text-center select-none uppercase tracking-tighter ${cellStyle}`}>
                                                             {displayContent || (day.getDay() === 0 || day.getDay() === 6 ? 'W/OFF' : 'OFF')}

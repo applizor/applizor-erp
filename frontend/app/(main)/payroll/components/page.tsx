@@ -6,8 +6,9 @@ import { useConfirm } from '@/context/ConfirmationContext';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Edit2, Trash2, DollarSign, Percent, Archive, CheckCircle } from 'lucide-react';
+import { Plus, Edit2, Trash2, DollarSign, Percent, Archive, CheckCircle, Settings2, ChevronRight, Activity } from 'lucide-react';
 import { payrollApi, SalaryComponent } from '@/lib/api/payroll';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 export default function SalaryComponentsPage() {
     const toast = useToast();
@@ -92,30 +93,44 @@ export default function SalaryComponentsPage() {
 
     return (
         <div className="p-6">
-            <div className="flex justify-between items-center mb-6">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-800">Salary Components</h1>
-                    <p className="text-gray-500">Define global earnings and deductions structure</p>
+            {/* Semantic Header Component */}
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-5 rounded-md border border-gray-200 shadow-sm gap-4 mb-6">
+                <div className="flex items-center gap-4">
+                    <div className="p-2.5 bg-primary-900 rounded-md shadow-lg">
+                        <Settings2 className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                        <h2 className="text-lg font-black text-gray-900 tracking-tight leading-none uppercase">Structure configuration</h2>
+                        <p className="text-[10px] text-gray-500 font-bold mt-1.5 uppercase tracking-widest flex items-center gap-2">
+                            Global Remuneration Schema <ChevronRight size={10} className="text-primary-600" /> Component Repository
+                        </p>
+                    </div>
                 </div>
-                <button
-                    onClick={() => handleOpenModal()}
-                    className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                    <Plus size={20} />
-                    Add Component
-                </button>
+
+                <div className="flex items-center gap-3">
+                    <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-gray-50 border border-gray-100 rounded-md text-[10px] font-black uppercase tracking-widest text-gray-400">
+                        <Activity size={12} />
+                        <span>Active structures: {components.filter(c => c.isActive).length}</span>
+                    </div>
+                    <button
+                        onClick={() => handleOpenModal()}
+                        className="btn-primary flex items-center gap-2"
+                    >
+                        <Plus size={14} /> Register component
+                    </button>
+                </div>
             </div>
 
             <div className="bg-white rounded-md shadow-sm border border-gray-100 overflow-hidden">
-                <table className="w-full text-left border-collapse">
+                <table className="ent-table">
                     <thead>
-                        <tr className="bg-gray-50 border-b border-gray-200">
-                            <th className="p-4 font-semibold text-gray-600">Name</th>
-                            <th className="p-4 font-semibold text-gray-600">Type</th>
-                            <th className="p-4 font-semibold text-gray-600">Calculation</th>
-                            <th className="p-4 font-semibold text-gray-600">Default Value</th>
-                            <th className="p-4 font-semibold text-gray-600">Status</th>
-                            <th className="p-4 font-semibold text-gray-600 text-right">Actions</th>
+                        <tr>
+                            <th>Component Identity</th>
+                            <th>Classification</th>
+                            <th>Valuation Protocol</th>
+                            <th>Default Magnitude</th>
+                            <th>Lifecycle Status</th>
+                            <th className="text-right">Operations</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -128,47 +143,41 @@ export default function SalaryComponentsPage() {
                         ) : (
                             components.map((comp) => (
                                 <tr key={comp.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
-                                    <td className="p-4 font-medium text-gray-800">{comp.name}</td>
+                                    <td className="p-4 font-black text-gray-900 uppercase tracking-tight text-xs">{comp.name}</td>
                                     <td className="p-4">
-                                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${comp.type === 'earning'
-                                            ? 'bg-green-100 text-green-700'
-                                            : 'bg-red-100 text-red-700'
+                                        <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest border ${comp.type === 'earning'
+                                            ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                                            : 'bg-rose-50 text-rose-700 border-rose-100'
                                             }`}>
-                                            {comp.type.toUpperCase()}
+                                            {comp.type}
                                         </span>
                                     </td>
-                                    <td className="p-4 text-gray-600 flex items-center gap-2">
-                                        {comp.calculationType === 'flat' ? <DollarSign size={16} /> : <Percent size={16} />}
-                                        {comp.calculationType === 'flat' ? 'Flat Amount' : '% of Basic'}
+                                    <td className="p-4 text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1.5 pt-6">
+                                        {comp.calculationType === 'flat' ? <DollarSign size={12} className="text-primary-600" /> : <Percent size={12} className="text-primary-600" />}
+                                        {comp.calculationType === 'flat' ? 'Direct Value' : 'Percentage Override'}
                                     </td>
-                                    <td className="p-4 text-gray-800 font-mono">
+                                    <td className="p-4 text-xs font-black text-gray-900">
                                         {comp.defaultValue}
                                         {comp.calculationType === 'percentage_basic' && '%'}
                                     </td>
                                     <td className="p-4">
-                                        {comp.isActive ? (
-                                            <span className="flex items-center gap-1 text-green-600 text-sm">
-                                                <CheckCircle size={14} /> Active
-                                            </span>
-                                        ) : (
-                                            <span className="flex items-center gap-1 text-gray-400 text-sm">
-                                                <Archive size={14} /> Inactive
-                                            </span>
-                                        )}
+                                        <span className={`ent-badge ${comp.isActive ? 'ent-badge-success' : 'ent-badge-neutral'}`}>
+                                            {comp.isActive ? 'OPERATIONAL' : 'ARCHIVED'}
+                                        </span>
                                     </td>
                                     <td className="p-4 text-right">
-                                        <div className="flex items-center justify-end gap-2">
+                                        <div className="flex items-center justify-end gap-3 px-2">
                                             <button
                                                 onClick={() => handleOpenModal(comp)}
-                                                className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                                                className="text-[9px] font-black text-primary-600 uppercase tracking-widest hover:text-primary-800 transition-colors"
                                             >
-                                                <Edit2 size={18} />
+                                                Adjust
                                             </button>
                                             <button
                                                 onClick={() => handleDelete(comp.id)}
-                                                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
+                                                className="text-[9px] font-black text-gray-300 hover:text-rose-600 uppercase tracking-widest transition-colors"
                                             >
-                                                <Trash2 size={18} />
+                                                Purge
                                             </button>
                                         </div>
                                     </td>
@@ -181,88 +190,90 @@ export default function SalaryComponentsPage() {
 
             {/* Modal */}
             {isModalOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-md w-full max-w-md p-6 shadow-xl animate-scale-in">
-                        <h2 className="text-xl font-bold mb-4">
-                            {editingComponent ? 'Edit Component' : 'New Component'}
-                        </h2>
-                        <form onSubmit={handleSubmit} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Component Name</label>
+                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
+                    <div className="ent-card max-w-sm w-full animate-in fade-in zoom-in duration-300 p-0 overflow-hidden">
+                        <div className="px-6 py-4 border-b border-slate-50 bg-slate-50/30">
+                            <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">
+                                {editingComponent ? 'Modify Component Node' : 'Register New Structure'}
+                            </h3>
+                        </div>
+                        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                            <div className="ent-form-group">
+                                <label className="ent-label">Component Identifier</label>
                                 <input
                                     type="text"
                                     required
-                                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                                    placeholder="e.g. Basic Salary, HRA"
+                                    className="ent-input"
+                                    placeholder="e.g. BASIC_SALARY_MANIFEST"
                                     value={formData.name}
                                     onChange={e => setFormData({ ...formData, name: e.target.value })}
                                 />
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-                                    <select
-                                        className="w-full p-2 border border-gray-300 rounded-lg outline-none"
-                                        value={formData.type}
-                                        onChange={e => setFormData({ ...formData, type: e.target.value as 'earning' | 'deduction' })}
-                                    >
-                                        <option value="earning">Earning (+)</option>
-                                        <option value="deduction">Deduction (-)</option>
-                                    </select>
+                                <div className="ent-form-group">
+                                    <label className="ent-label">Classification</label>
+                                    <CustomSelect
+                                        options={[
+                                            { label: 'Earning (+)', value: 'earning' },
+                                            { label: 'Deduction (-)', value: 'deduction' }
+                                        ]}
+                                        value={formData.type || 'earning'}
+                                        onChange={val => setFormData({ ...formData, type: val as 'earning' | 'deduction' })}
+                                    />
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Calculation</label>
-                                    <select
-                                        className="w-full p-2 border border-gray-300 rounded-lg outline-none"
-                                        value={formData.calculationType}
-                                        onChange={e => setFormData({ ...formData, calculationType: e.target.value as 'flat' | 'percentage_basic' })}
-                                    >
-                                        <option value="flat">Flat Amount</option>
-                                        <option value="percentage_basic">% of Basic</option>
-                                    </select>
+                                <div className="ent-form-group">
+                                    <label className="ent-label">Valuation Protocol</label>
+                                    <CustomSelect
+                                        options={[
+                                            { label: 'Direct Value', value: 'flat' },
+                                            { label: '% Override', value: 'percentage_basic' }
+                                        ]}
+                                        value={formData.calculationType || 'flat'}
+                                        onChange={val => setFormData({ ...formData, calculationType: val as 'flat' | 'percentage_basic' })}
+                                    />
                                 </div>
                             </div>
 
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    {formData.calculationType === 'percentage_basic' ? 'Default Percentage (%)' : 'Default Amount'}
+                            <div className="ent-form-group">
+                                <label className="ent-label">
+                                    {formData.calculationType === 'percentage_basic' ? 'Default percentage override' : 'Default asset magnitude'}
                                 </label>
                                 <input
                                     type="number"
                                     min="0"
                                     step="0.01"
                                     required
-                                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                                    className="ent-input"
                                     value={formData.defaultValue}
                                     onChange={e => setFormData({ ...formData, defaultValue: parseFloat(e.target.value) })}
                                 />
                             </div>
 
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-3 py-2 px-1">
                                 <input
                                     type="checkbox"
                                     id="isActive"
                                     checked={formData.isActive}
                                     onChange={e => setFormData({ ...formData, isActive: e.target.checked })}
-                                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                                    className="w-3.5 h-3.5 text-primary-600 rounded border-gray-300 focus:ring-primary-500"
                                 />
-                                <label htmlFor="isActive" className="text-sm text-gray-700">Active</label>
+                                <label htmlFor="isActive" className="text-[10px] font-black text-gray-400 uppercase tracking-widest cursor-pointer">Operational status enabled</label>
                             </div>
 
-                            <div className="flex justify-end gap-3 mt-6">
+                            <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-slate-50">
                                 <button
                                     type="button"
                                     onClick={() => setIsModalOpen(false)}
-                                    className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+                                    className="ent-button-secondary"
                                 >
-                                    Cancel
+                                    Abort
                                 </button>
                                 <button
                                     type="submit"
-                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                                    className="btn-primary"
                                 >
-                                    Save Component
+                                    Commit Structure
                                 </button>
                             </div>
                         </form>

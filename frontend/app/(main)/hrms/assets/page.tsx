@@ -9,6 +9,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
 import { CurrencySelect } from '@/components/ui/CurrencySelect';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 interface Employee {
     id: string;
@@ -230,19 +231,20 @@ export default function AssetsPage() {
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700">Type *</label>
-                                        <select
+                                        <CustomSelect
                                             value={currentAsset.type}
-                                            onChange={(e) => setCurrentAsset({ ...currentAsset, type: e.target.value })}
-                                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
-                                        >
-                                            <option value="Laptop">Laptop</option>
-                                            <option value="Desktop">Desktop</option>
-                                            <option value="Peripherals">Peripherals</option>
-                                            <option value="Phone">Phone</option>
-                                            <option value="License">Software License</option>
-                                            <option value="Furniture">Furniture</option>
-                                            <option value="Others">Others</option>
-                                        </select>
+                                            onChange={(val) => setCurrentAsset({ ...currentAsset, type: val })}
+                                            options={[
+                                                { label: 'Laptop', value: 'Laptop' },
+                                                { label: 'Desktop', value: 'Desktop' },
+                                                { label: 'Peripherals', value: 'Peripherals' },
+                                                { label: 'Phone', value: 'Phone' },
+                                                { label: 'Software License', value: 'License' },
+                                                { label: 'Furniture', value: 'Furniture' },
+                                                { label: 'Others', value: 'Others' }
+                                            ]}
+                                            className="w-full"
+                                        />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700">Serial Number</label>
@@ -286,33 +288,32 @@ export default function AssetsPage() {
 
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700">Status</label>
-                                    <select
+                                    <CustomSelect
                                         value={currentAsset.status}
-                                        onChange={(e) => setCurrentAsset({ ...currentAsset, status: e.target.value })}
-                                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
-                                    >
-                                        <option value="Available">Available</option>
-                                        <option value="Assigned">Assigned</option>
-                                        <option value="Maintenance">Maintenance</option>
-                                        <option value="Retired">Retired</option>
-                                        <option value="Lost">Lost</option>
-                                    </select>
+                                        onChange={(val) => setCurrentAsset({ ...currentAsset, status: val })}
+                                        options={[
+                                            { label: 'Available', value: 'Available' },
+                                            { label: 'Assigned', value: 'Assigned' },
+                                            { label: 'Maintenance', value: 'Maintenance' },
+                                            { label: 'Retired', value: 'Retired' },
+                                            { label: 'Lost', value: 'Lost' }
+                                        ]}
+                                        className="w-full"
+                                    />
                                 </div>
 
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700">Assign to Employee</label>
-                                    <select
+                                    <CustomSelect
                                         value={currentAsset.employeeId || ''}
-                                        onChange={(e) => setCurrentAsset({ ...currentAsset, employeeId: e.target.value })}
-                                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
-                                    >
-                                        <option value="">-- Unassigned --</option>
-                                        {employees.map(emp => (
-                                            <option key={emp.id} value={emp.id}>
-                                                {emp.firstName} {emp.lastName} ({emp.employeeId})
-                                            </option>
-                                        ))}
-                                    </select>
+                                        onChange={(val) => setCurrentAsset({ ...currentAsset, employeeId: val })}
+                                        options={[
+                                            { label: '-- Unassigned --', value: '' },
+                                            ...employees.map(emp => ({ label: `${emp.firstName} ${emp.lastName} (${emp.employeeId})`, value: emp.id }))
+                                        ]}
+                                        placeholder="-- Unassigned --"
+                                        className="w-full"
+                                    />
                                     <p className="mt-1 text-xs text-gray-500">Choosing an employee will automatically set status to 'Assigned'</p>
                                 </div>
 

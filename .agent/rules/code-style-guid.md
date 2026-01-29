@@ -13,6 +13,13 @@ This document outlines the mandatory development standards and rules for the App
 - **Reason**: These native dialogs interrupt the user experience and do not match the premium aesthetics of the application.
 - **Alternative**: Use custom modals, toast notifications (using `useToast`), or inline feedback components.
 
+- **Alternative**: Use the custom `CustomSelect` or `MultiSelect` components from `@/components/ui`.
+
+### 3. Dropdown Positioning & Clipping Prevention
+- **Rule**: All `CustomSelect` and `MultiSelect` components must implement a `min-width` (typically `240px`) for their dropdown menus to ensure readability in high-density views.
+- **Rule**: Dropdown menus should use `left-0` alignment and high `z-index` (e.g., `z-[100]`) to float over narrow containers like table cells without being clipped.
+- **Reason**: Standard absolute positioning can be constrained by parent `overflow-hidden` or narrow column widths, disrupting the UX.
+
 ### 2. Premium Aesthetics
 - **Rule**: Always prioritize visual excellence. Use vibrant colors, sleek dark modes (if applicable), and modern typography.
 - **Rule**: Avoid generic colors (plain red, blue, green). Use curated palettes.
@@ -34,6 +41,7 @@ This document outlines the mandatory development standards and rules for the App
 
 ### 2. Permissions
 - **Rule**: Always check permissions using `PermissionService` before a backend action.
+
 
 
 # Applizor ERP Styling Standard
@@ -230,6 +238,7 @@ Ensure buttons have high-density tracking:
 
 ### Forms & Inputs
 - **Inputs**: Use `.ent-input` class for consistent borders and high-density text.
+- **Selects**: Always use `CustomSelect` for single value and `MultiSelect` for multiple values (e.g., taxes). Ensure `min-w` and `left-0` constraints are applied to the menu.
 - **Focus State**: `focus:ring-primary-500 focus:border-primary-500`.
 
 ### Cards & Tables
@@ -245,4 +254,3 @@ Ensure buttons have high-density tracking:
 
 ---
 *Last Updated: January 2026*
-

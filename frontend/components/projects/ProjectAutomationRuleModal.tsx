@@ -5,6 +5,7 @@ import { X, Zap, ArrowRight, Mail } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
 import api from '@/lib/api';
 import Portal from '@/components/ui/Portal';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 interface ProjectAutomationRuleModalProps {
     projectId: string;
@@ -88,49 +89,52 @@ export default function ProjectAutomationRuleModal({ projectId, onClose, onSucce
                                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Trigger Event</span>
                             </div>
 
-                            <select
+                            <CustomSelect
                                 value={triggerType}
-                                onChange={e => setTriggerType(e.target.value)}
-                                className="ent-select cursor-pointer"
-                            >
-                                <option value="TASK_CREATED">Task Created</option>
-                                <option value="TASK_STATUS_CHANGE">Task Status Changed</option>
-                                <option value="TASK_ASSIGNED">Task Assigned</option>
-                                <option value="COMMENT_ADDED">New Comment Added</option>
-                                <option value="MENTION_FOUND">User Mentioned (@user)</option>
-                            </select>
+                                onChange={(val) => setTriggerType(val)}
+                                options={[
+                                    { label: 'Task Created', value: 'TASK_CREATED' },
+                                    { label: 'Task Status Changed', value: 'TASK_STATUS_CHANGE' },
+                                    { label: 'Task Assigned', value: 'TASK_ASSIGNED' },
+                                    { label: 'New Comment Added', value: 'COMMENT_ADDED' },
+                                    { label: 'User Mentioned (@user)', value: 'MENTION_FOUND' }
+                                ]}
+                                className="w-full"
+                            />
 
                             {triggerType === 'TASK_STATUS_CHANGE' && (
                                 <div className="flex items-center gap-3 animate-fade-in bg-slate-50 p-3 rounded-md border border-slate-100">
                                     <div className="flex-1">
                                         <label className="ent-label mb-1">From Status</label>
-                                        <select
+                                        <CustomSelect
                                             value={triggerConfig.from}
-                                            onChange={e => setTriggerConfig({ ...triggerConfig, from: e.target.value })}
-                                            className="ent-select text-xs"
-                                        >
-                                            <option value="*">Any Status</option>
-                                            <option value="todo">To Do</option>
-                                            <option value="in-progress">In Progress</option>
-                                            <option value="review">Review</option>
-                                        </select>
+                                            onChange={(val) => setTriggerConfig({ ...triggerConfig, from: val })}
+                                            options={[
+                                                { label: 'Any Status', value: '*' },
+                                                { label: 'To Do', value: 'todo' },
+                                                { label: 'In Progress', value: 'in-progress' },
+                                                { label: 'Review', value: 'review' }
+                                            ]}
+                                            className="w-full"
+                                        />
                                     </div>
                                     <div className="text-slate-300 mt-4">
                                         <ArrowRight size={14} />
                                     </div>
                                     <div className="flex-1">
                                         <label className="ent-label mb-1">To Status</label>
-                                        <select
+                                        <CustomSelect
                                             value={triggerConfig.to}
-                                            onChange={e => setTriggerConfig({ ...triggerConfig, to: e.target.value })}
-                                            className="ent-select text-xs"
-                                        >
-                                            <option value="*">Any Status</option>
-                                            <option value="todo">To Do</option>
-                                            <option value="in-progress">In Progress</option>
-                                            <option value="review">Review</option>
-                                            <option value="done">Done</option>
-                                        </select>
+                                            onChange={(val) => setTriggerConfig({ ...triggerConfig, to: val })}
+                                            options={[
+                                                { label: 'Any Status', value: '*' },
+                                                { label: 'To Do', value: 'todo' },
+                                                { label: 'In Progress', value: 'in-progress' },
+                                                { label: 'Review', value: 'review' },
+                                                { label: 'Done', value: 'done' }
+                                            ]}
+                                            className="w-full"
+                                        />
                                     </div>
                                 </div>
                             )}
@@ -143,21 +147,22 @@ export default function ProjectAutomationRuleModal({ projectId, onClose, onSucce
                                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Action & Channel</span>
                             </div>
 
-                            <select
+                            <CustomSelect
                                 value={actionType}
-                                onChange={e => {
-                                    setActionType(e.target.value);
-                                    if (['TEAMS_NOTIFICATION', 'SLACK_NOTIFICATION'].includes(e.target.value)) {
+                                onChange={(val) => {
+                                    setActionType(val);
+                                    if (['TEAMS_NOTIFICATION', 'SLACK_NOTIFICATION'].includes(val)) {
                                         setActionConfig({ ...actionConfig, recipient: 'custom' });
                                     }
                                 }}
-                                className="ent-select cursor-pointer"
-                            >
-                                <option value="SEND_EMAIL">📧 Send Email</option>
-                                <option value="IN_APP_NOTIFICATION">🔔 In-App Notification</option>
-                                <option value="TEAMS_NOTIFICATION">💬 MS Teams Message</option>
-                                <option value="SLACK_NOTIFICATION">💼 Slack Message</option>
-                            </select>
+                                options={[
+                                    { label: '📧 Send Email', value: 'SEND_EMAIL' },
+                                    { label: '🔔 In-App Notification', value: 'IN_APP_NOTIFICATION' },
+                                    { label: '💬 MS Teams Message', value: 'TEAMS_NOTIFICATION' },
+                                    { label: '💼 Slack Message', value: 'SLACK_NOTIFICATION' }
+                                ]}
+                                className="w-full"
+                            />
 
                             <div className="space-y-4 border-t border-slate-100 pt-4">
                                 {['TEAMS_NOTIFICATION', 'SLACK_NOTIFICATION'].includes(actionType) ? (
@@ -178,16 +183,17 @@ export default function ProjectAutomationRuleModal({ projectId, onClose, onSucce
                                     <>
                                         <div>
                                             <label className="ent-label">Recipient</label>
-                                            <select
+                                            <CustomSelect
                                                 value={actionConfig.recipient}
-                                                onChange={e => setActionConfig({ ...actionConfig, recipient: e.target.value, useTemplate: (e.target.value === 'mentions' || triggerType === 'MENTION_FOUND') ? 'mention' : 'none' })}
-                                                className="ent-select"
-                                            >
-                                                <option value="assignee">Task Assignee</option>
-                                                <option value="mentions">Mentioned Users (@)</option>
-                                                <option value="client">Project Client</option>
-                                                <option value="custom">Custom Email / External</option>
-                                            </select>
+                                                onChange={(val) => setActionConfig({ ...actionConfig, recipient: val, useTemplate: (val === 'mentions' || triggerType === 'MENTION_FOUND') ? 'mention' : 'none' })}
+                                                options={[
+                                                    { label: 'Task Assignee', value: 'assignee' },
+                                                    { label: 'Mentioned Users (@)', value: 'mentions' },
+                                                    { label: 'Project Client', value: 'client' },
+                                                    { label: 'Custom Email / External', value: 'custom' }
+                                                ]}
+                                                className="w-full"
+                                            />
                                         </div>
 
                                         {actionConfig.recipient === 'custom' && (
@@ -207,17 +213,18 @@ export default function ProjectAutomationRuleModal({ projectId, onClose, onSucce
 
                                 <div>
                                     <label className="ent-label">Template</label>
-                                    <select
+                                    <CustomSelect
                                         value={actionConfig.useTemplate}
-                                        onChange={e => setActionConfig({ ...actionConfig, useTemplate: e.target.value })}
-                                        className="ent-select"
-                                    >
-                                        <option value="none">Custom Message</option>
-                                        <option value="mention">Standard Mention Template</option>
-                                        <option value="assigned">Task Assignment Template</option>
-                                        <option value="created">New Task Template</option>
-                                        <option value="status">Status Update Template</option>
-                                    </select>
+                                        onChange={(val) => setActionConfig({ ...actionConfig, useTemplate: val })}
+                                        options={[
+                                            { label: 'Custom Message', value: 'none' },
+                                            { label: 'Standard Mention Template', value: 'mention' },
+                                            { label: 'Task Assignment Template', value: 'assigned' },
+                                            { label: 'New Task Template', value: 'created' },
+                                            { label: 'Status Update Template', value: 'status' }
+                                        ]}
+                                        className="w-full"
+                                    />
                                 </div>
 
                                 {actionConfig.useTemplate === 'none' && (

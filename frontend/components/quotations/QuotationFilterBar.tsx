@@ -1,5 +1,6 @@
 import React from 'react';
 import { Filter, X } from 'lucide-react';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 interface QuotationFilterBarProps {
     filters: {
@@ -22,29 +23,31 @@ export function QuotationFilterBar({ filters, clients, onFilterChange, onClearFi
                     Filters:
                 </div>
 
-                <select
+                <CustomSelect
                     value={filters.status}
-                    onChange={(e) => onFilterChange('status', e.target.value)}
-                    className="block rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm"
-                >
-                    <option value="">All Status</option>
-                    <option value="draft">Draft</option>
-                    <option value="sent">Sent</option>
-                    <option value="accepted">Accepted</option>
-                    <option value="rejected">Rejected</option>
-                    <option value="expired">Expired</option>
-                </select>
+                    onChange={(val) => onFilterChange('status', val)}
+                    options={[
+                        { label: 'All Status', value: '' },
+                        { label: 'Draft', value: 'draft' },
+                        { label: 'Sent', value: 'sent' },
+                        { label: 'Accepted', value: 'accepted' },
+                        { label: 'Rejected', value: 'rejected' },
+                        { label: 'Expired', value: 'expired' }
+                    ]}
+                    placeholder="All Status"
+                    className="w-[180px]"
+                />
 
-                <select
+                <CustomSelect
                     value={filters.clientId}
-                    onChange={(e) => onFilterChange('clientId', e.target.value)}
-                    className="block rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm"
-                >
-                    <option value="">All Clients</option>
-                    {clients.map(client => (
-                        <option key={client.id} value={client.id}>{client.name}</option>
-                    ))}
-                </select>
+                    onChange={(val) => onFilterChange('clientId', val)}
+                    options={[
+                        { label: 'All Clients', value: '' },
+                        ...clients.map(client => ({ label: client.name, value: client.id }))
+                    ]}
+                    placeholder="All Clients"
+                    className="w-[200px]"
+                />
 
                 {hasActiveFilters && (
                     <button

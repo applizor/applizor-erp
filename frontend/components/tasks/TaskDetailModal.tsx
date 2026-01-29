@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/useToast';
 import api from '@/lib/api';
 import Portal from '@/components/ui/Portal';
 import RichTextEditor from '@/components/ui/RichTextEditor';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 import CommentItem from '@/components/tasks/CommentItem';
 import { useSocket } from '@/contexts/SocketContext';
 // import { format } from 'date-fns';
@@ -527,15 +528,23 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                             <div className="flex justify-between items-center mb-1">
                                 <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Status</label>
                             </div>
-                            <select
-                                {...register('status')}
-                                className="w-full bg-slate-50 border border-slate-200 rounded-md px-3 py-2 text-[11px] font-bold text-slate-900 outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-all uppercase tracking-wide"
-                            >
-                                <option value="todo">To Do</option>
-                                <option value="in-progress">In Progress</option>
-                                <option value="review">Review</option>
-                                <option value="done">Done</option>
-                            </select>
+                            <Controller
+                                name="status"
+                                control={control}
+                                render={({ field }) => (
+                                    <CustomSelect
+                                        value={field.value}
+                                        onChange={field.onChange}
+                                        options={[
+                                            { label: 'To Do', value: 'todo' },
+                                            { label: 'In Progress', value: 'in-progress' },
+                                            { label: 'Review', value: 'review' },
+                                            { label: 'Done', value: 'done' }
+                                        ]}
+                                        className="w-full"
+                                    />
+                                )}
+                            />
                         </div>
 
                         {/* PRIORITY */}
@@ -548,15 +557,23 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                                             watch('priority') === 'medium' ? 'bg-amber-400' : 'bg-emerald-500'
                                         }`} />
                                 </div>
-                                <select
-                                    {...register('priority')}
-                                    className="w-full pl-7 bg-white border border-slate-200 rounded-md px-3 py-2 text-[11px] font-bold text-slate-900 outline-none focus:border-primary-500 transition-colors cursor-pointer appearance-none uppercase tracking-wide"
-                                >
-                                    <option value="medium">Medium</option>
-                                    <option value="high">High</option>
-                                    <option value="urgent">Urgent</option>
-                                    <option value="low">Low</option>
-                                </select>
+                                <Controller
+                                    name="priority"
+                                    control={control}
+                                    render={({ field }) => (
+                                        <CustomSelect
+                                            value={field.value}
+                                            onChange={field.onChange}
+                                            options={[
+                                                { label: 'Medium', value: 'medium' },
+                                                { label: 'High', value: 'high' },
+                                                { label: 'Urgent', value: 'urgent' },
+                                                { label: 'Low', value: 'low' }
+                                            ]}
+                                            className="w-full pl-6"
+                                        />
+                                    )}
+                                />
                             </div>
                         </div>
 
@@ -565,16 +582,24 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                             {/* Type */}
                             <div>
                                 <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Issue Type</label>
-                                <select
-                                    {...register('type')}
-                                    className="w-full bg-white border border-slate-200 rounded-md px-3 py-2 text-[11px] font-bold text-slate-700 outline-none focus:border-primary-500 transition-colors"
-                                >
-                                    <option value="task">Task</option>
-                                    <option value="bug">Bug</option>
-                                    <option value="issue">Issue</option>
-                                    <option value="story">Story</option>
-                                    <option value="epic">Epic</option>
-                                </select>
+                                <Controller
+                                    name="type"
+                                    control={control}
+                                    render={({ field }) => (
+                                        <CustomSelect
+                                            value={field.value}
+                                            onChange={field.onChange}
+                                            options={[
+                                                { label: 'Task', value: 'task' },
+                                                { label: 'Bug', value: 'bug' },
+                                                { label: 'Issue', value: 'issue' },
+                                                { label: 'Story', value: 'story' },
+                                                { label: 'Epic', value: 'epic' }
+                                            ]}
+                                            className="w-full"
+                                        />
+                                    )}
+                                />
                             </div>
 
                             {/* Story Points */}
@@ -591,29 +616,43 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                             {/* Epic */}
                             <div>
                                 <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Epic</label>
-                                <select
-                                    {...register('epicId')}
-                                    className="w-full bg-white border border-slate-200 rounded-md px-3 py-2 text-[11px] font-bold text-slate-700 outline-none focus:border-primary-500 transition-colors"
-                                >
-                                    <option value="">No Epic</option>
-                                    {epics.map(epic => (
-                                        <option key={epic.id} value={epic.id}>{epic.title}</option>
-                                    ))}
-                                </select>
+                                <Controller
+                                    name="epicId"
+                                    control={control}
+                                    render={({ field }) => (
+                                        <CustomSelect
+                                            value={field.value}
+                                            onChange={field.onChange}
+                                            options={[
+                                                { label: 'No Epic', value: '' },
+                                                ...epics.map(epic => ({ label: epic.title, value: epic.id }))
+                                            ]}
+                                            placeholder="Select Epic"
+                                            className="w-full"
+                                        />
+                                    )}
+                                />
                             </div>
 
                             {/* Sprint */}
                             <div>
                                 <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Sprint</label>
-                                <select
-                                    {...register('sprintId')}
-                                    className="w-full bg-white border border-slate-200 rounded-md px-3 py-2 text-[11px] font-bold text-slate-700 outline-none focus:border-primary-500 transition-colors"
-                                >
-                                    <option value="">Backlog</option>
-                                    {sprints.map(s => (
-                                        <option key={s.id} value={s.id}>{s.name} ({s.status})</option>
-                                    ))}
-                                </select>
+                                <Controller
+                                    name="sprintId"
+                                    control={control}
+                                    render={({ field }) => (
+                                        <CustomSelect
+                                            value={field.value}
+                                            onChange={field.onChange}
+                                            options={[
+                                                { label: 'Backlog', value: '' },
+                                                ...sprints.map(s => ({ label: `${s.name} (${s.status})`, value: s.id }))
+                                            ]}
+                                            placeholder="Select Sprint"
+                                            className="w-full"
+                                        />
+                                    )}
+                                />
                             </div>
 
                             {/* Assignee */}
@@ -635,17 +674,22 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                                             </div>
                                         )}
                                     </div>
-                                    <select
-                                        {...register('assigneeId')}
-                                        className="w-full pl-9 bg-white border border-slate-200 rounded-md px-3 py-2 text-[11px] font-bold text-slate-700 outline-none focus:border-primary-500 transition-colors"
-                                    >
-                                        <option value="">Unassigned</option>
-                                        {employees.filter(e => e.userId).map(emp => (
-                                            <option key={emp.id} value={emp.userId}>
-                                                {emp.firstName} {emp.lastName}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    <Controller
+                                        name="assigneeId"
+                                        control={control}
+                                        render={({ field }) => (
+                                            <CustomSelect
+                                                value={field.value}
+                                                onChange={field.onChange}
+                                                options={[
+                                                    { label: 'Unassigned', value: '' },
+                                                    ...employees.filter(e => e.userId).map(emp => ({ label: `${emp.firstName} ${emp.lastName}`, value: emp.userId }))
+                                                ]}
+                                                placeholder="Unassigned"
+                                                className="w-full pl-8"
+                                            />
+                                        )}
+                                    />
                                 </div>
                             </div>
                         </div>

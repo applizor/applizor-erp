@@ -11,6 +11,7 @@ import { usePermission } from '@/hooks/usePermission';
 import AccessDenied from '@/components/AccessDenied';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { QuickAddModal } from '@/components/ui/QuickAddModal';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 const SERVER_URL = API_URL.replace('/api', '');
@@ -336,13 +337,18 @@ export default function EditClientPage() {
                     <div className="p-8 grid grid-cols-1 md:grid-cols-4 gap-x-6 gap-y-8">
                         <div className="ent-form-group">
                             <label className="ent-label">Salutation</label>
-                            <select value={formData.salutation} onChange={e => handleChange('salutation', e.target.value)} className="ent-input">
-                                <option value="">--</option>
-                                <option value="Mr.">Mr.</option>
-                                <option value="Mrs.">Mrs.</option>
-                                <option value="Ms.">Ms.</option>
-                                <option value="Dr.">Dr.</option>
-                            </select>
+                            <CustomSelect
+                                options={[
+                                    { label: '--', value: '' },
+                                    { label: 'Mr.', value: 'Mr.' },
+                                    { label: 'Mrs.', value: 'Mrs.' },
+                                    { label: 'Ms.', value: 'Ms.' },
+                                    { label: 'Dr.', value: 'Dr.' }
+                                ]}
+                                value={formData.salutation || ''}
+                                onChange={val => handleChange('salutation', val)}
+                                className="w-full"
+                            />
                         </div>
                         <div className="md:col-span-2 ent-form-group">
                             <label className="ent-label">Client Name <span className="text-rose-500">*</span></label>
@@ -364,31 +370,41 @@ export default function EditClientPage() {
 
                         <div className="ent-form-group">
                             <label className="ent-label">Country</label>
-                            <select value={formData.country} onChange={e => handleChange('country', e.target.value)} className="ent-input">
-                                <option value="India">India</option>
-                                <option value="United States">United States</option>
-                                <option value="United Kingdom">United Kingdom</option>
-                                <option value="Australia">Australia</option>
-                                <option value="Canada">Canada</option>
-                                <option value="Germany">Germany</option>
-                                <option value="France">France</option>
-                                <option value="UAE">UAE</option>
-                                <option value="Singapore">Singapore</option>
-                            </select>
+                            <CustomSelect
+                                options={[
+                                    { label: 'India', value: 'India' },
+                                    { label: 'United States', value: 'United States' },
+                                    { label: 'United Kingdom', value: 'United Kingdom' },
+                                    { label: 'Australia', value: 'Australia' },
+                                    { label: 'Canada', value: 'Canada' },
+                                    { label: 'Germany', value: 'Germany' },
+                                    { label: 'France', value: 'France' },
+                                    { label: 'UAE', value: 'UAE' },
+                                    { label: 'Singapore', value: 'Singapore' }
+                                ]}
+                                value={formData.country}
+                                onChange={val => handleChange('country', val)}
+                                className="w-full"
+                            />
                         </div>
 
                         <div className="ent-form-group">
                             <label className="ent-label">Currency Base</label>
-                            <select value={formData.currency} onChange={e => handleChange('currency', e.target.value)} className="ent-input">
-                                <option value="INR">INR - Indian Rupee</option>
-                                <option value="USD">USD - US Dollar</option>
-                                <option value="EUR">EUR - Euro</option>
-                                <option value="GBP">GBP - British Pound</option>
-                                <option value="AUD">AUD - Australian Dollar</option>
-                                <option value="CAD">CAD - Canadian Dollar</option>
-                                <option value="SGD">SGD - Singapore Dollar</option>
-                                <option value="AED">AED - UAE Dirham</option>
-                            </select>
+                            <CustomSelect
+                                options={[
+                                    { label: 'INR - Indian Rupee', value: 'INR' },
+                                    { label: 'USD - US Dollar', value: 'USD' },
+                                    { label: 'EUR - Euro', value: 'EUR' },
+                                    { label: 'GBP - British Pound', value: 'GBP' },
+                                    { label: 'AUD - Australian Dollar', value: 'AUD' },
+                                    { label: 'CAD - Canadian Dollar', value: 'CAD' },
+                                    { label: 'SGD - Singapore Dollar', value: 'SGD' },
+                                    { label: 'AED - UAE Dirham', value: 'AED' }
+                                ]}
+                                value={formData.currency}
+                                onChange={val => handleChange('currency', val)}
+                                className="w-full"
+                            />
                         </div>
 
                         <div className="ent-form-group">
@@ -420,29 +436,42 @@ export default function EditClientPage() {
 
                         <div className="ent-form-group">
                             <label className="ent-label">Gender</label>
-                            <select value={formData.gender} onChange={e => handleChange('gender', e.target.value)} className="ent-input">
-                                <option value="male">Male</option>
-                                <option value="female">Female</option>
-                                <option value="other">Other</option>
-                            </select>
+                            <CustomSelect
+                                options={[
+                                    { label: 'Male', value: 'male' },
+                                    { label: 'Female', value: 'female' },
+                                    { label: 'Other', value: 'other' }
+                                ]}
+                                value={formData.gender || 'male'}
+                                onChange={val => handleChange('gender', val)}
+                                className="w-full"
+                            />
                         </div>
 
                         <div className="ent-form-group">
                             <label className="ent-label">Change Language</label>
-                            <select value={formData.language} onChange={e => handleChange('language', e.target.value)} className="ent-input">
-                                <option value="English">English</option>
-                                <option value="Hindi">Hindi</option>
-                            </select>
+                            <CustomSelect
+                                options={[
+                                    { label: 'English', value: 'English' },
+                                    { label: 'Hindi', value: 'Hindi' }
+                                ]}
+                                value={formData.language}
+                                onChange={val => handleChange('language', val)}
+                                className="w-full"
+                            />
                         </div>
                         <div className="ent-form-group">
                             <label className="ent-label">Client Category</label>
                             <div className="flex gap-2">
-                                <select value={formData.categoryId} onChange={e => handleChange('categoryId', e.target.value)} className="ent-input flex-1">
-                                    <option value="">-- Choose Category --</option>
-                                    {categories.map(cat => (
-                                        <option key={cat.id} value={cat.id}>{cat.name}</option>
-                                    ))}
-                                </select>
+                                <CustomSelect
+                                    options={[
+                                        { label: '-- Choose Category --', value: '' },
+                                        ...categories.map(cat => ({ label: cat.name, value: cat.id }))
+                                    ]}
+                                    value={formData.categoryId || ''}
+                                    onChange={val => handleChange('categoryId', val)}
+                                    className="flex-1"
+                                />
                                 <button type="button" onClick={() => setCatModal(true)} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded text-[10px] font-black uppercase transition-colors">Add</button>
                             </div>
                         </div>
@@ -450,12 +479,15 @@ export default function EditClientPage() {
                         <div className="ent-form-group">
                             <label className="ent-label">Client Sub Category</label>
                             <div className="flex gap-2">
-                                <select value={formData.subCategoryId} onChange={e => handleChange('subCategoryId', e.target.value)} className="ent-input flex-1">
-                                    <option value="">-- Choose Sub Category --</option>
-                                    {subCategories.map(sub => (
-                                        <option key={sub.id} value={sub.id}>{sub.name}</option>
-                                    ))}
-                                </select>
+                                <CustomSelect
+                                    options={[
+                                        { label: '-- Choose Sub Category --', value: '' },
+                                        ...subCategories.map(sub => ({ label: sub.name, value: sub.id }))
+                                    ]}
+                                    value={formData.subCategoryId || ''}
+                                    onChange={val => handleChange('subCategoryId', val)}
+                                    className="flex-1"
+                                />
                                 <button type="button" onClick={() => setSubCatModal(true)} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded text-[10px] font-black uppercase transition-colors">Add</button>
                             </div>
                         </div>

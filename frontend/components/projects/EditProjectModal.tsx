@@ -3,6 +3,7 @@ import { X, Save, Calendar, DollarSign, Tag, Briefcase } from 'lucide-react';
 import api from '@/lib/api';
 import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 import { CurrencySelect } from '@/components/ui/CurrencySelect';
 
@@ -91,17 +92,18 @@ export function EditProjectModal({ isOpen, onClose, project, onUpdate }: EditPro
 
                     <div className="ent-form-group">
                         <label className="ent-label">Status Protocol</label>
-                        <select
-                            className="ent-input"
+                        <CustomSelect
                             value={formData.status}
-                            onChange={e => setFormData({ ...formData, status: e.target.value })}
-                        >
-                            <option value="planning">Planning</option>
-                            <option value="active">Active</option>
-                            <option value="on-hold">On Hold</option>
-                            <option value="completed">Completed</option>
-                            <option value="cancelled">Cancelled</option>
-                        </select>
+                            onChange={(val) => setFormData({ ...formData, status: val })}
+                            options={[
+                                { label: 'Planning', value: 'planning' },
+                                { label: 'Active', value: 'active' },
+                                { label: 'On Hold', value: 'on-hold' },
+                                { label: 'Completed', value: 'completed' },
+                                { label: 'Cancelled', value: 'cancelled' }
+                            ]}
+                            className="w-full"
+                        />
                     </div>
 
                     <div className="ent-form-group">

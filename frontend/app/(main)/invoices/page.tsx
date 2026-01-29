@@ -15,6 +15,7 @@ import { useCurrency } from '@/context/CurrencyContext';
 import { InvoiceListSkeleton } from '@/components/invoices/InvoiceListSkeleton';
 import { Button } from '@/components/ui/Button';
 import PageHeader from '@/components/ui/PageHeader';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 export default function InvoicesPage() {
   const toast = useToast();
@@ -128,22 +129,24 @@ export default function InvoicesPage() {
           />
         </div>
         <div className="flex items-center gap-2 w-full lg:w-auto">
-          <select
+          <CustomSelect
+            options={[
+              { label: 'All Statuses', value: '' },
+              ...Object.keys(statusStyles).map(s => ({ label: s.toUpperCase(), value: s }))
+            ]}
             value={filters.status}
-            onChange={e => setFilters({ ...filters, status: e.target.value })}
-            className="flex-1 lg:flex-none py-2 px-3 border border-gray-200 bg-white rounded-md text-[10px] font-black text-gray-600 uppercase tracking-widest cursor-pointer outline-none focus:border-primary-500"
-          >
-            <option value="">All Statuses</option>
-            {Object.keys(statusStyles).map(s => <option key={s} value={s}>{s.toUpperCase()}</option>)}
-          </select>
-          <select
+            onChange={val => setFilters({ ...filters, status: val })}
+            className="flex-1 lg:flex-none"
+          />
+          <CustomSelect
+            options={[
+              { label: 'All Consumers', value: '' },
+              ...clients.map(c => ({ label: c.name, value: c.id }))
+            ]}
             value={filters.clientId}
-            onChange={e => setFilters({ ...filters, clientId: e.target.value })}
-            className="flex-1 lg:flex-none py-2 px-3 border border-gray-200 bg-white rounded-md text-[10px] font-black text-gray-600 uppercase tracking-widest cursor-pointer outline-none focus:border-primary-500"
-          >
-            <option value="">All Consumers</option>
-            {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
+            onChange={val => setFilters({ ...filters, clientId: val })}
+            className="flex-1 lg:flex-none"
+          />
           <button className="p-2 bg-white border border-gray-200 rounded-md hover:bg-gray-100 text-gray-400">
             <Filter size={14} />
           </button>
@@ -328,23 +331,25 @@ export default function InvoicesPage() {
               <Mail size={14} /> Dispatch
             </button>
 
-            <select
-              onChange={async (e) => {
+            <CustomSelect
+              options={[
+                { label: 'Status Override', value: '' },
+                { label: 'Liquidated', value: 'paid' },
+                { label: 'Transmitted', value: 'sent' },
+                { label: 'Defaulted', value: 'overdue' }
+              ]}
+              value=""
+              onChange={async (val) => {
+                if (!val) return;
                 try {
                   setLoading(true);
-                  await invoicesApi.batchUpdateStatus(selectedIds, e.target.value);
+                  await invoicesApi.batchUpdateStatus(selectedIds, val);
                   toast.success('Registry updated');
                   loadInvoices();
                 } catch (e) { toast.error('Update failed'); }
               }}
-              className="bg-slate-800 border-white/5 rounded text-[10px] font-black uppercase tracking-widest py-2 px-3 focus:ring-0 outline-none cursor-pointer"
-              value=""
-            >
-              <option value="" disabled>Status Override</option>
-              <option value="paid" className="bg-slate-900">Liquidated</option>
-              <option value="sent" className="bg-slate-900">Transmitted</option>
-              <option value="overdue" className="bg-slate-900 text-rose-400">Defaulted</option>
-            </select>
+              className="min-w-[140px]"
+            />
           </div>
 
           <button

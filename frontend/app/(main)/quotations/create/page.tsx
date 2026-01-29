@@ -14,6 +14,8 @@ import { quotationsApi } from '@/lib/api/quotations';
 import AccessDenied from '@/components/AccessDenied';
 import RichTextEditor from '@/components/ui/RichTextEditor';
 import { Button } from '@/components/ui/Button';
+import { CustomSelect } from '@/components/ui/CustomSelect';
+import { MultiSelect } from '@/components/ui/MultiSelect';
 
 export default function CreateQuotationPage() {
     const router = useRouter();
@@ -27,6 +29,8 @@ export default function CreateQuotationPage() {
     const [selectedTemplateId, setSelectedTemplateId] = useState('');
     const [showSaveTemplateDialog, setShowSaveTemplateDialog] = useState(false);
     const [templateFormData, setTemplateFormData] = useState({ name: '', category: '' });
+    const [taxRates, setTaxRates] = useState<any[]>([]);
+    const [unitTypes, setUnitTypes] = useState<any[]>([]);
 
     useEffect(() => {
         // Wait for user to load before checking permissions
@@ -52,13 +56,27 @@ export default function CreateQuotationPage() {
     });
 
     const [items, setItems] = useState([
-        { description: '', quantity: 1, unitPrice: 0, tax: 18, discount: 0 }
+        { description: '', quantity: 1, unit: '', unitPrice: 0, taxRateIds: [] as string[], discount: 0 }
     ]);
 
     useEffect(() => {
         loadLeads();
         loadTemplates();
+        fetchSettings();
     }, []);
+
+    const fetchSettings = async () => {
+        try {
+            const [taxesRes, unitsRes] = await Promise.all([
+                api.get('/settings/taxes'),
+                api.get('/settings/units')
+            ]);
+            setTaxRates(taxesRes.data);
+            setUnitTypes(unitsRes.data);
+        } catch (error) {
+            console.error('Failed to load settings', error);
+        }
+    };
 
     const loadLeads = async () => {
         try {
@@ -145,7 +163,7 @@ export default function CreateQuotationPage() {
     };
 
     const addItem = () => {
-        setItems([...items, { description: '', quantity: 1, unitPrice: 0, tax: 18, discount: 0 }]);
+        setItems([...items, { description: '', quantity: 1, unit: '', unitPrice: 0, taxRateIds: [], discount: 0 }]);
     };
 
     const removeItem = (index: number) => {
@@ -167,8 +185,9 @@ export default function CreateQuotationPage() {
             newItems[emptyIndex] = {
                 description: product.name,
                 quantity: 1,
+                unit: product.unit || '',
                 unitPrice: product.price,
-                tax: product.tax,
+                taxRateIds: product.taxRateIds || [],
                 discount: 0
             };
             setItems(newItems);
@@ -176,8 +195,9 @@ export default function CreateQuotationPage() {
             setItems([...items, {
                 description: product.name,
                 quantity: 1,
+                unit: product.unit || '',
                 unitPrice: product.price,
-                tax: product.tax,
+                taxRateIds: product.taxRateIds || [],
                 discount: 0
             }]);
         }
@@ -190,11 +210,19 @@ export default function CreateQuotationPage() {
         let totalDiscount = 0;
 
         items.forEach(item => {
-            const itemTotal = item.quantity * item.unitPrice;
-            const itemTax = (itemTotal * item.tax) / 100;
-            const itemDiscount = (itemTotal * item.discount) / 100;
+            const itemSubtotal = item.quantity * item.unitPrice;
+            const itemDiscount = (itemSubtotal * (item.discount || 0)) / 100;
+            const taxableAmount = itemSubtotal - itemDiscount;
 
-            subtotal += itemTotal;
+            let itemTax = 0;
+            (item.taxRateIds || []).forEach(taxId => {
+                const taxConfig = taxRates.find(t => t.id === taxId);
+                if (taxConfig) {
+                    itemTax += taxableAmount * (Number(taxConfig.percentage) / 100);
+                }
+            });
+
+            subtotal += itemSubtotal;
             totalTax += itemTax;
             totalDiscount += itemDiscount;
         });
@@ -231,7 +259,7 @@ export default function CreateQuotationPage() {
                     ...item,
                     total: item.quantity * item.unitPrice
                 }))
-            });
+            } as any);
             toast.success('Quotation created successfully');
             router.push('/quotations');
         } catch (error: any) {
@@ -265,21 +293,16 @@ export default function CreateQuotationPage() {
 
                 <div className="flex items-center gap-3">
                     {templates.length > 0 && (
-                        <div className="relative">
-                            <select
-                                value={selectedTemplateId}
-                                onChange={(e) => {
-                                    setSelectedTemplateId(e.target.value);
-                                    applyTemplate(e.target.value);
-                                }}
-                                className="ent-input pr-8 text-xs font-bold uppercase tracking-wide min-w-[200px]"
-                            >
-                                <option value="">Load Template...</option>
-                                {templates.map(t => (
-                                    <option key={t.id} value={t.id}>{t.name}</option>
-                                ))}
-                            </select>
-                        </div>
+                        <CustomSelect
+                            options={templates.map(t => ({ label: t.name, value: t.id }))}
+                            value={selectedTemplateId}
+                            onChange={(val) => {
+                                setSelectedTemplateId(val);
+                                applyTemplate(val);
+                            }}
+                            placeholder="Load Template..."
+                            className="min-w-[200px]"
+                        />
                     )}
                     <Button
                         type="button"
@@ -312,27 +335,17 @@ export default function CreateQuotationPage() {
                                 <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
                                     Target Client / Lead <span className="text-red-500">*</span>
                                 </label>
-                                <div className="relative">
-                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <Users className="h-4 w-4 text-gray-400" />
-                                    </div>
-                                    <select
-                                        required
-                                        value={formData.leadId}
-                                        onChange={(e) => setFormData({ ...formData, leadId: e.target.value })}
-                                        className="ent-input pl-10 w-full appearance-none"
-                                    >
-                                        <option value="">Select Lead or Client</option>
-                                        {leads.map(lead => (
-                                            <option key={lead.id} value={lead.id}>
-                                                {lead.name} {lead.company ? `- ${lead.company}` : ''}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                                        <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
-                                    </div>
-                                </div>
+                                <CustomSelect
+                                    options={leads.map(lead => ({
+                                        label: `${lead.name} ${lead.company ? `- ${lead.company}` : ''}`,
+                                        value: lead.id,
+                                        description: lead.email
+                                    }))}
+                                    value={formData.leadId}
+                                    onChange={(val) => setFormData({ ...formData, leadId: val })}
+                                    placeholder="Select Lead or Client"
+                                    className="w-full"
+                                />
                             </div>
 
                             <div>
@@ -379,21 +392,17 @@ export default function CreateQuotationPage() {
                                     <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
                                         Currency
                                     </label>
-                                    <div className="relative">
-                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                            <DollarSign className="h-4 w-4 text-gray-400" />
-                                        </div>
-                                        <select
-                                            value={formData.currency}
-                                            onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                                            className="ent-input pl-10 w-full appearance-none"
-                                        >
-                                            <option value="INR">INR (₹)</option>
-                                            <option value="USD">USD ($)</option>
-                                            <option value="EUR">EUR (€)</option>
-                                            <option value="GBP">GBP (£)</option>
-                                        </select>
-                                    </div>
+                                    <CustomSelect
+                                        options={[
+                                            { label: 'INR (₹)', value: 'INR' },
+                                            { label: 'USD ($)', value: 'USD' },
+                                            { label: 'EUR (€)', value: 'EUR' },
+                                            { label: 'GBP (£)', value: 'GBP' }
+                                        ]}
+                                        value={formData.currency}
+                                        onChange={(val) => setFormData({ ...formData, currency: val })}
+                                        className="w-full"
+                                    />
                                 </div>
                             </div>
 
@@ -407,16 +416,17 @@ export default function CreateQuotationPage() {
                                     <span className="text-[10px] font-bold px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded border border-amber-200 uppercase">Beta</span>
                                 </div>
                                 <div className="flex gap-3">
-                                    <select
+                                    <CustomSelect
+                                        options={[
+                                            { label: 'Disabled', value: '' },
+                                            { label: 'Daily', value: 'DAILY' },
+                                            { label: 'Every 3 Days', value: '3_DAYS' },
+                                            { label: 'Weekly', value: 'WEEKLY' }
+                                        ]}
                                         value={formData.reminderFrequency}
-                                        onChange={(e) => setFormData({ ...formData, reminderFrequency: e.target.value })}
-                                        className="block w-full rounded-md border-amber-200 bg-white shadow-sm focus:border-amber-500 focus:ring-amber-500 sm:text-xs py-1.5"
-                                    >
-                                        <option value="">Disabled</option>
-                                        <option value="DAILY">Daily</option>
-                                        <option value="3_DAYS">Every 3 Days</option>
-                                        <option value="WEEKLY">Weekly</option>
-                                    </select>
+                                        onChange={(val) => setFormData({ ...formData, reminderFrequency: val })}
+                                        className="w-full"
+                                    />
                                     {formData.reminderFrequency && (
                                         <input
                                             type="number"
@@ -475,10 +485,11 @@ export default function CreateQuotationPage() {
                         <table className="min-w-full divide-y divide-gray-100">
                             <thead className="bg-gray-50/50">
                                 <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-black text-gray-500 uppercase tracking-wider w-5/12">Description</th>
+                                    <th className="px-6 py-3 text-left text-xs font-black text-gray-500 uppercase tracking-wider w-4/12">Description</th>
                                     <th className="px-4 py-3 text-center text-xs font-black text-gray-500 uppercase tracking-wider w-1/12">Qty</th>
+                                    <th className="px-4 py-3 text-center text-xs font-black text-gray-500 uppercase tracking-wider w-1/12">UoM</th>
                                     <th className="px-4 py-3 text-right text-xs font-black text-gray-500 uppercase tracking-wider w-2/12">Unit Price</th>
-                                    <th className="px-4 py-3 text-right text-xs font-black text-gray-500 uppercase tracking-wider w-1/12">Tax %</th>
+                                    <th className="px-4 py-3 text-right text-xs font-black text-gray-500 uppercase tracking-wider w-2/12">Tax Rule</th>
                                     <th className="px-4 py-3 text-right text-xs font-black text-gray-500 uppercase tracking-wider w-2/12">Net Amount</th>
                                     <th className="px-4 py-3 w-1/12"></th>
                                 </tr>
@@ -505,6 +516,16 @@ export default function CreateQuotationPage() {
                                             />
                                         </td>
                                         <td className="px-4 py-2">
+                                            <CustomSelect
+                                                options={unitTypes.map(u => ({ label: u.symbol, value: u.symbol }))}
+                                                value={item.unit}
+                                                onChange={(val) => updateItem(index, 'unit', val)}
+                                                placeholder="-"
+                                                className="w-full"
+                                                align="right"
+                                            />
+                                        </td>
+                                        <td className="px-4 py-2">
                                             <input
                                                 type="number"
                                                 value={item.unitPrice}
@@ -514,15 +535,18 @@ export default function CreateQuotationPage() {
                                             />
                                         </td>
                                         <td className="px-4 py-2">
-                                            <div className="flex items-center justify-end">
-                                                <input
-                                                    type="number"
-                                                    value={item.tax}
-                                                    onChange={(e) => updateItem(index, 'tax', parseFloat(e.target.value))}
-                                                    className="block w-16 border-0 border-b border-transparent bg-transparent focus:border-primary-500 focus:ring-0 text-sm text-right text-gray-500"
-                                                />
-                                                <span className="text-xs text-gray-400 ml-1">%</span>
-                                            </div>
+                                            <MultiSelect
+                                                options={taxRates.map(t => ({
+                                                    label: `${t.name} (${Number(t.percentage)}%)`,
+                                                    value: t.id,
+                                                    description: `Rate: ${Number(t.percentage)}%`
+                                                }))}
+                                                value={item.taxRateIds || []}
+                                                onChange={(val) => updateItem(index, 'taxRateIds', val)}
+                                                placeholder="0%"
+                                                className="w-full"
+                                                align="right"
+                                            />
                                         </td>
                                         <td className="px-4 py-2 text-right text-sm font-bold text-gray-900 tracking-tight">
                                             {formatCurrency((item.quantity * item.unitPrice))}

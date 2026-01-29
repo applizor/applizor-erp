@@ -9,6 +9,11 @@ This document outlines the mandatory development standards and rules for the App
 - **Reason**: These native dialogs interrupt the user experience and do not match the premium aesthetics of the application.
 - **Alternative**: Use custom modals, toast notifications (using `useToast`), or inline feedback components.
 
+### 2. No Browser Native Selects
+- **Rule**: Avoid using the native `<select>` tag.
+- **Reason**: Native selects vary by operating system and often look "cheap" or "unpolished" compared to a custom-styled enterprise UI.
+- **Alternative**: Use the custom `CustomSelect` or `MultiSelect` components from `@/components/ui`.
+
 ### 2. Premium Aesthetics
 - **Rule**: Always prioritize visual excellence. Use vibrant colors, sleek dark modes (if applicable), and modern typography.
 - **Rule**: Avoid generic colors (plain red, blue, green). Use curated palettes.

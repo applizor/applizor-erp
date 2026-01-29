@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/useToast';
 import api from '@/lib/api';
 import Portal from '@/components/ui/Portal';
 import RichTextEditor from '@/components/ui/RichTextEditor';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 interface PortalCreateIssueModalProps {
     projectId: string;
@@ -93,28 +94,46 @@ export default function PortalCreateIssueModal({ projectId, onClose, onSuccess }
                                 {/* Type */}
                                 <div className="ent-form-group">
                                     <label className="ent-label">Issue Type</label>
-                                    <select
-                                        {...register('type')}
-                                        className="ent-select"
-                                    >
-                                        <option value="issue">General Issue</option>
-                                        <option value="bug">Bug Report</option>
-                                        <option value="feature">Feature Request</option>
-                                    </select>
+                                    <Controller
+                                        name="type"
+                                        control={control}
+                                        defaultValue="issue"
+                                        render={({ field }) => (
+                                            <CustomSelect
+                                                value={field.value}
+                                                onChange={field.onChange}
+                                                options={[
+                                                    { label: 'General Issue', value: 'issue' },
+                                                    { label: 'Bug Report', value: 'bug' },
+                                                    { label: 'Feature Request', value: 'feature' }
+                                                ]}
+                                                className="w-full"
+                                            />
+                                        )}
+                                    />
                                 </div>
 
                                 {/* Priority */}
                                 <div className="ent-form-group">
                                     <label className="ent-label">Priority</label>
-                                    <select
-                                        {...register('priority')}
-                                        className="ent-select"
-                                    >
-                                        <option value="medium">Medium</option>
-                                        <option value="high">High</option>
-                                        <option value="urgent">Urgent</option>
-                                        <option value="low">Low</option>
-                                    </select>
+                                    <Controller
+                                        name="priority"
+                                        control={control}
+                                        defaultValue="medium"
+                                        render={({ field }) => (
+                                            <CustomSelect
+                                                value={field.value}
+                                                onChange={field.onChange}
+                                                options={[
+                                                    { label: 'Medium', value: 'medium' },
+                                                    { label: 'High', value: 'high' },
+                                                    { label: 'Urgent', value: 'urgent' },
+                                                    { label: 'Low', value: 'low' }
+                                                ]}
+                                                className="w-full"
+                                            />
+                                        )}
+                                    />
                                 </div>
                             </div>
 

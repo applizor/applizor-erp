@@ -8,6 +8,7 @@ import { Plus, LayoutGrid, List, Filter, Search, Briefcase, Clock, CheckCircle, 
 import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { usePermission } from '@/hooks/usePermission';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 export default function ProjectsPage() {
     const toast = useToast();
@@ -111,17 +112,19 @@ export default function ProjectsPage() {
                             className="ent-input pl-9"
                         />
                     </div>
-                    <select
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value)}
-                        className="ent-select w-40"
-                    >
-                        <option value="">All Status</option>
-                        <option value="planning">Planning</option>
-                        <option value="active">Active</option>
-                        <option value="completed">Completed</option>
-                        <option value="on-hold">On Hold</option>
-                    </select>
+                    <div className="w-44">
+                        <CustomSelect
+                            options={[
+                                { label: 'All Status', value: '' },
+                                { label: 'Planning', value: 'planning' },
+                                { label: 'Active', value: 'active' },
+                                { label: 'Completed', value: 'completed' },
+                                { label: 'On Hold', value: 'on-hold' }
+                            ]}
+                            value={statusFilter}
+                            onChange={(val) => setStatusFilter(val)}
+                        />
+                    </div>
                 </div>
                 <div className="flex bg-white border border-slate-200 p-1 rounded-md shadow-sm">
                     <button

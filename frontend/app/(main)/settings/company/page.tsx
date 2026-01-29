@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { Building, MapPin, Globe, CreditCard, Save, Upload, Loader2, Link as LinkIcon, Phone, Mail } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import PageHeader from '@/components/ui/PageHeader';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 import TaxConfiguration from '@/components/settings/TaxConfiguration';
 import UnitConfiguration from '@/components/settings/UnitConfiguration';
 
@@ -602,20 +603,21 @@ export default function CompanySettingsPage() {
                                         </div>
                                         <div className="ent-form-group">
                                             <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Base Currency</label>
-                                            <select
+                                            <CustomSelect
+                                                options={[
+                                                    { label: 'INR - Indian Rupee', value: 'INR' },
+                                                    { label: 'USD - US Dollar', value: 'USD' },
+                                                    { label: 'EUR - Euro', value: 'EUR' },
+                                                    { label: 'GBP - British Pound', value: 'GBP' },
+                                                    { label: 'AUD - Australian Dollar', value: 'AUD' },
+                                                    { label: 'CAD - Canadian Dollar', value: 'CAD' },
+                                                    { label: 'SGD - Singapore Dollar', value: 'SGD' },
+                                                    { label: 'AED - UAE Dirham', value: 'AED' }
+                                                ]}
                                                 value={company.currency || 'INR'}
-                                                onChange={e => setCompany({ ...company, currency: e.target.value })}
-                                                className="ent-input w-full"
-                                            >
-                                                <option value="INR">INR - Indian Rupee</option>
-                                                <option value="USD">USD - US Dollar</option>
-                                                <option value="EUR">EUR - Euro</option>
-                                                <option value="GBP">GBP - British Pound</option>
-                                                <option value="AUD">AUD - Australian Dollar</option>
-                                                <option value="CAD">CAD - Canadian Dollar</option>
-                                                <option value="SGD">SGD - Singapore Dollar</option>
-                                                <option value="AED">AED - UAE Dirham</option>
-                                            </select>
+                                                onChange={val => setCompany({ ...company, currency: val })}
+                                                className="w-full"
+                                            />
                                         </div>
                                     </div>
                                 </div>

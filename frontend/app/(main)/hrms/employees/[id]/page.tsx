@@ -29,6 +29,7 @@ import { departmentsApi, positionsApi, employeesApi, Department, Position, Emplo
 import { usePermission } from '@/hooks/usePermission';
 import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 export default function EmployeeDetailsPage({ params }: { params: { id: string } }) {
     const router = useRouter();
@@ -254,16 +255,14 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
                         <div className="p-6 space-y-4">
                             <div className="ent-form-group">
                                 <label className="ent-label">Select Template</label>
-                                <select
-                                    className="ent-select"
+                                <CustomSelect
+                                    options={[
+                                        { label: '-- Choose Template --', value: '' },
+                                        ...templates.map(t => ({ label: `${t.name} (${t.type})`, value: t.id }))
+                                    ]}
                                     value={selectedTemplate}
-                                    onChange={e => setSelectedTemplate(e.target.value)}
-                                >
-                                    <option value="">-- Choose Template --</option>
-                                    {templates.map(t => (
-                                        <option key={t.id} value={t.id}>{t.name} ({t.type})</option>
-                                    ))}
-                                </select>
+                                    onChange={val => setSelectedTemplate(val)}
+                                />
                             </div>
                         </div>
                         <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-50 flex justify-end gap-2">
@@ -429,36 +428,60 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
                                                     </div>
                                                     <div className="ent-form-group">
                                                         <label className="ent-label">Management Department</label>
-                                                        <select disabled={!isEditing} value={formData.departmentId} onChange={(e) => setFormData({ ...formData, departmentId: e.target.value })} className="ent-select disabled:bg-slate-50/50">
-                                                            <option value="">Select Department</option>
-                                                            {departments.map(dept => <option key={dept.id} value={dept.id}>{dept.name}</option>)}
-                                                        </select>
+                                                        <CustomSelect
+                                                            disabled={!isEditing}
+                                                            options={[
+                                                                { label: 'Select Department', value: '' },
+                                                                ...departments.map(dept => ({ label: dept.name, value: dept.id }))
+                                                            ]}
+                                                            value={formData.departmentId}
+                                                            onChange={(val) => setFormData({ ...formData, departmentId: val })}
+                                                            className="w-full"
+                                                        />
                                                     </div>
                                                     <div className="ent-form-group">
                                                         <label className="ent-label">Designated Position</label>
-                                                        <select disabled={!isEditing || !formData.departmentId} value={formData.positionId} onChange={(e) => setFormData({ ...formData, positionId: e.target.value })} className="ent-select disabled:bg-slate-50/50">
-                                                            <option value="">Select Position</option>
-                                                            {positions.map(pos => <option key={pos.id} value={pos.id}>{pos.title}</option>)}
-                                                        </select>
+                                                        <CustomSelect
+                                                            disabled={!isEditing || !formData.departmentId}
+                                                            options={[
+                                                                { label: 'Select Position', value: '' },
+                                                                ...positions.map(pos => ({ label: pos.title, value: pos.id }))
+                                                            ]}
+                                                            value={formData.positionId}
+                                                            onChange={(val) => setFormData({ ...formData, positionId: val })}
+                                                            className="w-full"
+                                                        />
                                                     </div>
                                                     <div className="ent-form-group">
                                                         <label className="ent-label">Operational Status</label>
-                                                        <select disabled={!isEditing} value={formData.status} onChange={(e) => setFormData({ ...formData, status: e.target.value })} className="ent-select disabled:bg-slate-50/50">
-                                                            <option value="active">Active Service</option>
-                                                            <option value="inactive">Inactive</option>
-                                                            <option value="on-leave">Authorized Leave</option>
-                                                            <option value="terminated">Separated</option>
-                                                        </select>
+                                                        <CustomSelect
+                                                            disabled={!isEditing}
+                                                            options={[
+                                                                { label: 'Active Service', value: 'active' },
+                                                                { label: 'Inactive', value: 'inactive' },
+                                                                { label: 'Authorized Leave', value: 'on-leave' },
+                                                                { label: 'Separated', value: 'terminated' }
+                                                            ]}
+                                                            value={formData.status}
+                                                            onChange={(val) => setFormData({ ...formData, status: val })}
+                                                            className="w-full"
+                                                        />
                                                     </div>
                                                     {/* Restored Personal Fields */}
                                                     <div className="ent-form-group">
                                                         <label className="ent-label">Bio-Identity (Gender)</label>
-                                                        <select disabled={!isEditing} value={formData.gender} onChange={(e) => setFormData({ ...formData, gender: e.target.value })} className="ent-select disabled:bg-slate-50/50">
-                                                            <option value="">Select</option>
-                                                            <option value="Male">Male</option>
-                                                            <option value="Female">Female</option>
-                                                            <option value="Other">Other</option>
-                                                        </select>
+                                                        <CustomSelect
+                                                            disabled={!isEditing}
+                                                            options={[
+                                                                { label: 'Select Gender', value: '' },
+                                                                { label: 'Male', value: 'Male' },
+                                                                { label: 'Female', value: 'Female' },
+                                                                { label: 'Other', value: 'Other' }
+                                                            ]}
+                                                            value={formData.gender}
+                                                            onChange={(val) => setFormData({ ...formData, gender: val })}
+                                                            className="w-full"
+                                                        />
                                                     </div>
                                                     <div className="ent-form-group">
                                                         <label className="ent-label">Date of Birth</label>
@@ -518,13 +541,19 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
                                         <div className="animate-fade-in grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
                                             <div className="ent-form-group">
                                                 <label className="ent-label">Engagement Classification</label>
-                                                <select disabled={!isEditing} value={formData.employmentType} onChange={(e) => setFormData({ ...formData, employmentType: e.target.value })} className="ent-select">
-                                                    <option value="">Select Type</option>
-                                                    <option value="Full Time">Direct Full Time</option>
-                                                    <option value="Part Time">Direct Part Time</option>
-                                                    <option value="Contract">Consolidated Contract</option>
-                                                    <option value="Internship">Developmental Intern</option>
-                                                </select>
+                                                <CustomSelect
+                                                    disabled={!isEditing}
+                                                    options={[
+                                                        { label: 'Select Type', value: '' },
+                                                        { label: 'Direct Full Time', value: 'Full Time' },
+                                                        { label: 'Direct Part Time', value: 'Part Time' },
+                                                        { label: 'Consolidated Contract', value: 'Contract' },
+                                                        { label: 'Developmental Intern', value: 'Internship' }
+                                                    ]}
+                                                    value={formData.employmentType}
+                                                    onChange={(val) => setFormData({ ...formData, employmentType: val })}
+                                                    className="w-full"
+                                                />
                                             </div>
                                             <div className="ent-form-group">
                                                 <label className="ent-label">Hourly Valuation (USD)</label>

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { X } from 'lucide-react';
 import api from '@/lib/api';
 import { useToast } from '@/hooks/useToast';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 interface LeadActivityModalProps {
     isOpen: boolean;
@@ -70,18 +71,17 @@ export default function LeadActivityModal({ isOpen, onClose, onSuccess, leadId, 
                             <form onSubmit={handleSubmit} className="mt-6 space-y-4">
                                 <div>
                                     <label htmlFor="type" className="block text-sm font-medium text-gray-700">Activity Type</label>
-                                    <select
-                                        id="type"
-                                        name="type"
-                                        className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md capitalize"
+                                    <CustomSelect
                                         value={formData.type}
-                                        onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                                    >
-                                        <option value="call">Phone Call</option>
-                                        <option value="email">Email</option>
-                                        <option value="meeting">Meeting</option>
-                                        <option value="note">Note</option>
-                                    </select>
+                                        onChange={(val) => setFormData({ ...formData, type: val })}
+                                        options={[
+                                            { label: 'Phone Call', value: 'call' },
+                                            { label: 'Email', value: 'email' },
+                                            { label: 'Meeting', value: 'meeting' },
+                                            { label: 'Note', value: 'note' }
+                                        ]}
+                                        className="w-full"
+                                    />
                                 </div>
 
                                 <div>
@@ -113,19 +113,19 @@ export default function LeadActivityModal({ isOpen, onClose, onSuccess, leadId, 
                                 {formData.type === 'call' && (
                                     <div>
                                         <label htmlFor="outcome" className="block text-sm font-medium text-gray-700">Outcome</label>
-                                        <select
-                                            id="outcome"
-                                            name="outcome"
-                                            className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
+                                        <CustomSelect
                                             value={formData.outcome}
-                                            onChange={(e) => setFormData({ ...formData, outcome: e.target.value })}
-                                        >
-                                            <option value="">Select Outcome...</option>
-                                            <option value="connected">Connected</option>
-                                            <option value="left_message">Left Message</option>
-                                            <option value="no_answer">No Answer</option>
-                                            <option value="wrong_number">Wrong Number</option>
-                                        </select>
+                                            onChange={(val) => setFormData({ ...formData, outcome: val })}
+                                            options={[
+                                                { label: 'Select Outcome...', value: '' },
+                                                { label: 'Connected', value: 'connected' },
+                                                { label: 'Left Message', value: 'left_message' },
+                                                { label: 'No Answer', value: 'no_answer' },
+                                                { label: 'Wrong Number', value: 'wrong_number' }
+                                            ]}
+                                            placeholder="Select Outcome..."
+                                            className="w-full"
+                                        />
                                     </div>
                                 )}
 

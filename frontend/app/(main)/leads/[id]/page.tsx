@@ -12,6 +12,7 @@ import { PermissionGuard } from '@/components/PermissionGuard';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useCurrency } from '@/context/CurrencyContext';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 export default function LeadDetailPage() {
     const router = useRouter();
@@ -467,20 +468,30 @@ export default function LeadDetailPage() {
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="ent-form-group">
                                     <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Protocol Type</label>
-                                    <select value={activityForm.type} onChange={(e) => setActivityForm({ ...activityForm, type: e.target.value })} className="ent-input w-full">
-                                        <option value="call">TELE-COMM (CALL)</option>
-                                        <option value="email">ELECTRONIC MAIL</option>
-                                        <option value="meeting">STRATEGIC SESSION</option>
-                                        <option value="note">INTELLIGENCE NOTE</option>
-                                    </select>
+                                    <CustomSelect
+                                        options={[
+                                            { label: 'TELE-COMM (CALL)', value: 'call' },
+                                            { label: 'ELECTRONIC MAIL', value: 'email' },
+                                            { label: 'STRATEGIC SESSION', value: 'meeting' },
+                                            { label: 'INTELLIGENCE NOTE', value: 'note' }
+                                        ]}
+                                        value={activityForm.type}
+                                        onChange={(val) => setActivityForm({ ...activityForm, type: val })}
+                                        className="w-full"
+                                    />
                                 </div>
                                 <div className="ent-form-group">
                                     <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Movement Status</label>
-                                    <select value={activityForm.status} onChange={(e) => setActivityForm({ ...activityForm, status: e.target.value })} className="ent-input w-full">
-                                        <option value="pending">PENDING EXECUTION</option>
-                                        <option value="completed">SYNCHRONIZED</option>
-                                        <option value="cancelled">ABORTED</option>
-                                    </select>
+                                    <CustomSelect
+                                        options={[
+                                            { label: 'PENDING EXECUTION', value: 'pending' },
+                                            { label: 'SYNCHRONIZED', value: 'completed' },
+                                            { label: 'ABORTED', value: 'cancelled' }
+                                        ]}
+                                        value={activityForm.status}
+                                        onChange={(val) => setActivityForm({ ...activityForm, status: val })}
+                                        className="w-full"
+                                    />
                                 </div>
                             </div>
                             <div className="ent-form-group">

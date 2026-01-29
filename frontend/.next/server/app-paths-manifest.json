@@ -1,8 +1,1 @@
-{
-  "/not-found": "app/not-found.js",
-  "/portal/dashboard/page": "app/portal/dashboard/page.js",
-  "/portal/projects/page": "app/portal/projects/page.js",
-  "/portal/projects/[id]/page": "app/portal/projects/[id]/page.js",
-  "/(main)/settings/company/page": "app/(main)/settings/company/page.js",
-  "/(main)/projects/[id]/tasks/page": "app/(main)/projects/[id]/tasks/page.js"
-}
+{}

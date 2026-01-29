@@ -11,6 +11,7 @@ import { useCurrency } from '@/context/CurrencyContext';
 import { usePermission } from '@/hooks/usePermission';
 import AccessDenied from '@/components/AccessDenied';
 import { CurrencySelect } from '@/components/ui/CurrencySelect';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 export default function CreateLeadPage() {
     const toast = useToast();
@@ -212,16 +213,17 @@ export default function CreateLeadPage() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="ent-form-group">
                                     <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Criticality Level (Priority)</label>
-                                    <select
-                                        className="ent-input w-full"
+                                    <CustomSelect
+                                        options={[
+                                            { label: 'LOW PRIORITY', value: 'low' },
+                                            { label: 'STANDARD PROTOCOL', value: 'medium' },
+                                            { label: 'HIGH CRITICALITY', value: 'high' },
+                                            { label: 'URGENT INTERVENTION', value: 'urgent' }
+                                        ]}
                                         value={formData.priority}
-                                        onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-                                    >
-                                        <option value="low">LOW PRIORITY</option>
-                                        <option value="medium">STANDARD PROTOCOL</option>
-                                        <option value="high">HIGH CRITICALITY</option>
-                                        <option value="urgent">URGENT INTERVENTION</option>
-                                    </select>
+                                        onChange={(val) => setFormData({ ...formData, priority: val })}
+                                        className="w-full"
+                                    />
                                 </div>
                                 <div className="ent-form-group">
                                     <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Strategic Valuation</label>
@@ -243,18 +245,19 @@ export default function CreateLeadPage() {
                                 </div>
                                 <div className="ent-form-group">
                                     <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Inbound Protocol (Source)</label>
-                                    <select
-                                        className="ent-input w-full"
+                                    <CustomSelect
+                                        options={[
+                                            { label: 'DIRECT WEB PORTAL', value: 'website' },
+                                            { label: 'TRUSTED REFERRAL', value: 'referral' },
+                                            { label: 'LINKEDIN INTELLIGENCE', value: 'linkedin' },
+                                            { label: 'OUTBOUND COLD PROTOCOL', value: 'cold_call' },
+                                            { label: 'SOCIAL ARCHIVAL', value: 'social_media' },
+                                            { label: 'MISCELLANEOUS DELEGATION', value: 'other' }
+                                        ]}
                                         value={formData.source}
-                                        onChange={(e) => setFormData({ ...formData, source: e.target.value })}
-                                    >
-                                        <option value="website">DIRECT WEB PORTAL</option>
-                                        <option value="referral">TRUSTED REFERRAL</option>
-                                        <option value="linkedin">LINKEDIN INTELLIGENCE</option>
-                                        <option value="cold_call">OUTBOUND COLD PROTOCOL</option>
-                                        <option value="social_media">SOCIAL ARCHIVAL</option>
-                                        <option value="other">MISCELLANEOUS DELEGATION</option>
-                                    </select>
+                                        onChange={(val) => setFormData({ ...formData, source: val })}
+                                        className="w-full"
+                                    />
                                 </div>
                                 <div className="ent-form-group">
                                     <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Source Specification</label>

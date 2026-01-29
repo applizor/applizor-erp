@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { leavesApi, LeaveType } from '@/lib/api/attendance';
 import { Plus, Clock, CheckCircle, XCircle, AlertCircle, AlertTriangle, FileText, Calendar, Info, Trash2 } from 'lucide-react';
 import { LeaveBalanceCards } from '@/components/attendance/LeaveBalanceCards';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { PermissionGuard } from '@/components/PermissionGuard';
@@ -327,16 +328,13 @@ export default function MyLeavesPage() {
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="ent-form-group">
                                     <label className="text-xs font-bold text-gray-700 uppercase mb-1.5 block">Leave Type *</label>
-                                    <select
-                                        required
+                                    <CustomSelect
                                         value={formData.leaveTypeId}
-                                        onChange={(e) => setFormData({ ...formData, leaveTypeId: e.target.value })}
-                                        className="ent-input text-xs font-bold"
-                                    >
-                                        {leaveTypes.map(t => (
-                                            <option key={t.id} value={t.id}>{t.name}</option>
-                                        ))}
-                                    </select>
+                                        onChange={(val) => setFormData({ ...formData, leaveTypeId: val })}
+                                        options={leaveTypes.map(t => ({ label: t.name, value: t.id }))}
+                                        placeholder="Select Type"
+                                        className="w-full"
+                                    />
                                 </div>
                                 <div className="ent-form-group">
                                     <label className="text-xs font-bold text-gray-700 uppercase mb-1.5 block">Duration</label>

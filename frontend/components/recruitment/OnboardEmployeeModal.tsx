@@ -7,6 +7,7 @@ import { Candidate, OfferLetter } from '@/lib/api/recruitment';
 import { departmentsApi, Department, positionsApi, Position } from '@/lib/api/hrms';
 import AlertDialog from '@/components/ui/AlertDialog';
 import { UserPlus, X, User, Briefcase, Calendar, Shield, Lock } from 'lucide-react';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 interface OnboardEmployeeModalProps {
     isOpen: boolean;
@@ -190,31 +191,31 @@ export default function OnboardEmployeeModal({ isOpen, onClose, onSubmit, candid
 
                             <div className="ent-form-group">
                                 <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Department</label>
-                                <div className="relative">
-                                    <select
-                                        value={formData.departmentId}
-                                        onChange={e => setFormData({ ...formData, departmentId: e.target.value })}
-                                        className="ent-input w-full appearance-none"
-                                    >
-                                        <option value="">Select Department</option>
-                                        {departments.map((d: Department) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                                    </select>
-                                </div>
+                                <CustomSelect
+                                    value={formData.departmentId}
+                                    onChange={(val) => setFormData({ ...formData, departmentId: val })}
+                                    options={[
+                                        { label: 'Select Department', value: '' },
+                                        ...departments.map(d => ({ label: d.name, value: d.id }))
+                                    ]}
+                                    placeholder="Select Department"
+                                    className="w-full"
+                                />
                             </div>
                             <div className="ent-form-group">
                                 <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Position</label>
-                                <div className="relative">
-                                    <select
-                                        value={formData.positionId}
-                                        onChange={e => setFormData({ ...formData, positionId: e.target.value })}
-                                        className="ent-input w-full appearance-none"
-                                    >
-                                        <option value="">Select Position</option>
-                                        {positions.filter((p: Position) => !formData.departmentId || p.departmentId === formData.departmentId).map((p: Position) => (
-                                            <option key={p.id} value={p.id}>{p.title}</option>
-                                        ))}
-                                    </select>
-                                </div>
+                                <CustomSelect
+                                    value={formData.positionId}
+                                    onChange={(val) => setFormData({ ...formData, positionId: val })}
+                                    options={[
+                                        { label: 'Select Position', value: '' },
+                                        ...positions
+                                            .filter(p => !formData.departmentId || p.departmentId === formData.departmentId)
+                                            .map(p => ({ label: p.title, value: p.id }))
+                                    ]}
+                                    placeholder="Select Position"
+                                    className="w-full"
+                                />
                             </div>
                         </div>
                     </div>

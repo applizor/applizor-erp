@@ -7,6 +7,7 @@ import { holidaysApi, Holiday } from '@/lib/api/attendance';
 import { PermissionGuard } from '@/components/PermissionGuard';
 import { ChevronLeft, ChevronRight, Plus, Calendar, Trash2, Globe, Briefcase, Building2, X } from 'lucide-react';
 import { useConfirm } from '@/context/ConfirmationContext';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 export default function HolidaysPage() {
     const toast = useToast();
@@ -440,15 +441,16 @@ export default function HolidaysPage() {
                                 </div>
                                 <div className="ent-form-group">
                                     <label className="text-xs font-bold text-gray-700 uppercase mb-1.5 block">Type</label>
-                                    <select
+                                    <CustomSelect
                                         value={formData.type}
-                                        onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                                        className="ent-select"
-                                    >
-                                        <option value="national">National</option>
-                                        <option value="regional">Regional</option>
-                                        <option value="company">Company</option>
-                                    </select>
+                                        onChange={(val) => setFormData({ ...formData, type: val })}
+                                        options={[
+                                            { label: 'National', value: 'national' },
+                                            { label: 'Regional', value: 'regional' },
+                                            { label: 'Company', value: 'company' }
+                                        ]}
+                                        className="w-full"
+                                    />
                                 </div>
                             </div>
 

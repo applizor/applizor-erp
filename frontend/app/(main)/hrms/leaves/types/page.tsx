@@ -10,6 +10,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useConfirm } from '@/context/ConfirmationContext';
 import PageHeader from '@/components/ui/PageHeader';
 import { Settings, Sliders } from 'lucide-react';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 export default function LeaveTypesPage() {
     const { can, user } = usePermission();
@@ -226,11 +227,16 @@ export default function LeaveTypesPage() {
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                                 <div className="ent-form-group">
                                     <label className="ent-label">Accrual Type</label>
-                                    <select value={formData.accrualType} onChange={e => setFormData({ ...formData, accrualType: e.target.value as any })} className="ent-select">
-                                        <option value="yearly">Yearly (Lump sum)</option>
-                                        <option value="monthly">Monthly Accrual</option>
-                                        <option value="daily">Daily Accrual</option>
-                                    </select>
+                                    <CustomSelect
+                                        value={formData.accrualType}
+                                        onChange={(val) => setFormData({ ...formData, accrualType: val as any })}
+                                        options={[
+                                            { label: 'Yearly (Lump sum)', value: 'yearly' },
+                                            { label: 'Monthly Accrual', value: 'monthly' },
+                                            { label: 'Daily Accrual', value: 'daily' }
+                                        ]}
+                                        className="w-full"
+                                    />
                                 </div>
                                 {formData.accrualType !== 'yearly' && (
                                     <>

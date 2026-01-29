@@ -41,19 +41,45 @@ export const createQuotation = async (req: AuthRequest, res: Response) => {
         });
         const quotationNumber = `QUO-${new Date().getFullYear()}-${String(count + 1).padStart(4, '0')}`;
 
+        const taxRates = await prisma.taxRate.findMany({
+            where: {
+                id: { in: items.flatMap((item: any) => item.taxRateIds || []) }
+            }
+        });
+
         // Calculate totals
         let subtotal = 0;
         let totalTax = 0;
         let totalDiscount = 0;
 
-        items.forEach((item: any) => {
-            const itemTotal = item.quantity * item.unitPrice;
-            const itemTax = (itemTotal * item.tax) / 100;
-            const itemDiscount = (itemTotal * item.discount) / 100;
+        const processedItems = items.map((item: any) => {
+            const itemSubtotal = item.quantity * item.unitPrice;
+            const itemDiscount = (itemSubtotal * (item.discount || 0)) / 100;
+            const taxableAmount = itemSubtotal - itemDiscount;
 
-            subtotal += itemTotal;
-            totalTax += itemTax;
+            let itemTotalTax = 0;
+            const appliedTaxes = (item.taxRateIds || []).map((taxId: string) => {
+                const taxConfig = taxRates.find(t => t.id === taxId);
+                const taxPercentage = taxConfig ? Number(taxConfig.percentage) : 0;
+                const taxAmount = taxableAmount * (taxPercentage / 100);
+                itemTotalTax += taxAmount;
+                return {
+                    taxRateId: taxId,
+                    name: taxConfig?.name || 'Tax',
+                    percentage: taxPercentage,
+                    amount: taxAmount
+                };
+            });
+
+            subtotal += itemSubtotal;
+            totalTax += itemTotalTax;
             totalDiscount += itemDiscount;
+
+            return {
+                ...item,
+                appliedTaxes,
+                total: itemSubtotal - itemDiscount + itemTotalTax
+            };
         });
 
         const total = subtotal + totalTax - totalDiscount;
@@ -119,13 +145,16 @@ export const createQuotation = async (req: AuthRequest, res: Response) => {
                 maxReminders: maxReminders ? parseInt(maxReminders) : 3,
                 nextReminderAt,
                 items: {
-                    create: items.map((item: any) => ({
+                    create: processedItems.map((item: any) => ({
                         description: item.description,
                         quantity: item.quantity,
+                        unit: item.unit,
                         unitPrice: item.unitPrice,
-                        tax: item.tax,
                         discount: item.discount,
-                        total: item.quantity * item.unitPrice
+                        total: item.total,
+                        appliedTaxes: {
+                            create: item.appliedTaxes
+                        }
                     }))
                 }
             },
@@ -343,19 +372,45 @@ export const updateQuotation = async (req: AuthRequest, res: Response) => {
 
         // If items are provided, recalculate totals and update items
         if (items && Array.isArray(items)) {
+            const taxRates = await prisma.taxRate.findMany({
+                where: {
+                    id: { in: items.flatMap((item: any) => item.taxRateIds || []) }
+                }
+            });
+
             // Calculate totals
             let subtotal = 0;
             let totalTax = 0;
             let totalDiscount = 0;
 
-            items.forEach((item: any) => {
-                const itemTotal = item.quantity * item.unitPrice;
-                const itemTax = (itemTotal * item.tax) / 100;
-                const itemDiscount = (itemTotal * item.discount) / 100;
+            const processedItems = items.map((item: any) => {
+                const itemSubtotal = item.quantity * item.unitPrice;
+                const itemDiscount = (itemSubtotal * (item.discount || 0)) / 100;
+                const taxableAmount = itemSubtotal - itemDiscount;
 
-                subtotal += itemTotal;
-                totalTax += itemTax;
+                let itemTotalTax = 0;
+                const appliedTaxes = (item.taxRateIds || []).map((taxId: string) => {
+                    const taxConfig = taxRates.find(t => t.id === taxId);
+                    const taxPercentage = taxConfig ? Number(taxConfig.percentage) : 0;
+                    const taxAmount = taxableAmount * (taxPercentage / 100);
+                    itemTotalTax += taxAmount;
+                    return {
+                        taxRateId: taxId,
+                        name: taxConfig?.name || 'Tax',
+                        percentage: taxPercentage,
+                        amount: taxAmount
+                    };
+                });
+
+                subtotal += itemSubtotal;
+                totalTax += itemTotalTax;
                 totalDiscount += itemDiscount;
+
+                return {
+                    ...item,
+                    appliedTaxes,
+                    total: itemSubtotal - itemDiscount + itemTotalTax
+                };
             });
 
             const total = subtotal + totalTax - totalDiscount;
@@ -371,13 +426,16 @@ export const updateQuotation = async (req: AuthRequest, res: Response) => {
             });
 
             updateData.items = {
-                create: items.map((item: any) => ({
+                create: processedItems.map((item: any) => ({
                     description: item.description,
                     quantity: item.quantity,
+                    unit: item.unit,
                     unitPrice: item.unitPrice,
-                    tax: item.tax,
                     discount: item.discount,
-                    total: item.quantity * item.unitPrice
+                    total: item.total,
+                    appliedTaxes: {
+                        create: item.appliedTaxes
+                    }
                 }))
             };
         }
@@ -632,7 +690,9 @@ export const downloadQuotationPDF = async (req: AuthRequest, res: Response) => {
             items: quotation.items.map(item => ({
                 description: item.description,
                 quantity: Number(item.quantity),
-                unitPrice: Number(item.unitPrice)
+                unit: item.unit || undefined,
+                unitPrice: Number(item.unitPrice),
+                taxRate: Number(item.tax)
             })),
             subtotal: Number(quotation.subtotal),
             tax: Number(quotation.tax),
@@ -746,7 +806,9 @@ export const downloadSignedQuotationPDF = async (req: AuthRequest, res: Response
             items: quotation.items.map(item => ({
                 description: item.description,
                 quantity: Number(item.quantity),
-                unitPrice: Number(item.unitPrice)
+                unit: item.unit || undefined,
+                unitPrice: Number(item.unitPrice),
+                taxRate: Number(item.tax)
             })),
             subtotal: Number(quotation.subtotal),
             tax: Number(quotation.tax),

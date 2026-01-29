@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Calendar, X, Clock, User, Hash } from 'lucide-react';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 interface ScheduleInterviewModalProps {
     isOpen: boolean;
@@ -67,16 +68,17 @@ export default function ScheduleInterviewModal({ isOpen, onClose, onSubmit }: Sc
                         </div>
                         <div className="ent-form-group">
                             <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Interview Type</label>
-                            <select
+                            <CustomSelect
                                 value={formData.type}
-                                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                                className="ent-input w-full appearance-none"
-                            >
-                                <option value="technical">Technical</option>
-                                <option value="hr">HR</option>
-                                <option value="managerial">Managerial</option>
-                                <option value="final">Final Round</option>
-                            </select>
+                                onChange={(val) => setFormData({ ...formData, type: val })}
+                                options={[
+                                    { label: 'Technical', value: 'technical' },
+                                    { label: 'HR', value: 'hr' },
+                                    { label: 'Managerial', value: 'managerial' },
+                                    { label: 'Final Round', value: 'final' }
+                                ]}
+                                className="w-full"
+                            />
                         </div>
                     </div>
 

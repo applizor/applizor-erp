@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import PageHeader from '@/components/ui/PageHeader';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 export default function PositionsPage() {
     const router = useRouter();
@@ -105,16 +106,16 @@ export default function PositionsPage() {
                     <div className="flex flex-col sm:flex-row sm:items-center gap-4 w-full lg:w-auto">
                         <div className="flex items-center gap-2 px-3 py-1 bg-gray-50 border border-gray-100 rounded-md focus-within:ring-1 focus-within:ring-primary-500/20 transition-all">
                             <Filter size={12} className="text-gray-400" />
-                            <select
+                            <CustomSelect
                                 value={filterDept}
-                                onChange={(e) => setFilterDept(e.target.value)}
-                                className="bg-transparent border-none focus:ring-0 text-[10px] font-black uppercase tracking-widest text-gray-600 py-1.5 cursor-pointer"
-                            >
-                                <option value="">All Divisions</option>
-                                {departments.map(dept => (
-                                    <option key={dept.id} value={dept.id}>{dept.name}</option>
-                                ))}
-                            </select>
+                                onChange={(val) => setFilterDept(val)}
+                                options={[
+                                    { label: 'All Divisions', value: '' },
+                                    ...departments.map(dept => ({ label: dept.name, value: dept.id }))
+                                ]}
+                                placeholder="All Divisions"
+                                className="min-w-[140px] border-none bg-transparent"
+                            />
                         </div>
                         <div className="flex items-center gap-3">
                             <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-gray-50 border border-gray-100 rounded-md text-[10px] font-black uppercase tracking-widest text-gray-400">
@@ -221,17 +222,16 @@ export default function PositionsPage() {
                                     <label className="text-[9px] font-black text-gray-500 mb-1 uppercase tracking-widest flex items-center gap-1.5">
                                         Division Assignment <span className="text-rose-500">*</span>
                                     </label>
-                                    <select
-                                        required
+                                    <CustomSelect
                                         value={currentPosition.departmentId}
-                                        onChange={(e) => setCurrentPosition({ ...currentPosition, departmentId: e.target.value })}
-                                        className="ent-input w-full p-2.5 text-[11px] font-black tracking-widest cursor-pointer"
-                                    >
-                                        <option value="">SELECT DIVISION</option>
-                                        {departments.map(dept => (
-                                            <option key={dept.id} value={dept.id}>{dept.name}</option>
-                                        ))}
-                                    </select>
+                                        onChange={(val) => setCurrentPosition({ ...currentPosition, departmentId: val })}
+                                        options={[
+                                            { label: 'SELECT DIVISION', value: '' },
+                                            ...departments.map(dept => ({ label: dept.name, value: dept.id }))
+                                        ]}
+                                        placeholder="SELECT DIVISION"
+                                        className="w-full"
+                                    />
                                 </div>
 
                                 <div className="ent-form-group">
