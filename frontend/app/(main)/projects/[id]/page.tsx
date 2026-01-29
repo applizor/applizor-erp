@@ -44,34 +44,34 @@ export default function ProjectDashboard({ params }: { params: { id: string } })
     const criticalPath = stats?.criticalPath || { nextMilestone: null };
 
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in">
             {/* Left Column: Progress & Overview */}
             <div className="lg:col-span-2 space-y-6">
 
                 {/* 1. Progress Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Task Progress */}
-                    <div className="ent-card p-5 bg-gradient-to-br from-indigo-900 to-indigo-950 text-white relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl" />
+                    {/* Task Progress - BRANDED */}
+                    <div className="ent-card p-5 bg-gradient-to-br from-primary-900 to-primary-950 text-white relative overflow-hidden border-none ring-1 ring-black/5 shadow-lg">
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-xl pointer-events-none" />
 
                         <div className="flex justify-between items-start mb-6">
                             <div>
-                                <h3 className="text-[9px] font-black text-indigo-200 uppercase tracking-widest">Task Completion</h3>
-                                <p className="text-[9px] text-indigo-300 mt-1">Milestone Velocity</p>
+                                <h3 className="text-[9px] font-black text-primary-200 uppercase tracking-widest">Task Completion</h3>
+                                <p className="text-[9px] text-primary-300 mt-0.5 font-bold">Milestone Velocity</p>
                             </div>
-                            <div className="p-1.5 bg-white/10 rounded-md">
+                            <div className="p-1.5 bg-white/10 rounded-md backdrop-blur-sm">
                                 <CheckCircle size={14} className="text-emerald-400" />
                             </div>
                         </div>
 
                         <div className="flex items-end gap-3 mb-4">
                             <span className="text-3xl font-black tracking-tight">{efficiency.completionRate}%</span>
-                            <span className="text-[9px] font-bold text-indigo-300 mb-1.5 uppercase tracking-wide">Overall Status</span>
+                            <span className="text-[9px] font-bold text-primary-300 mb-1.5 uppercase tracking-wide">Overall Status</span>
                         </div>
 
                         <div className="w-full h-1.5 bg-black/20 rounded-full overflow-hidden">
                             <div
-                                className="h-full bg-emerald-500 rounded-full transition-all duration-1000 ease-out"
+                                className="h-full bg-emerald-500 rounded-full transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(16,185,129,0.5)]"
                                 style={{ width: `${efficiency.completionRate}%` }}
                             />
                         </div>
@@ -81,8 +81,8 @@ export default function ProjectDashboard({ params }: { params: { id: string } })
                     <div className={`ent-card p-5 bg-white border-l-4 ${efficiency.status === 'at-risk' ? 'border-l-rose-500' : 'border-l-amber-500'}`}>
                         <div className="flex justify-between items-start mb-6">
                             <div>
-                                <h3 className="text-[9px] font-black text-gray-900 uppercase tracking-widest">Efficiency Index</h3>
-                                <p className="text-[9px] text-gray-400 mt-1">Logged Hours vs Est.</p>
+                                <h3 className="text-[9px] font-black text-slate-900 uppercase tracking-widest">Efficiency Index</h3>
+                                <p className="text-[9px] text-slate-400 mt-0.5 font-bold">Logged Hours vs Est.</p>
                             </div>
                             <div className={`p-1.5 rounded-md ${efficiency.status === 'at-risk' ? 'bg-rose-50' : 'bg-amber-50'}`}>
                                 <Clock size={14} className={efficiency.status === 'at-risk' ? 'text-rose-600' : 'text-amber-600'} />
@@ -90,7 +90,7 @@ export default function ProjectDashboard({ params }: { params: { id: string } })
                         </div>
 
                         <div className="flex items-end gap-3 mb-4">
-                            <span className="text-3xl font-black tracking-tight text-gray-900">
+                            <span className="text-3xl font-black tracking-tight text-slate-900">
                                 {efficiency.totalLoggedHours > 0 ? 'Active' : 'N/A'}
                             </span>
                             <span className={`text-[9px] font-bold mb-1.5 uppercase tracking-wide flex items-center gap-1 ${efficiency.status === 'at-risk' ? 'text-rose-600' : 'text-emerald-600'}`}>
@@ -98,7 +98,7 @@ export default function ProjectDashboard({ params }: { params: { id: string } })
                             </span>
                         </div>
 
-                        <p className="text-[9px] text-gray-400 leading-relaxed">
+                        <p className="text-[9px] text-slate-500 font-medium leading-relaxed">
                             {efficiency.status === 'at-risk'
                                 ? 'Resource usage exceeding estimated velocity. Review allocated hours.'
                                 : 'Project pace is healthy. Resource utilization is within projected safe zones.'}
@@ -108,25 +108,25 @@ export default function ProjectDashboard({ params }: { params: { id: string } })
 
                 {/* 2. Critical Path Activity */}
                 <div className="ent-card p-5">
-                    <h3 className="text-[9px] font-black text-gray-900 uppercase tracking-widest mb-6 flex items-center gap-2">
+                    <h3 className="text-[9px] font-black text-slate-900 uppercase tracking-widest mb-6 flex items-center gap-2">
                         <TrendingUp size={12} className="text-primary-600" />
                         Critical Path Activity
                     </h3>
-                    <div className="space-y-6 relative ml-2 before:absolute before:left-0 before:top-2 before:bottom-2 before:w-[1px] before:bg-gray-100">
+                    <div className="space-y-6 relative ml-2 before:absolute before:left-0 before:top-2 before:bottom-2 before:w-[1px] before:bg-slate-100">
                         {(!project.milestones || project.milestones.length === 0) && (
-                            <p className="pl-6 text-[10px] text-gray-400 italic">No milestones defined yet.</p>
+                            <p className="pl-6 text-[10px] text-slate-400 italic font-bold">No milestones defined yet.</p>
                         )}
                         {project.milestones?.slice(0, 3).map((m: any) => (
-                            <div key={m.id} className="relative pl-6">
-                                <div className={`absolute left-[-4px] top-1.5 w-2 h-2 rounded-full ring-4 ring-white ${m.status === 'completed' ? 'bg-emerald-500' : 'bg-gray-300'}`} />
+                            <div key={m.id} className="relative pl-6 group">
+                                <div className={`absolute left-[-4px] top-1.5 w-2 h-2 rounded-full ring-4 ring-white transition-all group-hover:scale-110 ${m.status === 'completed' ? 'bg-emerald-500' : 'bg-slate-300'}`} />
                                 <div className="flex justify-between items-start">
                                     <div>
-                                        <h4 className="text-xs font-bold text-gray-900">{m.title}</h4>
-                                        <p className="text-[9px] text-gray-400 font-bold mt-0.5 uppercase tracking-wide">
+                                        <h4 className="text-xs font-black text-slate-900 group-hover:text-primary-700 transition-colors uppercase">{m.title}</h4>
+                                        <p className="text-[9px] text-slate-400 font-bold mt-0.5 uppercase tracking-wide">
                                             Due: {m.dueDate ? new Date(m.dueDate).toLocaleDateString() : 'N/A'}
                                         </p>
                                     </div>
-                                    <span className="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 bg-gray-50 rounded text-gray-500">
+                                    <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${m.status === 'completed' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-slate-500'}`}>
                                         {m.status}
                                     </span>
                                 </div>
@@ -143,39 +143,39 @@ export default function ProjectDashboard({ params }: { params: { id: string } })
                 {can('financials', 'view') && (
                     <div className="ent-card p-5">
                         <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-[9px] font-black text-gray-900 uppercase tracking-widest flex items-center gap-2">
+                            <h3 className="text-[9px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
                                 <Wallet size={12} className="text-primary-600" />
                                 Financial Overview
                             </h3>
-                            <span className="text-[9px] font-bold text-gray-400 uppercase">FY 2024-25</span>
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">FY 2024-25</span>
                         </div>
                         <div className="grid grid-cols-3 gap-2">
-                            <div className="p-2 bg-gray-50 rounded border border-gray-100">
-                                <span className="text-[9px] font-bold text-gray-400 uppercase block mb-1">Budget</span>
-                                <span className="text-xs font-black text-gray-900">
+                            <div className="p-2.5 bg-slate-50 rounded border border-slate-100">
+                                <span className="text-[9px] font-black text-slate-400 uppercase block mb-1 tracking-wider">Budget</span>
+                                <span className="text-xs font-black text-slate-900 block truncate">
                                     ${project.budget?.toLocaleString() || '0'}
                                 </span>
                             </div>
-                            <div className="p-2 bg-emerald-50 rounded border border-emerald-100">
-                                <span className="text-[9px] font-bold text-emerald-600 uppercase block mb-1">Revenue</span>
-                                <span className="text-xs font-black text-emerald-700">
+                            <div className="p-2.5 bg-emerald-50 rounded border border-emerald-100">
+                                <span className="text-[9px] font-black text-emerald-600 uppercase block mb-1 tracking-wider">Revenue</span>
+                                <span className="text-xs font-black text-emerald-700 block truncate">
                                     ${project.actualRevenue?.toLocaleString() || '0'}
                                 </span>
                             </div>
-                            <div className="p-2 bg-rose-50 rounded border border-rose-100">
-                                <span className="text-[9px] font-bold text-rose-600 uppercase block mb-1">Expenses</span>
-                                <span className="text-xs font-black text-rose-700">
+                            <div className="p-2.5 bg-rose-50 rounded border border-rose-100">
+                                <span className="text-[9px] font-black text-rose-600 uppercase block mb-1 tracking-wider">Expenses</span>
+                                <span className="text-xs font-black text-rose-700 block truncate">
                                     ${project.actualExpenses?.toLocaleString() || '0'}
                                 </span>
                             </div>
                         </div>
-                        <div className="pt-3 border-t border-gray-100 flex justify-between items-center mt-4">
-                            <span className="text-[9px] font-black text-gray-900 uppercase tracking-widest">Net Profit</span>
+                        <div className="pt-3 border-t border-slate-100 flex justify-between items-center mt-4">
+                            <span className="text-[9px] font-black text-slate-900 uppercase tracking-widest">Net Profit</span>
                             <div className="text-right">
-                                <span className={`text-xs font-black ${financials.netProfit >= 0 ? 'text-gray-900' : 'text-rose-600'}`}>
+                                <span className={`text-xs font-black ${financials.netProfit >= 0 ? 'text-slate-900' : 'text-rose-600'}`}>
                                     ${financials.netProfit.toLocaleString()}
                                 </span>
-                                <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">{financials.margin}% Margin</p>
+                                <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">{financials.margin}% Margin</p>
                             </div>
                         </div>
                     </div>
@@ -184,38 +184,38 @@ export default function ProjectDashboard({ params }: { params: { id: string } })
                 {/* Team Members */}
                 <div className="ent-card p-5">
                     <div className="flex justify-between items-center mb-5">
-                        <h3 className="text-[9px] font-black text-gray-900 uppercase tracking-widest flex items-center gap-2">
+                        <h3 className="text-[9px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
                             <Users size={12} className="text-primary-600" />
                             Assigned Core Team
                         </h3>
                         {can('settings', 'edit') && (
                             <button
                                 onClick={() => setIsMemberModalOpen(true)}
-                                className="p-1.5 hover:bg-gray-100 rounded text-gray-400 hover:text-primary-600 transition-colors"
+                                className="p-1.5 hover:bg-slate-50 rounded text-slate-400 hover:text-primary-600 transition-colors"
                                 title="Manage Team"
                             >
                                 <Settings2 size={12} />
                             </button>
                         )}
                     </div>
-                    <div className="space-y-3">
+                    <div className="space-y-3 max-h-[300px] overflow-y-auto custom-scrollbar pr-1">
                         {project.members?.map((member: any) => (
-                            <div key={member.id} className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-md transition-colors">
-                                <div className="w-7 h-7 rounded bg-primary-50 text-primary-700 flex items-center justify-center text-[9px] font-black uppercase">
+                            <div key={member.id} className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-md transition-colors group cursor-default">
+                                <div className="w-8 h-8 rounded bg-primary-50 text-primary-700 flex items-center justify-center text-[10px] font-black uppercase ring-2 ring-transparent group-hover:ring-primary-100 transition-all">
                                     {member.employee.firstName[0]}{member.employee.lastName[0]}
                                 </div>
                                 <div className="flex-1 overflow-hidden">
-                                    <h4 className="text-[11px] font-bold text-gray-900 truncate">
+                                    <h4 className="text-[11px] font-bold text-slate-900 truncate group-hover:text-primary-700 transition-colors">
                                         {member.employee.firstName} {member.employee.lastName}
                                     </h4>
-                                    <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest truncate">
+                                    <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest truncate">
                                         {member.employee.position?.title || member.role}
                                     </p>
                                 </div>
                             </div>
                         ))}
                         {(!project.members || project.members.length === 0) && (
-                            <p className="text-[9px] text-gray-400 italic">No members assigned.</p>
+                            <p className="text-[9px] text-slate-400 italic font-bold text-center py-4">No members assigned.</p>
                         )}
                     </div>
                 </div>
@@ -223,11 +223,11 @@ export default function ProjectDashboard({ params }: { params: { id: string } })
                 {/* Quick Actions */}
                 <div className="grid grid-cols-2 gap-3">
                     {can('financials', 'create') && (
-                        <button className="py-2.5 bg-gray-900 text-white rounded text-[9px] font-black uppercase tracking-widest hover:bg-gray-800 transition-all shadow-lg shadow-gray-900/10">
+                        <button className="btn-primary py-3 text-[9px] shadow-lg shadow-primary-900/20">
                             Create Invoice
                         </button>
                     )}
-                    <button className="py-2.5 bg-white text-gray-900 border border-gray-200 rounded text-[9px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all">
+                    <button className="btn-secondary py-3 text-[9px]">
                         Log Time
                     </button>
                 </div>

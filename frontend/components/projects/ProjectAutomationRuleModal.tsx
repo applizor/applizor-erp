@@ -48,50 +48,50 @@ export default function ProjectAutomationRuleModal({ projectId, onClose, onSucce
 
     return (
         <Portal>
-            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex justify-center items-center p-4 animate-fade-in">
-                <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-zoom-in">
+            <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex justify-center items-center p-4 animate-fade-in">
+                <div className="bg-white rounded-md shadow-2xl w-full max-w-lg overflow-hidden animate-zoom-in border border-slate-100 ring-1 ring-slate-900/5">
 
                     {/* Header */}
-                    <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                    <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-start bg-white">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-violet-100 text-violet-600 flex items-center justify-center">
-                                <Zap size={20} />
+                            <div className="w-10 h-10 rounded-md bg-primary-900 text-white flex items-center justify-center shadow-md">
+                                <Zap size={18} />
                             </div>
                             <div>
-                                <h3 className="text-lg font-black text-slate-800">Advanced Automation</h3>
-                                <p className="text-xs text-slate-500 font-medium">Configure smart workflows & integrations</p>
+                                <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight leading-none">Automation Rule</h3>
+                                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Configure Smart Integration Workflows</p>
                             </div>
                         </div>
-                        <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors">
+                        <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors p-1 hover:bg-slate-50 rounded-full">
                             <X size={20} />
                         </button>
                     </div>
 
-                    <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
+                    <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar bg-slate-50/30">
                         {/* Name */}
                         <div>
-                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Rule Name</label>
+                            <label className="ent-label">Rule Name</label>
                             <input
                                 type="text"
                                 value={name}
                                 onChange={e => setName(e.target.value)}
-                                placeholder="e.g., Alert Team on Mention"
-                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all font-bold text-slate-700"
+                                placeholder="E.g. ALERT LEAD ON STATUS CHANGE"
+                                className="ent-input font-bold"
                                 autoFocus
                             />
                         </div>
 
                         {/* Trigger Section */}
-                        <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-4">
-                            <div className="flex items-center gap-2 text-xs font-black text-slate-400 uppercase tracking-widest">
-                                <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center text-[10px]">1</span>
-                                Trigger Event
+                        <div className="ent-card p-5 space-y-4">
+                            <div className="flex items-center gap-2">
+                                <span className="w-5 h-5 rounded bg-primary-100 text-primary-700 flex items-center justify-center text-[10px] font-black">1</span>
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Trigger Event</span>
                             </div>
 
                             <select
                                 value={triggerType}
                                 onChange={e => setTriggerType(e.target.value)}
-                                className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-none focus:border-violet-400"
+                                className="ent-select cursor-pointer"
                             >
                                 <option value="TASK_CREATED">Task Created</option>
                                 <option value="TASK_STATUS_CHANGE">Task Status Changed</option>
@@ -101,13 +101,13 @@ export default function ProjectAutomationRuleModal({ projectId, onClose, onSucce
                             </select>
 
                             {triggerType === 'TASK_STATUS_CHANGE' && (
-                                <div className="flex items-center gap-2 animate-in slide-in-from-top-2">
+                                <div className="flex items-center gap-3 animate-fade-in bg-slate-50 p-3 rounded-md border border-slate-100">
                                     <div className="flex-1">
-                                        <label className="text-[9px] font-black text-slate-400 uppercase mb-1 block">From Status</label>
+                                        <label className="ent-label mb-1">From Status</label>
                                         <select
                                             value={triggerConfig.from}
                                             onChange={e => setTriggerConfig({ ...triggerConfig, from: e.target.value })}
-                                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600 outline-none"
+                                            className="ent-select text-xs"
                                         >
                                             <option value="*">Any Status</option>
                                             <option value="todo">To Do</option>
@@ -115,13 +115,15 @@ export default function ProjectAutomationRuleModal({ projectId, onClose, onSucce
                                             <option value="review">Review</option>
                                         </select>
                                     </div>
-                                    <ArrowRight size={14} className="text-slate-300 mt-4" />
+                                    <div className="text-slate-300 mt-4">
+                                        <ArrowRight size={14} />
+                                    </div>
                                     <div className="flex-1">
-                                        <label className="text-[9px] font-black text-slate-400 uppercase mb-1 block">To Status</label>
+                                        <label className="ent-label mb-1">To Status</label>
                                         <select
                                             value={triggerConfig.to}
                                             onChange={e => setTriggerConfig({ ...triggerConfig, to: e.target.value })}
-                                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600 outline-none"
+                                            className="ent-select text-xs"
                                         >
                                             <option value="*">Any Status</option>
                                             <option value="todo">To Do</option>
@@ -135,69 +137,66 @@ export default function ProjectAutomationRuleModal({ projectId, onClose, onSucce
                         </div>
 
                         {/* Action Section */}
-                        <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-4">
-                            <div className="flex items-center gap-2 text-xs font-black text-slate-400 uppercase tracking-widest">
-                                <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center text-[10px]">2</span>
-                                Action & Channel
+                        <div className="ent-card p-5 space-y-4">
+                            <div className="flex items-center gap-2">
+                                <span className="w-5 h-5 rounded bg-primary-100 text-primary-700 flex items-center justify-center text-[10px] font-black">2</span>
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Action & Channel</span>
                             </div>
 
                             <select
                                 value={actionType}
                                 onChange={e => {
                                     setActionType(e.target.value);
-                                    // Reset Recipient if switching to webhook types
                                     if (['TEAMS_NOTIFICATION', 'SLACK_NOTIFICATION'].includes(e.target.value)) {
                                         setActionConfig({ ...actionConfig, recipient: 'custom' });
                                     }
                                 }}
-                                className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-none focus:border-violet-400"
+                                className="ent-select cursor-pointer"
                             >
-                                <option value="SEND_EMAIL">📧 Send Email Notification</option>
+                                <option value="SEND_EMAIL">📧 Send Email</option>
                                 <option value="IN_APP_NOTIFICATION">🔔 In-App Notification</option>
                                 <option value="TEAMS_NOTIFICATION">💬 MS Teams Message</option>
                                 <option value="SLACK_NOTIFICATION">💼 Slack Message</option>
                             </select>
 
-                            <div className="space-y-4 border-t border-slate-100 pt-4 animate-in fade-in">
+                            <div className="space-y-4 border-t border-slate-100 pt-4">
                                 {['TEAMS_NOTIFICATION', 'SLACK_NOTIFICATION'].includes(actionType) ? (
-                                    <div>
-                                        <label className="text-[9px] font-black text-slate-400 uppercase mb-1 block">
-                                            {actionType === 'TEAMS_NOTIFICATION' ? 'Teams Webhook URL' : 'Slack Webhook URL'}
-                                        </label>
+                                    <div className="animate-fade-in">
+                                        <label className="ent-label">Webhook URL</label>
                                         <input
                                             type="url"
                                             placeholder="https://hooks.slack.com/services/..."
-                                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700"
+                                            className="ent-input"
                                             value={actionConfig.customEmail || ''}
                                             onChange={e => setActionConfig({ ...actionConfig, customEmail: e.target.value, recipient: 'custom' })}
                                         />
-                                        <p className="text-[9px] text-slate-400 mt-1 font-medium">
-                                            Paste the incoming webhook URL from your channel settings.
+                                        <p className="text-[9px] text-slate-400 mt-1.5 font-bold uppercase tracking-wide">
+                                            Incoming webhook URL from channel settings
                                         </p>
                                     </div>
                                 ) : (
                                     <>
                                         <div>
-                                            <label className="text-[9px] font-black text-slate-400 uppercase mb-1 block">Recipient</label>
+                                            <label className="ent-label">Recipient</label>
                                             <select
                                                 value={actionConfig.recipient}
                                                 onChange={e => setActionConfig({ ...actionConfig, recipient: e.target.value, useTemplate: (e.target.value === 'mentions' || triggerType === 'MENTION_FOUND') ? 'mention' : 'none' })}
-                                                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600 outline-none"
+                                                className="ent-select"
                                             >
                                                 <option value="assignee">Task Assignee</option>
                                                 <option value="mentions">Mentioned Users (@)</option>
                                                 <option value="client">Project Client</option>
-                                                <option value="custom">Custom Email</option>
+                                                <option value="custom">Custom Email / External</option>
                                             </select>
                                         </div>
 
                                         {actionConfig.recipient === 'custom' && (
-                                            <div>
-                                                <label className="text-[9px] font-black text-slate-400 uppercase mb-1 block">Custom Email</label>
+                                            <div className="animate-fade-in">
+                                                <label className="ent-label">Custom Email</label>
                                                 <input
                                                     type="text"
-                                                    placeholder="email@example.com"
-                                                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold"
+                                                    placeholder="email@company.com"
+                                                    className="ent-input"
                                                     value={actionConfig.customEmail || ''}
                                                     onChange={e => setActionConfig({ ...actionConfig, customEmail: e.target.value })}
                                                 />
@@ -207,13 +206,13 @@ export default function ProjectAutomationRuleModal({ projectId, onClose, onSucce
                                 )}
 
                                 <div>
-                                    <label className="text-[9px] font-black text-slate-400 uppercase mb-1 block">Template / Content</label>
+                                    <label className="ent-label">Template</label>
                                     <select
                                         value={actionConfig.useTemplate}
                                         onChange={e => setActionConfig({ ...actionConfig, useTemplate: e.target.value })}
-                                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600 outline-none"
+                                        className="ent-select"
                                     >
-                                        <option value="none">Custom Message (Raw)</option>
+                                        <option value="none">Custom Message</option>
                                         <option value="mention">Standard Mention Template</option>
                                         <option value="assigned">Task Assignment Template</option>
                                         <option value="created">New Task Template</option>
@@ -222,42 +221,44 @@ export default function ProjectAutomationRuleModal({ projectId, onClose, onSucce
                                 </div>
 
                                 {actionConfig.useTemplate === 'none' && (
-                                    <>
+                                    <div className="space-y-4 animate-fade-in">
                                         <div>
-                                            <label className="text-[9px] font-black text-slate-400 uppercase mb-1 block">Message Subject</label>
+                                            <label className="ent-label">Subject</label>
                                             <input
                                                 type="text"
-                                                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold"
+                                                className="ent-input"
                                                 value={actionConfig.subject || ''}
                                                 onChange={e => setActionConfig({ ...actionConfig, subject: e.target.value })}
+                                                placeholder="NOTIFICATION SUBJECT"
                                             />
                                         </div>
                                         <div>
-                                            <label className="text-[9px] font-black text-slate-400 uppercase mb-1 block">Message Body</label>
+                                            <label className="ent-label">Message Body</label>
                                             <textarea
-                                                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-medium h-20 resize-none"
+                                                className="ent-input h-24 resize-none py-2"
                                                 value={actionConfig.body || ''}
                                                 onChange={e => setActionConfig({ ...actionConfig, body: e.target.value })}
+                                                placeholder="Enter your message content here..."
                                             />
                                         </div>
-                                    </>
+                                    </div>
                                 )}
                             </div>
                         </div>
 
                     </div>
 
-                    <div className="p-6 border-t border-slate-100 flex justify-end gap-3 bg-slate-50/50">
+                    <div className="p-5 border-t border-slate-100 flex justify-end gap-3 bg-white">
                         <button
                             onClick={onClose}
-                            className="px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 rounded-xl transition-colors"
+                            className="btn-secondary text-[10px]"
                         >
                             Cancel
                         </button>
                         <button
                             onClick={handleSubmit}
                             disabled={loading}
-                            className="px-6 py-2.5 bg-violet-600 text-white text-xs font-black uppercase tracking-wider rounded-xl shadow-lg shadow-violet-200 hover:bg-violet-700 hover:shadow-xl hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:pointer-events-none flex items-center gap-2"
+                            className="btn-primary text-[10px] flex items-center gap-2"
                         >
                             {loading && <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
                             Create Rule
