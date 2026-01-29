@@ -1,7 +1,4 @@
 {
-  "/portal/projects/[id]/page": "app/portal/projects/[id]/page.js",
-  "/(main)/projects/[id]/page": "app/(main)/projects/[id]/page.js",
-  "/(main)/projects/[id]/backlog/page": "app/(main)/projects/[id]/backlog/page.js",
-  "/(main)/projects/[id]/roadmap/page": "app/(main)/projects/[id]/roadmap/page.js",
+  "/not-found": "app/not-found.js",
   "/(main)/projects/[id]/tasks/page": "app/(main)/projects/[id]/tasks/page.js"
 }
