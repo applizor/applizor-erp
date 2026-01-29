@@ -46,7 +46,7 @@ export const createTask = async (req: AuthRequest, res: Response) => {
                 epicId: epicId || null
             },
             include: {
-                assignee: { select: { firstName: true, email: true } },
+                assignee: { select: { firstName: true, lastName: true, email: true } },
                 epic: { select: { title: true } },
                 parent: { select: { title: true } }
             }
@@ -73,53 +73,20 @@ export const createTask = async (req: AuthRequest, res: Response) => {
             ));
         }
 
-        // Teams Notification & Email Notification
-        const project = await prisma.project.findUnique({ where: { id: projectId }, select: { name: true, settings: true } });
-        const settings = project?.settings as any;
-
-        if (settings?.teamsWebhookUrl) {
-            notifyTeams(settings.teamsWebhookUrl,
-                `New ${type} in ${project?.name}: **${title}** assigned to ${task.assignee?.firstName || 'Unassigned'}`
-            ).catch(err => console.error('Teams notification error:', err));
-        }
-
-        // Internal Email Notification
-        if (settings?.notificationEmail) {
-            import('../services/email.service').then(({ notifyNewTask }) => {
-                notifyNewTask(task, project, settings.notificationEmail)
-                    .catch(err => console.error('Email notification error:', err));
-            });
-        }
-
-        // Assignee Notification (if assigned immediately)
-        if (task.assignee?.email) {
-            import('../services/email.service').then(({ notifyTaskAssigned }) => {
-                notifyTaskAssigned(task, task.assignee, project)
-                    .catch(err => console.error('Assignee notification error:', err));
-            });
-        }
-
+        // Evaluate Automation Rules
         AutomationService.evaluateRules(projectId, 'TASK_CREATED', {
             taskId: task.id,
             projectId,
             taskTitle: title,
-            assigneeEmail: task.assignee?.email || undefined
+            assigneeId: assigneeId || undefined,
+            assigneeEmail: task.assignee?.email || undefined,
+            assigneeName: task.assignee ? `${task.assignee.firstName} ${task.assignee.lastName}` : undefined,
+            companyId: req.user!.companyId,
+            newStatus: status || 'todo'
         }).catch(err => console.error('Automation error:', err));
 
         // Real-time Update
         NotificationService.emitProjectUpdate(projectId, 'TASK_CREATED', task);
-
-        // In-App Notification for Assignee
-        if (assigneeId && assigneeId !== req.user!.id) {
-            await NotificationService.createNotification({
-                companyId: req.user!.companyId,
-                userId: assigneeId,
-                title: 'New Task Assigned',
-                message: `Task: ${title}`,
-                type: 'task_assigned',
-                link: `/projects/${projectId}/tasks`
-            });
-        }
 
         res.status(201).json(task);
     } catch (error) {
@@ -190,39 +157,7 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
         });
 
         // Notifications
-        // Notifications (Non-blocking)
-        if (oldTask) {
-            try {
-                const project = await prisma.project.findUnique({ where: { id: task.projectId }, select: { id: true, name: true, settings: true } });
-
-                if (project) {
-                    // 1. Assignee Changed
-                    if ((!oldTask.assignedToId && task.assignedToId) || (oldTask.assignedToId && task.assignedToId && oldTask.assignedToId !== task.assignedToId)) {
-                        if (task.assignee?.email) {
-                            import('../services/email.service').then(({ notifyTaskAssigned }) => {
-                                notifyTaskAssigned(task, task.assignee, project)
-                                    .catch(err => console.error('Assignee notify error:', err));
-                            });
-                        }
-                    }
-
-                    // 2. Status/Details Updated (Alert Assignee)
-                    else if (task.assignedToId && task.assignee?.email) {
-                        const changes: string[] = [];
-                        if (oldTask.status !== task.status) changes.push(`Status changed from ${oldTask.status} to ${task.status}`);
-
-                        if (changes.length > 0) {
-                            import('../services/email.service').then(({ notifyTaskUpdated }) => {
-                                notifyTaskUpdated(task, task.assignee, project, changes)
-                                    .catch(err => console.error('Task update notify error:', err));
-                            });
-                        }
-                    }
-                }
-            } catch (notifyError) {
-                console.error("Notification Error (Non-fatal):", notifyError);
-            }
-        }
+        // Automation triggered below
 
         // Trigger Automation (Status Change)
         if (oldTask && oldTask.status !== task.status) {
@@ -232,24 +167,27 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
                 oldStatus: oldTask.status,
                 newStatus: task.status,
                 taskTitle: task.title,
-                assigneeEmail: task.assignee?.email || undefined
+                assigneeEmail: task.assignee?.email || undefined,
+                companyId: req.user!.companyId
             }).catch(err => console.error('Status change automation error:', err));
+        }
+
+        // Trigger Automation (Assignee Change)
+        if (oldTask && oldTask.assignedToId !== task.assignedToId) {
+            AutomationService.evaluateRules(task.projectId, 'TASK_ASSIGNED', {
+                taskId: task.id,
+                projectId: task.projectId,
+                taskTitle: task.title,
+                assigneeId: task.assignedToId || undefined,
+                oldAssigneeId: oldTask.assignedToId || undefined,
+                assigneeEmail: task.assignee?.email || undefined,
+                assigneeName: task.assignee ? `${task.assignee.firstName} ${task.assignee.lastName}` : undefined,
+                companyId: req.user!.companyId
+            }).catch(err => console.error('Assignee change automation error:', err));
         }
 
         // Real-time Update
         NotificationService.emitProjectUpdate(task.projectId, 'TASK_UPDATED', task);
-
-        // Notify Assignee if changed
-        if (oldTask && oldTask.assignedToId !== task.assignedToId && task.assignedToId && task.assignedToId !== req.user!.id) {
-            await NotificationService.createNotification({
-                companyId: req.user!.companyId,
-                userId: task.assignedToId,
-                title: 'Task Assigned',
-                message: `You are now assigned to: ${task.title}`,
-                type: 'task_assigned',
-                link: `/projects/${task.projectId}/tasks`
-            });
-        }
 
         res.json(task);
     } catch (error) {

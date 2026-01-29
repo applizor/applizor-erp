@@ -62,7 +62,7 @@ export class NotificationService {
     }
 
     /**
-     * Parses HTML content for mentions and notifies users
+     * Parses HTML content for mentions and notifies users via Automation Rules
      */
     static async handleMentions(content: string, commenterName: string, task: any, project: any, companyId: string) {
         try {
@@ -73,34 +73,23 @@ export class NotificationService {
 
             if (uniqueUserIds.length === 0) return;
 
-            // Fetch user emails and names
+            // Fetch user info for automation payload
             const users = await prisma.user.findMany({
                 where: { id: { in: uniqueUserIds } },
                 select: { id: true, email: true, firstName: true, lastName: true }
             });
 
-            const { notifyMention } = await import('./email.service');
-
-            for (const user of users) {
-                // 1. In-app Notification
-                await this.createNotification({
-                    companyId,
-                    userId: user.id,
-                    title: 'New Mention',
-                    message: `${commenterName} mentioned you in task: ${task.title}`,
-                    type: 'info',
-                    link: `/projects/${project.id}/tasks?taskId=${task.id}`
-                });
-
-                // 2. Email Notification
-                await notifyMention(
-                    { email: user.email, firstName: user.firstName },
-                    commenterName,
-                    task,
-                    project,
-                    content
-                );
-            }
+            // Trigger Automation
+            const { AutomationService } = await import('./automation.service');
+            await AutomationService.evaluateRules(project.id, 'MENTION_FOUND', {
+                taskId: task.id,
+                projectId: project.id,
+                taskTitle: task.title,
+                commenterName,
+                commentContent: content,
+                mentions: users.map(u => ({ id: u.id, email: u.email, name: `${u.firstName} ${u.lastName}`, firstName: u.firstName })),
+                companyId
+            });
         } catch (error) {
             console.error('Mention handling error:', error);
         }

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import api from '@/lib/api';
 import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
-import { Save, AlertTriangle, Shield, Archive, Trash2, Bell, Briefcase, Calendar, DollarSign } from 'lucide-react';
+import { Save, AlertTriangle, Shield, Archive, Trash2, Bell, Briefcase, Calendar, DollarSign, Zap } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export default function ProjectSettingsPage({ params }: { params: { id: string } }) {
@@ -254,55 +254,36 @@ export default function ProjectSettingsPage({ params }: { params: { id: string }
                         </div>
                     </div>
 
-                    {/* Integrations */}
-                    <div className="ent-card p-6">
-                        <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-4 flex items-center gap-2">
-                            <Save size={14} className="text-indigo-600" />
-                            Integrations
+                    {/* Automation & Integrations */}
+                    <div className="ent-card p-6 bg-violet-50/30 border-l-4 border-l-violet-500 overflow-hidden relative">
+                        <Zap className="absolute -right-4 -top-4 w-24 h-24 text-violet-500/5 rotate-12" />
+
+                        <h3 className="text-sm font-black text-violet-900 uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <Zap size={14} className="text-violet-600" />
+                            Automation & Integrations
                         </h3>
-                        <p className="text-xs text-gray-500 mb-4">Connect external tools to this project.</p>
+                        <p className="text-xs text-violet-700/70 mb-6 leading-relaxed">
+                            We've upgraded our notification system! Teams webhooks, email alerts, and user mentions are now managed through <strong>Automation Rules</strong> for better flexibility and control.
+                        </p>
 
-                        <div className="ent-form-group">
-                            <label className="ent-label">Microsoft Teams Webhook URL</label>
-                            <input
-                                type="url"
-                                className="ent-input text-xs"
-                                placeholder="https://outlook.office.com/webhook/..."
-                                value={project?.settings?.teamsWebhookUrl || ''}
-                                onChange={(e) => {
-                                    const newSettings = { ...project.settings, teamsWebhookUrl: e.target.value };
-                                    setProject({ ...project, settings: newSettings });
-                                }}
-                            />
-                            <p className="text-[10px] text-gray-400 mt-1">
-                                Notifications for new tasks/issues will be sent here.
-                            </p>
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-3 p-3 bg-white/60 rounded-xl border border-violet-100 shadow-sm">
+                                <div className="p-2 bg-violet-100 text-violet-600 rounded-lg">
+                                    <Bell size={14} />
+                                </div>
+                                <div>
+                                    <h4 className="text-[10px] font-black text-violet-900 uppercase tracking-widest">Rule-Based Alerts</h4>
+                                    <p className="text-[9px] text-violet-600/70 uppercase font-bold tracking-wide">Configure who gets notified and when</p>
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={() => router.push(`/projects/${params.id}/automation`)}
+                                className="w-full py-3 bg-violet-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-violet-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-violet-200"
+                            >
+                                <Zap size={14} /> Configure Automations
+                            </button>
                         </div>
-
-                        <div className="ent-form-group mt-4">
-                            <label className="ent-label">Internal Notification Email</label>
-                            <input
-                                type="email"
-                                className="ent-input text-xs"
-                                placeholder="team-alerts@applizor.com"
-                                value={project?.settings?.notificationEmail || ''}
-                                onChange={(e) => {
-                                    const newSettings = { ...project.settings, notificationEmail: e.target.value };
-                                    setProject({ ...project, settings: newSettings });
-                                }}
-                            />
-                            <p className="text-[10px] text-gray-400 mt-1">
-                                New tasks will be emailed to this address (internal distribution list).
-                            </p>
-                        </div>
-
-                        <button
-                            onClick={handleSavePermissions} // Reusing save settings/permissions logic
-                            disabled={saving}
-                            className="w-full btn-secondary mt-2"
-                        >
-                            {saving ? 'Saving...' : 'Save Configuration'}
-                        </button>
                     </div>
                 </div>
             </div>

@@ -7,29 +7,77 @@ export const getDashboardStats = async (req: ClientAuthRequest, res: Response) =
     try {
         const clientId = req.clientId;
 
-        const [invoices, projects] = await Promise.all([
+        // Fetch basic stats and task metrics in parallel
+        const [invoices, projects, taskStats, recentComments] = await Promise.all([
+            // 1. Invoices
             prisma.invoice.findMany({
                 where: { clientId },
                 select: { total: true, status: true, currency: true }
             }),
+            // 2. Active Projects count
             prisma.project.count({
-                where: { clientId, status: 'active' } // Assuming active status string
+                where: { clientId, status: 'active' }
+            }),
+            // 3. Task Counts (In Progress & Review)
+            prisma.task.groupBy({
+                by: ['status'],
+                where: {
+                    project: { clientId },
+                    status: { not: 'done' } // generalized check, specific buckets below
+                },
+                _count: { id: true }
+            }),
+            // 4. Recent Comments (Activity Feed) - exluding client's own comments
+            prisma.taskComment.findMany({
+                where: {
+                    task: { project: { clientId } },
+                    clientId: { equals: null } // Only show comments by internal users (staff)
+                },
+                orderBy: { createdAt: 'desc' },
+                take: 5,
+                include: {
+                    user: { select: { firstName: true, lastName: true } },
+                    task: { select: { id: true, title: true, projectId: true } }
+                }
             })
         ]);
 
-        // Calculate totals
+        // Process Task Stats
+        let tasksInReview = 0;
+        let tasksInProgress = 0;
+
+        taskStats.forEach(bucket => {
+            if (bucket.status === 'review') {
+                tasksInReview += bucket._count.id;
+            } else if (['todo', 'in-progress'].includes(bucket.status)) {
+                tasksInProgress += bucket._count.id;
+            }
+        });
+
+        // Process Invoices
         const totalDue = invoices
             .filter(inv => inv.status !== 'paid' && inv.status !== 'cancelled')
             .reduce((sum, inv) => sum + Number(inv.total), 0);
 
-        // Simple currency assumption for MVP (taking first found or default)
         const currency = invoices[0]?.currency || 'USD';
 
         res.json({
             activeProjects: projects,
             pendingInvoicesCount: invoices.filter(inv => inv.status !== 'paid' && inv.status !== 'cancelled').length,
             totalDue,
-            currency
+            currency,
+            tasksInReview,
+            tasksInProgress,
+            recentActivities: recentComments.map(c => ({
+                id: c.id,
+                type: 'comment',
+                user: `${c.user?.firstName} ${c.user?.lastName}`,
+                taskTitle: c.task.title,
+                taskId: c.task.id,
+                projectId: c.task.projectId,
+                content: c.content,
+                createdAt: c.createdAt
+            }))
         });
 
     } catch (error) {

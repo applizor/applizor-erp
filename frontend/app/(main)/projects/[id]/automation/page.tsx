@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Zap, Trash2, ArrowRight, Mail } from 'lucide-react';
+import { Plus, Zap, Trash2, ArrowRight, Mail, Bell } from 'lucide-react';
 import api from '@/lib/api';
 import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
@@ -31,7 +31,7 @@ export default function ProjectAutomationPage({ params }: { params: { id: string
     const handleDelete = async (ruleId: string) => {
         if (!confirm('Are you sure you want to delete this rule?')) return;
         try {
-            await api.delete(`/projects/automation/${ruleId}`); // Note: Route path check
+            await api.delete(`/projects/automation/${ruleId}`);
             setRules(rules.filter(r => r.id !== ruleId));
             toast.success('Rule deleted');
         } catch (error) {
@@ -39,10 +39,39 @@ export default function ProjectAutomationPage({ params }: { params: { id: string
         }
     };
 
+    const getTriggerLabel = (type: string) => {
+        switch (type) {
+            case 'TASK_CREATED': return 'Task Created';
+            case 'TASK_STATUS_CHANGE': return 'Status Change';
+            case 'TASK_ASSIGNED': return 'Assignment';
+            case 'COMMENT_ADDED': return 'New Comment';
+            case 'MENTION_FOUND': return 'Mention (@)';
+            default: return type;
+        }
+    };
+
+    const getActionIcon = (type: string) => {
+        switch (type) {
+            case 'SEND_EMAIL': return <Mail size={10} />;
+            case 'IN_APP_NOTIFICATION': return <Bell size={10} />;
+            case 'TEAMS_NOTIFICATION': return <span className="text-[8px] font-black">TM</span>;
+            default: return <Mail size={10} />;
+        }
+    };
+
+    const getActionLabel = (type: string) => {
+        switch (type) {
+            case 'SEND_EMAIL': return 'Email';
+            case 'IN_APP_NOTIFICATION': return 'In-App';
+            case 'TEAMS_NOTIFICATION': return 'Teams';
+            default: return type.replace('_NOTIFICATION', '');
+        }
+    };
+
     if (loading) return <div className="p-12 flex justify-center"><LoadingSpinner /></div>;
 
     return (
-        <div className="max-w-5xl mx-auto">
+        <div className="max-w-5xl mx-auto px-4 md:px-0">
             <div className="flex justify-between items-center mb-8">
                 <div>
                     <h2 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-3">
@@ -52,7 +81,7 @@ export default function ProjectAutomationPage({ params }: { params: { id: string
                         Automation Rules
                     </h2>
                     <p className="text-sm text-slate-500 mt-1 max-w-xl">
-                        Streamline your workflow by automating repetitive tasks. Rules run automatically when triggers are met.
+                        Centralized notifications and smart workflows. Rules run automatically across Email, Teams, and In-App channels.
                     </p>
                 </div>
                 <button
@@ -74,13 +103,13 @@ export default function ProjectAutomationPage({ params }: { params: { id: string
                     </p>
                     <button
                         onClick={() => setIsCreateModalOpen(true)}
-                        className="text-violet-600 font-bold hover:underline"
+                        className="text-violet-600 font-bold hover:underline font-black uppercase tracking-widest text-xs"
                     >
                         Create your first rule
                     </button>
                 </div>
             ) : (
-                <div className="space-y-4">
+                <div className="grid grid-cols-1 gap-4">
                     {rules.map(rule => (
                         <div key={rule.id} className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-6 group">
                             <div className="flex items-start gap-4">
@@ -90,45 +119,45 @@ export default function ProjectAutomationPage({ params }: { params: { id: string
                                 <div>
                                     <h4 className="font-bold text-slate-800 text-lg mb-1">{rule.name}</h4>
                                     <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-                                        <span className="bg-slate-100 px-2 py-1 rounded uppercase tracking-wider text-[10px] font-bold">
-                                            {rule.triggerType === 'TASK_STATUS_CHANGE' ? 'Status Change' : 'Task Created'}
+                                        <span className="bg-slate-100 px-2 py-1 rounded uppercase tracking-wider text-[10px] font-black">
+                                            {getTriggerLabel(rule.triggerType)}
                                         </span>
                                         <ArrowRight size={12} className="text-slate-300" />
-                                        <span className="flex items-center gap-1 bg-violet-50 text-violet-700 px-2 py-1 rounded uppercase tracking-wider text-[10px] font-bold">
-                                            <Mail size={10} /> Send Email
+                                        <span className="flex items-center gap-1 bg-violet-50 text-violet-700 px-2 py-1 rounded uppercase tracking-wider text-[10px] font-black">
+                                            {getActionIcon(rule.actionType)}
+                                            {getActionLabel(rule.actionType)}
                                         </span>
                                     </div>
 
                                     {/* Description */}
-                                    <div className="mt-3 text-sm text-slate-600 flex items-center gap-2">
+                                    <div className="mt-3 text-[11px] text-slate-500 font-bold uppercase tracking-wide flex items-center gap-2">
                                         {rule.triggerType === 'TASK_STATUS_CHANGE' ? (
                                             <>
-                                                When status changes from
-                                                <span className="font-bold text-slate-800">
-                                                    {rule.triggerConfig?.from === '*' ? 'Any' : rule.triggerConfig?.from}
-                                                </span>
-                                                to
-                                                <span className="font-bold text-slate-800">
-                                                    {rule.triggerConfig?.to}
-                                                </span>
+                                                Status: {rule.triggerConfig?.from === '*' ? 'ANY' : rule.triggerConfig?.from}
+                                                <ArrowRight size={10} />
+                                                {rule.triggerConfig?.to === '*' ? 'ANY' : rule.triggerConfig?.to}
                                             </>
+                                        ) : rule.triggerType === 'MENTION_FOUND' ? (
+                                            <span>Triggers on @mention in comments</span>
+                                        ) : rule.triggerType === 'TASK_ASSIGNED' ? (
+                                            <span>Triggers on task assignment</span>
                                         ) : (
-                                            <span>When a new task is created</span>
+                                            <span>Triggers on task creation</span>
                                         )}
                                     </div>
                                 </div>
                             </div>
 
                             <div className="flex items-center gap-4 self-end md:self-center">
-                                <div className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded ${rule.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                                <div className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md ${rule.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
                                     {rule.isActive ? 'Active' : 'Inactive'}
                                 </div>
                                 <button
                                     onClick={() => handleDelete(rule.id)}
-                                    className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                                    className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors md:opacity-0 group-hover:opacity-100"
                                     title="Delete Rule"
                                 >
-                                    <Trash2 size={18} />
+                                    <Trash2 size={16} />
                                 </button>
                             </div>
                         </div>
