@@ -159,6 +159,10 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/timesheets', timesheetRoutes);
 
+// Settings Routes
+import settingsRoutes from './routes/settings.routes';
+app.use('/api/settings', settingsRoutes);
+
 // Scheduler
 import { SchedulerService } from './services/scheduler.service';
 
