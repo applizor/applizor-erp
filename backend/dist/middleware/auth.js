@@ -31,6 +31,9 @@ const authenticate = async (req, res, next) => {
         const user = await client_1.default.user.findUnique({
             where: { id: decoded.userId },
             include: {
+                employee: {
+                    select: { id: true, companyId: true }
+                },
                 roles: {
                     include: {
                         role: {

@@ -3,69 +3,77 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteTemplate = exports.listTemplates = exports.uploadTemplate = void 0;
+exports.deleteTemplate = exports.updateTemplate = exports.getTemplates = exports.createTemplate = void 0;
 const client_1 = __importDefault(require("../prisma/client"));
-const fs_1 = __importDefault(require("fs"));
-// Upload handling usually via Middleware (Multer), saving to disk or S3.
-// For MVP, we save to 'uploads/templates' directory.
-const uploadTemplate = async (req, res) => {
+const createTemplate = async (req, res) => {
     try {
-        if (!req.file) {
-            return res.status(400).json({ error: 'No file uploaded' });
-        }
-        const { name, type, letterheadMode } = req.body;
-        const companyId = req.user?.companyId; // From Auth Middleware
-        if (!name || !type) {
-            return res.status(400).json({ error: 'Name and Type are required' });
-        }
-        // Save to DB
+        const { name, type, content, variables } = req.body;
         const template = await client_1.default.documentTemplate.create({
             data: {
-                companyId,
                 name,
                 type,
-                letterheadMode: letterheadMode || 'NONE',
-                filePath: req.file.path, // Multer saves it and gives path
+                content,
+                variables,
+                companyId: req.user.companyId
             }
         });
-        res.json(template);
+        res.status(201).json(template);
     }
     catch (error) {
-        console.error('Template upload error:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Failed to create template' });
     }
 };
-exports.uploadTemplate = uploadTemplate;
-const listTemplates = async (req, res) => {
+exports.createTemplate = createTemplate;
+const getTemplates = async (req, res) => {
     try {
-        const companyId = req.user?.companyId;
         const templates = await client_1.default.documentTemplate.findMany({
-            where: { companyId },
+            where: { companyId: req.user.companyId, isActive: true },
             orderBy: { createdAt: 'desc' }
         });
         res.json(templates);
     }
     catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Failed to fetch templates' });
     }
 };
-exports.listTemplates = listTemplates;
-const deleteTemplate = async (req, res) => {
+exports.getTemplates = getTemplates;
+const updateTemplate = async (req, res) => {
     try {
         const { id } = req.params;
-        const template = await client_1.default.documentTemplate.findUnique({ where: { id } });
-        if (!template)
+        const { name, type, content, variables } = req.body;
+        // Initial check to ensure it belongs to company
+        const existing = await client_1.default.documentTemplate.findFirst({
+            where: { id, companyId: req.user.companyId }
+        });
+        if (!existing) {
             return res.status(404).json({ error: 'Template not found' });
-        // Delete File
-        if (fs_1.default.existsSync(template.filePath)) {
-            fs_1.default.unlinkSync(template.filePath);
         }
-        // Delete record
-        await client_1.default.documentTemplate.delete({ where: { id } });
+        const template = await client_1.default.documentTemplate.update({
+            where: { id },
+            data: {
+                name,
+                type,
+                content,
+                variables
+            }
+        });
+        res.json(template);
+    }
+    catch (error) {
+        res.status(500).json({ error: 'Failed to update template' });
+    }
+};
+exports.updateTemplate = updateTemplate;
+const deleteTemplate = async (req, res) => {
+    try {
+        await client_1.default.documentTemplate.update({
+            where: { id: req.params.id },
+            data: { isActive: false }
+        });
         res.json({ message: 'Template deleted' });
     }
     catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: 'Failed to delete template' });
     }
 };
 exports.deleteTemplate = deleteTemplate;

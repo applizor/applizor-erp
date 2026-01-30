@@ -240,6 +240,7 @@ export default function CreateQuotationPage() {
         let subtotal = 0;
         let totalTax = 0;
         let totalDiscount = 0;
+        const taxBreakdown: Record<string, number> = {};
 
         items.forEach(item => {
             const itemSubtotal = item.quantity * item.unitPrice;
@@ -250,7 +251,12 @@ export default function CreateQuotationPage() {
             (item.taxRateIds || []).forEach(taxId => {
                 const taxConfig = taxRates.find(t => t.id === taxId);
                 if (taxConfig) {
-                    itemTax += taxableAmount * (Number(taxConfig.percentage) / 100);
+                    const taxAmount = taxableAmount * (Number(taxConfig.percentage) / 100);
+                    itemTax += taxAmount;
+
+                    // Aggregate for breakdown
+                    const key = `${taxConfig.name} @${Number(taxConfig.percentage)}%`;
+                    taxBreakdown[key] = (taxBreakdown[key] || 0) + taxAmount;
                 }
             });
 
@@ -263,7 +269,8 @@ export default function CreateQuotationPage() {
             subtotal,
             tax: totalTax,
             discount: totalDiscount,
-            total: subtotal + totalTax - totalDiscount
+            total: subtotal + totalTax - totalDiscount,
+            taxBreakdown
         };
     };
 
@@ -384,8 +391,8 @@ export default function CreateQuotationPage() {
                                             setFormData({ ...formData, clientId: '' });
                                         }}
                                         className={`px-4 py-1.5 text-xs font-bold uppercase tracking-wide rounded ${targetType === 'lead'
-                                                ? 'bg-white text-primary-700 shadow-sm'
-                                                : 'text-gray-500 hover:text-gray-700'
+                                            ? 'bg-white text-primary-700 shadow-sm'
+                                            : 'text-gray-500 hover:text-gray-700'
                                             }`}
                                     >
                                         Lead / Prospect
@@ -397,8 +404,8 @@ export default function CreateQuotationPage() {
                                             setFormData({ ...formData, leadId: '' });
                                         }}
                                         className={`px-4 py-1.5 text-xs font-bold uppercase tracking-wide rounded ${targetType === 'client'
-                                                ? 'bg-white text-primary-700 shadow-sm'
-                                                : 'text-gray-500 hover:text-gray-700'
+                                            ? 'bg-white text-primary-700 shadow-sm'
+                                            : 'text-gray-500 hover:text-gray-700'
                                             }`}
                                     >
                                         Existing Client
@@ -660,9 +667,18 @@ export default function CreateQuotationPage() {
                                     <span>{formatCurrency(totals.subtotal)}</span>
                                 </div>
                                 <div className="flex justify-between text-xs font-bold text-gray-500 uppercase tracking-wide">
-                                    <span>Tax Amount</span>
+                                    <span>Total Tax</span>
                                     <span>{formatCurrency(totals.tax)}</span>
                                 </div>
+
+                                {/* Detailed Tax Breakdown */}
+                                {Object.entries(totals.taxBreakdown).map(([name, amount]) => (
+                                    <div key={name} className="flex justify-between text-[10px] items-center text-gray-400 pl-2 border-l-2 border-slate-200">
+                                        <span>{name}</span>
+                                        <span>{formatCurrency(amount)}</span>
+                                    </div>
+                                ))}
+
                                 <div className="flex justify-between text-xs font-bold text-gray-500 uppercase tracking-wide">
                                     <span>Applicable Discount</span>
                                     <span>-{formatCurrency(totals.discount)}</span>

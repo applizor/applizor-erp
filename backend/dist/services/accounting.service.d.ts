@@ -25,20 +25,20 @@ export declare const createJournalEntry: (companyId: string, date: Date, descrip
             balance: Prisma.Decimal;
         };
     } & {
-        id: string;
         description: string | null;
+        id: string;
         debit: Prisma.Decimal;
         credit: Prisma.Decimal;
         accountId: string;
         journalEntryId: string;
     })[];
 } & {
+    description: string | null;
     date: Date;
     id: string;
     createdAt: Date;
     companyId: string;
     updatedAt: Date;
-    description: string | null;
     status: string;
     reference: string | null;
 }>;
@@ -91,20 +91,20 @@ declare const accountingService: {
                 balance: Prisma.Decimal;
             };
         } & {
-            id: string;
             description: string | null;
+            id: string;
             debit: Prisma.Decimal;
             credit: Prisma.Decimal;
             accountId: string;
             journalEntryId: string;
         })[];
     } & {
+        description: string | null;
         date: Date;
         id: string;
         createdAt: Date;
         companyId: string;
         updatedAt: Date;
-        description: string | null;
         status: string;
         reference: string | null;
     }>;

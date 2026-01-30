@@ -92,6 +92,7 @@ interface PDFData {
     signedAt?: Date;
     companySignedAt?: Date;
     id?: string;
+    taxBreakdown?: Array<{ name: string; percentage: number; amount: number }>;
 }
 
 export class PDFService {
@@ -442,9 +443,15 @@ export class PDFService {
         </div>
         ${Number(data.tax) > 0 ? `
         <div class="totals-row">
-            <span>Tax:</span>
+            <span>Total Tax:</span>
             <span>${formatCurrency(Number(data.tax))}</span>
         </div>
+        ${data.taxBreakdown ? data.taxBreakdown.map(t => `
+        <div class="totals-row" style="padding-top: 0; padding-bottom: 4px;">
+            <span style="font-size: 12px; color: #666; padding-left: 10px;">${t.name} @${t.percentage}%:</span>
+            <span style="font-size: 12px; color: #666;">${formatCurrency(t.amount)}</span>
+        </div>
+        `).join('') : ''}
         ` : ''}
         ${Number(data.discount) > 0 ? `
         <div class="totals-row">

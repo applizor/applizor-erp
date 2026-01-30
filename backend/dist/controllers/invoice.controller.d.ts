@@ -43,5 +43,20 @@ export declare const batchSendInvoices: (req: AuthRequest, res: Response) => Pro
 /**
  * Convert quotation to invoice
  */
+/**
+ * Update an invoice
+ */
+export declare const updateInvoice: (req: AuthRequest, res: Response) => Promise<Response<any, Record<string, any>> | undefined>;
+/**
+ * Convert quotation to invoice
+ */
 export declare const convertQuotation: (req: AuthRequest, res: Response) => Promise<void>;
+/**
+ * Get public invoice details by ID
+ */
+export declare const getPublicInvoice: (req: AuthRequest, res: Response) => Promise<Response<any, Record<string, any>> | undefined>;
+/**
+ * Get public invoice PDF by ID
+ */
+export declare const getPublicInvoicePdf: (req: AuthRequest, res: Response) => Promise<Response<any, Record<string, any>> | undefined>;
 //# sourceMappingURL=invoice.controller.d.ts.map

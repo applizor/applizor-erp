@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.uploadLetterheadAsset = exports.uploadSignature = exports.uploadLeaveAttachment = exports.uploadDocument = exports.uploadLogo = void 0;
+exports.uploadProfilePicture = exports.uploadLetterheadAsset = exports.uploadSignature = exports.uploadLeaveAttachment = exports.uploadDocument = exports.uploadLogo = void 0;
 const multer_1 = __importDefault(require("multer"));
 const path_1 = __importDefault(require("path"));
 const fs_1 = __importDefault(require("fs"));
@@ -135,5 +135,24 @@ exports.uploadLetterheadAsset = (0, multer_1.default)({
     storage: letterheadStorage,
     limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
     fileFilter: letterheadFileFilter
+});
+// Profile Upload Configuration
+const profileDir = path_1.default.join(__dirname, '../../uploads/profiles');
+if (!fs_1.default.existsSync(profileDir)) {
+    fs_1.default.mkdirSync(profileDir, { recursive: true });
+}
+const profileStorage = multer_1.default.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, profileDir);
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, 'profile-' + uniqueSuffix + path_1.default.extname(file.originalname));
+    }
+});
+exports.uploadProfilePicture = (0, multer_1.default)({
+    storage: profileStorage,
+    limits: { fileSize: 2 * 1024 * 1024 }, // 2MB limit
+    fileFilter: fileFilter
 });
 //# sourceMappingURL=upload.js.map

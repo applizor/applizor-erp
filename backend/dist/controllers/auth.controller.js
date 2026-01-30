@@ -273,7 +273,8 @@ const forgotPassword = async (req, res) => {
       <a href="${resetUrl}" clicktracking=off>${resetUrl}</a>
       <p>This link expires in 1 hour.</p>
     `;
-        await (0, email_service_1.sendEmail)(user.email, 'Password Reset Request', message);
+        (0, email_service_1.sendEmail)(user.email, 'Password Reset Request', message)
+            .catch(err => console.error('Forgot password email error:', err));
         res.json({ message: 'If email exists, a reset link has been sent.' });
     }
     catch (error) {

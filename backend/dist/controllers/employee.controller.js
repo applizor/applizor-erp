@@ -496,6 +496,9 @@ const uploadEmployeeDocument = async (req, res) => {
                 filePath: fileUrl,
                 fileSize: req.file.size,
                 mimeType: req.file.mimetype,
+                // Personal/Standard Upload Workflow
+                status: 'submitted',
+                workflowType: 'standard'
             }
         });
         // Audit Log

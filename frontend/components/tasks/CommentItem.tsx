@@ -19,10 +19,15 @@ export default function CommentItem({ comment, onReply, onDelete, currentUserId,
         : comment.client ? `${comment.client.name} (Client)` : 'Unknown';
 
     const isClient = !!comment.clientId;
-    const isOwner = comment.userId === currentUserId;
-    // We can also pass an isAdmin prop if needed, or just let pure RBAC handle the error if not owner.
-    // For now, show delete if owner or if onDelete is present (parent decides).
-    const canDelete = onDelete && (isOwner || !comment.user); // Allow deleting system/client notes if admin? Let's just stick to owner for now or valid callback.
+    // Ensure both are strings for comparison
+    const isOwner = String(comment.userId) === String(currentUserId);
+
+    // Check if delete is allowed
+    const canDelete = onDelete && (isOwner || !comment.user);
+
+
+    // ... inside render:
+    // {(canDelete) && ( ...
 
     const handleDeleteClick = () => {
         if (!onDelete) return;
@@ -69,9 +74,16 @@ export default function CommentItem({ comment, onReply, onDelete, currentUserId,
                             >
                                 <MessageSquare size={10} /> Reply
                             </button>
-                            <button className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 flex items-center gap-1.5 transition-colors">
+                            {/* React button hidden until implemented */}
+                            {/* <button className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 flex items-center gap-1.5 transition-colors">
                                 <Smile size={10} /> React
-                            </button>
+                            </button> */}
+                        </div>
+
+
+                        {/* DEBUG INFO - REMOVE LATER */}
+                        <div className="text-[8px] text-red-500">
+                            {String(currentUserId)} vs {String(comment.userId)} ({isOwner ? 'MATCH' : 'NO'})
                         </div>
 
                         {canDelete && (

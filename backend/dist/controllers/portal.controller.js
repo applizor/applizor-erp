@@ -3,32 +3,79 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.exportInvoices = exports.getInvoicePdf = exports.getInvoiceDetails = exports.getMyProjects = exports.getMyInvoices = exports.getDashboardStats = void 0;
+exports.getContractDetails = exports.getMyContracts = exports.getContractPdf = exports.getQuotationPdf = exports.getQuotationDetails = exports.getMyQuotations = exports.exportInvoices = exports.getInvoicePdf = exports.getInvoiceDetails = exports.getMyProjects = exports.getMyInvoices = exports.getDashboardStats = void 0;
 const client_1 = __importDefault(require("../prisma/client"));
 const pdf_service_1 = require("../services/pdf.service");
 const getDashboardStats = async (req, res) => {
     try {
         const clientId = req.clientId;
-        const [invoices, projects] = await Promise.all([
+        // Fetch basic stats and task metrics in parallel
+        const [invoices, projects, taskStats, recentComments] = await Promise.all([
+            // 1. Invoices
             client_1.default.invoice.findMany({
                 where: { clientId },
                 select: { total: true, status: true, currency: true }
             }),
+            // 2. Active Projects count
             client_1.default.project.count({
-                where: { clientId, status: 'active' } // Assuming active status string
+                where: { clientId, status: 'active' }
+            }),
+            // 3. Task Counts (In Progress & Review)
+            client_1.default.task.groupBy({
+                by: ['status'],
+                where: {
+                    project: { clientId },
+                    status: { not: 'done' } // generalized check, specific buckets below
+                },
+                _count: { id: true }
+            }),
+            // 4. Recent Comments (Activity Feed) - exluding client's own comments
+            client_1.default.taskComment.findMany({
+                where: {
+                    task: { project: { clientId } },
+                    clientId: { equals: null } // Only show comments by internal users (staff)
+                },
+                orderBy: { createdAt: 'desc' },
+                take: 5,
+                include: {
+                    user: { select: { firstName: true, lastName: true } },
+                    task: { select: { id: true, title: true, projectId: true } }
+                }
             })
         ]);
-        // Calculate totals
+        // Process Task Stats
+        let tasksInReview = 0;
+        let tasksInProgress = 0;
+        taskStats.forEach(bucket => {
+            if (bucket.status === 'review') {
+                tasksInReview += bucket._count.id;
+            }
+            else if (['todo', 'in-progress'].includes(bucket.status)) {
+                tasksInProgress += bucket._count.id;
+            }
+        });
+        // Process Invoices
         const totalDue = invoices
             .filter(inv => inv.status !== 'paid' && inv.status !== 'cancelled')
             .reduce((sum, inv) => sum + Number(inv.total), 0);
-        // Simple currency assumption for MVP (taking first found or default)
-        const currency = invoices[0]?.currency || 'USD';
+        const currency = req.client?.currency || req.client?.company?.currency || invoices[0]?.currency || 'USD';
         res.json({
             activeProjects: projects,
             pendingInvoicesCount: invoices.filter(inv => inv.status !== 'paid' && inv.status !== 'cancelled').length,
             totalDue,
-            currency
+            currency,
+            tasksInReview,
+            tasksInProgress,
+            recentActivities: recentComments.map(c => ({
+                id: c.id,
+                type: 'comment',
+                user: `${c.user?.firstName} ${c.user?.lastName}`,
+                taskTitle: c.task.title,
+                taskId: c.task.id,
+                projectId: c.task.projectId,
+                content: c.content,
+                createdAt: c.createdAt
+            }))
         });
     }
     catch (error) {
@@ -141,7 +188,7 @@ const getInvoicePdf = async (req, res) => {
         if (!invoice || invoice.clientId !== clientId) {
             return res.status(404).json({ error: 'Invoice not found' });
         }
-        const pdfBuffer = await pdf_service_1.PDFService.generateInvoicePDF(invoice);
+        const pdfBuffer = await pdf_service_1.PDFService.generateInvoicePDF({ ...invoice, useLetterhead: true });
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="Invoice-${invoice.invoiceNumber}.pdf"`);
         res.send(pdfBuffer);
@@ -203,4 +250,167 @@ const exportInvoices = async (req, res) => {
     }
 };
 exports.exportInvoices = exportInvoices;
+// ==========================================
+// Quotations
+// ==========================================
+const getMyQuotations = async (req, res) => {
+    try {
+        const clientId = req.clientId;
+        const clientEmail = req.client?.email;
+        const page = Number(req.query.page) || 1;
+        const limit = Number(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+        const { search, status } = req.query;
+        // Filter by lead email matching client email
+        // Note: Prisma where clause structure depends on schema. 
+        // Assuming Quotation -> Lead -> email
+        const where = {
+            lead: {
+                email: clientEmail
+            }
+        };
+        if (status && status !== 'all') {
+            where.status = status;
+        }
+        if (search) {
+            where.quotationNumber = {
+                contains: search,
+                mode: 'insensitive'
+            };
+        }
+        const [quotations, total] = await Promise.all([
+            client_1.default.quotation.findMany({
+                where,
+                orderBy: { quotationDate: 'desc' },
+                skip,
+                take: limit,
+                include: { items: true, lead: true, company: true }
+            }),
+            client_1.default.quotation.count({ where })
+        ]);
+        res.json({ quotations, total, pages: Math.ceil(total / limit) });
+    }
+    catch (error) {
+        console.error('Get quotations error:', error);
+        res.status(500).json({ error: 'Failed to fetch quotations' });
+    }
+};
+exports.getMyQuotations = getMyQuotations;
+const getQuotationDetails = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const clientEmail = req.client?.email;
+        const quotation = await client_1.default.quotation.findUnique({
+            where: { id },
+            include: {
+                items: true,
+                lead: true,
+                company: true
+            }
+        });
+        // Security check: Ensure quotation belongs to this client (via lead email)
+        if (!quotation || quotation.lead?.email !== clientEmail) {
+            return res.status(404).json({ error: 'Quotation not found' });
+        }
+        res.json({ quotation });
+    }
+    catch (error) {
+        console.error('Get quotation details error:', error);
+        res.status(500).json({ error: 'Failed to fetch quotation details' });
+    }
+};
+exports.getQuotationDetails = getQuotationDetails;
+const getQuotationPdf = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const clientEmail = req.client?.email;
+        const quotation = await client_1.default.quotation.findUnique({
+            where: { id },
+            include: {
+                lead: true,
+                company: true,
+                items: true
+            }
+        });
+        if (!quotation || quotation.lead?.email !== clientEmail) {
+            return res.status(404).json({ error: 'Quotation not found' });
+        }
+        // Use appropriate PDF generation (signed if accepted?)
+        const pdfBuffer = await pdf_service_1.PDFService.generateQuotationPDF({ ...quotation, useLetterhead: true });
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="Quotation-${quotation.quotationNumber}.pdf"`);
+        res.send(pdfBuffer);
+    }
+    catch (error) {
+        console.error('Get Quotation PDF error:', error);
+        res.status(500).json({ error: 'Failed to generate PDF' });
+    }
+};
+exports.getQuotationPdf = getQuotationPdf;
+const getContractPdf = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const clientId = req.clientId; // Contracts likely linked to ClientId directly
+        const contract = await client_1.default.contract.findUnique({
+            where: { id },
+            include: {
+                client: true,
+                company: true
+            }
+        });
+        if (!contract || contract.clientId !== clientId) {
+            return res.status(404).json({ error: 'Contract not found' });
+        }
+        const pdfBuffer = await pdf_service_1.PDFService.generateContractPDF({ ...contract, useLetterhead: true });
+        res.setHeader('Content-Type', 'application/pdf');
+        // Contract model has 'title', not 'contractNumber'. Use title or id.
+        res.setHeader('Content-Disposition', `attachment; filename="Contract-${contract.title.replace(/\s+/g, '-')}.pdf"`);
+        res.send(pdfBuffer);
+    }
+    catch (error) {
+        console.error('Get Contract PDF error:', error);
+        res.status(500).json({ error: 'Failed to generate PDF' });
+    }
+};
+exports.getContractPdf = getContractPdf;
+const getMyContracts = async (req, res) => {
+    try {
+        const clientId = req.clientId;
+        // Search by client ID
+        const where = { clientId: clientId };
+        // Support search filter if needed in future
+        if (req.query.search) {
+            where.title = { contains: req.query.search, mode: 'insensitive' };
+        }
+        const contracts = await client_1.default.contract.findMany({
+            where,
+            orderBy: { createdAt: 'desc' },
+            include: { company: true }
+        });
+        res.json(contracts);
+    }
+    catch (error) {
+        console.error('Get contracts error:', error);
+        res.status(500).json({ error: 'Failed to fetch contracts' });
+    }
+};
+exports.getMyContracts = getMyContracts;
+const getContractDetails = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const clientId = req.clientId;
+        const contract = await client_1.default.contract.findUnique({
+            where: { id },
+            include: { company: true }
+        });
+        if (!contract || contract.clientId !== clientId) {
+            return res.status(404).json({ error: 'Contract not found' });
+        }
+        res.json(contract);
+    }
+    catch (error) {
+        res.status(500).json({ error: 'Failed to fetch contract' });
+    }
+};
+exports.getContractDetails = getContractDetails;
 //# sourceMappingURL=portal.controller.js.map

@@ -1,6 +1,5 @@
-'use client';
-
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '@/lib/auth';
 import { useForm, Controller } from 'react-hook-form';
 import { X, Paperclip, Send, Clock, Trash2, Briefcase, Plus, MessageSquare, Heart, Smile, MoreHorizontal } from 'lucide-react';
 import { PermissionGuard } from '@/components/PermissionGuard'; // Ensure correct path
@@ -62,11 +61,7 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
     const { socket } = useSocket();
 
     // User Context for Delete Permissions
-    const [currentUser, setCurrentUser] = useState<any>(null);
-
-    useEffect(() => {
-        api.get('/auth/verify').then(res => setCurrentUser(res.data)).catch(() => { });
-    }, []);
+    const { user: currentUser } = useAuth();
 
     const handleDeleteComment = async (commentId: string) => {
         try {

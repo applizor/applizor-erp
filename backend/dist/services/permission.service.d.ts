@@ -22,5 +22,6 @@ export declare class PermissionService {
     static getScopedWhereClause(user: any, module: string, action: PermissionAction, entityTable?: string, // Table name for Raw Query
     createdByIdField?: string, // Field name in DB
     ownerIdField?: string): Promise<any>;
+    static checkProjectAccess(userId: string, projectId: string, action: 'view' | 'edit' | 'delete'): Promise<boolean>;
 }
 //# sourceMappingURL=permission.service.d.ts.map

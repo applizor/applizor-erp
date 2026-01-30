@@ -39,6 +39,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const dotenv_1 = __importDefault(require("dotenv"));
+const http_1 = __importDefault(require("http"));
+const socket_1 = require("./socket");
 // Routes
 const auth_routes_1 = __importDefault(require("./routes/auth.routes"));
 const company_routes_1 = __importDefault(require("./routes/company.routes"));
@@ -52,9 +54,10 @@ const app = (0, express_1.default)();
 const PORT = process.env.PORT || 5000;
 // Middleware
 app.use((0, cors_1.default)());
-app.use(express_1.default.json());
-app.use(express_1.default.urlencoded({ extended: true }));
+app.use(express_1.default.json({ limit: '50mb' }));
+app.use(express_1.default.urlencoded({ extended: true, limit: '50mb' }));
 // Serve static files
+// Server Entry Point - Updated
 const path_1 = __importDefault(require("path"));
 app.use('/uploads', express_1.default.static(path_1.default.join(__dirname, '../uploads')));
 // Health check
@@ -142,20 +145,38 @@ app.use('/api/payroll/structure', salary_structure_routes_1.default);
 // ... other routes
 app.use('/api/accounting', accounting_routes_1.default);
 // Automation/Debug Routes
-// Automation/Debug Routes
 const automation_routes_1 = __importDefault(require("./routes/automation.routes"));
 app.use('/api/automation', automation_routes_1.default);
+// New HRMS Module Routes
+const policy_routes_1 = __importDefault(require("./routes/policy.routes"));
+const ticket_routes_1 = __importDefault(require("./routes/ticket.routes"));
+app.use('/api/policies', policy_routes_1.default);
+app.use('/api/tickets', ticket_routes_1.default);
+const employee_document_routes_1 = __importDefault(require("./routes/employee-document.routes"));
+app.use('/api/employee-documents', employee_document_routes_1.default);
 // Contract Routes
 const contract_routes_1 = __importStar(require("./routes/contract.routes"));
 const contract_template_routes_1 = __importDefault(require("./routes/contract-template.routes"));
 app.use('/api/contracts', contract_routes_1.default);
 app.use('/api/contract-templates', contract_template_routes_1.default);
 app.use('/api/portal/contracts', contract_routes_1.portalContractRouter);
+// Project Routes
+const project_routes_1 = __importDefault(require("./routes/project.routes"));
+const task_routes_1 = __importDefault(require("./routes/task.routes"));
+const timesheet_routes_1 = __importDefault(require("./routes/timesheet.routes"));
+app.use('/api/projects', project_routes_1.default);
+app.use('/api/tasks', task_routes_1.default);
+app.use('/api/timesheets', timesheet_routes_1.default);
+// Settings Routes
+const settings_routes_1 = __importDefault(require("./routes/settings.routes"));
+app.use('/api/settings', settings_routes_1.default);
 // Scheduler
 const scheduler_service_1 = require("./services/scheduler.service");
 // Start server
 scheduler_service_1.SchedulerService.init();
-app.listen(PORT, () => {
+const server = http_1.default.createServer(app);
+(0, socket_1.initSocket)(server);
+server.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`📊 Health check: http://localhost:${PORT}/health`);
     console.log(`🔐 Auth API: http://localhost:${PORT}/api/auth`);

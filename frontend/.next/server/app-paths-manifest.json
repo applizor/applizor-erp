@@ -1,5 +1,5 @@
 {
-  "/(main)/dashboard/page": "app/(main)/dashboard/page.js",
-  "/(main)/projects/[id]/page": "app/(main)/projects/[id]/page.js",
-  "/(main)/projects/[id]/tasks/page": "app/(main)/projects/[id]/tasks/page.js"
+  "/(main)/quotations/[id]/edit/page": "app/(main)/quotations/[id]/edit/page.js",
+  "/(main)/quotations/[id]/page": "app/(main)/quotations/[id]/page.js",
+  "/(main)/quotations/page": "app/(main)/quotations/page.js"
 }

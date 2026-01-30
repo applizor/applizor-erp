@@ -10,8 +10,10 @@ exports.SYSTEM_MODULES = [
     'Dashboard', 'Company', 'User', 'Role',
     'Client', 'Lead', 'LeadActivity', 'Quotation', 'QuotationTemplate', 'Invoice', 'Payment', 'Subscription',
     'Department', 'Position', 'Employee', 'Attendance', 'Leave', 'LeaveType', 'LeaveBalance', 'Shift', 'ShiftRoster', 'Payroll', 'Asset',
-    'Department', 'Position', 'Employee', 'Attendance', 'Leave', 'LeaveType', 'LeaveBalance', 'Shift', 'ShiftRoster', 'Payroll', 'Asset',
-    'Recruitment', 'Document', 'Holiday', 'Contract'
+    'Recruitment', 'Document',
+    'Project', 'ProjectTask', // Added Project modules
+    'Timesheet', // Phase 9
+    'Holiday', 'Contract'
 ];
 const ACCESS_LEVELS = ['none', 'all', 'added', 'owned', 'added_owned']; // "added_owned" matches "Added & Owned"
 // Sync System: Truncate? No. Ensure every Role has every Module entry.

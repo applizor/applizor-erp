@@ -99,7 +99,7 @@ export default function EditQuotationPage({ params }: { params: { id: string } }
                         quantity: Number(item.quantity),
                         unit: item.unit || '',
                         unitPrice: Number(item.unitPrice),
-                        taxRateIds: item.taxRateIds || (item.taxRateId ? [item.taxRateId] : []),
+                        taxRateIds: item.appliedTaxes ? item.appliedTaxes.map((t: any) => t.taxRateId) : (item.taxRateId ? [item.taxRateId] : []),
                         discount: Number(item.discount)
                     })));
                 }
@@ -223,6 +223,7 @@ export default function EditQuotationPage({ params }: { params: { id: string } }
         let subtotal = 0;
         let totalTax = 0;
         let totalDiscount = 0;
+        const taxBreakdown: Record<string, number> = {};
 
         items.forEach(item => {
             const itemSubtotal = item.quantity * item.unitPrice;
@@ -233,7 +234,12 @@ export default function EditQuotationPage({ params }: { params: { id: string } }
             (item.taxRateIds || []).forEach((taxId: string) => {
                 const taxConfig = taxRates.find(t => t.id === taxId);
                 if (taxConfig) {
-                    itemTax += taxableAmount * (Number(taxConfig.percentage) / 100);
+                    const taxAmount = taxableAmount * (Number(taxConfig.percentage) / 100);
+                    itemTax += taxAmount;
+
+                    // Aggregate for breakdown
+                    const key = `${taxConfig.name} @${Number(taxConfig.percentage)}%`;
+                    taxBreakdown[key] = (taxBreakdown[key] || 0) + taxAmount;
                 }
             });
 
@@ -246,7 +252,8 @@ export default function EditQuotationPage({ params }: { params: { id: string } }
             subtotal,
             tax: totalTax,
             discount: totalDiscount,
-            total: subtotal + totalTax - totalDiscount
+            total: subtotal + totalTax - totalDiscount,
+            taxBreakdown
         };
     };
 
@@ -539,7 +546,7 @@ export default function EditQuotationPage({ params }: { params: { id: string } }
                                         </td>
                                         <td className="px-4 py-2">
                                             <CustomSelect
-                                                options={unitTypes.map(u => ({ label: u.symbol, value: u.symbol }))}
+                                                options={unitTypes.map(u => ({ label: `${u.name} (${u.symbol})`, value: u.symbol }))}
                                                 value={item.unit}
                                                 onChange={(val) => updateItem(index, 'unit', val)}
                                                 placeholder="-"
@@ -598,9 +605,18 @@ export default function EditQuotationPage({ params }: { params: { id: string } }
                                     <span>{formatCurrency(totals.subtotal)}</span>
                                 </div>
                                 <div className="flex justify-between text-xs font-bold text-gray-500 uppercase tracking-wide">
-                                    <span>Tax Amount</span>
+                                    <span>Total Tax</span>
                                     <span>{formatCurrency(totals.tax)}</span>
                                 </div>
+
+                                {/* Detailed Tax Breakdown */}
+                                {Object.entries(totals.taxBreakdown).map(([name, amount]) => (
+                                    <div key={name} className="flex justify-between text-[10px] items-center text-gray-400 pl-2 border-l-2 border-slate-200">
+                                        <span>{name}</span>
+                                        <span>{formatCurrency(amount)}</span>
+                                    </div>
+                                ))}
+
                                 <div className="flex justify-between text-xs font-bold text-gray-500 uppercase tracking-wide">
                                     <span>Applicable Discount</span>
                                     <span>-{formatCurrency(totals.discount)}</span>

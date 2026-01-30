@@ -264,7 +264,11 @@ export const getQuotation = async (req: AuthRequest, res: Response) => {
         const quotation = await prisma.quotation.findFirst({
             where: { AND: [{ id }, scopeFilter] },
             include: {
-                items: true,
+                items: {
+                    include: {
+                        appliedTaxes: true
+                    }
+                },
                 lead: true,
                 company: {
                     select: {
@@ -444,7 +448,11 @@ export const updateQuotation = async (req: AuthRequest, res: Response) => {
             where: { id },
             data: updateData,
             include: {
-                items: true
+                items: {
+                    include: {
+                        appliedTaxes: true
+                    }
+                }
             }
         });
 
@@ -624,7 +632,11 @@ export const downloadQuotationPDF = async (req: AuthRequest, res: Response) => {
         const quotation = await prisma.quotation.findFirst({
             where: { AND: [{ id }, scopeFilter] },
             include: {
-                items: true,
+                items: {
+                    include: {
+                        appliedTaxes: true
+                    }
+                },
                 lead: true,
                 company: true,
                 client: true
@@ -638,8 +650,27 @@ export const downloadQuotationPDF = async (req: AuthRequest, res: Response) => {
         // Import PDF service dynamically
         const { PDFService } = await import('../services/pdf.service');
 
+        // Calculate Tax Breakdown
+        const taxBreakdown: Record<string, { name: string; percentage: number; amount: number }> = {};
+        quotation.items.forEach((item: any) => {
+            if (item.appliedTaxes) {
+                item.appliedTaxes.forEach((tax: any) => {
+                    const key = `${tax.name}_${tax.percentage}`;
+                    if (!taxBreakdown[key]) {
+                        taxBreakdown[key] = {
+                            name: tax.name,
+                            percentage: Number(tax.percentage),
+                            amount: 0
+                        };
+                    }
+                    taxBreakdown[key].amount += Number(tax.amount);
+                });
+            }
+        });
+
         // Generate PDF
         const pdfBuffer = await PDFService.generateQuotationPDF({
+            taxBreakdown: Object.values(taxBreakdown),
             quotationNumber: quotation.quotationNumber,
             quotationDate: quotation.quotationDate,
             validUntil: quotation.validUntil || undefined,
@@ -736,7 +767,11 @@ export const downloadSignedQuotationPDF = async (req: AuthRequest, res: Response
         const quotation = await prisma.quotation.findFirst({
             where: { AND: [{ id }, scopeFilter] },
             include: {
-                items: true,
+                items: {
+                    include: {
+                        appliedTaxes: true
+                    }
+                },
                 lead: true,
                 company: true,
                 client: true
@@ -754,8 +789,27 @@ export const downloadSignedQuotationPDF = async (req: AuthRequest, res: Response
         // Import PDF service dynamically
         const { PDFService } = await import('../services/pdf.service');
 
+        // Calculate Tax Breakdown
+        const taxBreakdown: Record<string, { name: string; percentage: number; amount: number }> = {};
+        quotation.items.forEach((item: any) => {
+            if (item.appliedTaxes) {
+                item.appliedTaxes.forEach((tax: any) => {
+                    const key = `${tax.name}_${tax.percentage}`;
+                    if (!taxBreakdown[key]) {
+                        taxBreakdown[key] = {
+                            name: tax.name,
+                            percentage: Number(tax.percentage),
+                            amount: 0
+                        };
+                    }
+                    taxBreakdown[key].amount += Number(tax.amount);
+                });
+            }
+        });
+
         // Generate signed PDF
         const pdfBuffer = await PDFService.generateSignedQuotationPDF({
+            taxBreakdown: Object.values(taxBreakdown),
             quotationNumber: quotation.quotationNumber,
             quotationDate: quotation.quotationDate,
             validUntil: quotation.validUntil || undefined,

@@ -73,7 +73,7 @@ const createAsset = async (req, res) => {
         const user = await prisma.user.findUnique({ where: { id: userId } });
         if (!user?.companyId)
             return res.status(400).json({ error: 'User/Company not found' });
-        const { name, type, serialNumber, status, purchaseDate, price, employeeId, assignedDate } = req.body;
+        const { name, type, serialNumber, status, purchaseDate, price, currency, employeeId, assignedDate } = req.body;
         // Check for duplicate serial number if provided
         if (serialNumber) {
             const existing = await prisma.asset.findFirst({
@@ -94,6 +94,7 @@ const createAsset = async (req, res) => {
                 status: employeeId ? 'Assigned' : (status || 'Available'),
                 purchaseDate: purchaseDate ? new Date(purchaseDate) : undefined,
                 price: price ? parseFloat(price) : undefined,
+                currency: currency || 'INR',
                 employeeId: employeeId || null,
                 assignedDate: employeeId ? (assignedDate ? new Date(assignedDate) : new Date()) : null
             }
@@ -116,7 +117,7 @@ const updateAsset = async (req, res) => {
             return res.status(403).json({ error: 'Access denied: No update rights for Asset' });
         }
         const { id } = req.params;
-        const { name, type, serialNumber, status, purchaseDate, price, employeeId, assignedDate } = req.body;
+        const { name, type, serialNumber, status, purchaseDate, price, currency, employeeId, assignedDate } = req.body;
         // Separate assignment logic
         let updateData = {
             name,
@@ -125,6 +126,7 @@ const updateAsset = async (req, res) => {
             status,
             purchaseDate: purchaseDate ? new Date(purchaseDate) : undefined,
             price: price ? parseFloat(price) : undefined,
+            currency: currency || 'INR',
         };
         // If employee assignment is changing
         if (employeeId !== undefined) {

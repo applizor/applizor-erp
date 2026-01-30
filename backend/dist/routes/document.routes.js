@@ -16,5 +16,19 @@ router.get('/health', document_controller_1.healthCheck);
 router.post('/generate', auth_1.authenticate, upload.single('file'), document_controller_1.generateDocument);
 const document_controller_2 = require("../controllers/document.controller");
 router.post('/generate-from-template', auth_1.authenticate, document_controller_2.generateFromTemplate);
+router.post('/preview', auth_1.authenticate, document_controller_2.previewDocument);
+router.post('/publish', auth_1.authenticate, document_controller_2.createDocument);
+// Workflow Routes
+router.post('/:id/publish', auth_1.authenticate, document_controller_2.publishDocument);
+router.post('/:id/sign', auth_1.authenticate, upload.single('file'), document_controller_2.uploadSignedDocument);
+router.post('/:id/review', auth_1.authenticate, document_controller_2.reviewDocument);
+router.delete('/:id', auth_1.authenticate, document_controller_2.deleteDocument);
+// Generic Upload (Employee Self-Service)
+// 'file' key must match frontend FormData
+// Generic Upload (Employee Self-Service)
+// 'file' key must match frontend FormData
+const document_controller_3 = require("../controllers/document.controller");
+router.post('/upload', auth_1.authenticate, upload.single('file'), document_controller_3.uploadGenericDocument);
+router.post('/generate-instant', auth_1.authenticate, document_controller_3.generateInstantDocument);
 exports.default = router;
 //# sourceMappingURL=document.routes.js.map
