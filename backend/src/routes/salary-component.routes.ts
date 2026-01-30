@@ -1,20 +1,15 @@
-import express from 'express';
-import { authorize, authenticate } from '../middleware/auth';
-import {
-    getComponents,
-    createComponent,
-    updateComponent,
-    deleteComponent
-} from '../controllers/salary-component.controller';
 
-const router = express.Router();
+import { Router } from 'express';
+import { createComponent, getComponents, updateComponent, deleteComponent } from '../controllers/salary-component.controller';
+import { authenticate, checkPermission } from '../middleware/auth';
 
-// Allow 'Payroll' module access (or specific roles)
+const router = Router();
+
 router.use(authenticate);
 
-router.get('/', authorize(['Admin', 'HR Manager']), getComponents);
-router.post('/', authorize(['Admin', 'HR Manager']), createComponent);
-router.put('/:id', authorize(['Admin', 'HR Manager']), updateComponent);
-router.delete('/:id', authorize(['Admin', 'HR Manager']), deleteComponent);
+router.post('/', checkPermission('Payroll', 'create'), createComponent);
+router.get('/', checkPermission('Payroll', 'read'), getComponents);
+router.put('/:id', checkPermission('Payroll', 'update'), updateComponent);
+router.delete('/:id', checkPermission('Payroll', 'delete'), deleteComponent);
 
 export default router;

@@ -41,6 +41,11 @@ export const payrollApi = {
         return response.data;
     },
 
+    getMine: async () => {
+        const response = await api.get<Payroll[]>('/payroll/mine');
+        return response.data;
+    },
+
     approve: async (id: string) => {
         const response = await api.post(`/payroll/${id}/approve`);
         return response.data;

@@ -48,6 +48,12 @@ model User {
   watchedTasks       TaskWatcher[]
   taskHistory        TaskHistory[]
   notifications      Notification[]
+  
+  // HRMS Relations
+  createdTickets     Ticket[]    @relation("TicketCreator")
+  assignedTickets    Ticket[]    @relation("TicketAssignee")
+  ticketComments     TicketComment[]
+  createdPolicies    Policy[]
 
   @@index([email])
   @@index([companyId])
@@ -167,6 +173,8 @@ model Company {
   documentTemplates  DocumentTemplate[]
   quotations         Quotation[]
   quotationTemplates QuotationTemplate[]
+  policies           Policy[]
+  tickets            Ticket[]
   contracts          Contract[]
   contractTemplates  ContractTemplate[]
   clientCategories   ClientCategory[]
@@ -1311,8 +1319,9 @@ model SalaryComponent {
   companyId       String
   name            String // Basic, HRA, Travel Allowance, PF, Tax
   type            String // earning, deduction
-  calculationType String // flat, percentage_basic
+  calculationType String // flat, percentage_basic, percentage_ctc
   defaultValue    Decimal  @default(0) @db.Decimal(12, 2)
+  isTaxable       Boolean  @default(true)
   isActive        Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -1801,23 +1810,6 @@ model AuditLog {
 // DOCUMENT ENGINE
 // ============================================
 
-model DocumentTemplate {
-  id             String   @id @default(uuid())
-  companyId      String
-  name           String
-  description    String?
-  type           String // OfferLetter, Payslip, Contract, Invoice
-  filePath       String // Path to .docx template
-  letterheadMode String   @default("NONE") // NONE, FIRST_PAGE, ALL_PAGES
-  isActive       Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  @@index([companyId])
-  @@index([type])
-}
 
 // ============================================
 // ACCOUNTING
@@ -1976,6 +1968,91 @@ model ContractTemplate {
 
   company   Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
   contracts Contract[]
+
+  @@index([companyId])
+}
+
+// ============================================
+// HRMS EXTENSIONS
+// ============================================
+
+model Policy {
+  id          String   @id @default(uuid())
+  companyId   String
+  title       String
+  description String?  @db.Text
+  category    String?  // HR, IT, General, Legal
+  fileUrl     String?
+  effectiveDate DateTime @default(now())
+  
+  isActive    Boolean  @default(true)
+  createdBy   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  creator     User?    @relation(fields: [createdBy], references: [id])
+
+  @@index([companyId])
+}
+
+model Ticket {
+  id          String   @id @default(uuid())
+  companyId   String
+  subject     String
+  description String   @db.Text
+  category    String   // IT, HR, Finance, Admin
+  priority    String   @default("medium") // low, medium, high, urgent
+  status      String   @default("open") // open, in-progress, resolved, closed
+  
+  // Assignment
+  createdBy   String
+  assignedTo  String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  resolvedAt  DateTime?
+
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  creator     User     @relation("TicketCreator", fields: [createdBy], references: [id])
+  assignee    User?    @relation("TicketAssignee", fields: [assignedTo], references: [id])
+  comments    TicketComment[]
+
+  @@index([companyId])
+  @@index([status])
+  @@index([assignedTo])
+}
+
+model TicketComment {
+  id        String   @id @default(uuid())
+  ticketId  String
+  userId    String
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([ticketId])
+}
+
+
+
+
+model DocumentTemplate {
+  id        String   @id @default(uuid())
+  companyId String
+  name      String
+  type      String   // General, Offer Letter, Contract, Certificate
+  content   String?  @db.Text
+  filePath  String?  // For DOCX templates
+  variables String[]
+  
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId])
 }

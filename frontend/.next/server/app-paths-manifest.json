@@ -1,14 +1,6 @@
 {
-  "/not-found": "app/not-found.js",
-  "/(main)/settings/roles/page": "app/(main)/settings/roles/page.js",
   "/(main)/dashboard/page": "app/(main)/dashboard/page.js",
-  "/(main)/invoices/page": "app/(main)/invoices/page.js",
-  "/(main)/leads/page": "app/(main)/leads/page.js",
-  "/(main)/invoices/create/page": "app/(main)/invoices/create/page.js",
-  "/(main)/payroll/payslips/page": "app/(main)/payroll/payslips/page.js",
-  "/(main)/projects/page": "app/(main)/projects/page.js",
-  "/(main)/payroll/components/page": "app/(main)/payroll/components/page.js",
-  "/(main)/payroll/run/page": "app/(main)/payroll/run/page.js",
+  "/(main)/documents/page": "app/(main)/documents/page.js",
   "/(main)/hrms/employees/page": "app/(main)/hrms/employees/page.js",
-  "/(main)/recruitment/jobs/page": "app/(main)/recruitment/jobs/page.js"
+  "/(main)/hrms/employees/[id]/page": "app/(main)/hrms/employees/[id]/page.js"
 }

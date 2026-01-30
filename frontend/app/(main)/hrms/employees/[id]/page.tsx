@@ -29,6 +29,7 @@ import { departmentsApi, positionsApi, employeesApi, Department, Position, Emplo
 import { usePermission } from '@/hooks/usePermission';
 import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import DocumentPreviewModal from '@/components/hrms/DocumentPreviewModal';
 import { CustomSelect } from '@/components/ui/CustomSelect';
 
 export default function EmployeeDetailsPage({ params }: { params: { id: string } }) {
@@ -43,8 +44,16 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
     const [isEditing, setIsEditing] = useState(false);
     const [activeTab, setActiveTab] = useState('overview');
     const [uploading, setUploading] = useState(false);
+    const [uploadCategory, setUploadCategory] = useState('General');
 
     const [formData, setFormData] = useState<any>({});
+
+    // State for Document Generation
+    const [showDocModal, setShowDocModal] = useState(false);
+    const [showPreviewModal, setShowPreviewModal] = useState(false); // New State
+    const [templates, setTemplates] = useState<any[]>([]);
+    const [selectedTemplate, setSelectedTemplate] = useState('');
+    const [generating, setGenerating] = useState(false);
 
     // Permission checks
     const canEdit = can('Employee', 'update');
@@ -52,11 +61,7 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
     const isOwnProfile = employee?.userId === user?.id;
     const canEditThisEmployee = canEdit && !isOwnProfile;
 
-    // State for Document Generation
-    const [showDocModal, setShowDocModal] = useState(false);
-    const [templates, setTemplates] = useState<any[]>([]);
-    const [selectedTemplate, setSelectedTemplate] = useState('');
-    const [generating, setGenerating] = useState(false);
+
 
     useEffect(() => {
         loadData();
@@ -154,7 +159,7 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
             const formData = new FormData();
             formData.append('file', file);
             formData.append('name', file.name);
-            formData.append('type', 'document'); // Default type
+            formData.append('type', uploadCategory);
 
             await employeesApi.uploadDocument(params.id, formData);
             loadData(); // Reload to show new doc
@@ -193,15 +198,14 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
         </div>
     );
 
-    // State for Document Generation (moved to top)
 
-    // ... (existing loadData)
+
+    // ... existing useEffects ...
 
     const openDocModal = async () => {
         try {
-            // Lazy load templates
-            setLoading(true); // Small loading indicator if needed
-            const res = await api.get('/document-templates'); // Direct call or import documentTemplatesApi
+            setLoading(true);
+            const res = await api.get('/document-templates');
             setTemplates(res.data);
             setShowDocModal(true);
         } catch (error) {
@@ -212,42 +216,22 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
         }
     };
 
-    const handleGenerateDocument = async () => {
+    const handleProceedToPreview = () => {
         if (!selectedTemplate) return toast.warning('Please select a template');
-        try {
-            setGenerating(true);
-            const res = await api.post('/documents/generate-from-template', {
-                employeeId: params.id,
-                templateId: selectedTemplate
-            }, { responseType: 'blob' });
-
-            // Download
-            const url = window.URL.createObjectURL(new Blob([res.data]));
-            const link = document.createElement('a');
-            link.href = url;
-            const tempName = templates.find(t => t.id === selectedTemplate)?.name || 'document';
-            link.setAttribute('download', `${employee?.firstName}_${tempName}.pdf`);
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-
-            setShowDocModal(false);
-        } catch (error) {
-            console.error(error);
-            toast.error('Failed to generate document');
-        } finally {
-            setGenerating(false);
-        }
+        setShowDocModal(false);
+        setShowPreviewModal(true);
     };
+
+    // ... rest of component ...
 
     return (
         <div className="animate-fade-in pb-20">
-            {/* Modal: Document Generation */}
+            {/* Modal: Template Selection */}
             {showDocModal && (
                 <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
                     <div className="ent-card max-w-sm w-full animate-in fade-in zoom-in duration-300 p-0 overflow-hidden">
                         <div className="px-6 py-4 border-b border-slate-50 bg-slate-50/30 flex justify-between items-center">
-                            <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">Generate Document</h3>
+                            <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">Select Template</h3>
                             <button onClick={() => setShowDocModal(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
                                 <X size={18} />
                             </button>
@@ -268,16 +252,28 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
                         <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-50 flex justify-end gap-2">
                             <button onClick={() => setShowDocModal(false)} className="btn-secondary">Cancel</button>
                             <button
-                                onClick={handleGenerateDocument}
-                                disabled={generating}
+                                onClick={handleProceedToPreview}
                                 className="btn-primary"
                             >
-                                {generating ? <LoadingSpinner size="sm" className="mr-2" /> : <Download size={14} className="mr-2" />}
-                                {generating ? 'Generating...' : 'Download PDF'}
+                                <FileText size={14} className="mr-2" />
+                                Next: Preview
                             </button>
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Modal: Document Preview & Publish */}
+            {showPreviewModal && (
+                <DocumentPreviewModal
+                    templateId={selectedTemplate}
+                    employeeId={params.id}
+                    onClose={() => setShowPreviewModal(false)}
+                    onPublished={() => {
+                        setShowPreviewModal(false);
+                        loadData(); // Reload to show new document in list
+                    }}
+                />
             )}
 
             <div className="max-w-6xl mx-auto px-4 lg:px-8 py-8">
@@ -576,17 +572,32 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
 
                                     {activeTab === 'documents' && (
                                         <div className="animate-fade-in space-y-6">
-                                            <div className="flex justify-between items-center mb-6">
+                                            <div className="flex justify-between items-center mb-6 gap-4">
                                                 <div>
                                                     <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Document Repository</h3>
                                                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter mt-1">Secured digital asset management</p>
                                                 </div>
-                                                <div className="relative">
-                                                    <input type="file" onChange={handleFileUpload} className="hidden" id="file-upload" disabled={uploading} />
-                                                    <label htmlFor="file-upload" className={`btn-secondary cursor-pointer ${uploading ? 'opacity-50' : ''}`}>
-                                                        {uploading ? <LoadingSpinner size="sm" className="mr-2" /> : <UploadCloud size={14} className="mr-2" />}
-                                                        Upload Asset
-                                                    </label>
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-48">
+                                                        <CustomSelect
+                                                            options={[
+                                                                { label: 'General Document', value: 'General' },
+                                                                { label: 'Employee Info Form', value: 'Employee Information Form' },
+                                                                { label: 'Doc Submission Form', value: 'Document Submission Form' },
+                                                                { label: 'KYC / ID Proof', value: 'KYC' },
+                                                                { label: 'Offer / Contract', value: 'Contract' }
+                                                            ]}
+                                                            value={uploadCategory}
+                                                            onChange={setUploadCategory}
+                                                        />
+                                                    </div>
+                                                    <div className="relative">
+                                                        <input type="file" onChange={handleFileUpload} className="hidden" id="file-upload" disabled={uploading} />
+                                                        <label htmlFor="file-upload" className={`btn-secondary cursor-pointer ${uploading ? 'opacity-50' : ''}`}>
+                                                            {uploading ? <LoadingSpinner size="sm" className="mr-2" /> : <UploadCloud size={14} className="mr-2" />}
+                                                            Upload
+                                                        </label>
+                                                    </div>
                                                 </div>
                                             </div>
 

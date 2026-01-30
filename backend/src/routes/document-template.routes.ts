@@ -1,18 +1,15 @@
+
 import { Router } from 'express';
-import multer from 'multer';
-import { uploadTemplate, listTemplates, deleteTemplate } from '../controllers/document-template.controller';
-import { authenticate } from '../middleware/auth';
+import { createTemplate, getTemplates, deleteTemplate, updateTemplate } from '../controllers/document-template.controller';
+import { authenticate, checkPermission } from '../middleware/auth';
 
 const router = Router();
-const upload = multer({ dest: 'uploads/templates/' }); // Save to disk
 
-// List Templates
-router.get('/', authenticate, listTemplates);
+router.use(authenticate);
 
-// Upload Template
-router.post('/', authenticate, upload.single('file'), uploadTemplate);
-
-// Delete Template
-router.delete('/:id', authenticate, deleteTemplate);
+router.post('/', checkPermission('DocumentTemplate', 'create'), createTemplate);
+router.get('/', checkPermission('DocumentTemplate', 'read'), getTemplates);
+router.put('/:id', checkPermission('DocumentTemplate', 'update'), updateTemplate);
+router.delete('/:id', checkPermission('DocumentTemplate', 'delete'), deleteTemplate);
 
 export default router;

@@ -5,7 +5,7 @@ import { format } from 'date-fns';
 import { Calendar as CalendarIcon, List, Filter, Plus, Clock, Search } from 'lucide-react';
 import api from '@/lib/api';
 import { Button } from '@/components/ui/Button';
-import BulkTimeLogModal from '@/components/timesheets/BulkTimeLogModal';
+import BulkTimeLogModal from '@/components/hrms/timesheets/BulkTimeLogModal';
 import { PermissionGuard } from '@/components/PermissionGuard';
 import { useToast } from '@/hooks/useToast';
 

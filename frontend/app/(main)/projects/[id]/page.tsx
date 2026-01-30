@@ -153,19 +153,19 @@ export default function ProjectDashboard({ params }: { params: { id: string } })
                             <div className="p-2.5 bg-slate-50 rounded border border-slate-100">
                                 <span className="text-[9px] font-black text-slate-400 uppercase block mb-1 tracking-wider">Budget</span>
                                 <span className="text-xs font-black text-slate-900 block truncate">
-                                    ${project.budget?.toLocaleString() || '0'}
+                                    {new Intl.NumberFormat('en-US', { style: 'currency', currency: project.currency || 'USD' }).format(project.budget || 0)}
                                 </span>
                             </div>
                             <div className="p-2.5 bg-emerald-50 rounded border border-emerald-100">
                                 <span className="text-[9px] font-black text-emerald-600 uppercase block mb-1 tracking-wider">Revenue</span>
                                 <span className="text-xs font-black text-emerald-700 block truncate">
-                                    ${project.actualRevenue?.toLocaleString() || '0'}
+                                    {new Intl.NumberFormat('en-US', { style: 'currency', currency: project.currency || 'USD' }).format(project.actualRevenue || 0)}
                                 </span>
                             </div>
                             <div className="p-2.5 bg-rose-50 rounded border border-rose-100">
                                 <span className="text-[9px] font-black text-rose-600 uppercase block mb-1 tracking-wider">Expenses</span>
                                 <span className="text-xs font-black text-rose-700 block truncate">
-                                    ${project.actualExpenses?.toLocaleString() || '0'}
+                                    {new Intl.NumberFormat('en-US', { style: 'currency', currency: project.currency || 'USD' }).format(project.actualExpenses || 0)}
                                 </span>
                             </div>
                         </div>
@@ -173,7 +173,7 @@ export default function ProjectDashboard({ params }: { params: { id: string } })
                             <span className="text-[9px] font-black text-slate-900 uppercase tracking-widest">Net Profit</span>
                             <div className="text-right">
                                 <span className={`text-xs font-black ${financials.netProfit >= 0 ? 'text-slate-900' : 'text-rose-600'}`}>
-                                    ${financials.netProfit.toLocaleString()}
+                                    {new Intl.NumberFormat('en-US', { style: 'currency', currency: project.currency || 'USD' }).format(financials.netProfit)}
                                 </span>
                                 <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">{financials.margin}% Margin</p>
                             </div>

@@ -132,9 +132,11 @@ export default function InvoiceDetails({ params }: { params: { id: string } }) {
                                         <tr key={item.id}>
                                             <td className="px-6 py-4 font-medium text-slate-900">{item.description}</td>
                                             <td className="px-6 py-4 text-center text-slate-600">{item.quantity}</td>
-                                            <td className="px-6 py-4 text-right text-slate-600">{Number(item.rate).toLocaleString()}</td>
+                                            <td className="px-6 py-4 text-right text-slate-600">
+                                                {new Intl.NumberFormat('en-US', { style: 'currency', currency: invoice.currency || 'USD' }).format(Number(item.rate))}
+                                            </td>
                                             <td className="px-6 py-4 text-right font-bold text-slate-900">
-                                                {Number(item.quantity * item.rate).toLocaleString()}
+                                                {new Intl.NumberFormat('en-US', { style: 'currency', currency: invoice.currency || 'USD' }).format(Number(item.quantity * item.rate))}
                                             </td>
                                         </tr>
                                     ))}
@@ -148,19 +150,19 @@ export default function InvoiceDetails({ params }: { params: { id: string } }) {
                                 <div className="w-64 space-y-2">
                                     <div className="flex justify-between text-sm text-slate-600">
                                         <span>Subtotal</span>
-                                        <span>{invoice.currency} {Number(invoice.subtotal).toLocaleString()}</span>
+                                        <span>{new Intl.NumberFormat('en-US', { style: 'currency', currency: invoice.currency || 'USD' }).format(Number(invoice.subtotal))}</span>
                                     </div>
                                     <div className="flex justify-between text-base font-black text-slate-900 pt-2 border-t border-slate-200">
                                         <span>Total</span>
-                                        <span>{invoice.currency} {Number(invoice.total).toLocaleString()}</span>
+                                        <span>{new Intl.NumberFormat('en-US', { style: 'currency', currency: invoice.currency || 'USD' }).format(Number(invoice.total))}</span>
                                     </div>
                                     <div className="flex justify-between text-xs text-emerald-600 font-bold pt-1">
                                         <span>Paid</span>
-                                        <span>{invoice.currency} {Number(invoice.paidAmount).toLocaleString()}</span>
+                                        <span>{new Intl.NumberFormat('en-US', { style: 'currency', currency: invoice.currency || 'USD' }).format(Number(invoice.paidAmount))}</span>
                                     </div>
                                     <div className="flex justify-between text-sm font-black text-rose-600 pt-2 border-t border-slate-100">
                                         <span>Balance Due</span>
-                                        <span>{invoice.currency} {Number(invoice.total - invoice.paidAmount).toLocaleString()}</span>
+                                        <span>{new Intl.NumberFormat('en-US', { style: 'currency', currency: invoice.currency || 'USD' }).format(Number(invoice.total - invoice.paidAmount))}</span>
                                     </div>
                                 </div>
                             </div>
@@ -184,7 +186,7 @@ export default function InvoiceDetails({ params }: { params: { id: string } }) {
                                                 <td className="py-2 font-medium text-slate-900">{new Date(p.paymentDate).toLocaleDateString()}</td>
                                                 <td className="py-2 text-slate-600 uppercase">{p.paymentMethod?.replace('-', ' ')}</td>
                                                 <td className="py-2 text-right font-bold text-emerald-600">
-                                                    {invoice.currency} {Number(p.amount).toLocaleString()}
+                                                    {new Intl.NumberFormat('en-US', { style: 'currency', currency: invoice.currency || 'USD' }).format(Number(p.amount))}
                                                 </td>
                                             </tr>
                                         ))}

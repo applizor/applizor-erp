@@ -130,9 +130,11 @@ export default function QuotationDetails({ params }: { params: { id: string } })
                                         <tr key={i}>
                                             <td className="px-6 py-4 font-medium text-slate-900">{item.description}</td>
                                             <td className="px-6 py-4 text-center text-slate-600">{item.quantity}</td>
-                                            <td className="px-6 py-4 text-right text-slate-600">{Number(item.unitPrice).toLocaleString()}</td>
+                                            <td className="px-6 py-4 text-right text-slate-600">
+                                                {new Intl.NumberFormat('en-US', { style: 'currency', currency: quotation.currency || 'USD' }).format(Number(item.unitPrice))}
+                                            </td>
                                             <td className="px-6 py-4 text-right font-bold text-slate-900">
-                                                {Number(item.quantity * item.unitPrice).toLocaleString()}
+                                                {new Intl.NumberFormat('en-US', { style: 'currency', currency: quotation.currency || 'USD' }).format(Number(item.quantity * item.unitPrice))}
                                             </td>
                                         </tr>
                                     ))}
@@ -146,11 +148,11 @@ export default function QuotationDetails({ params }: { params: { id: string } })
                                 <div className="w-64 space-y-2">
                                     <div className="flex justify-between text-sm text-slate-600">
                                         <span>Subtotal</span>
-                                        <span>{quotation.currency} {Number(quotation.subtotal).toLocaleString()}</span>
+                                        <span>{new Intl.NumberFormat('en-US', { style: 'currency', currency: quotation.currency || 'USD' }).format(Number(quotation.subtotal))}</span>
                                     </div>
                                     <div className="flex justify-between text-base font-black text-slate-900 pt-2 border-t border-slate-200">
                                         <span>Total</span>
-                                        <span>{quotation.currency || 'INR'} {Number(quotation.total).toLocaleString()}</span>
+                                        <span>{new Intl.NumberFormat('en-US', { style: 'currency', currency: quotation.currency || 'USD' }).format(Number(quotation.total))}</span>
                                     </div>
                                 </div>
                             </div>

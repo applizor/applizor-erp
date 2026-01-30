@@ -28,7 +28,10 @@ import {
     Receipt,
     ChevronDown,
     ChevronRight,
-    ChevronLeft
+    ChevronLeft,
+    BookOpen,
+    LifeBuoy,
+    CalendarDays
 } from 'lucide-react';
 import { auth, useAuth } from '@/lib/auth';
 import { useState, useEffect, useRef } from 'react';
@@ -55,40 +58,45 @@ export default function Sidebar() {
         { name: 'Departments', href: '/hrms/departments', icon: Layers, category: 'HRMS', module: 'Department', action: 'update' },
         { name: 'Positions', href: '/hrms/positions', icon: Briefcase, category: 'HRMS', module: 'Position', action: 'update' },
         { name: 'Assets', href: '/hrms/assets', icon: CreditCard, category: 'HRMS', module: 'Asset' },
-        { name: 'Attendance', href: '/attendance/my-attendance', icon: CalendarCheck, category: 'HRMS', module: 'Attendance' },
-        { name: 'Holidays', href: '/attendance/holidays', icon: CalendarCheck, category: 'HRMS', module: 'Holiday' },
-        { name: 'My Leaves', href: '/attendance/leaves', icon: Briefcase, category: 'HRMS', module: 'Leave' },
-        { name: 'Leave Approvals', href: '/attendance/leaves/approvals', icon: CalendarCheck, category: 'HRMS', module: 'Leave', action: 'update' },
-        { name: 'Leave Balances', href: '/attendance/leaves/balances', icon: PieChart, category: 'HRMS', module: 'LeaveBalance' },
-        { name: 'Shifts', href: '/attendance/shifts', icon: Activity, category: 'HRMS', module: 'Shift', action: 'update' },
-        { name: 'Shift Roster', href: '/attendance/roster', icon: CalendarCheck, category: 'HRMS', module: 'ShiftRoster' },
-        { name: 'All Attendance', href: '/attendance/admin', icon: Users, category: 'HRMS', module: 'Attendance' },
+        { name: 'Attendance', href: '/hrms/my-attendance', icon: CalendarCheck, category: 'HRMS', module: 'Attendance' },
+        { name: 'Holidays', href: '/hrms/holidays', icon: CalendarCheck, category: 'HRMS', module: 'Holiday' },
+        { name: 'My Leaves', href: '/hrms/leaves', icon: Briefcase, category: 'HRMS', module: 'Leave' },
+        { name: 'Leave Approvals', href: '/hrms/leaves/approvals', icon: CalendarCheck, category: 'HRMS', module: 'Leave', action: 'update' },
+        { name: 'Leave Balances', href: '/hrms/leaves/balances', icon: PieChart, category: 'HRMS', module: 'LeaveBalance' },
+        { name: 'Shifts', href: '/hrms/shifts', icon: Activity, category: 'HRMS', module: 'Shift', action: 'update' },
+        { name: 'Shift Roster', href: '/hrms/roster', icon: CalendarCheck, category: 'HRMS', module: 'ShiftRoster' },
+        { name: 'All Attendance', href: '/hrms/admin', icon: Users, category: 'HRMS', module: 'Attendance' },
         { name: 'Leave Types', href: '/hrms/leaves/types', icon: Layers, category: 'HRMS', module: 'LeaveType', action: 'update' },
+        { name: 'HR Policies', href: '/hrms/policies', icon: BookOpen, category: 'HRMS', module: 'Policy' },
         { name: 'Roles & Permissions', href: '/settings/roles', icon: ShieldCheck, category: 'Settings', module: 'Role' },
 
         // Recruitment
-        { name: 'Job Openings', href: '/recruitment/jobs', icon: Briefcase, category: 'Recruitment', module: 'Recruitment' },
-        { name: 'Kanban Board', href: '/recruitment/board', icon: LayoutDashboard, category: 'Recruitment', module: 'Recruitment' },
-        { name: 'Interviews', href: '/recruitment/interviews', icon: UserCircle, category: 'Recruitment', module: 'Recruitment' },
+        { name: 'Job Openings', href: '/hrms/recruitment/jobs', icon: Briefcase, category: 'Recruitment', module: 'Recruitment' },
+        { name: 'Kanban Board', href: '/hrms/recruitment/board', icon: LayoutDashboard, category: 'Recruitment', module: 'Recruitment' },
+        { name: 'Interviews', href: '/hrms/recruitment/interviews', icon: UserCircle, category: 'Recruitment', module: 'Recruitment' },
+        { name: 'Doc Templates', href: '/hrms/templates', icon: Copy, category: 'Recruitment', module: 'DocumentTemplate' },
 
         // CRM (Sales)
         { name: 'Leads', href: '/leads', icon: LineChart, category: 'CRM', module: 'Lead' },
         { name: 'Clients', href: '/clients', icon: Users, category: 'CRM', module: 'Client' },
         { name: 'Quotations', href: '/quotations', icon: FileText, category: 'CRM', module: 'Lead' },
-        { name: 'Templates', href: '/quotations/templates', icon: Copy, category: 'CRM', module: 'QuotationTemplate' },
+        { name: 'Quote Templates', href: '/quotations/templates', icon: Copy, category: 'CRM', module: 'QuotationTemplate' },
         { name: 'Contracts', href: '/crm/contracts', icon: ShieldCheck, category: 'CRM', module: 'Contract' },
 
         // Finance
         { name: 'Invoices', href: '/invoices', icon: FileText, category: 'Finance', module: 'Invoice' },
-        { name: 'Run Payroll', href: '/payroll/run', icon: Banknote, category: 'Finance', module: 'Payroll' },
-        { name: 'Salary Components', href: '/payroll/components', icon: Layers, category: 'Finance', module: 'Payroll' },
-        { name: 'Payslips', href: '/payroll/payslips', icon: FileSpreadsheet, category: 'Finance', module: 'Payroll' },
+        { name: 'Run Payroll', href: '/hrms/payroll/run', icon: Banknote, category: 'Finance', module: 'Payroll' },
+        { name: 'My Payslips', href: '/hrms/payroll/my-payslips', icon: FileSpreadsheet, category: 'Finance', module: 'Payroll', action: 'read' },
+        { name: 'Salary Components', href: '/hrms/payroll/components', icon: Layers, category: 'Finance', module: 'Payroll' },
+        { name: 'Payslips Ledger', href: '/hrms/payroll/payslips', icon: FileSpreadsheet, category: 'Finance', module: 'Payroll' },
         { name: 'Accounting', href: '/accounting', icon: Activity, category: 'Finance', module: 'Invoice' },
 
         // Ops & Docs
         { name: 'Projects', href: '/projects', icon: LayoutDashboard, category: 'Operations', module: 'Project' },
-        { name: 'Timesheets', href: '/timesheets', icon: CalendarCheck, category: 'Operations', module: 'Timesheet' },
+        { name: 'Calendar', href: '/calendar', icon: CalendarDays, category: 'Operations', module: 'Calendar' },
+        { name: 'Timesheets', href: '/hrms/timesheets', icon: CalendarCheck, category: 'Operations', module: 'Timesheet' },
         { name: 'Documents', href: '/documents', icon: FileText, category: 'Operations', module: 'Document' },
+        { name: 'Helpdesk', href: '/helpdesk', icon: LifeBuoy, category: 'Operations', module: 'Ticket' },
 
         // Settings
         { name: 'Company Settings', href: '/settings/company', icon: Briefcase, category: 'Settings', module: 'Company' },

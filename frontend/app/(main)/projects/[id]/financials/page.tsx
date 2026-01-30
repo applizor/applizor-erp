@@ -18,15 +18,17 @@ export default function ProjectFinancials({ params }: { params: { id: string } }
     const fetchFinancials = async () => {
         try {
             const res = await api.get(`/projects/${params.id}`);
+            const projectCurrency = res.data.currency || 'USD';
             if (res.data.stats && res.data.stats.financials) {
-                setStats(res.data.stats.financials);
+                setStats({ ...res.data.stats.financials, currency: projectCurrency });
             } else {
                 // Fallback if stats not populated
                 setStats({
                     budget: res.data.budget || 0,
                     revenue: res.data.actualRevenue || 0,
                     expenses: res.data.actualExpenses || 0,
-                    margin: 0
+                    margin: 0,
+                    currency: projectCurrency
                 });
             }
         } catch (error) {
@@ -43,6 +45,11 @@ export default function ProjectFinancials({ params }: { params: { id: string } }
 
     const remainingBudget = stats.budget - stats.expenses;
     const isProfitable = stats.margin >= 0;
+
+    // Helper formatter
+    const format = (amount: number) => {
+        return new Intl.NumberFormat('en-US', { style: 'currency', currency: stats.currency || 'USD' }).format(amount);
+    };
 
     return (
         <div className="space-y-8 max-w-6xl mx-auto">
@@ -64,28 +71,28 @@ export default function ProjectFinancials({ params }: { params: { id: string } }
                     <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-2">
                         <DollarSign size={12} /> Budget
                     </h3>
-                    <p className="text-2xl font-black text-gray-900">${Number(stats.budget).toLocaleString()}</p>
+                    <p className="text-2xl font-black text-gray-900">{format(Number(stats.budget))}</p>
                     <p className="text-[10px] text-gray-400 mt-1">Allocated Total</p>
                 </div>
                 <div className="ent-card p-6 border-t-4 border-t-emerald-500">
                     <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-2">
                         <TrendingUp size={12} className="text-emerald-500" /> Revenue
                     </h3>
-                    <p className="text-2xl font-black text-gray-900">${Number(stats.revenue).toLocaleString()}</p>
+                    <p className="text-2xl font-black text-gray-900">{format(Number(stats.revenue))}</p>
                     <p className="text-[10px] text-gray-400 mt-1">Invoiced Amount</p>
                 </div>
                 <div className="ent-card p-6 border-t-4 border-t-rose-500">
                     <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-2">
                         <TrendingDown size={12} className="text-rose-500" /> Expenses
                     </h3>
-                    <p className="text-2xl font-black text-gray-900">${Number(stats.expenses).toLocaleString()}</p>
+                    <p className="text-2xl font-black text-gray-900">{format(Number(stats.expenses))}</p>
                     <p className="text-[10px] text-gray-400 mt-1">Operational Costs</p>
                 </div>
                 <div className="ent-card p-6 border-t-4 border-t-blue-500">
                     <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-2">
                         <Wallet size={12} className="text-blue-500" /> Remaining
                     </h3>
-                    <p className="text-2xl font-black text-gray-900">${Number(remainingBudget).toLocaleString()}</p>
+                    <p className="text-2xl font-black text-gray-900">{format(Number(remainingBudget))}</p>
                     <p className="text-[10px] text-gray-400 mt-1">Available Funds</p>
                 </div>
             </div>
@@ -113,7 +120,7 @@ export default function ProjectFinancials({ params }: { params: { id: string } }
                                 <p className="text-xs font-bold text-gray-900">Initial Deposit</p>
                                 <p className="text-[10px] text-gray-400">Invoice #INV-001</p>
                             </div>
-                            <span className="text-xs font-black text-emerald-600">+$0.00</span>
+                            <span className="text-xs font-black text-emerald-600">+{format(0)}</span>
                         </div>
                         <p className="text-center text-[10px] text-gray-400 italic mt-4">No recent transactions recorded.</p>
                     </div>

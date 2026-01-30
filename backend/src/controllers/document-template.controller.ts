@@ -1,70 +1,75 @@
+
 import { Request, Response } from 'express';
 import prisma from '../prisma/client';
-import fs from 'fs';
-import path from 'path';
+import { AuthRequest } from '../middleware/auth';
 
-// Upload handling usually via Middleware (Multer), saving to disk or S3.
-// For MVP, we save to 'uploads/templates' directory.
-
-export const uploadTemplate = async (req: Request, res: Response) => {
+export const createTemplate = async (req: AuthRequest, res: Response) => {
     try {
-        if (!req.file) {
-            return res.status(400).json({ error: 'No file uploaded' });
-        }
-        const { name, type, letterheadMode } = req.body;
-        const companyId = (req as any).user?.companyId; // From Auth Middleware
-
-        if (!name || !type) {
-            return res.status(400).json({ error: 'Name and Type are required' });
-        }
-
-        // Save to DB
+        const { name, type, content, variables } = req.body;
         const template = await prisma.documentTemplate.create({
             data: {
-                companyId,
                 name,
                 type,
-                letterheadMode: letterheadMode || 'NONE',
-                filePath: req.file.path, // Multer saves it and gives path
+                content,
+                variables,
+                companyId: req.user!.companyId
             }
         });
-
-        res.json(template);
-    } catch (error: any) {
-        console.error('Template upload error:', error);
-        res.status(500).json({ error: error.message });
+        res.status(201).json(template);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to create template' });
     }
 };
 
-export const listTemplates = async (req: Request, res: Response) => {
+export const getTemplates = async (req: AuthRequest, res: Response) => {
     try {
-        const companyId = (req as any).user?.companyId;
         const templates = await prisma.documentTemplate.findMany({
-            where: { companyId },
+            where: { companyId: req.user!.companyId, isActive: true },
             orderBy: { createdAt: 'desc' }
         });
         res.json(templates);
-    } catch (error: any) {
-        res.status(500).json({ error: error.message });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch templates' });
     }
 };
 
-export const deleteTemplate = async (req: Request, res: Response) => {
+export const updateTemplate = async (req: AuthRequest, res: Response) => {
     try {
         const { id } = req.params;
-        const template = await prisma.documentTemplate.findUnique({ where: { id } });
-        if (!template) return res.status(404).json({ error: 'Template not found' });
+        const { name, type, content, variables } = req.body;
 
-        // Delete File
-        if (fs.existsSync(template.filePath)) {
-            fs.unlinkSync(template.filePath);
+        // Initial check to ensure it belongs to company
+        const existing = await prisma.documentTemplate.findFirst({
+            where: { id, companyId: req.user!.companyId }
+        });
+
+        if (!existing) {
+            return res.status(404).json({ error: 'Template not found' });
         }
 
-        // Delete record
-        await prisma.documentTemplate.delete({ where: { id } });
+        const template = await prisma.documentTemplate.update({
+            where: { id },
+            data: {
+                name,
+                type,
+                content,
+                variables
+            }
+        });
+        res.json(template);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to update template' });
+    }
+};
 
+export const deleteTemplate = async (req: AuthRequest, res: Response) => {
+    try {
+        await prisma.documentTemplate.update({
+            where: { id: req.params.id },
+            data: { isActive: false }
+        });
         res.json({ message: 'Template deleted' });
-    } catch (error: any) {
-        res.status(500).json({ error: error.message });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to delete template' });
     }
 };

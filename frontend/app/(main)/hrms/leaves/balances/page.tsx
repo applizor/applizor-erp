@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { leavesApi } from '@/lib/api/attendance';
 import { usePermission } from '@/hooks/usePermission';
 import AccessDenied from '@/components/AccessDenied';
-import { LeaveBalanceCards } from '@/components/attendance/LeaveBalanceCards';
+import { LeaveBalanceCards } from '@/components/hrms/attendance/LeaveBalanceCards';
 import { Search, RefreshCw, User, Users, Calendar } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 

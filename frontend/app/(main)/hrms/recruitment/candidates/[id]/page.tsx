@@ -16,9 +16,9 @@ import {
     OfferLetter
 } from '@/lib/api/recruitment';
 import { employeesApi } from '@/lib/api/hrms';
-import ScheduleInterviewModal from '@/components/recruitment/ScheduleInterviewModal';
-import OfferLetterModal from '@/components/recruitment/OfferLetterModal';
-import OnboardEmployeeModal from '@/components/recruitment/OnboardEmployeeModal';
+import ScheduleInterviewModal from '@/components/hrms/recruitment/ScheduleInterviewModal';
+import OfferLetterModal from '@/components/hrms/recruitment/OfferLetterModal';
+import OnboardEmployeeModal from '@/components/hrms/recruitment/OnboardEmployeeModal';
 import { ArrowLeft, Mail, Phone, Calendar, Clock, User, CheckCircle, XCircle, FileText, ChevronRight, Briefcase, DollarSign, Award, Activity } from 'lucide-react';
 
 export default function CandidateDetailsPage({ params }: { params: { id: string } }) {
@@ -177,7 +177,7 @@ export default function CandidateDetailsPage({ params }: { params: { id: string 
                 <div className="flex items-center gap-3 w-full lg:w-auto">
                     <div className="flex bg-gray-100 p-1 rounded font-black text-[9px] uppercase tracking-widest">
                         <Link
-                            href="/recruitment/candidates"
+                            href="/hrms/recruitment/candidates"
                             className="px-4 py-2 text-gray-600 hover:text-gray-900 rounded flex items-center gap-2 transition-all bg-white text-primary-600 shadow-sm border border-gray-200"
                         >
                             <ArrowLeft size={12} /> Return to Reservoir

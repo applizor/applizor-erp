@@ -153,16 +153,16 @@ export default function PortalQuotations() {
                                         </td>
                                         <td className="px-4 py-3 whitespace-nowrap">
                                             <span className={`px-2 py-1 inline-flex text-[9px] font-black uppercase tracking-widest rounded-md border ${quote.status === 'accepted' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
-                                                    quote.status === 'rejected' ? 'bg-rose-100 text-rose-700 border-rose-200' :
-                                                        quote.status === 'expired' ? 'bg-slate-100 text-slate-700 border-slate-200' :
-                                                            'bg-amber-100 text-amber-700 border-amber-200'
+                                                quote.status === 'rejected' ? 'bg-rose-100 text-rose-700 border-rose-200' :
+                                                    quote.status === 'expired' ? 'bg-slate-100 text-slate-700 border-slate-200' :
+                                                        'bg-amber-100 text-amber-700 border-amber-200'
                                                 }`}>
                                                 {quote.status}
                                             </span>
                                         </td>
                                         <td className="px-4 py-3 whitespace-nowrap text-right">
                                             <div className="text-sm font-black text-slate-900 tracking-tight">
-                                                {quote.currency || 'INR'} {Number(quote.total).toLocaleString()}
+                                                {new Intl.NumberFormat('en-US', { style: 'currency', currency: quote.currency || 'USD' }).format(Number(quote.total))}
                                             </div>
                                         </td>
                                         <td className="px-4 py-3 whitespace-nowrap text-right">

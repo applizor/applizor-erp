@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { leavesApi, LeaveType } from '@/lib/api/attendance';
 import { Plus, Clock, CheckCircle, XCircle, AlertCircle, AlertTriangle, FileText, Calendar, Info, Trash2 } from 'lucide-react';
-import { LeaveBalanceCards } from '@/components/attendance/LeaveBalanceCards';
+import { LeaveBalanceCards } from '@/components/hrms/attendance/LeaveBalanceCards';
 import { CustomSelect } from '@/components/ui/CustomSelect';
 import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';

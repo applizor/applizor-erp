@@ -212,7 +212,7 @@ export default function PortalInvoices() {
                                         </td>
                                         <td className="px-4 py-3 whitespace-nowrap text-right">
                                             <div className="text-sm font-black text-slate-900 tracking-tight">
-                                                {inv.currency} {Number(inv.total).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                {new Intl.NumberFormat('en-US', { style: 'currency', currency: inv.currency || 'USD' }).format(Number(inv.total))}
                                             </div>
                                         </td>
                                         <td className="px-4 py-3 whitespace-nowrap text-right">

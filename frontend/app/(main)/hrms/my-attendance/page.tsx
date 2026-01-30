@@ -109,7 +109,7 @@ export default function MyAttendancePage() {
                         <p className="text-[10px] text-gray-500 font-bold mt-1 uppercase tracking-widest leading-none">Manage your daily check-in and check-out logs</p>
                     </div>
                 </div>
-                <Link href="/attendance/leaves" className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-primary-600 hover:text-primary-700 bg-primary-50 px-3 py-1.5 rounded-md transition-colors group">
+                <Link href="/hrms/leaves" className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-primary-600 hover:text-primary-700 bg-primary-50 px-3 py-1.5 rounded-md transition-colors group">
                     Leave Management <ArrowRight size={12} className="group-hover:translate-x-1 transition-transform" />
                 </Link>
             </div>

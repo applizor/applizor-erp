@@ -7,7 +7,7 @@ import api from '@/lib/api';
 import { useParams } from 'next/navigation';
 import { Plus, MoreVertical, Paperclip, MessageSquare, Bug, Bookmark, Layout, CheckSquare } from 'lucide-react';
 import TaskDetailModal from '@/components/tasks/TaskDetailModal';
-import BulkTimeLogModal from '@/components/timesheets/BulkTimeLogModal';
+import BulkTimeLogModal from '@/components/hrms/timesheets/BulkTimeLogModal';
 import { Clock as ClockIcon } from 'lucide-react';
 import { useSocket } from '@/contexts/SocketContext';
 

@@ -4,8 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { X, Paperclip, Send, Clock, Trash2, Briefcase, Plus, MessageSquare, Heart, Smile, MoreHorizontal } from 'lucide-react';
 import { PermissionGuard } from '@/components/PermissionGuard'; // Ensure correct path
-import TaskTimesheetList from '@/components/timesheets/TaskTimesheetList';
-import BulkTimeLogModal from '@/components/timesheets/BulkTimeLogModal';
+import TaskTimesheetList from '@/components/hrms/timesheets/TaskTimesheetList';
+import BulkTimeLogModal from '@/components/hrms/timesheets/BulkTimeLogModal';
 import { useToast } from '@/hooks/useToast';
 import api from '@/lib/api';
 import Portal from '@/components/ui/Portal';

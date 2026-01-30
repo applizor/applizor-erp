@@ -33,7 +33,7 @@ export default function BulkTimeLogModal({ open, onClose, defaultEntry }: BulkTi
             projectId: defaultEntry?.projectId || '',
             date: new Date().toISOString().split('T')[0],
             entries: [
-                { taskId: defaultEntry?.taskId || '', hours: defaultEntry?.hours || '', description: '' }
+                { taskId: defaultEntry?.taskId || '', hours: defaultEntry?.hours || '', description: '', billable: true }
             ]
         }
     });
@@ -53,7 +53,7 @@ export default function BulkTimeLogModal({ open, onClose, defaultEntry }: BulkTi
                 projectId: defaultEntry?.projectId || '',
                 date: new Date().toISOString().split('T')[0],
                 entries: [
-                    { taskId: defaultEntry?.taskId || '', hours: defaultEntry?.hours || '', description: '' }
+                    { taskId: defaultEntry?.taskId || '', hours: defaultEntry?.hours || '', description: '', billable: true }
                 ]
             });
         }
@@ -205,11 +205,20 @@ export default function BulkTimeLogModal({ open, onClose, defaultEntry }: BulkTi
                                     </div>
 
                                     <div className="md:col-span-6 space-y-1.5">
-                                        <Label className="text-[9px] uppercase font-black text-slate-400">Work Description</Label>
                                         <Input
                                             placeholder="e.g. Developed feature X..."
                                             {...register(`entries.${index}.description` as const)}
                                         />
+                                    </div>
+
+                                    <div className="md:col-span-12 flex items-center gap-2">
+                                        <input
+                                            type="checkbox"
+                                            id={`billable-${index}`}
+                                            className="w-3 H-3"
+                                            {...register(`entries.${index}.billable` as const)}
+                                        />
+                                        <Label htmlFor={`billable-${index}`} className="text-[10px] font-bold text-slate-500 uppercase tracking-widest cursor-pointer">Billable Hours</Label>
                                     </div>
                                 </div>
                             </div>
@@ -219,7 +228,7 @@ export default function BulkTimeLogModal({ open, onClose, defaultEntry }: BulkTi
                     <Button
                         type="button"
                         variant="outline"
-                        onClick={() => append({ taskId: '', hours: '', description: '' })}
+                        onClick={() => append({ taskId: '', hours: '', description: '', billable: true })}
                         className="w-full border-dashed border-2 hover:border-indigo-300 hover:bg-indigo-50/50 h-12 text-slate-500"
                     >
                         <Plus size={16} className="mr-2" /> Add Entry Row

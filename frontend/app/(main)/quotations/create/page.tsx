@@ -17,6 +17,8 @@ import { Button } from '@/components/ui/Button';
 import { CustomSelect } from '@/components/ui/CustomSelect';
 import { MultiSelect } from '@/components/ui/MultiSelect';
 
+import SaveTemplateDialog from '@/components/quotations/SaveTemplateDialog';
+
 export default function CreateQuotationPage() {
     const router = useRouter();
     const toast = useToast();
@@ -24,7 +26,13 @@ export default function CreateQuotationPage() {
     const { can, user } = usePermission();
     const { formatCurrency, currency: globalCurrency } = useCurrency();
     const [saving, setSaving] = useState(false);
+
+    // Data Sources
+    const [targetType, setTargetType] = useState<'lead' | 'client'>('lead');
     const [leads, setLeads] = useState<any[]>([]);
+    const [clients, setClients] = useState<any[]>([]);
+
+    // Components State
     const [templates, setTemplates] = useState<any[]>([]);
     const [selectedTemplateId, setSelectedTemplateId] = useState('');
     const [showSaveTemplateDialog, setShowSaveTemplateDialog] = useState(false);
@@ -44,6 +52,7 @@ export default function CreateQuotationPage() {
 
     const [formData, setFormData] = useState({
         leadId: '',
+        clientId: '',
         title: '',
         description: '',
         validUntil: '',
@@ -55,12 +64,24 @@ export default function CreateQuotationPage() {
         maxReminders: 3
     });
 
-    const [items, setItems] = useState([
-        { description: '', quantity: 1, unit: '', unitPrice: 0, taxRateIds: [] as string[], discount: 0 }
+    // Strict Type Interfaces
+    interface QuotationItem {
+        description: string;
+        quantity: number;
+        unit: string;
+        unitPrice: number;
+        taxRateIds: string[];
+        discount: number;
+        total?: number;
+    }
+
+    const [items, setItems] = useState<QuotationItem[]>([
+        { description: '', quantity: 1, unit: '', unitPrice: 0, taxRateIds: [], discount: 0 }
     ]);
 
     useEffect(() => {
         loadLeads();
+        loadClients();
         loadTemplates();
         fetchSettings();
     }, []);
@@ -81,9 +102,20 @@ export default function CreateQuotationPage() {
     const loadLeads = async () => {
         try {
             const response = await api.get('/leads');
-            setLeads(response.data.leads || []);
+            const leadsData = response.data.leads || [];
+            // Filter only valid leads if needed
+            setLeads(leadsData);
         } catch (error) {
             console.error('Failed to load leads');
+        }
+    };
+
+    const loadClients = async () => {
+        try {
+            const response = await api.get('/clients?status=active'); // Assuming query param exists
+            setClients(response.data.clients || []);
+        } catch (error) {
+            console.error('Failed to load clients');
         }
     };
 
@@ -241,10 +273,17 @@ export default function CreateQuotationPage() {
         // Filter out empty items
         const validItems = items.filter(item => item.description.trim() !== '' && item.quantity > 0);
 
-        if (!formData.leadId || !formData.title) {
-            toast.error('Please fill all required fields (Client and Title)');
+        if (((targetType === 'lead' && !formData.leadId) || (targetType === 'client' && !formData.clientId)) || !formData.title) {
+            toast.error('Please select a Target (Lead/Client) and enter Title');
             return;
         }
+
+        // Clear the ID that isn't selected to be safe
+        const cleanFormData = {
+            ...formData,
+            leadId: targetType === 'lead' ? formData.leadId : undefined,
+            clientId: targetType === 'client' ? formData.clientId : undefined
+        };
 
         if (validItems.length === 0) {
             toast.error('Please add at least one valid item line');
@@ -254,7 +293,7 @@ export default function CreateQuotationPage() {
         try {
             setSaving(true);
             await quotationsApi.create({
-                ...formData,
+                ...cleanFormData,
                 items: validItems.map(item => ({
                     ...item,
                     total: item.quantity * item.unitPrice
@@ -332,20 +371,65 @@ export default function CreateQuotationPage() {
                         {/* Left Column */}
                         <div className="space-y-6">
                             <div>
-                                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
-                                    Target Client / Lead <span className="text-red-500">*</span>
+                                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                                    Quotation For <span className="text-red-500">*</span>
                                 </label>
-                                <CustomSelect
-                                    options={leads.map(lead => ({
-                                        label: `${lead.name} ${lead.company ? `- ${lead.company}` : ''}`,
-                                        value: lead.id,
-                                        description: lead.email
-                                    }))}
-                                    value={formData.leadId}
-                                    onChange={(val) => setFormData({ ...formData, leadId: val })}
-                                    placeholder="Select Lead or Client"
-                                    className="w-full"
-                                />
+
+                                {/* Target Toggle */}
+                                <div className="flex bg-gray-100 p-1 rounded-md mb-3 w-fit">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setTargetType('lead');
+                                            setFormData({ ...formData, clientId: '' });
+                                        }}
+                                        className={`px-4 py-1.5 text-xs font-bold uppercase tracking-wide rounded ${targetType === 'lead'
+                                                ? 'bg-white text-primary-700 shadow-sm'
+                                                : 'text-gray-500 hover:text-gray-700'
+                                            }`}
+                                    >
+                                        Lead / Prospect
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setTargetType('client');
+                                            setFormData({ ...formData, leadId: '' });
+                                        }}
+                                        className={`px-4 py-1.5 text-xs font-bold uppercase tracking-wide rounded ${targetType === 'client'
+                                                ? 'bg-white text-primary-700 shadow-sm'
+                                                : 'text-gray-500 hover:text-gray-700'
+                                            }`}
+                                    >
+                                        Existing Client
+                                    </button>
+                                </div>
+
+                                {targetType === 'lead' ? (
+                                    <CustomSelect
+                                        options={leads.map(lead => ({
+                                            label: `${lead.name} ${lead.company ? `- ${lead.company}` : ''}`,
+                                            value: lead.id,
+                                            description: lead.email
+                                        }))}
+                                        value={formData.leadId}
+                                        onChange={(val) => setFormData({ ...formData, leadId: val })}
+                                        placeholder="Select Lead..."
+                                        className="w-full"
+                                    />
+                                ) : (
+                                    <CustomSelect
+                                        options={clients.map(client => ({
+                                            label: client.name,
+                                            value: client.id,
+                                            description: client.email || client.companyName
+                                        }))}
+                                        value={formData.clientId}
+                                        onChange={(val) => setFormData({ ...formData, clientId: val })}
+                                        placeholder="Select Business Client..."
+                                        className="w-full"
+                                    />
+                                )}
                             </div>
 
                             <div>
@@ -666,77 +750,15 @@ export default function CreateQuotationPage() {
             </form>
 
             {/* Save Template Dialog */}
-            {showSaveTemplateDialog && (
-                <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-                    <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-                        <div className="fixed inset-0 bg-gray-900 bg-opacity-75 backdrop-blur-sm transition-opacity" aria-hidden="true" onClick={() => setShowSaveTemplateDialog(false)}></div>
-
-                        <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-
-                        <div className="inline-block align-bottom bg-white rounded-md text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-gray-100">
-                            <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                                <div className="sm:flex sm:items-start">
-                                    <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-primary-50 sm:mx-0 sm:h-10 sm:w-10">
-                                        <Copy className="h-5 w-5 text-primary-600" />
-                                    </div>
-                                    <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
-                                        <h3 className="text-lg leading-6 font-bold text-gray-900 uppercase tracking-tight" id="modal-title">
-                                            Save Template Configuration
-                                        </h3>
-                                        <div className="mt-4 space-y-4">
-                                            <p className="text-sm text-gray-500">
-                                                Persist this proposal structure as a reusable template for future operations.
-                                            </p>
-                                            <div>
-                                                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
-                                                    Template Name <span className="text-red-500">*</span>
-                                                </label>
-                                                <input
-                                                    type="text"
-                                                    value={templateFormData.name}
-                                                    onChange={(e) => setTemplateFormData({ ...templateFormData, name: e.target.value })}
-                                                    className="ent-input w-full"
-                                                    placeholder="e.g. Website Development Standard"
-                                                    autoFocus
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
-                                                    Category Tag (Optional)
-                                                </label>
-                                                <input
-                                                    type="text"
-                                                    value={templateFormData.category}
-                                                    onChange={(e) => setTemplateFormData({ ...templateFormData, category: e.target.value })}
-                                                    className="ent-input w-full"
-                                                    placeholder="e.g. Software Services"
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse gap-3">
-                                <Button
-                                    type="button"
-                                    onClick={handleSaveTemplate}
-                                    className="w-full sm:w-auto text-sm"
-                                >
-                                    Confirm Save
-                                </Button>
-                                <Button
-                                    type="button"
-                                    variant="secondary"
-                                    onClick={() => setShowSaveTemplateDialog(false)}
-                                    className="w-full sm:w-auto text-sm mt-3 sm:mt-0"
-                                >
-                                    Cancel
-                                </Button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <SaveTemplateDialog
+                isOpen={showSaveTemplateDialog}
+                onClose={() => setShowSaveTemplateDialog(false)}
+                onSave={handleSaveTemplate}
+                templateName={templateFormData.name}
+                setTemplateName={(name) => setTemplateFormData({ ...templateFormData, name })}
+                templateCategory={templateFormData.category}
+                setTemplateCategory={(cat) => setTemplateFormData({ ...templateFormData, category: cat })}
+            />
         </div>
     );
 }

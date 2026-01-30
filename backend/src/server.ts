@@ -139,9 +139,17 @@ app.use('/api/payroll/structure', salaryStructureRoutes);
 app.use('/api/accounting', accountingRoutes);
 
 // Automation/Debug Routes
-// Automation/Debug Routes
 import automationRoutes from './routes/automation.routes';
 app.use('/api/automation', automationRoutes);
+
+// New HRMS Module Routes
+import policyRoutes from './routes/policy.routes';
+import ticketRoutes from './routes/ticket.routes';
+
+app.use('/api/policies', policyRoutes);
+app.use('/api/tickets', ticketRoutes);
+import employeeDocumentRoutes from './routes/employee-document.routes';
+app.use('/api/employee-documents', employeeDocumentRoutes);
 
 // Contract Routes
 import contractRoutes, { portalContractRouter } from './routes/contract.routes';

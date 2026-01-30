@@ -88,7 +88,7 @@ export class PDFService {
     /**
      * Convert local file path to base64 data URI
      */
-    private static getImageBase64(filePath: string | undefined): string | undefined {
+    public static getImageBase64(filePath: string | undefined): string | undefined {
         if (!filePath) return undefined;
 
         // If it's already a base64 or external URL, return as is
@@ -604,6 +604,64 @@ export class PDFService {
         if (data.useLetterhead) {
             return this.overlayBackdrop(contentPdf, data.company.letterhead, data.company.continuationSheet);
         }
+        return contentPdf;
+    }
+
+    /**
+     * Generic PDF Generation from HTML Template
+     */
+    static async generateGenericPDF(templateHtml: string, data: any): Promise<Buffer> {
+        // 1. Process Variables
+        let processedHtml = templateHtml;
+
+        // Common Replacements
+        const replacements: Record<string, string> = {
+            '[DATE]': new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }),
+            '[CURRENT_DATE]': new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }),
+            '[COMPANY_NAME]': data.company?.name || '',
+            '[COMPANY_ADDRESS]': data.company?.address || '',
+            '[EMPLOYEE_NAME]': data.employee?.firstName ? `${data.employee.firstName} ${data.employee.lastName || ''}` : '',
+            '[EMPLOYEE_ID]': data.employee?.employeeId || '',
+            '[DESIGNATION]': data.employee?.position?.title || '',
+            '[DEPARTMENT]': data.employee?.department?.name || '',
+            '[JOINING_DATE]': data.employee?.dateOfJoining ? new Date(data.employee.dateOfJoining).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : '',
+            '[SALARY]': data.employee?.salary ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: data.company?.currency || 'INR' }).format(Number(data.employee.salary)) : '',
+            '[CTC_ANNUAL]': data.employee?.salary ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: data.company?.currency || 'INR' }).format(Number(data.employee.salary)) : '',
+            '[SIGNATURE]': data.company?.digitalSignature ? `<img src="${data.company.digitalSignature}" style="max-height: 60px; display: block;" alt="Authorized Signatory" />` : '',
+            '[COMPANY_SIGNATURE]': data.company?.digitalSignature ? `<img src="${data.company.digitalSignature}" style="max-height: 60px; display: block;" alt="Authorized Signatory" />` : '',
+        };
+
+        // Apply replacements
+        Object.entries(replacements).forEach(([key, value]) => {
+            // Case-insensitive replacement
+            processedHtml = processedHtml.replace(new RegExp(key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), value);
+        });
+
+        // 2. Wrap in Standard Layout if not present
+        if (!processedHtml.includes('<html')) {
+            processedHtml = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>
+                    body { font-family: 'Inter', sans-serif; line-height: 1.6; color: #333; }
+                    @page { margin: 40px; }
+                </style>
+            </head>
+            <body>
+                ${processedHtml}
+            </body>
+            </html>`;
+        }
+
+        // 3. Convert to PDF
+        const contentPdf = await this.convertHTMLToPDF(processedHtml);
+
+        // 4. Overlay Letterhead if requested
+        if (data.useLetterhead && data.company) {
+            return this.overlayBackdrop(contentPdf, data.company.letterhead, data.company.continuationSheet);
+        }
+
         return contentPdf;
     }
 
