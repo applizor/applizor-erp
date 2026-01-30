@@ -425,4 +425,70 @@ export const uploadGenericDocument = async (req: AuthRequest, res: Response) => 
     }
 };
 
+export const generateInstantDocument = async (req: AuthRequest, res: Response) => {
+    try {
+        const user = req.user;
+        // Check permission (Use Create)
+        if (!PermissionService.hasBasicPermission(user, 'Document', 'create')) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        const { recipientName, designation, subject, content, date, useLetterhead } = req.body;
+
+        // Fetch Company Details for Header/Footer
+        const company = await prisma.company.findUnique({ where: { id: user.companyId } });
+        if (!company) return res.status(404).json({ error: 'Company not found' });
+
+        const data = {
+            company,
+            useLetterhead: !!useLetterhead,
+            recipient: {
+                name: recipientName,
+                designation: designation
+            },
+            subject,
+            date,
+            content // Passes raw HTML from RichTextEditor
+        };
+
+        // Wrap content in a standard letter template if raw content is just body
+        // But since we use generateGenericPDF, it expects variables or full HTML.
+        // We can pre-wrap it or let generateGenericPDF handle layout.
+        // Let's assume content is the BODY.
+        // We will construct a simple wrapper if needed, but generateGenericPDF
+        // applies a standard layout if <html> tags are missing.
+
+        // We should inject the specific variables for "Instant Write"
+        // generateGenericPDF replaces [COMPANY_NAME] etc.
+        // But for Instant Write, we might want to ensure the Recipient info is top-left.
+        // Let's prepend recipient block to the content if it's not a template.
+
+        let finalContent = content;
+        // Prepend Header Info
+        const headerHtml = `
+            <div style="margin-bottom: 20px;">
+                <strong>To,</strong><br>
+                <strong>${recipientName}</strong><br>
+                ${designation}<br>
+                Date: ${new Date(date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
+            </div>
+            <div style="margin-bottom: 20px; font-weight: bold; text-decoration: underline;">
+                Subject: ${subject}
+            </div>
+        `;
+
+        finalContent = headerHtml + finalContent;
+
+        const pdfBuffer = await PDFService.generateGenericPDF(finalContent, data);
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename=${recipientName.replace(/\s+/g, '_')}_Letter.pdf`);
+        res.send(pdfBuffer);
+
+    } catch (error: any) {
+        console.error('Instant Generation Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+};
+
 

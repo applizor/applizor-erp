@@ -26,7 +26,10 @@ router.delete('/:id', authenticate, deleteDocument);
 
 // Generic Upload (Employee Self-Service)
 // 'file' key must match frontend FormData
-import { uploadGenericDocument } from '../controllers/document.controller';
+// Generic Upload (Employee Self-Service)
+// 'file' key must match frontend FormData
+import { uploadGenericDocument, generateInstantDocument } from '../controllers/document.controller';
 router.post('/upload', authenticate, upload.single('file'), uploadGenericDocument);
+router.post('/generate-instant', authenticate, generateInstantDocument);
 
 export default router;
