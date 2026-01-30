@@ -271,9 +271,13 @@ export const deleteDocument = async (req: AuthRequest, res: Response) => {
         const document = await prisma.document.findUnique({ where: { id } });
         if (!document) return res.status(404).json({ error: 'Document not found' });
 
-        const isSuper = user.roles.some((ur: any) => ur.role.name === 'Admin' || ur.role.name === 'Super Admin');
-        if (!isSuper && (document as any).uploadedById !== user.id) {
-            return res.status(403).json({ error: 'Access denied' });
+        // Check Scope: If user has 'delete: all', allow. 
+        // If 'delete: owned', check ownership.
+        const scope = PermissionService.getPermissionScope(user, 'Document', 'delete');
+        const isOwner = (document as any).uploadedById === user.id;
+
+        if (!scope.all && !isOwner) {
+            return res.status(403).json({ error: 'Access denied: You can only delete your own documents' });
         }
 
         if (document.filePath && document.filePath.startsWith('/uploads')) {

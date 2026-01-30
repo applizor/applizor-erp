@@ -61,6 +61,23 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
     const { socket } = useSocket();
 
+    // User Context for Delete Permissions
+    const [currentUser, setCurrentUser] = useState<any>(null);
+
+    useEffect(() => {
+        api.get('/auth/verify').then(res => setCurrentUser(res.data)).catch(() => { });
+    }, []);
+
+    const handleDeleteComment = async (commentId: string) => {
+        try {
+            await api.delete(`/tasks/${taskId}/comments/${commentId}`);
+            toast.success('Comment deleted');
+            fetchComments();
+        } catch (error) {
+            toast.error('Failed to delete comment');
+        }
+    };
+
     useEffect(() => {
         fetchProjectMembers();
         fetchSprintsAndEpics();
@@ -419,6 +436,9 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                                         </button>
                                     </div>
 
+
+
+
                                     {/* COMMENTS TAB */}
                                     {activeTab === 'comments' && (
                                         <>
@@ -431,6 +451,8 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                                                             setReplyTo(c);
                                                             document.getElementById('comment-editor-section')?.scrollIntoView({ behavior: 'smooth' });
                                                         }}
+                                                        onDelete={handleDeleteComment}
+                                                        currentUserId={currentUser?.id}
                                                     />
                                                 ))}
                                             </div>

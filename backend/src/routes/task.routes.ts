@@ -20,5 +20,6 @@ router.delete('/:id', checkPermission('ProjectTask', 'delete'), taskController.d
 router.get('/:id/comments', taskController.getComments);
 router.post('/:id/comments', taskController.addComment);
 router.get('/:id/history', taskController.getTaskHistory);
+router.delete('/:id/comments/:commentId', taskController.deleteTaskComment);
 
 export default router;

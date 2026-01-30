@@ -427,3 +427,37 @@ export const getTaskHistory = async (req: AuthRequest, res: Response) => {
         res.status(500).json({ error: 'Failed to fetch history' });
     }
 };
+
+export const deleteTaskComment = async (req: AuthRequest, res: Response) => {
+    try {
+        const { id, commentId } = req.params;
+        const userId = req.user!.id;
+
+        const comment = await prisma.taskComment.findUnique({
+            where: { id: commentId }
+        });
+
+        if (!comment) return res.status(404).json({ error: 'Comment not found' });
+
+        // Permission Check: Owner OR 'delete: all'
+        const isOwner = comment.userId === userId;
+        const scope = PermissionService.getPermissionScope(req.user, 'ProjectTask', 'delete');
+
+        if (!isOwner && !scope.all) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        await prisma.taskComment.delete({ where: { id: commentId } });
+
+        // Emit Real-time Event
+        const task = await prisma.task.findUnique({ where: { id }, select: { projectId: true } });
+        if (task) {
+            NotificationService.emitProjectUpdate(task.projectId, 'COMMENT_DELETED', { taskId: id, commentId });
+        }
+
+        res.json({ message: 'Comment deleted' });
+    } catch (error) {
+        console.error('Delete comment error:', error);
+        res.status(500).json({ error: 'Failed to delete comment' });
+    }
+};
