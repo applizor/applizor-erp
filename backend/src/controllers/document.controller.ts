@@ -208,7 +208,9 @@ export const uploadSignedDocument = async (req: AuthRequest, res: Response) => {
         }
         if (!req.file) return res.status(400).json({ error: 'Signed PDF is required' });
 
-        const signedFileName = `signed_${document.name.replace(/\s+/g, '_')}_${Date.now()}.pdf`;
+        // Sanitize document name to remove slashes and other unsafe characters
+        const safeDocName = document.name.replace(/[^a-zA-Z0-9-_]/g, '_');
+        const signedFileName = `signed_${safeDocName}_${Date.now()}.pdf`;
         const uploadDir = path.join(process.cwd(), 'uploads', 'documents');
         const signedFilePath = path.join(uploadDir, signedFileName);
 
@@ -391,7 +393,8 @@ export const uploadGenericDocument = async (req: AuthRequest, res: Response) => 
         const employee = await prisma.employee.findUnique({ where: { id: targetEmployeeId } });
         if (!employee) return res.status(404).json({ error: 'Employee not found' });
 
-        const fileName = `${employee.firstName}_${(name || 'doc').replace(/\s+/g, '_')}_${Date.now()}_${req.file.originalname}`;
+        const safeName = (name || 'doc').replace(/[^a-zA-Z0-9-_]/g, '_');
+        const fileName = `${employee.firstName}_${safeName}_${Date.now()}_${req.file.originalname.replace(/[^a-zA-Z0-9-_\.]/g, '_')}`;
         const uploadDir = path.join(process.cwd(), 'uploads', 'documents');
         if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 

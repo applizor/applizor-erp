@@ -327,6 +327,41 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
                 }}
             />
 
+            {/* Modal: Review Document (Approve/Reject) */}
+            {reviewModal.isOpen && reviewModal.docId && (
+                <ReviewDocumentModal
+                    isOpen={reviewModal.isOpen}
+                    onClose={() => setReviewModal({ isOpen: false, docId: null, docName: '' })}
+                    docId={reviewModal.docId}
+                    docName={reviewModal.docName}
+                    onReviewComplete={() => {
+                        setReviewModal({ isOpen: false, docId: null, docName: '' });
+                        loadData();
+                    }}
+                />
+            )}
+
+            {/* Dialog: Delete Confirmation */}
+            <ConfirmDialog
+                isOpen={deleteDialog.isOpen}
+                onClose={() => setDeleteDialog({ isOpen: false, docId: null })}
+                onConfirm={async () => {
+                    if (deleteDialog.docId) {
+                        try {
+                            await documentsApi.delete(deleteDialog.docId);
+                            toast.success('Document deleted');
+                            loadData();
+                        } catch (error: any) {
+                            toast.error('Failed to delete document');
+                        }
+                        setDeleteDialog({ isOpen: false, docId: null });
+                    }
+                }}
+                title="Delete Document"
+                description="Are you sure you want to delete this document? This action cannot be undone."
+                variant="danger"
+            />
+
             <div className="max-w-6xl mx-auto px-4 lg:px-8 py-8">
                 {/* Header Section */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 px-2">
