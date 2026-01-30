@@ -32,7 +32,7 @@ export class InvoiceService {
     /**
      * Create a new invoice with its items
      */
-    async createInvoice(data: CreateInvoiceInput) {
+    static async createInvoice(data: CreateInvoiceInput) {
         // Explicitly remove createdBy if present in the input (even if not in interface)
         const { items: rawItems, createdBy, ...invoiceData } = data as any;
         const items = rawItems as (InvoiceItemInput & { unit?: string; taxRateId?: string })[];
@@ -226,7 +226,7 @@ export class InvoiceService {
     /**
      * Process all recurring invoices that are due for generation
      */
-    async processRecurringInvoices() {
+    static async processRecurringInvoices() {
         const today = new Date();
         const dueInvoices = await prisma.invoice.findMany({
             where: {
@@ -251,7 +251,7 @@ export class InvoiceService {
         for (const source of dueInvoices) {
             try {
                 // Clone the invoice
-                const newInvoice = await this.createInvoice({
+                const newInvoice = await InvoiceService.createInvoice({
                     companyId: source.companyId,
                     clientId: source.clientId,
                     invoiceDate: new Date(),
@@ -272,7 +272,7 @@ export class InvoiceService {
                 });
 
                 // Update the source invoice's next occurrence
-                const nextDate = this.calculateNextOccurrence(source.recurringNextRun || source.nextOccurrence || new Date(), source.recurringInterval || 'monthly');
+                const nextDate = InvoiceService.calculateNextOccurrence(source.recurringNextRun || source.nextOccurrence || new Date(), source.recurringInterval || 'monthly');
 
                 await prisma.invoice.update({
                     where: { id: source.id },
@@ -290,7 +290,7 @@ export class InvoiceService {
         return results;
     }
 
-    private calculateNextOccurrence(startDate: Date, interval: string): Date {
+    private static calculateNextOccurrence(startDate: Date, interval: string): Date {
         const date = new Date(startDate);
         switch (interval.toLowerCase()) {
             case 'daily': date.setDate(date.getDate() + 1); break;
@@ -306,7 +306,7 @@ export class InvoiceService {
     /**
      * Convert a quotation into a full invoice
      */
-    async convertQuotationToInvoice(quotationId: string) {
+    static async convertQuotationToInvoice(quotationId: string) {
         // Correctly fetch from Quotation model
         const quotation = await prisma.quotation.findUnique({
             where: { id: quotationId },
@@ -330,7 +330,7 @@ export class InvoiceService {
             });
         }
 
-        const invoice = await this.createInvoice({
+        const invoice = await InvoiceService.createInvoice({
             companyId: quotation.companyId,
             clientId: quotation.clientId || '', // Handle optional clientId
             invoiceDate: new Date(),
@@ -393,7 +393,7 @@ export class InvoiceService {
     /**
      * Update an existing invoice
      */
-    async updateInvoice(id: string, data: CreateInvoiceInput) {
+    static async updateInvoice(id: string, data: CreateInvoiceInput) {
         // Explicitly remove createdBy if present in the input
         const { items: rawItems, createdBy, ...invoiceData } = data as any;
         const items = rawItems as (InvoiceItemInput & { unit?: string })[];

@@ -57,6 +57,16 @@ interface PDFData {
         company?: string;
         email?: string;
         phone?: string;
+        address?: string;
+        city?: string;
+        state?: string;
+        country?: string;
+        pincode?: string;
+        gstin?: string;
+        pan?: string;
+        website?: string;
+        taxName?: string;
+        mobile?: string;
     };
     items: Array<{
         description: string;
@@ -121,6 +131,46 @@ export class PDFService {
     }
 
     /**
+     * Generate standard @page CSS for backgrounds and margins
+     */
+    public static getBackgroundCSS(company: any, useLetterhead: boolean): string {
+        if (!useLetterhead) {
+            return `
+            @page { margin: 40px; }
+            body { margin: 0; padding: 0; }
+            `;
+        }
+
+        const isLetterheadPDF = company.letterhead?.toLowerCase().endsWith('.pdf');
+        const isContinuationPDF = company.continuationSheet?.toLowerCase().endsWith('.pdf');
+
+        const letterheadBase64 = !isLetterheadPDF ? this.getImageBase64(company.letterhead) : undefined;
+        const continuationBase64 = !isContinuationPDF ? this.getImageBase64(company.continuationSheet) : undefined;
+
+        const marginTop = company.pdfMarginTop || 180;
+        const contTop = company.pdfContinuationTop || 80;
+        const marginBottom = company.pdfMarginBottom || 80;
+        const marginLeft = company.pdfMarginLeft || 40;
+        const marginRight = company.pdfMarginRight || 40;
+
+        return `
+        @page {
+            margin: ${contTop}px ${marginRight}px ${marginBottom}px ${marginLeft}px;
+            ${continuationBase64 ? `background-image: url('${continuationBase64}'); background-size: 100% 100%;` : ''}
+        }
+        @page:first {
+            margin-top: ${marginTop}px;
+            ${letterheadBase64 ? `background-image: url('${letterheadBase64}'); background-size: 100% 100%;` : ''}
+        }
+        body { 
+            margin: 0;
+            padding: 0;
+            background: transparent !important;
+        }
+        `;
+    }
+
+    /**
      * Generate HTML template for Quotations/Invoices
      */
     private static generateHTML(data: PDFData, type: 'QUOTATION' | 'INVOICE', isSigned: boolean = false): string {
@@ -153,44 +203,10 @@ export class PDFService {
         const subDateLabel = type === 'QUOTATION' ? 'Valid Till' : 'Due Date';
         const recipient = data.client || data.lead;
 
+        const backgroundCSS = this.getBackgroundCSS(data.company, !!data.useLetterhead);
+
         const logoBase64 = this.getImageBase64(data.company.logo);
         const signatureBase64 = this.getImageBase64(data.company.digitalSignature);
-        const isLetterheadPDF = data.useLetterhead && data.company.letterhead?.toLowerCase().endsWith('.pdf');
-        const isContinuationPDF = data.useLetterhead && data.company.continuationSheet?.toLowerCase().endsWith('.pdf');
-
-        const letterheadBase64 = data.useLetterhead && !isLetterheadPDF ? this.getImageBase64(data.company.letterhead) : undefined;
-        const continuationBase64 = data.useLetterhead && !isContinuationPDF ? this.getImageBase64(data.company.continuationSheet) : undefined;
-
-        const marginTop = data.useLetterhead ? (data.company.pdfMarginTop || 180) : 40;
-        const contTop = data.useLetterhead ? (data.company.pdfContinuationTop || 80) : 40;
-        const marginBottom = data.useLetterhead ? (data.company.pdfMarginBottom || 80) : 40;
-        const marginLeft = data.useLetterhead ? (data.company.pdfMarginLeft || 40) : 40;
-        const marginRight = data.useLetterhead ? (data.company.pdfMarginRight || 40) : 40;
-
-        const backgroundCSS = data.useLetterhead ? `
-        @page {
-            margin: ${contTop}px ${marginRight}px ${marginBottom}px ${marginLeft}px;
-            ${continuationBase64 ? `background-image: url('${continuationBase64}'); background-size: 100% 100%;` : ''}
-        }
-        @page:first {
-            margin-top: ${marginTop}px;
-            ${letterheadBase64 ? `background-image: url('${letterheadBase64}'); background-size: 100% 100%;` : ''}
-        }
-        body { 
-            margin: 0;
-            padding: 0;
-            background: transparent !important;
-        }
-        ` : `
-        @page {
-            margin: 40px;
-        }
-        body { 
-            margin: 0;
-            padding: 0;
-        }
-        `;
-
         return `
 <!DOCTYPE html>
 <html>
@@ -639,13 +655,14 @@ export class PDFService {
 
         // 2. Wrap in Standard Layout if not present
         if (!processedHtml.includes('<html')) {
+            const backgroundCSS = this.getBackgroundCSS(data.company, data.useLetterhead);
             processedHtml = `
             <!DOCTYPE html>
             <html>
             <head>
                 <style>
                     body { font-family: 'Inter', sans-serif; line-height: 1.6; color: #333; }
-                    @page { margin: 40px; }
+                    ${backgroundCSS}
                 </style>
             </head>
             <body>
@@ -670,41 +687,7 @@ export class PDFService {
         const signatureBase64 = this.getImageBase64(data.company.digitalSignature);
         const clientSignatureBase64 = this.getImageBase64(data.clientSignature);
         const companyAuthSignatureBase64 = this.getImageBase64(data.companySignature);
-        const isLetterheadPDF = data.useLetterhead && data.company.letterhead?.toLowerCase().endsWith('.pdf');
-        const isContinuationPDF = data.useLetterhead && data.company.continuationSheet?.toLowerCase().endsWith('.pdf');
-
-        const letterheadBase64 = data.useLetterhead && !isLetterheadPDF ? this.getImageBase64(data.company.letterhead) : undefined;
-        const continuationBase64 = data.useLetterhead && !isContinuationPDF ? this.getImageBase64(data.company.continuationSheet) : undefined;
-
-        const marginTop = data.useLetterhead ? (data.company.pdfMarginTop || 180) : 40;
-        const contTop = data.useLetterhead ? (data.company.pdfContinuationTop || 80) : 40;
-        const marginBottom = data.useLetterhead ? (data.company.pdfMarginBottom || 80) : 40;
-        const marginLeft = data.useLetterhead ? (data.company.pdfMarginLeft || 40) : 40;
-        const marginRight = data.useLetterhead ? (data.company.pdfMarginRight || 40) : 40;
-
-        const backgroundCSS = data.useLetterhead ? `
-    @page {
-        margin: ${contTop}px ${marginRight}px ${marginBottom}px ${marginLeft}px;
-        ${continuationBase64 ? `background-image: url('${continuationBase64}'); background-size: 100% 100%;` : ''}
-    }
-    @page:first {
-        margin-top: ${marginTop}px;
-        ${letterheadBase64 ? `background-image: url('${letterheadBase64}'); background-size: 100% 100%;` : ''}
-    }
-    body { 
-        margin: 0;
-        padding: 0;
-        background: transparent !important;
-    }
-    ` : `
-    @page {
-        margin: 40px 60px;
-    }
-    body { 
-        margin: 0;
-        padding: 0;
-    }
-    `;
+        const backgroundCSS = this.getBackgroundCSS(data.company, !!data.useLetterhead);
 
 
         const formatDate = (date: any) => {

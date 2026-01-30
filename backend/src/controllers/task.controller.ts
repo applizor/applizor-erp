@@ -150,7 +150,7 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
                 epicId: epicId !== undefined ? (epicId || null) : undefined
             },
             include: {
-                assignee: { select: { firstName: true, email: true } },
+                assignee: { select: { firstName: true, lastName: true, email: true } },
                 epic: { select: { title: true } },
                 parent: { select: { title: true } }
             }
@@ -374,8 +374,8 @@ export const addComment = async (req: AuthRequest, res: Response) => {
             NotificationService.emitProjectUpdate(task.projectId, 'COMMENT_ADDED', { taskId: id, comment });
 
             // Handle Mentions
-            const commenterName = `${req.user!.firstName} ${req.user!.lastName}`;
-            NotificationService.handleMentions(content, commenterName, task, task.project, req.user!.companyId);
+            const commenterName = `${(req.user as any).firstName} ${(req.user as any).lastName}`;
+            NotificationService.handleMentions(content, commenterName, task, task.project, (req.user as any).companyId);
         }
 
         res.status(201).json(comment);

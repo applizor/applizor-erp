@@ -69,21 +69,22 @@ export default function DocumentPreviewModal({ templateId, employeeId, onClose, 
         }
     };
 
-    const handlePublish = async () => {
+    const handlePublish = async (isDraft: boolean = false) => {
         try {
             setPublishing(true);
             const res = await api.post('/documents/publish', {
                 templateId,
                 employeeId,
-                useLetterhead
+                useLetterhead,
+                saveAsDraft: isDraft
             });
 
-            toast.success('Document published successfully');
+            toast.success(isDraft ? 'Document saved as draft' : 'Document published successfully');
             onPublished();
             onClose();
         } catch (error: any) {
             console.error(error);
-            toast.error('Failed to publish document');
+            toast.error('Failed to save document');
         } finally {
             setPublishing(false);
         }
@@ -212,15 +213,22 @@ export default function DocumentPreviewModal({ templateId, employeeId, onClose, 
                         </div>
                         <div className="flex gap-4">
                             <button onClick={onClose} className="btn-secondary text-xs uppercase tracking-wide">
-                                Discard
+                                Cancel
                             </button>
                             <button
-                                onClick={handlePublish}
+                                onClick={() => handlePublish(true)}
+                                disabled={publishing || loading}
+                                className="px-6 py-2 bg-slate-50 text-slate-600 font-bold uppercase text-[10px] rounded-md border border-slate-200 hover:bg-slate-100 hover:text-slate-800 transition-colors tracking-wide flex items-center gap-2"
+                            >
+                                <FileText size={14} /> Save as Draft
+                            </button>
+                            <button
+                                onClick={() => handlePublish(false)}
                                 disabled={publishing || loading}
                                 className="btn-primary flex items-center gap-2 px-6 shadow-xl shadow-primary-900/20"
                             >
                                 {publishing ? <LoadingSpinner size="sm" className="text-white" /> : <CheckCircle size={16} />}
-                                {publishing ? 'Publishing...' : 'Publish Document'}
+                                {publishing ? 'Publishing...' : 'Publish'}
                             </button>
                         </div>
                     </div>

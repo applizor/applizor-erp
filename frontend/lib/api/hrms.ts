@@ -79,7 +79,14 @@ export interface Document {
     name: string;
     type: string;
     filePath: string;
+    fileSize: number;
+    mimeType: string;
     createdAt: string;
+    // Workflow Fields
+    status: 'draft' | 'pending_signature' | 'submitted' | 'approved' | 'rejected' | string;
+    workflowType?: 'standard' | 'signature_required' | string;
+    signedFilePath?: string;
+    rejectionReason?: string;
 }
 
 export const departmentsApi = {
@@ -146,6 +153,25 @@ export const employeesApi = {
         const response = await api.post(`/employees/${id}/documents`, formData, {
             headers: { 'Content-Type': 'multipart/form-data' }
         });
+        return response.data;
+    }
+};
+
+export const documentsApi = {
+    uploadSigned: async (id: string, file: File) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        const response = await api.post(`/documents/${id}/sign`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        return response.data;
+    },
+    review: async (id: string, status: 'approved' | 'rejected', remarks?: string) => {
+        const response = await api.post(`/documents/${id}/review`, { status, remarks });
+        return response.data;
+    },
+    delete: async (id: string) => {
+        const response = await api.delete(`/documents/${id}`);
         return response.data;
     }
 };

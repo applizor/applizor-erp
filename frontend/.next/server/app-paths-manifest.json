@@ -1,6 +1,8 @@
 {
-  "/(main)/dashboard/page": "app/(main)/dashboard/page.js",
+  "/login/page": "app/login/page.js",
+  "/(main)/projects/page": "app/(main)/projects/page.js",
   "/(main)/documents/page": "app/(main)/documents/page.js",
   "/(main)/hrms/employees/page": "app/(main)/hrms/employees/page.js",
-  "/(main)/hrms/employees/[id]/page": "app/(main)/hrms/employees/[id]/page.js"
+  "/(main)/hrms/employees/[id]/page": "app/(main)/hrms/employees/[id]/page.js",
+  "/(main)/projects/[id]/page": "app/(main)/projects/[id]/page.js"
 }

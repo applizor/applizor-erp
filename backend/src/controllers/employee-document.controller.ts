@@ -21,7 +21,7 @@ export const uploadDocument = async (req: AuthRequest, res: Response) => {
                 mimeType: file.mimetype,
                 companyId: req.user!.companyId,
                 employeeId: req.user!.employeeId, // Important: Link to employee
-                uploadedById: req.user!.id
+                uploadedById: (req.user as any).id
             }
         });
 

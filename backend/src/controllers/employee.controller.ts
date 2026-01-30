@@ -543,6 +543,9 @@ export const uploadEmployeeDocument = async (req: AuthRequest, res: Response) =>
                 filePath: fileUrl,
                 fileSize: req.file.size,
                 mimeType: req.file.mimetype,
+                // Personal/Standard Upload Workflow
+                status: 'submitted',
+                workflowType: 'standard'
             }
         });
 

@@ -2,46 +2,48 @@
 trigger: always_on
 ---
 
-# Letterhead Logic & Styling Rules
+# Letterhead & Continuation Sheet Logic
 
-## 1. Context
-Across the ERP system (Quotations, Invoices, Contracts), we use a consistent logic for letterheads. This rule ensures that all generated PDFs maintain a professional and branded appearance that matches the company's identity.
+This document defines the standard logic for applying letterheads across all modules (Quotations, Invoices, Contracts, and Documents).
 
-## 2. Implementation Rules
+## 1. Core Concept
+Every generated document must support a two-stage brand application:
+- **Page 1**: Full branding (Logo, Header, Footer).
+- **Continuation Pages (2+)**: Minimal branding (typically just a small header or footer) to maximize content space.
 
-### A. Dynamic Backgrounds
-- **Page 1**: Must use a specific background image (typically containing the full header, logo, and footer).
-- **Continuation Pages**: Must use a simplified background (typically just a minimal header or footer) to allow for more content space.
-- **Controls**: The specialized `PDFService` (backend) and `PagedRichTextEditor` (frontend) must accept `pageOneBg` and `continuationBg` parameters.
+## 2. Dynamic Settings
+All logic must fetch dimensions and assets from the `Company` model:
+- `letterhead`: Page 1 Background (Image or PDF).
+- `continuationSheet`: Page 2+ Background (Image or PDF).
+- `pdfMarginTop`: Top margin for Page 1.
+- `pdfContinuationTop`: Top margin for Pages 2+.
+- `pdfMarginBottom`/`Left`/`Right`: Standard margins.
 
-### B. PDF Margins
-To accommodate the letterhead graphics without overlapping text:
+## 3. Implementation Flow
 
-| Page Type | Top Margin | Bottom Margin | Left/Right |
-| :--- | :--- | :--- | :--- |
-| **First Page** | `180px` (Adjustable via Company Settings) | `80px` | `40px` |
-| **Continuation** | `80px` (Adjustable) | `40px` | `40px` |
-
-*Note: These values are stored in the `Company` model (`pdfMarginTop`, `pdfContinuationTop`, etc.) and should be fetched dynamically.*
-
-### C. Standard CSS for PDF Generation
-All PDF generation templates (Puppeteer/HTML based) must include:
-
+### Flow A: HTML to PDF (Images)
+When the branding assets are images, the system uses CSS `@page` rules:
 ```css
 @page {
-    margin: 0; /* Important for full-bleed backgrounds */
+    margin: [pdfContinuationTop]px [marginRight]px [marginBottom]px [marginLeft]px;
+    background-image: url('[continuationSheet]');
 }
-body {
-    /* Base padding handled by container div to simulate margins */
-    font-family: 'Inter', 'Roboto', 'Arial', sans-serif;
-    color: #1a1a1a;
+@page:first {
+    margin-top: [pdfMarginTop]px;
+    background-image: url('[letterhead]');
 }
-.page-1-margin { paddingTop: [pdfMarginTop]px; }
-.continuation-margin { paddingTop: [pdfContinuationTop]px; }
 ```
 
-## 3. Usage in Code
-When creating new modules that require PDF generation:
-1.  **Do not hardcode styles.** Fetch spacing from `company` settings.
-2.  **Use `pdf.service.ts`.** Do not create ad-hoc PDF generators. Extend `pdf.service.ts` functions (e.g., `generateDocumentPDF`).
-3.  **Frontend Editor:** Always pass `showLetterhead={true}` to `PagedRichTextEditor` if the final output is meant to be on letterhead.
+### Flow B: PDF Overlay (PDFs)
+When branding assets are PDFs, the system uses the `overlayBackdrop` service:
+1. Generate the content PDF with whitespace margins.
+2. Load the Content PDF using `pdf-lib`.
+3. Loop through pages:
+   - If `page === 1`: Overlay `letterhead.pdf`.
+   - If `page > 1`: Overlay `continuationSheet.pdf`.
+4. Merge and save.
+
+## 4. Usage in Modules
+- **Quotation/Invoice**: Uses `PDFService.generateQuotationPDF`.
+- **Contract**: Uses `PDFService.generateContractPDF`.
+- **Document**: MUST use `PDFService.generateGenericPDF` with the logic above injected.

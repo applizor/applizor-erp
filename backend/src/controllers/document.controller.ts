@@ -1,55 +1,49 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { DocumentGenerationService } from '../services/document.service';
 import { PDFService } from '../services/pdf.service';
 import fs from 'fs';
 import path from 'path';
+import prisma from '../prisma/client';
+import { AuthRequest } from '../middleware/auth';
+import { PermissionService } from '../services/permission.service';
 
-export const generateDocument = async (req: Request, res: Response) => {
+export const generateDocument = async (req: AuthRequest, res: Response) => {
     try {
-        // 1. Check for file (template)
+        const user = req.user;
+        if (!PermissionService.hasBasicPermission(user, 'Document', 'create')) {
+            return res.status(403).json({ error: 'Access denied: No create rights for Document' });
+        }
+
         if (!req.file) {
             return res.status(400).json({ error: 'Template file (.docx) is required' });
         }
 
-        // 2. Parse Data (JSON)
         const dataStr = req.body.data;
         let data = {};
         if (dataStr) {
             try {
                 data = JSON.parse(dataStr);
             } catch (e) {
-                return res.status(400).json({ error: 'Invalid proprietary JSON data' });
+                return res.status(400).json({ error: 'Invalid JSON data' });
             }
         }
 
-        // 3. Generate DOCX
         const docxBuffer = await DocumentGenerationService.generateDocx(req.file.buffer, data);
-
-        // 4. Convert to PDF
-        // Note: For dev/test, we might skip conversion if Gotenberg is not ready, but we aim for E2E.
         const pdfBuffer = await DocumentGenerationService.convertToPdf(docxBuffer);
 
-        // 5. Letterhead (Optional - mock for now)
-        // const finalPdf = await DocumentGenerationService.applyLetterhead(pdfBuffer, null, 'NONE');
-
-        // 6. Return PDF
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', 'attachment; filename=generated.pdf');
         res.send(pdfBuffer);
-
     } catch (error: any) {
         console.error('Generation Error:', error);
         res.status(500).json({ error: error.message });
     }
 };
 
-export const healthCheck = async (req: Request, res: Response) => {
+export const healthCheck = async (req: any, res: Response) => {
     res.json({ status: 'Document Engine Service is Ready' });
 };
 
-import prisma from '../prisma/client';
-
-// Helper to prepare data context
 const prepareDocumentData = (employee: any) => {
     return {
         employee: {
@@ -58,7 +52,6 @@ const prepareDocumentData = (employee: any) => {
             joiningDate: employee.dateOfJoining,
         },
         company: employee.company,
-        // Flat Mapping for legacy DOCX templates if needed
         departmentName: employee.department?.name,
         positionTitle: employee.position?.title,
         companyName: employee.company?.name,
@@ -68,10 +61,15 @@ const prepareDocumentData = (employee: any) => {
     };
 };
 
-// 1. Preview Document (Returns HTML with variables replaced)
-export const previewDocument = async (req: Request, res: Response) => {
+export const previewDocument = async (req: AuthRequest, res: Response) => {
     try {
         const { templateId, employeeId, useLetterhead } = req.body;
+        const user = req.user;
+
+        if (!PermissionService.hasBasicPermission(user, 'Document', 'read')) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
         if (!templateId || !employeeId) {
             return res.status(400).json({ error: 'templateId and employeeId are required' });
         }
@@ -90,18 +88,8 @@ export const previewDocument = async (req: Request, res: Response) => {
             useLetterhead: !!useLetterhead
         };
 
-        // If HTML content (Lexical)
         if (template.content) {
-            // We use PDFService to perform replacement but return the HTML string instead of PDF
-            // We can expose a public helper or duplicate logic. 
-            // For now, let's duplicate the replacement logic cleanly or call a helper.
-            // Actually, we can assume the frontend wants to render it.
-            // Let's implement a quick helper here since PDFService.generateGenericPDF returns Buffer.
-
-            // Re-use logic from PDFService but stop at HTML
             let processedHtml = template.content;
-
-            // Use same replacements as PDFService
             const companySignatureBase64 = PDFService.getImageBase64(data.company?.digitalSignature);
 
             const replacements: Record<string, string> = {
@@ -116,8 +104,6 @@ export const previewDocument = async (req: Request, res: Response) => {
                 '[JOINING_DATE]': data.employee?.joiningDate ? new Date(data.employee.joiningDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : '',
                 '[SALARY]': data.employee?.salary ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: data.company?.currency || 'INR' }).format(Number(data.employee.salary)) : '',
                 '[CTC_ANNUAL]': data.employee?.salary ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: data.company?.currency || 'INR' }).format(Number(data.employee.salary)) : '',
-
-                // Use Base64 for Preview Rendering
                 '[SIGNATURE]': companySignatureBase64 ? `<img src="${companySignatureBase64}" style="max-height: 60px; display: block;" />` : '[SIGNATURE]',
                 '[COMPANY_SIGNATURE]': companySignatureBase64 ? `<img src="${companySignatureBase64}" style="max-height: 60px; display: block;" />` : '[COMPANY_SIGNATURE]',
             };
@@ -127,21 +113,21 @@ export const previewDocument = async (req: Request, res: Response) => {
             });
 
             return res.json({ html: processedHtml });
-        } else {
-            return res.status(400).json({ error: 'Preview available only for Rich Text templates' });
         }
-
+        return res.status(400).json({ error: 'Preview available only for Rich Text templates' });
     } catch (error: any) {
-        console.error('Preview Error:', error);
         res.status(500).json({ error: error.message });
     }
 };
 
-// 2. Publish Document (Create PDF & Save Record)
-export const publishDocument = async (req: Request, res: Response) => {
+export const createDocument = async (req: AuthRequest, res: Response) => {
     try {
-        const { templateId, employeeId, useLetterhead, customContent } = req.body;
-        // customContent is optional: if user edited the preview text manually
+        const { templateId, employeeId, useLetterhead, customContent, saveAsDraft } = req.body;
+        const user = req.user;
+
+        if (!PermissionService.hasBasicPermission(user, 'Document', 'create')) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
 
         if (!templateId || !employeeId) {
             return res.status(400).json({ error: 'templateId and employeeId are required' });
@@ -165,10 +151,8 @@ export const publishDocument = async (req: Request, res: Response) => {
         const finalContent = customContent || template.content;
 
         if (finalContent) {
-            // HTML Generation
             pdfBuffer = await PDFService.generateGenericPDF(finalContent, data);
         } else if (template.filePath && fs.existsSync(template.filePath)) {
-            // DOCX Generation (Fallback, no custom content edit support here for now)
             const templateBuffer = fs.readFileSync(template.filePath);
             const docxBuffer = await DocumentGenerationService.generateDocx(templateBuffer, data);
             pdfBuffer = await DocumentGenerationService.convertToPdf(docxBuffer);
@@ -176,7 +160,6 @@ export const publishDocument = async (req: Request, res: Response) => {
             return res.status(500).json({ error: 'Content missing' });
         }
 
-        // Save File
         const fileName = `${employee.firstName}_${template.name.replace(/\s+/g, '_')}_${Date.now()}.pdf`;
         const uploadDir = path.join(process.cwd(), 'uploads', 'documents');
         if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
@@ -184,7 +167,8 @@ export const publishDocument = async (req: Request, res: Response) => {
         const filePath = path.join(uploadDir, fileName);
         fs.writeFileSync(filePath, pdfBuffer);
 
-        // Create DB Record
+        const status = saveAsDraft ? 'draft' : 'pending_signature';
+
         const document = await prisma.document.create({
             data: {
                 company: employee.companyId ? { connect: { id: employee.companyId } } : undefined,
@@ -192,24 +176,152 @@ export const publishDocument = async (req: Request, res: Response) => {
                 name: `${template.name} - ${new Date().toLocaleDateString()}`,
                 type: template.type,
                 filePath: `/uploads/documents/${fileName}`,
-                size: pdfBuffer.length
-            }
+                fileSize: pdfBuffer.length,
+                status: status,
+                workflowType: 'signature_required',
+                uploadedById: user.id
+            } as any
         });
 
         res.json(document);
-
     } catch (error: any) {
-        console.error('Publish Error:', error);
         res.status(500).json({ error: error.message });
     }
 };
 
-// 3. Direct Download (Legacy/Quick)
-export const generateFromTemplate = async (req: Request, res: Response) => {
+export const uploadSignedDocument = async (req: AuthRequest, res: Response) => {
+    try {
+        const { id } = req.params;
+        const user = req.user;
+
+        const canManage = PermissionService.hasBasicPermission(user, 'Document', 'update') ||
+            PermissionService.hasBasicPermission(user, 'Document', 'create');
+
+        const document = await prisma.document.findUnique({
+            where: { id },
+            include: { employee: true }
+        });
+
+        if (!document) return res.status(404).json({ error: 'Document not found' });
+        if (!canManage && (document.employee?.userId !== user.id)) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+        if (!req.file) return res.status(400).json({ error: 'Signed PDF is required' });
+
+        const signedFileName = `signed_${document.name.replace(/\s+/g, '_')}_${Date.now()}.pdf`;
+        const uploadDir = path.join(process.cwd(), 'uploads', 'documents');
+        const signedFilePath = path.join(uploadDir, signedFileName);
+
+        fs.writeFileSync(signedFilePath, req.file.buffer);
+
+        const updated = await prisma.document.update({
+            where: { id },
+            data: {
+                signedFilePath: `/uploads/documents/${signedFileName}`,
+                status: 'submitted',
+                rejectionReason: null
+            }
+        });
+
+        res.json(updated);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+export const reviewDocument = async (req: AuthRequest, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { status, remarks } = req.body;
+        const user = req.user;
+
+        if (!PermissionService.hasBasicPermission(user, 'Document', 'update')) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        if (!['approved', 'rejected'].includes(status)) {
+            return res.status(400).json({ error: 'Invalid status' });
+        }
+
+        const updated = await prisma.document.update({
+            where: { id },
+            data: {
+                status,
+                rejectionReason: status === 'rejected' ? remarks : null
+            }
+        });
+
+        res.json(updated);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+export const deleteDocument = async (req: AuthRequest, res: Response) => {
+    try {
+        const { id } = req.params;
+        const user = req.user;
+
+        if (!PermissionService.hasBasicPermission(user, 'Document', 'delete')) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        const document = await prisma.document.findUnique({ where: { id } });
+        if (!document) return res.status(404).json({ error: 'Document not found' });
+
+        const isSuper = user.roles.some((ur: any) => ur.role.name === 'Admin' || ur.role.name === 'Super Admin');
+        if (!isSuper && (document as any).uploadedById !== user.id) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        if (document.filePath && document.filePath.startsWith('/uploads')) {
+            const absolutePath = path.join(process.cwd(), document.filePath);
+            if (fs.existsSync(absolutePath)) fs.unlinkSync(absolutePath);
+        }
+
+        if (document.signedFilePath && document.signedFilePath.startsWith('/uploads')) {
+            const absolutePath = path.join(process.cwd(), document.signedFilePath);
+            if (fs.existsSync(absolutePath)) fs.unlinkSync(absolutePath);
+        }
+
+        await prisma.document.delete({ where: { id } });
+        res.json({ message: 'Document deleted successfully' });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+export const publishDocument = async (req: AuthRequest, res: Response) => {
+    try {
+        const { id } = req.params;
+        const user = req.user;
+
+        if (!PermissionService.hasBasicPermission(user, 'Document', 'update')) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        const document = await prisma.document.findUnique({ where: { id } });
+        if (!document) return res.status(404).json({ error: 'Document not found' });
+        if (document.status !== 'draft') return res.status(400).json({ error: 'Only drafts can be published' });
+
+        const updated = await prisma.document.update({
+            where: { id },
+            data: { status: 'pending_signature' }
+        });
+
+        res.json(updated);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+export const generateFromTemplate = async (req: AuthRequest, res: Response) => {
     try {
         const { templateId, employeeId, useLetterhead } = req.body;
-        if (!templateId || !employeeId) {
-            return res.status(400).json({ error: 'templateId and employeeId are required' });
+        const user = req.user;
+
+        if (!PermissionService.hasBasicPermission(user, 'Document', 'create')) {
+            return res.status(403).json({ error: 'Access denied' });
         }
 
         const template = await prisma.documentTemplate.findUnique({ where: { id: templateId } });
@@ -227,7 +339,6 @@ export const generateFromTemplate = async (req: Request, res: Response) => {
         };
 
         let pdfBuffer: Buffer;
-
         if (template.content) {
             pdfBuffer = await PDFService.generateGenericPDF(template.content, data);
         } else if (template.filePath && fs.existsSync(template.filePath)) {
@@ -235,24 +346,15 @@ export const generateFromTemplate = async (req: Request, res: Response) => {
             const docxBuffer = await DocumentGenerationService.generateDocx(templateBuffer, data);
             pdfBuffer = await DocumentGenerationService.convertToPdf(docxBuffer);
         } else {
-            return res.status(500).json({ error: 'Template content missing or file not found' });
+            return res.status(500).json({ error: 'Content missing' });
         }
-
-        const { logAction } = await import('../services/audit.service');
-        await logAction(req, {
-            action: 'GENERATE',
-            module: 'DOCUMENT',
-            entityType: 'DocumentTemplate',
-            entityId: templateId,
-            details: `Generated ${template.name} for employee ${employee.firstName} ${employee.lastName}`
-        });
 
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename=${employee.firstName}_${template.type}.pdf`);
         res.send(pdfBuffer);
-
     } catch (error: any) {
-        console.error('Template Generation Error:', error);
         res.status(500).json({ error: error.message });
     }
 };
+
+
