@@ -24,4 +24,9 @@ router.post('/:id/sign', authenticate, upload.single('file'), uploadSignedDocume
 router.post('/:id/review', authenticate, reviewDocument);
 router.delete('/:id', authenticate, deleteDocument);
 
+// Generic Upload (Employee Self-Service)
+// 'file' key must match frontend FormData
+import { uploadGenericDocument } from '../controllers/document.controller';
+router.post('/upload', authenticate, upload.single('file'), uploadGenericDocument);
+
 export default router;

@@ -188,13 +188,18 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
             uploadData.append('file', file);
             uploadData.append('name', file.name);
             uploadData.append('type', uploadCategory);
+            // CRITICAL: Append employeeId so backend knows who to link this document to
+            // This is required even for self-upload to be explicit vs inferred
+            uploadData.append('employeeId', params.id);
 
-            await employeesApi.uploadDocument(params.id, uploadData);
+            // Use documentsApi.upload (Document.create permission) instead of employeesApi (Employee.update permission)
+            await documentsApi.upload(uploadData);
+
             loadData(); // Reload to show new doc
             toast.success('Document uploaded successfully');
         } catch (error: any) {
             console.error('Upload failed:', error);
-            toast.error('Failed to upload document');
+            toast.error(error.response?.data?.error || 'Failed to upload document');
         } finally {
             setUploading(false);
             e.target.value = '';

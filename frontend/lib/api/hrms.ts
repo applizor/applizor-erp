@@ -173,5 +173,11 @@ export const documentsApi = {
     delete: async (id: string) => {
         const response = await api.delete(`/documents/${id}`);
         return response.data;
+    },
+    upload: async (formData: FormData) => {
+        const response = await api.post('/documents/upload', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        return response.data;
     }
 };

@@ -3,8 +3,6 @@
   "/login/page": "app/login/page.js",
   "/(main)/dashboard/page": "app/(main)/dashboard/page.js",
   "/(main)/documents/page": "app/(main)/documents/page.js",
-  "/(main)/settings/roles/[id]/page": "app/(main)/settings/roles/[id]/page.js",
-  "/(main)/settings/roles/page": "app/(main)/settings/roles/page.js",
   "/(main)/hrms/employees/page": "app/(main)/hrms/employees/page.js",
   "/(main)/hrms/employees/[id]/page": "app/(main)/hrms/employees/[id]/page.js"
 }

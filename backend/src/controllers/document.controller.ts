@@ -179,8 +179,8 @@ export const createDocument = async (req: AuthRequest, res: Response) => {
                 fileSize: pdfBuffer.length,
                 status: status,
                 workflowType: 'signature_required',
-                uploadedById: user.id
-            } as any
+                uploadedBy: { connect: { id: user.id } }
+            }
         });
 
         res.json(document);
@@ -353,6 +353,71 @@ export const generateFromTemplate = async (req: AuthRequest, res: Response) => {
         res.setHeader('Content-Disposition', `attachment; filename=${employee.firstName}_${template.type}.pdf`);
         res.send(pdfBuffer);
     } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// Generic Upload for Employees (Guarded by Document.create)
+export const uploadGenericDocument = async (req: AuthRequest, res: Response) => {
+    try {
+        const user = req.user;
+        // Check Document:create permission (Employees usually have this)
+        if (!PermissionService.hasBasicPermission(user, 'Document', 'create')) {
+            return res.status(403).json({ error: 'Access denied: No create rights for Document' });
+        }
+
+        const { type, name, employeeId } = req.body;
+
+        if (!req.file) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+
+        // Resolve Target Employee ID
+        let targetEmployeeId = employeeId;
+
+        // If employeeId is NOT provided, try to resolve from logged-in User
+        if (!targetEmployeeId) {
+            const linkedEmployee = await prisma.employee.findFirst({
+                where: { userId: user.id }
+            });
+            if (linkedEmployee) targetEmployeeId = linkedEmployee.id;
+        }
+
+        if (!targetEmployeeId) {
+            return res.status(400).json({ error: 'Target Employee ID is required' });
+        }
+
+        // Verify validity of target employee
+        const employee = await prisma.employee.findUnique({ where: { id: targetEmployeeId } });
+        if (!employee) return res.status(404).json({ error: 'Employee not found' });
+
+        const fileName = `${employee.firstName}_${(name || 'doc').replace(/\s+/g, '_')}_${Date.now()}_${req.file.originalname}`;
+        const uploadDir = path.join(process.cwd(), 'uploads', 'documents');
+        if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
+        const filePath = path.join(uploadDir, fileName);
+        fs.writeFileSync(filePath, req.file.buffer);
+
+        const fileUrl = `/uploads/documents/${fileName}`;
+
+        const document = await prisma.document.create({
+            data: {
+                companyId: employee.companyId,
+                employeeId: targetEmployeeId,
+                name: name || req.file.originalname,
+                type: type || 'General',
+                filePath: fileUrl,
+                fileSize: req.file.size,
+                mimeType: req.file.mimetype,
+                status: 'submitted', // Auto-submit generic uploads
+                workflowType: 'standard',
+                uploadedBy: { connect: { id: user.id } }
+            } as any
+        });
+
+        res.status(201).json(document);
+    } catch (error: any) {
+        console.error('Generic Upload Error:', error);
         res.status(500).json({ error: error.message });
     }
 };
