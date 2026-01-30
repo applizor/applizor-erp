@@ -78,7 +78,11 @@ export const getInvoices = async (req: AuthRequest, res: Response) => {
         where,
         include: {
           client: true,
-          items: true,
+          items: {
+            include: {
+              appliedTaxes: true
+            }
+          },
           payments: true,
         },
         orderBy: {
@@ -116,7 +120,11 @@ export const getInvoice = async (req: AuthRequest, res: Response) => {
       include: {
         client: true,
         company: true,
-        items: true,
+        items: {
+          include: {
+            appliedTaxes: true
+          }
+        },
         payments: {
           orderBy: { createdAt: 'desc' }
         }
@@ -145,15 +153,35 @@ export const generateInvoicePDF = async (req: AuthRequest, res: Response) => {
       include: {
         client: true,
         company: true,
-        items: true,
+        items: {
+          include: {
+            appliedTaxes: true
+          }
+        },
       },
     });
 
     if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
 
+    // Calculate Tax Breakdown
+    const taxBreakdown: Record<string, number> = {};
+    ((invoice as any).items || []).forEach((item: any) => {
+      if (item.appliedTaxes) {
+        item.appliedTaxes.forEach((tax: any) => {
+          const key = `${tax.name} @${Number(tax.percentage)}%`;
+          taxBreakdown[key] = (taxBreakdown[key] || 0) + Number(tax.amount);
+        });
+      }
+    });
+
     // Use PDFService (HTML-to-PDF) for cleaner output
     const pdfBuffer = await PDFService.generateInvoicePDF({
       ...invoice,
+      taxBreakdown: Object.entries(taxBreakdown).map(([name, amount]) => ({
+        name,
+        rate: 0,
+        amount
+      })),
       company: {
         ...invoice.company,
         digitalSignature: invoice.company.digitalSignature || undefined,
@@ -225,14 +253,38 @@ export const sendInvoice = async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
     const invoice = await prisma.invoice.findUnique({
       where: { id },
-      include: { client: true, company: true, items: true }
+      include: {
+        client: true,
+        company: true,
+        items: {
+          include: {
+            appliedTaxes: true
+          }
+        }
+      }
     });
 
     if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
     if (!invoice.client.email) return res.status(400).json({ error: 'Client has no email' });
 
+    // Calculate Tax Breakdown
+    const taxBreakdown: Record<string, number> = {};
+    ((invoice as any).items || []).forEach((item: any) => {
+      if (item.appliedTaxes) {
+        item.appliedTaxes.forEach((tax: any) => {
+          const key = `${tax.name} @${Number(tax.percentage)}%`;
+          taxBreakdown[key] = (taxBreakdown[key] || 0) + Number(tax.amount);
+        });
+      }
+    });
+
     const pdfBuffer = await PDFService.generateInvoicePDF({
       ...invoice,
+      taxBreakdown: Object.entries(taxBreakdown).map(([name, amount]) => ({
+        name,
+        rate: 0,
+        amount
+      })),
       useLetterhead: req.body.useLetterhead === true
     });
 
@@ -309,13 +361,39 @@ export const batchSendInvoices = async (req: AuthRequest, res: Response) => {
 
     const invoices = await prisma.invoice.findMany({
       where: { id: { in: ids } },
-      include: { client: true, company: true, items: true }
+      include: {
+        client: true,
+        company: true,
+        items: {
+          include: {
+            appliedTaxes: true
+          }
+        }
+      }
     });
 
     // Send emails in background
     for (const invoice of invoices) {
       if (invoice.client?.email) {
-        const pdfBuffer = await PDFService.generateInvoicePDF(invoice as any);
+        // Calculate Tax Breakdown
+        const taxBreakdown: Record<string, number> = {};
+        ((invoice as any).items || []).forEach((item: any) => {
+          if (item.appliedTaxes) {
+            item.appliedTaxes.forEach((tax: any) => {
+              const key = `${tax.name} @${Number(tax.percentage)}%`;
+              taxBreakdown[key] = (taxBreakdown[key] || 0) + Number(tax.amount);
+            });
+          }
+        });
+
+        const pdfBuffer = await PDFService.generateInvoicePDF({
+          ...invoice as any,
+          taxBreakdown: Object.entries(taxBreakdown).map(([name, amount]) => ({
+            name,
+            rate: 0,
+            amount
+          }))
+        });
         emailService.sendInvoiceEmail(invoice.client.email, invoice, pdfBuffer).catch(err => {
           console.error(`Failed to send batch email for ${invoice.invoiceNumber}`, err);
         });
@@ -397,7 +475,11 @@ export const getPublicInvoice = async (req: AuthRequest, res: Response) => {
       include: {
         company: true,
         client: true,
-        items: true,
+        items: {
+          include: {
+            appliedTaxes: true
+          }
+        },
         payments: true, // Include payments for timeline
       },
     });
@@ -423,7 +505,11 @@ export const getPublicInvoicePdf = async (req: AuthRequest, res: Response) => {
       include: {
         company: true,
         client: true,
-        items: true,
+        items: {
+          include: {
+            appliedTaxes: true
+          }
+        },
       },
     });
 
@@ -431,7 +517,26 @@ export const getPublicInvoicePdf = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'Invoice not found' });
     }
 
-    const pdfBuffer = await PDFService.generateInvoicePDF({ ...invoice, useLetterhead: true });
+    // Calculate Tax Breakdown
+    const taxBreakdown: Record<string, number> = {};
+    ((invoice as any).items || []).forEach((item: any) => {
+      if (item.appliedTaxes) {
+        item.appliedTaxes.forEach((tax: any) => {
+          const key = `${tax.name} @${Number(tax.percentage)}%`;
+          taxBreakdown[key] = (taxBreakdown[key] || 0) + Number(tax.amount);
+        });
+      }
+    });
+
+    const pdfBuffer = await PDFService.generateInvoicePDF({
+      ...invoice,
+      taxBreakdown: Object.entries(taxBreakdown).map(([name, amount]) => ({
+        name,
+        rate: 0,
+        amount
+      })),
+      useLetterhead: true
+    });
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="Invoice-${invoice.invoiceNumber}.pdf"`);

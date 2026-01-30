@@ -134,6 +134,7 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
     const calculateTotals = () => {
         let subtotal = 0;
         let totalTax = 0;
+        const taxBreakdown: Record<string, number> = {};
 
         watchItems.forEach((item) => {
             const amount = (item.quantity || 0) * (item.rate || 0);
@@ -142,7 +143,11 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
             (item.taxRateIds || []).forEach((taxId: string) => {
                 const taxConfig = taxRates.find(t => t.id === taxId);
                 if (taxConfig) {
-                    itemTax += amount * (Number(taxConfig.percentage) / 100);
+                    const taxAmount = amount * (Number(taxConfig.percentage) / 100);
+                    itemTax += taxAmount;
+
+                    const key = `${taxConfig.name} @${Number(taxConfig.percentage)}%`;
+                    taxBreakdown[key] = (taxBreakdown[key] || 0) + taxAmount;
                 }
             });
 
@@ -151,7 +156,7 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
         });
 
         const total = subtotal + totalTax - (watchDiscount || 0);
-        return { subtotal, totalTax, total };
+        return { subtotal, totalTax, total, taxBreakdown };
     };
 
     const totals = calculateTotals();
@@ -499,9 +504,15 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
                             <span className="text-xs font-black text-white">{formatCurrency(totals.subtotal)}</span>
                         </div>
                         <div className="flex justify-between items-center text-gray-400">
-                            <span className="text-[10px] font-black uppercase tracking-widest leading-none">Aggregated Tax Factor</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest leading-none">Total Tax</span>
                             <span className="text-xs font-black text-emerald-400">+{formatCurrency(totals.totalTax)}</span>
                         </div>
+                        {Object.entries(totals.taxBreakdown).map(([name, amount]) => (
+                            <div key={name} className="flex justify-between text-[10px] items-center text-gray-500 pl-2 border-l border-gray-700/50">
+                                <span>{name}</span>
+                                <span>{formatCurrency(amount)}</span>
+                            </div>
+                        ))}
                         <div className="flex justify-between items-center gap-4">
                             <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 leading-none">Correction / Discount</span>
                             <div className="w-24 flex items-center bg-white/5 rounded px-2 border border-white/10 hover:border-white/20 transition-all">

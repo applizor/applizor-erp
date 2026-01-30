@@ -128,7 +128,11 @@ export class InvoiceService {
                     },
                     include: {
                         client: true,
-                        items: true
+                        items: {
+                            include: {
+                                appliedTaxes: true
+                            }
+                        }
                     }
                 });
 
@@ -478,7 +482,11 @@ export class InvoiceService {
                     },
                     include: {
                         client: true,
-                        items: true
+                        items: {
+                            include: {
+                                appliedTaxes: true
+                            }
+                        }
                     }
                 });
 
