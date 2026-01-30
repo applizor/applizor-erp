@@ -1,8 +1,10 @@
 {
+  "/not-found": "app/not-found.js",
   "/login/page": "app/login/page.js",
-  "/(main)/documents/page": "app/(main)/documents/page.js",
   "/(main)/dashboard/page": "app/(main)/dashboard/page.js",
+  "/(main)/documents/page": "app/(main)/documents/page.js",
   "/(main)/projects/page": "app/(main)/projects/page.js",
+  "/(main)/settings/roles/page": "app/(main)/settings/roles/page.js",
   "/(main)/hrms/employees/page": "app/(main)/hrms/employees/page.js",
   "/(main)/hrms/employees/[id]/page": "app/(main)/hrms/employees/[id]/page.js"
 }
