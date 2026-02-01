@@ -49,6 +49,8 @@ router.get('/dashboard', client_auth_1.authenticateClient, portal_controller_1.g
 router.get('/quotations', client_auth_1.authenticateClient, portal_controller_1.getMyQuotations);
 router.get('/quotations/:id', client_auth_1.authenticateClient, portal_controller_1.getQuotationDetails);
 router.get('/quotations/:id/pdf', client_auth_1.authenticateClient, portal_controller_1.getQuotationPdf);
+router.post('/quotations/:id/accept', client_auth_1.authenticateClient, portal_controller_1.acceptQuotation);
+router.post('/quotations/:id/reject', client_auth_1.authenticateClient, portal_controller_1.rejectQuotation);
 // Contracts
 router.get('/contracts', client_auth_1.authenticateClient, portal_controller_1.getMyContracts);
 router.get('/contracts/:id', client_auth_1.authenticateClient, portal_controller_1.getContractDetails);

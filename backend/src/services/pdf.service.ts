@@ -75,6 +75,7 @@ interface PDFData {
         rate?: number;
         unit?: string;
         discount?: number;
+        hsnSacCode?: string;
         appliedTaxes?: Array<{ name: string; percentage: number; amount: number }>;
     }>;
     subtotal: number;
@@ -250,6 +251,20 @@ export class PDFService {
 
             data.taxBreakdown = Object.values(tempBreakdown);
         }
+
+        // Calculate Total Item Discount if not provided
+        let totalItemDiscount = 0;
+        if (data.items) {
+            data.items.forEach(item => {
+                const quantity = Number(item.quantity || 0);
+                const rate = Number(item.unitPrice || item.rate || 0);
+                const discountPercent = Number(item.discount || 0);
+                const itemTotal = quantity * rate;
+                const discountAmount = (itemTotal * discountPercent) / 100;
+                totalItemDiscount += discountAmount;
+            });
+        }
+        (data as any).totalItemDiscount = totalItemDiscount;
 
         const logoBase64 = this.getImageBase64(data.company.logo);
         const signatureBase64 = this.getImageBase64(data.company.digitalSignature);
@@ -463,7 +478,7 @@ export class PDFService {
     <table>
         <thead>
             <tr>
-                <th>Description</th>
+                <th>Description / HSN/SAC</th>
                 <th style="text-align: center; width: 60px;">Qty</th>
                 <th style="text-align: right; width: 100px;">Rate</th>
                 <th style="text-align: right; width: 80px;">Disc %</th>
@@ -480,7 +495,10 @@ export class PDFService {
                 <tr>
                     <td>
                         <div style="font-weight: bold;">${item.description}</div>
-                        ${item.unit ? `<div style="font-size: 10px; color: #666;">Unit: ${item.unit}</div>` : ''}
+                        <div style="font-size: 10px; color: #666;">
+                            ${item.hsnSacCode ? `Code: ${item.hsnSacCode}` : ''}
+                            ${item.unit ? `${item.hsnSacCode ? ' | ' : ''}Unit: ${item.unit}` : ''}
+                        </div>
                     </td>
                     <td style="text-align: center;">${item.quantity}</td>
                     <td style="text-align: right;">${formatCurrency(rate)}</td>
@@ -497,6 +515,16 @@ export class PDFService {
             <span>Subtotal:</span>
             <span>${formatCurrency(Number(data.subtotal))}</span>
         </div>
+        ${(data as any).totalItemDiscount > 0 ? `
+        <div class="totals-row">
+            <span>Item Discounts:</span>
+            <span style="color: #dc2626;">-${formatCurrency((data as any).totalItemDiscount)}</span>
+        </div>
+        <div class="totals-row" style="border-top: 1px dashed #e5e7eb; margin-top: 4px; padding-top: 4px;">
+            <span style="font-weight: 900; color: #111;">Taxable Amount:</span>
+            <span style="font-weight: 900; color: #111;">${formatCurrency(Number(data.subtotal) - (data as any).totalItemDiscount)}</span>
+        </div>
+        ` : ''}
         ${Number(data.tax) > 0 ? `
         <div class="totals-row">
             <span>Total Tax:</span>

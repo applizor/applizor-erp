@@ -212,6 +212,34 @@ export const getInvoiceDetails = async (req: ClientAuthRequest, res: Response) =
             { status: 'Paid', date: invoice.payments[0]?.createdAt, completed: invoice.status === 'paid' }
         ];
 
+        // Log Activity & Update Stats
+        try {
+            const ipAddress = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
+            const userAgent = req.headers['user-agent'] || 'unknown';
+
+            await prisma.$transaction([
+                prisma.invoice.update({
+                    where: { id: invoice.id },
+                    data: {
+                        viewCount: { increment: 1 },
+                        lastViewedAt: new Date()
+                    }
+                }),
+                prisma.invoiceActivity.create({
+                    data: {
+                        invoiceId: invoice.id,
+                        type: 'VIEWED',
+                        ipAddress,
+                        userAgent,
+                        deviceType: userAgent.toLowerCase().includes('mobile') ? 'Mobile' : 'Desktop',
+                        browser: 'Portal'
+                    }
+                })
+            ]);
+        } catch (logError) {
+            console.error('Failed to log portal invoice view:', logError);
+        }
+
         res.json({ invoice: { ...invoice, items: hydratedItems }, timeline });
     } catch (error) {
         console.error('Get invoice details error:', error);
@@ -268,6 +296,25 @@ export const getInvoicePdf = async (req: ClientAuthRequest, res: Response) => {
         });
 
         const pdfBuffer = await PDFService.generateInvoicePDF({ ...invoice, items: hydratedItems, useLetterhead: true });
+
+        // Log Activity
+        try {
+            const ipAddress = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
+            const userAgent = req.headers['user-agent'] || 'unknown';
+
+            await prisma.invoiceActivity.create({
+                data: {
+                    invoiceId: invoice.id,
+                    type: 'DOWNLOADED',
+                    ipAddress,
+                    userAgent,
+                    deviceType: userAgent.toLowerCase().includes('mobile') ? 'Mobile' : 'Desktop',
+                    browser: 'Portal'
+                }
+            });
+        } catch (logError) {
+            console.error('Failed to log portal invoice download:', logError);
+        }
 
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="Invoice-${invoice.invoiceNumber}.pdf"`);

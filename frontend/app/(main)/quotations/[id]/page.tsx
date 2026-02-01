@@ -477,6 +477,29 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
                                         </div>
 
                                         {(() => {
+                                            const itemDiscounts = quotation.items.reduce((acc: number, item: any) => {
+                                                const gross = Number(item.quantity) * Number(item.unitPrice);
+                                                return acc + (gross * (Number(item.discount || 0) / 100));
+                                            }, 0);
+
+                                            if (itemDiscounts > 0) {
+                                                return (
+                                                    <>
+                                                        <div className="flex justify-between text-sm text-gray-600">
+                                                            <span className="font-medium text-rose-600">Item Discounts:</span>
+                                                            <span className="font-bold text-rose-600">-{formatCurrency(itemDiscounts)}</span>
+                                                        </div>
+                                                        <div className="flex justify-between text-sm text-gray-900 border-t border-dashed border-gray-300 pt-1 mt-1">
+                                                            <span className="font-black text-xs uppercase tracking-wider">Taxable Amount:</span>
+                                                            <span className="font-black">{formatCurrency(quotation.subtotal - itemDiscounts)}</span>
+                                                        </div>
+                                                    </>
+                                                );
+                                            }
+                                            return null;
+                                        })()}
+
+                                        {(() => {
                                             const hasTax = Number(quotation.tax) > 0 || Object.keys(taxBreakdown).length > 0;
                                             if (!hasTax) return null;
 

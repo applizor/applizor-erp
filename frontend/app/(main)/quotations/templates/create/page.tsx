@@ -12,12 +12,18 @@ import RichTextEditor from '@/components/ui/RichTextEditor';
 import { Button } from '@/components/ui/Button';
 import PageHeader from '@/components/ui/PageHeader';
 import Link from 'next/link';
+import { CustomSelect } from '@/components/ui/CustomSelect';
+import { MultiSelect } from '@/components/ui/MultiSelect';
 
 export default function CreateQuotationTemplatePage() {
     const router = useRouter();
     const toast = useToast();
     const { formatCurrency, currency: globalCurrency } = useCurrency();
     const [saving, setSaving] = useState(false);
+
+    // Settings Data
+    const [taxRates, setTaxRates] = useState<any[]>([]);
+    const [unitTypes, setUnitTypes] = useState<any[]>([]);
 
     const [formData, setFormData] = useState({
         name: '',
@@ -29,12 +35,41 @@ export default function CreateQuotationTemplatePage() {
         notes: '',
     });
 
-    const [items, setItems] = useState([
-        { description: '', quantity: 1, unitPrice: 0, tax: 18, discount: 0 }
+    // Enhanced Item Interface
+    interface TemplateItem {
+        description: string;
+        quantity: number;
+        unit: string;
+        unitPrice: number;
+        hsnSacCode: string;
+        taxRateIds: string[];
+        discount: number;
+    }
+
+    const [items, setItems] = useState<TemplateItem[]>([
+        { description: '', quantity: 1, unit: '', unitPrice: 0, hsnSacCode: '', taxRateIds: [], discount: 0 }
     ]);
 
+    useEffect(() => {
+        fetchSettings();
+    }, []);
+
+    const fetchSettings = async () => {
+        try {
+            const [taxesRes, unitsRes] = await Promise.all([
+                api.get('/settings/taxes'),
+                api.get('/settings/units')
+            ]);
+            setTaxRates(taxesRes.data);
+            setUnitTypes(unitsRes.data);
+        } catch (error) {
+            console.error('Failed to load settings', error);
+            toast.error('Failed to load tax settings');
+        }
+    };
+
     const addItem = () => {
-        setItems([...items, { description: '', quantity: 1, unitPrice: 0, tax: 18, discount: 0 }]);
+        setItems([...items, { description: '', quantity: 1, unit: '', unitPrice: 0, hsnSacCode: '', taxRateIds: [], discount: 0 }]);
     };
 
     const removeItem = (index: number) => {
@@ -49,11 +84,13 @@ export default function CreateQuotationTemplatePage() {
 
     const handleProductSelect = (product: any) => {
         const emptyIndex = items.findIndex(i => i.description === '' && i.unitPrice === 0);
-        const newItem = {
+        const newItem: TemplateItem = {
             description: product.name,
             quantity: 1,
+            unit: product.unit || '',
             unitPrice: product.price,
-            tax: product.tax,
+            hsnSacCode: product.hsnSacCode || '',
+            taxRateIds: product.taxRateIds || [],
             discount: 0
         };
 
@@ -71,13 +108,27 @@ export default function CreateQuotationTemplatePage() {
         let subtotal = 0;
         let totalTax = 0;
         let totalDiscount = 0;
+        const taxBreakdown: Record<string, number> = {};
 
         items.forEach(item => {
-            const itemTotal = item.quantity * item.unitPrice;
-            const itemTax = (itemTotal * item.tax) / 100;
-            const itemDiscount = (itemTotal * item.discount) / 100;
+            const itemSubtotal = item.quantity * item.unitPrice;
+            const itemDiscount = (itemSubtotal * (item.discount || 0)) / 100;
+            const taxableAmount = itemSubtotal - itemDiscount;
 
-            subtotal += itemTotal;
+            let itemTax = 0;
+            (item.taxRateIds || []).forEach(taxId => {
+                const taxConfig = taxRates.find(t => t.id === taxId);
+                if (taxConfig) {
+                    const taxAmount = taxableAmount * (Number(taxConfig.percentage) / 100);
+                    itemTax += taxAmount;
+
+                    // Aggregate for breakdown (optional for template view, but good for total calc)
+                    const key = `${taxConfig.name}`;
+                    taxBreakdown[key] = (taxBreakdown[key] || 0) + taxAmount;
+                }
+            });
+
+            subtotal += itemSubtotal;
             totalTax += itemTax;
             totalDiscount += itemDiscount;
         });
@@ -256,11 +307,13 @@ export default function CreateQuotationTemplatePage() {
                         <table className="min-w-full divide-y divide-gray-100">
                             <thead className="bg-gray-50/50">
                                 <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-black text-gray-500 uppercase tracking-wider w-5/12">Description</th>
+                                    <th className="px-6 py-3 text-left text-xs font-black text-gray-500 uppercase tracking-wider w-4/12">Description</th>
                                     <th className="px-4 py-3 text-center text-xs font-black text-gray-500 uppercase tracking-wider w-1/12">Qty</th>
+                                    <th className="px-4 py-3 text-center text-xs font-black text-gray-500 uppercase tracking-wider w-1/12">UoM</th>
                                     <th className="px-4 py-3 text-right text-xs font-black text-gray-500 uppercase tracking-wider w-2/12">Unit Price</th>
-                                    <th className="px-4 py-3 text-right text-xs font-black text-gray-500 uppercase tracking-wider w-1/12">Tax %</th>
-                                    <th className="px-4 py-3 text-right text-xs font-black text-gray-500 uppercase tracking-wider w-2/12">Net Amount</th>
+                                    <th className="px-4 py-3 text-center text-xs font-black text-gray-500 uppercase tracking-wider w-1/12">HSN/SAC</th>
+                                    <th className="px-4 py-3 text-right text-xs font-black text-gray-500 uppercase tracking-wider w-2/12">Tax Rule</th>
+                                    <th className="px-4 py-3 text-right text-xs font-black text-gray-500 uppercase tracking-wider w-1/12">Net Amount</th>
                                     <th className="px-4 py-3 w-1/12"></th>
                                 </tr>
                             </thead>
@@ -286,6 +339,16 @@ export default function CreateQuotationTemplatePage() {
                                             />
                                         </td>
                                         <td className="px-4 py-2">
+                                            <CustomSelect
+                                                options={unitTypes.map(u => ({ label: `${u.name} (${u.symbol})`, value: u.symbol }))}
+                                                value={item.unit}
+                                                onChange={(val) => updateItem(index, 'unit', val)}
+                                                placeholder="-"
+                                                className="w-full"
+                                                align="right"
+                                            />
+                                        </td>
+                                        <td className="px-4 py-2">
                                             <input
                                                 type="number"
                                                 value={item.unitPrice}
@@ -295,15 +358,27 @@ export default function CreateQuotationTemplatePage() {
                                             />
                                         </td>
                                         <td className="px-4 py-2">
-                                            <div className="flex items-center justify-end">
-                                                <input
-                                                    type="number"
-                                                    value={item.tax}
-                                                    onChange={(e) => updateItem(index, 'tax', parseFloat(e.target.value))}
-                                                    className="block w-16 border-0 border-b border-transparent bg-transparent focus:border-primary-500 focus:ring-0 text-sm text-right text-gray-500"
-                                                />
-                                                <span className="text-xs text-gray-400 ml-1">%</span>
-                                            </div>
+                                            <input
+                                                type="text"
+                                                value={item.hsnSacCode}
+                                                onChange={(e) => updateItem(index, 'hsnSacCode', e.target.value)}
+                                                className="block w-full border-0 border-b border-transparent bg-transparent focus:border-primary-500 focus:ring-0 text-sm text-center"
+                                                placeholder="HSN"
+                                            />
+                                        </td>
+                                        <td className="px-4 py-2">
+                                            <MultiSelect
+                                                options={taxRates.map(t => ({
+                                                    label: `${t.name} (${Number(t.percentage)}%)`,
+                                                    value: t.id,
+                                                    description: `Rate: ${Number(t.percentage)}%`
+                                                }))}
+                                                value={item.taxRateIds || []}
+                                                onChange={(val) => updateItem(index, 'taxRateIds', val)}
+                                                placeholder="0%"
+                                                className="w-full"
+                                                align="right"
+                                            />
                                         </td>
                                         <td className="px-4 py-2 text-right text-sm font-bold text-gray-900 tracking-tight">
                                             {formatCurrency((item.quantity * item.unitPrice))}
@@ -329,8 +404,16 @@ export default function CreateQuotationTemplatePage() {
                         <div className="flex justify-end">
                             <div className="w-full md:w-1/3 space-y-3">
                                 <div className="flex justify-between text-xs font-bold text-gray-500 uppercase tracking-wide">
-                                    <span>Total Value</span>
-                                    <span>{formatCurrency(totals.total)}</span>
+                                    <span>Subtotal</span>
+                                    <span>{formatCurrency(totals.subtotal)}</span>
+                                </div>
+                                <div className="flex justify-between text-xs font-bold text-gray-500 uppercase tracking-wide">
+                                    <span>Total Tax</span>
+                                    <span>{formatCurrency(totals.tax)}</span>
+                                </div>
+                                <div className="pt-4 border-t border-gray-200 flex justify-between items-center">
+                                    <span className="text-sm font-black text-gray-900 uppercase tracking-wide">Total Value</span>
+                                    <span className="text-xl font-black text-primary-700 tracking-tight">{formatCurrency(totals.total)}</span>
                                 </div>
                             </div>
                         </div>

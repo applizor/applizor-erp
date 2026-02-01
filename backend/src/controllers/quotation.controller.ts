@@ -153,6 +153,7 @@ export const createQuotation = async (req: AuthRequest, res: Response) => {
                         quantity: item.quantity,
                         unit: item.unit,
                         unitPrice: item.unitPrice,
+                        hsnSacCode: item.hsnSacCode,
                         discount: item.discount,
                         total: item.total,
                         appliedTaxes: {
@@ -470,6 +471,7 @@ export const updateQuotation = async (req: AuthRequest, res: Response) => {
                     quantity: item.quantity,
                     unit: item.unit,
                     unitPrice: item.unitPrice,
+                    hsnSacCode: item.hsnSacCode,
                     discount: item.discount,
                     total: item.total,
                     appliedTaxes: {
@@ -791,7 +793,14 @@ export const downloadQuotationPDF = async (req: AuthRequest, res: Response) => {
                 quantity: Number(item.quantity),
                 unit: item.unit || undefined,
                 unitPrice: Number(item.unitPrice),
-                taxRate: Number(item.tax)
+                taxRate: Number(item.tax),
+                discount: Number(item.discount),
+                hsnSacCode: item.hsnSacCode || undefined,
+                appliedTaxes: item.appliedTaxes ? item.appliedTaxes.map((t: any) => ({
+                    name: t.name,
+                    percentage: Number(t.percentage),
+                    amount: Number(t.amount)
+                })) : undefined
             })),
             subtotal: Number(quotation.subtotal),
             tax: Number(quotation.tax),

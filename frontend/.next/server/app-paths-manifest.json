@@ -1,10 +1,7 @@
 {
-  "/not-found": "app/not-found.js",
-  "/(main)/quotations/page": "app/(main)/quotations/page.js",
-  "/(main)/quotations/[id]/edit/page": "app/(main)/quotations/[id]/edit/page.js",
-  "/portal/quotations/[id]/page": "app/portal/quotations/[id]/page.js",
-  "/portal/dashboard/page": "app/portal/dashboard/page.js",
+  "/(main)/quotations/templates/create/page": "app/(main)/quotations/templates/create/page.js",
+  "/(main)/quotations/templates/[id]/edit/page": "app/(main)/quotations/templates/[id]/edit/page.js",
   "/(main)/quotations/[id]/page": "app/(main)/quotations/[id]/page.js",
-  "/portal/quotations/page": "app/portal/quotations/page.js",
-  "/portal/login/page": "app/portal/login/page.js"
+  "/(main)/quotations/page": "app/(main)/quotations/page.js",
+  "/(main)/quotations/[id]/edit/page": "app/(main)/quotations/[id]/edit/page.js"
 }

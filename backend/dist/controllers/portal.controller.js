@@ -1,9 +1,42 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getContractDetails = exports.getMyContracts = exports.getContractPdf = exports.getQuotationPdf = exports.getQuotationDetails = exports.getMyQuotations = exports.exportInvoices = exports.getInvoicePdf = exports.getInvoiceDetails = exports.getMyProjects = exports.getMyInvoices = exports.getDashboardStats = void 0;
+exports.getContractDetails = exports.getMyContracts = exports.getContractPdf = exports.getQuotationPdf = exports.rejectQuotation = exports.acceptQuotation = exports.getQuotationDetails = exports.getMyQuotations = exports.exportInvoices = exports.getInvoicePdf = exports.getInvoiceDetails = exports.getMyProjects = exports.getMyInvoices = exports.getDashboardStats = void 0;
 const library_1 = require("@prisma/client/runtime/library");
 const client_1 = __importDefault(require("../prisma/client"));
 const pdf_service_1 = require("../services/pdf.service");
@@ -151,7 +184,9 @@ const getInvoiceDetails = async (req, res) => {
         const invoice = await client_1.default.invoice.findUnique({
             where: { id },
             include: {
-                items: true,
+                items: {
+                    include: { appliedTaxes: true }
+                },
                 payments: { orderBy: { createdAt: 'desc' } },
                 project: true,
                 company: true
@@ -169,7 +204,11 @@ const getInvoiceDetails = async (req, res) => {
                 const rate = Number(item.taxRate || item.tax);
                 const taxConfig = taxMap.get(rate);
                 if (rate > 0) {
-                    const amount = (Number(item.quantity) * Number(item.rate) * rate) / 100;
+                    const quantity = Number(item.quantity);
+                    const rateVal = Number(item.rate);
+                    const discount = Number(item.discount || 0);
+                    const taxableAmount = quantity * rateVal * (1 - discount / 100);
+                    const amount = (taxableAmount * rate) / 100;
                     return {
                         ...item,
                         appliedTaxes: [{
@@ -191,6 +230,33 @@ const getInvoiceDetails = async (req, res) => {
             { status: 'Sent', date: invoice.invoiceDate || invoice.createdAt, completed: invoice.status !== 'draft' },
             { status: 'Paid', date: invoice.payments[0]?.createdAt, completed: invoice.status === 'paid' }
         ];
+        // Log Activity & Update Stats
+        try {
+            const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+            const userAgent = req.headers['user-agent'] || 'unknown';
+            await client_1.default.$transaction([
+                client_1.default.invoice.update({
+                    where: { id: invoice.id },
+                    data: {
+                        viewCount: { increment: 1 },
+                        lastViewedAt: new Date()
+                    }
+                }),
+                client_1.default.invoiceActivity.create({
+                    data: {
+                        invoiceId: invoice.id,
+                        type: 'VIEWED',
+                        ipAddress,
+                        userAgent,
+                        deviceType: userAgent.toLowerCase().includes('mobile') ? 'Mobile' : 'Desktop',
+                        browser: 'Portal'
+                    }
+                })
+            ]);
+        }
+        catch (logError) {
+            console.error('Failed to log portal invoice view:', logError);
+        }
         res.json({ invoice: { ...invoice, items: hydratedItems }, timeline });
     }
     catch (error) {
@@ -208,7 +274,9 @@ const getInvoicePdf = async (req, res) => {
             include: {
                 client: true,
                 company: true,
-                items: true,
+                items: {
+                    include: { appliedTaxes: true }
+                },
             }
         });
         if (!invoice || invoice.clientId !== clientId) {
@@ -240,6 +308,24 @@ const getInvoicePdf = async (req, res) => {
             return item;
         });
         const pdfBuffer = await pdf_service_1.PDFService.generateInvoicePDF({ ...invoice, items: hydratedItems, useLetterhead: true });
+        // Log Activity
+        try {
+            const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+            const userAgent = req.headers['user-agent'] || 'unknown';
+            await client_1.default.invoiceActivity.create({
+                data: {
+                    invoiceId: invoice.id,
+                    type: 'DOWNLOADED',
+                    ipAddress,
+                    userAgent,
+                    deviceType: userAgent.toLowerCase().includes('mobile') ? 'Mobile' : 'Desktop',
+                    browser: 'Portal'
+                }
+            });
+        }
+        catch (logError) {
+            console.error('Failed to log portal invoice download:', logError);
+        }
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="Invoice-${invoice.invoiceNumber}.pdf"`);
         res.send(pdfBuffer);
@@ -316,9 +402,10 @@ const getMyQuotations = async (req, res) => {
         // Note: Prisma where clause structure depends on schema. 
         // Assuming Quotation -> Lead -> email
         const where = {
-            lead: {
-                email: clientEmail
-            }
+            OR: [
+                { clientId },
+                { lead: { email: clientEmail } }
+            ]
         };
         if (status && status !== 'all') {
             where.status = status;
@@ -350,17 +437,20 @@ exports.getMyQuotations = getMyQuotations;
 const getQuotationDetails = async (req, res) => {
     try {
         const { id } = req.params;
+        const clientId = req.clientId;
         const clientEmail = req.client?.email;
         const quotation = await client_1.default.quotation.findUnique({
             where: { id },
             include: {
-                items: true,
+                items: {
+                    include: { appliedTaxes: true }
+                },
                 lead: true,
                 company: true
             }
         });
-        // Security check: Ensure quotation belongs to this client (via lead email)
-        if (!quotation || quotation.lead?.email !== clientEmail) {
+        // Security check: Ensure quotation belongs to this client
+        if (!quotation || (quotation.clientId !== clientId && quotation.lead?.email !== clientEmail)) {
             return res.status(404).json({ error: 'Quotation not found' });
         }
         // Hydrate appliedTaxes for legacy items
@@ -390,6 +480,35 @@ const getQuotationDetails = async (req, res) => {
             }
             return item;
         });
+        // Capture Analytics Data
+        const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+        const userAgent = req.headers['user-agent'] || 'unknown';
+        // Update View Statistics & Activity Log
+        await client_1.default.$transaction(async (tx) => {
+            // 1. Update Quotation Stats
+            await tx.quotation.update({
+                where: { id: quotation.id },
+                data: {
+                    viewCount: { increment: 1 },
+                    lastViewedAt: new Date(),
+                    ...(quotation.status === 'sent' ? {
+                        status: 'viewed',
+                        clientViewedAt: new Date()
+                    } : {})
+                }
+            });
+            // 2. Log Activity
+            await tx.quotationActivity.create({
+                data: {
+                    quotationId: quotation.id,
+                    type: 'VIEWED',
+                    ipAddress,
+                    userAgent,
+                    deviceType: userAgent.toLowerCase().includes('mobile') ? 'Mobile' : 'Desktop',
+                    browser: 'Portal'
+                }
+            });
+        });
         res.json({ quotation: { ...quotation, items: hydratedItems } });
     }
     catch (error) {
@@ -398,19 +517,194 @@ const getQuotationDetails = async (req, res) => {
     }
 };
 exports.getQuotationDetails = getQuotationDetails;
+const acceptQuotation = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const clientId = req.clientId;
+        const clientEmail = req.client?.email;
+        const { signature, email, name, comments } = req.body;
+        // Validate required fields
+        if (!signature || !email || !name) {
+            return res.status(400).json({ error: 'Signature, email, and name are required' });
+        }
+        const quotation = await client_1.default.quotation.findUnique({
+            where: { id },
+            include: { lead: true }
+        });
+        // Security check
+        if (!quotation || (quotation.clientId !== clientId && quotation.lead?.email !== clientEmail)) {
+            return res.status(404).json({ error: 'Quotation not found' });
+        }
+        // Check if already accepted/rejected
+        if (quotation.clientAcceptedAt) {
+            return res.status(400).json({ error: 'This quotation has already been accepted' });
+        }
+        if (quotation.clientRejectedAt) {
+            return res.status(400).json({ error: 'This quotation has already been rejected' });
+        }
+        // Update quotation
+        const updated = await client_1.default.quotation.update({
+            where: { id: quotation.id },
+            data: {
+                clientAcceptedAt: new Date(),
+                clientSignature: signature,
+                clientEmail: email,
+                clientName: name,
+                clientComments: comments || null,
+                status: 'accepted'
+            },
+            include: {
+                lead: true,
+                company: true
+            }
+        });
+        // Send acceptance emails
+        try {
+            const { sendQuotationAcceptanceToClient, sendQuotationAcceptanceToCompany } = await Promise.resolve().then(() => __importStar(require('../services/email.service')));
+            await sendQuotationAcceptanceToClient(updated);
+            if (updated.lead?.email && updated.lead.email !== email) {
+                await sendQuotationAcceptanceToClient({
+                    ...updated,
+                    clientEmail: updated.lead.email,
+                    clientName: updated.lead.name
+                });
+            }
+            await sendQuotationAcceptanceToCompany(updated);
+        }
+        catch (emailError) {
+            console.error('Failed to send acceptance emails:', emailError);
+        }
+        // Create activity log
+        try {
+            const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+            const userAgent = req.headers['user-agent'] || 'unknown';
+            await client_1.default.quotationActivity.create({
+                data: {
+                    quotationId: quotation.id,
+                    type: 'STATUS_CHANGE',
+                    ipAddress,
+                    userAgent,
+                    deviceType: userAgent.toLowerCase().includes('mobile') ? 'Mobile' : 'Desktop',
+                    browser: 'Portal',
+                    metadata: {
+                        new_status: 'accepted',
+                        client_action: true,
+                        portal_user: req.client?.name || 'Client'
+                    }
+                }
+            });
+        }
+        catch (logError) {
+            console.error('Failed to log acceptance activity:', logError);
+        }
+        res.json({
+            message: 'Quotation accepted successfully',
+            quotation: updated
+        });
+    }
+    catch (error) {
+        console.error('Accept quotation error:', error);
+        res.status(500).json({ error: 'Failed to accept quotation', details: error.message });
+    }
+};
+exports.acceptQuotation = acceptQuotation;
+const rejectQuotation = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const clientId = req.clientId;
+        const clientEmail = req.client?.email;
+        const { email, name, comments } = req.body;
+        // Validate required fields
+        if (!email || !name) {
+            return res.status(400).json({ error: 'Email and name are required' });
+        }
+        const quotation = await client_1.default.quotation.findUnique({
+            where: { id },
+            include: { lead: true }
+        });
+        // Security check
+        if (!quotation || (quotation.clientId !== clientId && quotation.lead?.email !== clientEmail)) {
+            return res.status(404).json({ error: 'Quotation not found' });
+        }
+        // Check if already accepted/rejected
+        if (quotation.clientAcceptedAt) {
+            return res.status(400).json({ error: 'This quotation has already been accepted' });
+        }
+        if (quotation.clientRejectedAt) {
+            return res.status(400).json({ error: 'This quotation has already been rejected' });
+        }
+        // Update quotation
+        const updated = await client_1.default.quotation.update({
+            where: { id: quotation.id },
+            data: {
+                clientRejectedAt: new Date(),
+                clientEmail: email,
+                clientName: name,
+                clientComments: comments || null,
+                status: 'rejected'
+            },
+            include: {
+                company: true
+            }
+        });
+        // Send rejection notification email to company
+        try {
+            const { sendQuotationRejectionToCompany } = await Promise.resolve().then(() => __importStar(require('../services/email.service')));
+            await sendQuotationRejectionToCompany(updated);
+        }
+        catch (emailError) {
+            console.error('Failed to send rejection email:', emailError);
+        }
+        // Create activity log
+        try {
+            const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+            const userAgent = req.headers['user-agent'] || 'unknown';
+            await client_1.default.quotationActivity.create({
+                data: {
+                    quotationId: quotation.id,
+                    type: 'STATUS_CHANGE',
+                    ipAddress,
+                    userAgent,
+                    deviceType: userAgent.toLowerCase().includes('mobile') ? 'Mobile' : 'Desktop',
+                    browser: 'Portal',
+                    metadata: {
+                        new_status: 'rejected',
+                        client_action: true,
+                        portal_user: req.client?.name || 'Client'
+                    }
+                }
+            });
+        }
+        catch (logError) {
+            console.error('Failed to log rejection activity:', logError);
+        }
+        res.json({
+            message: 'Quotation rejected',
+            quotation: updated
+        });
+    }
+    catch (error) {
+        console.error('Reject quotation error:', error);
+        res.status(500).json({ error: 'Failed to reject quotation', details: error.message });
+    }
+};
+exports.rejectQuotation = rejectQuotation;
 const getQuotationPdf = async (req, res) => {
     try {
         const { id } = req.params;
+        const clientId = req.clientId;
         const clientEmail = req.client?.email;
         const quotation = await client_1.default.quotation.findUnique({
             where: { id },
             include: {
                 lead: true,
                 company: true,
-                items: true
+                items: {
+                    include: { appliedTaxes: true }
+                }
             }
         });
-        if (!quotation || quotation.lead?.email !== clientEmail) {
+        if (!quotation || (quotation.clientId !== clientId && quotation.lead?.email !== clientEmail)) {
             return res.status(404).json({ error: 'Quotation not found' });
         }
         // Hydrate appliedTaxes for legacy items

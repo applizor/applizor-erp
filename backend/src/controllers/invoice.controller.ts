@@ -6,6 +6,8 @@ import { InvoiceService } from '../services/invoice.service';
 import documentService, { LetterheadMode } from '../services/document.service';
 import * as emailService from '../services/email.service';
 import { PDFService } from '../services/pdf.service';
+import { v4 as uuidv4 } from 'uuid';
+import { PermissionService } from '../services/permission.service';
 
 /**
  * Create a new invoice
@@ -30,6 +32,29 @@ export const createInvoice = async (req: AuthRequest, res: Response) => {
       companyId: user.companyId,
       createdBy: userId,
     });
+
+    // Log Activity
+    try {
+      const ipAddress = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
+      const userAgent = req.headers['user-agent'] || 'unknown';
+      await prisma.invoiceActivity.create({
+        data: {
+          invoiceId: invoice.id,
+          type: 'STATUS_CHANGE',
+          ipAddress,
+          userAgent,
+          browser: 'Admin',
+          metadata: {
+            new_status: invoice.status,
+            action: 'CREATED',
+            userId: userId,
+            userName: `${user.firstName} ${user.lastName}`
+          }
+        }
+      });
+    } catch (logError) {
+      console.error('Failed to log invoice creation:', logError);
+    }
 
     res.status(201).json({
       message: 'Invoice created successfully',
@@ -257,6 +282,27 @@ export const generateInvoicePDF = async (req: AuthRequest, res: Response) => {
       useLetterhead: req.body.useLetterhead === true || req.query.useLetterhead === 'true'
     });
 
+    // Log Activity
+    try {
+      const ipAddress = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
+      const userAgent = req.headers['user-agent'] || 'unknown';
+      await prisma.invoiceActivity.create({
+        data: {
+          invoiceId: invoice.id,
+          type: 'DOWNLOADED',
+          ipAddress,
+          userAgent,
+          browser: 'Admin',
+          metadata: {
+            userId: req.userId,
+            action: 'DOWNLOAD_PDF'
+          }
+        }
+      });
+    } catch (logError) {
+      console.error('Failed to log invoice download:', logError);
+    }
+
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="Invoice-${invoice.invoiceNumber}.pdf"`);
     res.send(pdfBuffer);
@@ -279,6 +325,31 @@ export const recordPayment = async (req: AuthRequest, res: Response) => {
     }
 
     const updatedInvoice = await InvoiceService.recordPayment(id, Number(amount), paymentMethod, transactionId);
+
+    // Log Activity
+    try {
+      const ipAddress = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
+      const userAgent = req.headers['user-agent'] || 'unknown';
+      await prisma.invoiceActivity.create({
+        data: {
+          invoiceId: id,
+          type: 'STATUS_CHANGE',
+          ipAddress,
+          userAgent,
+          browser: 'Admin',
+          metadata: {
+            action: 'PAYMENT_RECORDED',
+            amount: Number(amount),
+            paymentMethod,
+            transactionId,
+            new_status: updatedInvoice.status,
+            userId: req.userId
+          }
+        }
+      });
+    } catch (logError) {
+      console.error('Failed to log invoice payment:', logError);
+    }
 
     res.json({
       message: 'Payment recorded successfully',
@@ -410,6 +481,28 @@ export const updateInvoiceStatus = async (req: AuthRequest, res: Response) => {
       data: { status },
     });
 
+    // Log Activity
+    try {
+      const ipAddress = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
+      const userAgent = req.headers['user-agent'] || 'unknown';
+      await prisma.invoiceActivity.create({
+        data: {
+          invoiceId: id,
+          type: 'STATUS_CHANGE',
+          ipAddress,
+          userAgent,
+          browser: 'Admin',
+          metadata: {
+            action: 'STATUS_UPDATE',
+            new_status: status,
+            userId: req.userId
+          }
+        }
+      });
+    } catch (logError) {
+      console.error('Failed to log status update:', logError);
+    }
+
     res.json({ message: 'Invoice status updated', invoice });
   } catch (error: any) {
     res.status(500).json({ error: 'Failed to update status' });
@@ -527,6 +620,39 @@ export const batchSendInvoices = async (req: AuthRequest, res: Response) => {
 };
 
 /**
+ * Delete an invoice
+ */
+export const deleteInvoice = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user || !user.companyId) {
+      return res.status(400).json({ error: 'User must belong to a company' });
+    }
+
+    // Check permissions
+    if (!PermissionService.hasBasicPermission(user, 'Invoice', 'delete')) {
+      return res.status(403).json({ error: 'Access denied: No delete rights for Invoice' });
+    }
+
+    await InvoiceService.deleteInvoice(id, user.companyId);
+
+    res.json({ message: 'Invoice deleted successfully' });
+  } catch (error: any) {
+    console.error('Delete invoice error:', error);
+    res.status(500).json({ error: error.message || 'Failed to delete invoice' });
+  }
+};
+
+/**
  * Convert quotation to invoice
  */
 
@@ -553,6 +679,27 @@ export const updateInvoice = async (req: AuthRequest, res: Response) => {
       ...req.body,
       companyId: user.companyId,
     });
+
+    // Log Activity
+    try {
+      const ipAddress = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
+      const userAgent = req.headers['user-agent'] || 'unknown';
+      await prisma.invoiceActivity.create({
+        data: {
+          invoiceId: id,
+          type: 'STATUS_CHANGE', // Using status_change for general updates for now
+          ipAddress,
+          userAgent,
+          browser: 'Admin',
+          metadata: {
+            action: 'UPDATED',
+            userId: userId
+          }
+        }
+      });
+    } catch (logError) {
+      console.error('Failed to log invoice update:', logError);
+    }
 
     res.json({
       message: 'Invoice updated successfully',
@@ -718,5 +865,170 @@ export const getPublicInvoicePdf = async (req: AuthRequest, res: Response) => {
   } catch (error: any) {
     console.error('Get public PDF error:', error);
     res.status(500).json({ error: 'Failed to generate PDF', details: error.message });
+  }
+};
+
+/**
+ * Generate Public Link for Invoice
+ */
+export const generatePublicLink = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { expiresInDays = 30 } = req.body;
+    const userId = req.userId;
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user?.companyId) return res.status(400).json({ error: 'Company not found' });
+
+    // Verify access to invoice
+    const invoice = await prisma.invoice.findFirst({
+      where: { id, companyId: user.companyId }
+    });
+
+    if (!invoice) {
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+
+    // Generate unique token
+    const publicToken = uuidv4();
+    const publicExpiresAt = new Date();
+    publicExpiresAt.setDate(publicExpiresAt.getDate() + expiresInDays);
+
+    // Update invoice
+    await prisma.invoice.update({
+      where: { id },
+      data: {
+        publicToken,
+        publicExpiresAt,
+        isPublicEnabled: true,
+        status: invoice.status === 'draft' ? 'sent' : invoice.status
+      }
+    });
+
+    // Generate public URL
+    const publicUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/public/invoices/${publicToken}`;
+
+    // Log Activity
+    try {
+      const ipAddress = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
+      const userAgent = req.headers['user-agent'] || 'unknown';
+      await prisma.invoiceActivity.create({
+        data: {
+          invoiceId: id,
+          type: 'STATUS_CHANGE',
+          ipAddress,
+          userAgent,
+          browser: 'Admin',
+          metadata: {
+            action: 'PUBLIC_LINK_GENERATED',
+            publicToken,
+            expiresAt: publicExpiresAt,
+            userId: userId
+          }
+        }
+      });
+    } catch (logError) {
+      console.error('Failed to log public link generation:', logError);
+    }
+
+    res.json({
+      message: 'Public link generated successfully',
+      publicToken,
+      publicUrl,
+      expiresAt: publicExpiresAt
+    });
+  } catch (error: any) {
+    console.error('Generate public link error:', error);
+    res.status(500).json({ error: 'Failed to generate public link', details: error.message });
+  }
+};
+
+/**
+ * Revoke Public Link
+ */
+export const revokePublicLink = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.userId;
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user?.companyId) return res.status(400).json({ error: 'Company not found' });
+
+    // Verify access
+    const invoice = await prisma.invoice.findFirst({
+      where: { id, companyId: user.companyId }
+    });
+
+    if (!invoice) {
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+
+    // Revoke link
+    await prisma.invoice.update({
+      where: { id },
+      data: {
+        isPublicEnabled: false,
+        publicToken: null,
+        publicExpiresAt: null
+      }
+    });
+
+    // Log Activity
+    try {
+      const ipAddress = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
+      const userAgent = req.headers['user-agent'] || 'unknown';
+      await prisma.invoiceActivity.create({
+        data: {
+          invoiceId: id,
+          type: 'STATUS_CHANGE',
+          ipAddress,
+          userAgent,
+          browser: 'Admin',
+          metadata: {
+            action: 'PUBLIC_LINK_REVOKED',
+            userId: userId
+          }
+        }
+      });
+    } catch (logError) {
+      console.error('Failed to log public link revocation:', logError);
+    }
+
+    res.json({ message: 'Public link revoked successfully' });
+  } catch (error: any) {
+    console.error('Revoke public link error:', error);
+    res.status(500).json({ error: 'Failed to revoke public link', details: error.message });
+  }
+};
+
+/**
+ * Get Activity Log for an Invoice
+ */
+export const getActivityLog = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.userId;
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user?.companyId) return res.status(400).json({ error: 'Company not found' });
+
+    // Verify access
+    const invoice = await prisma.invoice.findFirst({
+      where: { id, companyId: user.companyId }
+    });
+
+    if (!invoice) {
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+
+    const activities = await prisma.invoiceActivity.findMany({
+      where: { invoiceId: id },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    res.json({ activities });
+  } catch (error: any) {
+    console.error('Get activity log error:', error);
+    res.status(500).json({ error: 'Failed to fetch activity log' });
   }
 };

@@ -318,7 +318,7 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description / HSN/SAC</th>
                                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
                                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Unit Price</th>
                                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Disc %</th>
@@ -328,7 +328,13 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
                             <tbody className="bg-white divide-y divide-gray-200">
                                 {quotation.items?.map((item: any, index: number) => (
                                     <tr key={index}>
-                                        <td className="px-6 py-4 text-sm text-gray-900">{item.description}</td>
+                                        <td className="px-6 py-4">
+                                            <div className="text-sm text-gray-900">{item.description}</div>
+                                            <div className="text-[10px] text-gray-500 mt-1">
+                                                {item.hsnSacCode ? `Code: ${item.hsnSacCode}` : ''}
+                                                {item.unit ? `${item.hsnSacCode ? ' | ' : ''}Unit: ${item.unit}` : ''}
+                                            </div>
+                                        </td>
                                         <td className="px-6 py-4 text-sm text-gray-600 text-right">{Number(item.quantity)}</td>
                                         <td className="px-6 py-4 text-sm text-gray-600 text-right">{formatCurrency(item.unitPrice)}</td>
                                         <td className="px-6 py-4 text-sm text-rose-500 font-bold text-right">

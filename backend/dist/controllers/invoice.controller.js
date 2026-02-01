@@ -36,12 +36,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getPublicInvoicePdf = exports.getPublicInvoice = exports.convertQuotation = exports.updateInvoice = exports.batchSendInvoices = exports.batchUpdateStatus = exports.updateInvoiceStatus = exports.sendInvoice = exports.getInvoiceStats = exports.recordPayment = exports.generateInvoicePDF = exports.getInvoice = exports.getInvoices = exports.createInvoice = void 0;
+exports.getActivityLog = exports.revokePublicLink = exports.generatePublicLink = exports.getPublicInvoicePdf = exports.getPublicInvoice = exports.convertQuotation = exports.updateInvoice = exports.batchSendInvoices = exports.batchUpdateStatus = exports.updateInvoiceStatus = exports.sendInvoice = exports.getInvoiceStats = exports.recordPayment = exports.generateInvoicePDF = exports.getInvoice = exports.getInvoices = exports.createInvoice = void 0;
 const library_1 = require("@prisma/client/runtime/library");
 const client_1 = __importDefault(require("../prisma/client"));
 const invoice_service_1 = require("../services/invoice.service");
 const emailService = __importStar(require("../services/email.service"));
 const pdf_service_1 = require("../services/pdf.service");
+const uuid_1 = require("uuid");
 /**
  * Create a new invoice
  */
@@ -62,6 +63,29 @@ const createInvoice = async (req, res) => {
             companyId: user.companyId,
             createdBy: userId,
         });
+        // Log Activity
+        try {
+            const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+            const userAgent = req.headers['user-agent'] || 'unknown';
+            await client_1.default.invoiceActivity.create({
+                data: {
+                    invoiceId: invoice.id,
+                    type: 'STATUS_CHANGE',
+                    ipAddress,
+                    userAgent,
+                    browser: 'Admin',
+                    metadata: {
+                        new_status: invoice.status,
+                        action: 'CREATED',
+                        userId: userId,
+                        userName: `${user.firstName} ${user.lastName}`
+                    }
+                }
+            });
+        }
+        catch (logError) {
+            console.error('Failed to log invoice creation:', logError);
+        }
         res.status(201).json({
             message: 'Invoice created successfully',
             invoice,
@@ -275,6 +299,27 @@ const generateInvoicePDF = async (req, res) => {
             },
             useLetterhead: req.body.useLetterhead === true || req.query.useLetterhead === 'true'
         });
+        // Log Activity
+        try {
+            const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+            const userAgent = req.headers['user-agent'] || 'unknown';
+            await client_1.default.invoiceActivity.create({
+                data: {
+                    invoiceId: invoice.id,
+                    type: 'DOWNLOADED',
+                    ipAddress,
+                    userAgent,
+                    browser: 'Admin',
+                    metadata: {
+                        userId: req.userId,
+                        action: 'DOWNLOAD_PDF'
+                    }
+                }
+            });
+        }
+        catch (logError) {
+            console.error('Failed to log invoice download:', logError);
+        }
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="Invoice-${invoice.invoiceNumber}.pdf"`);
         res.send(pdfBuffer);
@@ -296,6 +341,31 @@ const recordPayment = async (req, res) => {
             return res.status(400).json({ error: 'Amount and payment method are required' });
         }
         const updatedInvoice = await invoice_service_1.InvoiceService.recordPayment(id, Number(amount), paymentMethod, transactionId);
+        // Log Activity
+        try {
+            const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+            const userAgent = req.headers['user-agent'] || 'unknown';
+            await client_1.default.invoiceActivity.create({
+                data: {
+                    invoiceId: id,
+                    type: 'STATUS_CHANGE',
+                    ipAddress,
+                    userAgent,
+                    browser: 'Admin',
+                    metadata: {
+                        action: 'PAYMENT_RECORDED',
+                        amount: Number(amount),
+                        paymentMethod,
+                        transactionId,
+                        new_status: updatedInvoice.status,
+                        userId: req.userId
+                    }
+                }
+            });
+        }
+        catch (logError) {
+            console.error('Failed to log invoice payment:', logError);
+        }
         res.json({
             message: 'Payment recorded successfully',
             invoice: updatedInvoice
@@ -421,6 +491,28 @@ const updateInvoiceStatus = async (req, res) => {
             where: { id },
             data: { status },
         });
+        // Log Activity
+        try {
+            const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+            const userAgent = req.headers['user-agent'] || 'unknown';
+            await client_1.default.invoiceActivity.create({
+                data: {
+                    invoiceId: id,
+                    type: 'STATUS_CHANGE',
+                    ipAddress,
+                    userAgent,
+                    browser: 'Admin',
+                    metadata: {
+                        action: 'STATUS_UPDATE',
+                        new_status: status,
+                        userId: req.userId
+                    }
+                }
+            });
+        }
+        catch (logError) {
+            console.error('Failed to log status update:', logError);
+        }
         res.json({ message: 'Invoice status updated', invoice });
     }
     catch (error) {
@@ -555,6 +647,27 @@ const updateInvoice = async (req, res) => {
             ...req.body,
             companyId: user.companyId,
         });
+        // Log Activity
+        try {
+            const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+            const userAgent = req.headers['user-agent'] || 'unknown';
+            await client_1.default.invoiceActivity.create({
+                data: {
+                    invoiceId: id,
+                    type: 'STATUS_CHANGE', // Using status_change for general updates for now
+                    ipAddress,
+                    userAgent,
+                    browser: 'Admin',
+                    metadata: {
+                        action: 'UPDATED',
+                        userId: userId
+                    }
+                }
+            });
+        }
+        catch (logError) {
+            console.error('Failed to log invoice update:', logError);
+        }
         res.json({
             message: 'Invoice updated successfully',
             invoice,
@@ -714,4 +827,158 @@ const getPublicInvoicePdf = async (req, res) => {
     }
 };
 exports.getPublicInvoicePdf = getPublicInvoicePdf;
+/**
+ * Generate Public Link for Invoice
+ */
+const generatePublicLink = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { expiresInDays = 30 } = req.body;
+        const userId = req.userId;
+        const user = await client_1.default.user.findUnique({ where: { id: userId } });
+        if (!user?.companyId)
+            return res.status(400).json({ error: 'Company not found' });
+        // Verify access to invoice
+        const invoice = await client_1.default.invoice.findFirst({
+            where: { id, companyId: user.companyId }
+        });
+        if (!invoice) {
+            return res.status(404).json({ error: 'Invoice not found' });
+        }
+        // Generate unique token
+        const publicToken = (0, uuid_1.v4)();
+        const publicExpiresAt = new Date();
+        publicExpiresAt.setDate(publicExpiresAt.getDate() + expiresInDays);
+        // Update invoice
+        await client_1.default.invoice.update({
+            where: { id },
+            data: {
+                publicToken,
+                publicExpiresAt,
+                isPublicEnabled: true,
+                status: invoice.status === 'draft' ? 'sent' : invoice.status
+            }
+        });
+        // Generate public URL
+        const publicUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/public/invoices/${publicToken}`;
+        // Log Activity
+        try {
+            const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+            const userAgent = req.headers['user-agent'] || 'unknown';
+            await client_1.default.invoiceActivity.create({
+                data: {
+                    invoiceId: id,
+                    type: 'STATUS_CHANGE',
+                    ipAddress,
+                    userAgent,
+                    browser: 'Admin',
+                    metadata: {
+                        action: 'PUBLIC_LINK_GENERATED',
+                        publicToken,
+                        expiresAt: publicExpiresAt,
+                        userId: userId
+                    }
+                }
+            });
+        }
+        catch (logError) {
+            console.error('Failed to log public link generation:', logError);
+        }
+        res.json({
+            message: 'Public link generated successfully',
+            publicToken,
+            publicUrl,
+            expiresAt: publicExpiresAt
+        });
+    }
+    catch (error) {
+        console.error('Generate public link error:', error);
+        res.status(500).json({ error: 'Failed to generate public link', details: error.message });
+    }
+};
+exports.generatePublicLink = generatePublicLink;
+/**
+ * Revoke Public Link
+ */
+const revokePublicLink = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.userId;
+        const user = await client_1.default.user.findUnique({ where: { id: userId } });
+        if (!user?.companyId)
+            return res.status(400).json({ error: 'Company not found' });
+        // Verify access
+        const invoice = await client_1.default.invoice.findFirst({
+            where: { id, companyId: user.companyId }
+        });
+        if (!invoice) {
+            return res.status(404).json({ error: 'Invoice not found' });
+        }
+        // Revoke link
+        await client_1.default.invoice.update({
+            where: { id },
+            data: {
+                isPublicEnabled: false,
+                publicToken: null,
+                publicExpiresAt: null
+            }
+        });
+        // Log Activity
+        try {
+            const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+            const userAgent = req.headers['user-agent'] || 'unknown';
+            await client_1.default.invoiceActivity.create({
+                data: {
+                    invoiceId: id,
+                    type: 'STATUS_CHANGE',
+                    ipAddress,
+                    userAgent,
+                    browser: 'Admin',
+                    metadata: {
+                        action: 'PUBLIC_LINK_REVOKED',
+                        userId: userId
+                    }
+                }
+            });
+        }
+        catch (logError) {
+            console.error('Failed to log public link revocation:', logError);
+        }
+        res.json({ message: 'Public link revoked successfully' });
+    }
+    catch (error) {
+        console.error('Revoke public link error:', error);
+        res.status(500).json({ error: 'Failed to revoke public link', details: error.message });
+    }
+};
+exports.revokePublicLink = revokePublicLink;
+/**
+ * Get Activity Log for an Invoice
+ */
+const getActivityLog = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.userId;
+        const user = await client_1.default.user.findUnique({ where: { id: userId } });
+        if (!user?.companyId)
+            return res.status(400).json({ error: 'Company not found' });
+        // Verify access
+        const invoice = await client_1.default.invoice.findFirst({
+            where: { id, companyId: user.companyId }
+        });
+        if (!invoice) {
+            return res.status(404).json({ error: 'Invoice not found' });
+        }
+        const activities = await client_1.default.invoiceActivity.findMany({
+            where: { invoiceId: id },
+            orderBy: { createdAt: 'desc' }
+        });
+        res.json({ activities });
+    }
+    catch (error) {
+        console.error('Get activity log error:', error);
+        res.status(500).json({ error: 'Failed to fetch activity log' });
+    }
+};
+exports.getActivityLog = getActivityLog;
 //# sourceMappingURL=invoice.controller.js.map

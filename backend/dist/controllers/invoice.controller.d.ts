@@ -59,4 +59,16 @@ export declare const getPublicInvoice: (req: AuthRequest, res: Response) => Prom
  * Get public invoice PDF by ID
  */
 export declare const getPublicInvoicePdf: (req: AuthRequest, res: Response) => Promise<Response<any, Record<string, any>> | undefined>;
+/**
+ * Generate Public Link for Invoice
+ */
+export declare const generatePublicLink: (req: AuthRequest, res: Response) => Promise<Response<any, Record<string, any>> | undefined>;
+/**
+ * Revoke Public Link
+ */
+export declare const revokePublicLink: (req: AuthRequest, res: Response) => Promise<Response<any, Record<string, any>> | undefined>;
+/**
+ * Get Activity Log for an Invoice
+ */
+export declare const getActivityLog: (req: AuthRequest, res: Response) => Promise<Response<any, Record<string, any>> | undefined>;
 //# sourceMappingURL=invoice.controller.d.ts.map

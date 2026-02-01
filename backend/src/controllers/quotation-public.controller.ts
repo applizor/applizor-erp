@@ -542,7 +542,9 @@ export const downloadSignedQuotationPDFPublic = async (req: Request, res: Respon
                 quantity: Number(item.quantity),
                 unit: item.unit || undefined,
                 unitPrice: Number(item.unitPrice),
-                taxRate: Number(item.tax)
+                taxRate: Number(item.tax),
+                discount: Number(item.discount),
+                hsnSacCode: item.hsnSacCode || undefined
             })),
             subtotal: Number(quotation.subtotal),
             tax: Number(quotation.tax),

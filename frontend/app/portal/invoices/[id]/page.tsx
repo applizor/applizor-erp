@@ -121,7 +121,7 @@ export default function InvoiceDetails({ params }: { params: { id: string } }) {
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-slate-50 text-slate-500 font-medium">
                                     <tr>
-                                        <th className="px-6 py-3">Description</th>
+                                        <th className="px-6 py-3">Description / HSN/SAC</th>
                                         <th className="px-6 py-3 text-center">Qty</th>
                                         <th className="px-6 py-3 text-right">Price</th>
                                         <th className="px-6 py-3 text-right">Disc %</th>
@@ -131,7 +131,13 @@ export default function InvoiceDetails({ params }: { params: { id: string } }) {
                                 <tbody className="divide-y divide-slate-100">
                                     {invoice.items.map((item: any) => (
                                         <tr key={item.id}>
-                                            <td className="px-6 py-4 font-medium text-slate-900">{item.description}</td>
+                                            <td className="px-6 py-4">
+                                                <div className="font-medium text-slate-900">{item.description}</div>
+                                                <div className="text-[10px] text-slate-500 mt-0.5">
+                                                    {item.hsnSacCode ? `Code: ${item.hsnSacCode}` : ''}
+                                                    {item.unit ? `${item.hsnSacCode ? ' | ' : ''}Unit: ${item.unit}` : ''}
+                                                </div>
+                                            </td>
                                             <td className="px-6 py-4 text-center text-slate-600">{item.quantity}</td>
                                             <td className="px-6 py-4 text-right text-slate-600">
                                                 {new Intl.NumberFormat(invoice.currency === 'INR' ? 'en-IN' : 'en-US', { style: 'currency', currency: invoice.currency || 'USD' }).format(Number(item.rate))}
@@ -156,6 +162,30 @@ export default function InvoiceDetails({ params }: { params: { id: string } }) {
                                         <span className="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Gross Subtotal:</span>
                                         <span className="font-bold">{new Intl.NumberFormat(invoice.currency === 'INR' ? 'en-IN' : 'en-US', { style: 'currency', currency: invoice.currency || 'USD' }).format(Number(invoice.subtotal))}</span>
                                     </div>
+
+                                    {(() => {
+                                        const formatter = new Intl.NumberFormat(invoice.currency === 'INR' ? 'en-IN' : 'en-US', { style: 'currency', currency: invoice.currency || 'USD' });
+                                        const itemDiscounts = (invoice.items || []).reduce((acc: number, item: any) => {
+                                            const gross = Number(item.quantity) * Number(item.rate);
+                                            return acc + (gross * (Number(item.discount || 0) / 100));
+                                        }, 0);
+
+                                        if (itemDiscounts > 0) {
+                                            return (
+                                                <>
+                                                    <div className="flex justify-between text-sm text-rose-600">
+                                                        <span className="font-bold uppercase tracking-widest text-[9px]">Item Discounts:</span>
+                                                        <span className="font-bold">-{formatter.format(itemDiscounts)}</span>
+                                                    </div>
+                                                    <div className="flex justify-between text-sm text-slate-900 border-t border-dashed border-slate-200 pt-1 mt-1 pb-1">
+                                                        <span className="font-black uppercase tracking-widest text-[9px]">Taxable Amount:</span>
+                                                        <span className="font-black">{formatter.format(Number(invoice.subtotal) - itemDiscounts)}</span>
+                                                    </div>
+                                                </>
+                                            );
+                                        }
+                                        return null;
+                                    })()}
 
                                     {(() => {
                                         const taxBreakdown: Record<string, number> = {};

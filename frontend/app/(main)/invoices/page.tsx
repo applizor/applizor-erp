@@ -16,6 +16,7 @@ import { InvoiceListSkeleton } from '@/components/invoices/InvoiceListSkeleton';
 import { Button } from '@/components/ui/Button';
 import PageHeader from '@/components/ui/PageHeader';
 import { CustomSelect } from '@/components/ui/CustomSelect';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 export default function InvoicesPage() {
   const toast = useToast();
@@ -91,6 +92,21 @@ export default function InvoicesPage() {
       </div>
     </div>
   );
+
+  /* Delete Logic */
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    try {
+      await invoicesApi.delete(deleteId);
+      toast.success('Invoice deleted successfully');
+      setDeleteId(null);
+      loadInvoices();
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Failed to delete invoice');
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -189,7 +205,7 @@ export default function InvoicesPage() {
                   <th className="text-[10px] uppercase tracking-widest text-right">Operations</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
+              <tbody className="divide-y divide-gray-5">
                 {invoices.map((invoice) => {
                   const StatusIcon = statusStyles[invoice.status]?.icon || Info;
                   const isSelected = selectedIds.includes(invoice.id);
@@ -278,6 +294,30 @@ export default function InvoicesPage() {
                             </Link>
                           )}
                           <button
+                            onClick={() => setDeleteId(invoice.id)}
+                            className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-gray-50 rounded-md transition-all"
+                            title="Delete Invoice"
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              className="lucide lucide-trash-2"
+                            >
+                              <path d="M3 6h18" />
+                              <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                              <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                              <line x1="10" x2="10" y1="11" y2="17" />
+                              <line x1="14" x2="14" y1="11" y2="17" />
+                            </svg>
+                          </button>
+                          <button
                             onClick={async () => {
                               try {
                                 toast.info('Exporting unit...');
@@ -360,6 +400,17 @@ export default function InvoicesPage() {
           </button>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={!!deleteId}
+        onClose={() => setDeleteId(null)}
+        onConfirm={handleDelete}
+        title="Delete Invoice"
+        message="Are you sure you want to delete this invoice? This action cannot be undone."
+        type="danger"
+        confirmText="Delete"
+        cancelText="Cancel"
+      />
     </div>
   );
 }

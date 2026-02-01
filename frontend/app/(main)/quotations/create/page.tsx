@@ -71,13 +71,14 @@ export default function CreateQuotationPage() {
         quantity: number;
         unit: string;
         unitPrice: number;
+        hsnSacCode?: string;
         taxRateIds: string[];
         discount: number;
         total?: number;
     }
 
     const [items, setItems] = useState<QuotationItem[]>([
-        { description: '', quantity: 1, unit: '', unitPrice: 0, taxRateIds: [], discount: 0 }
+        { description: '', quantity: 1, unit: '', unitPrice: 0, hsnSacCode: '', taxRateIds: [], discount: 0 }
     ]);
 
     useEffect(() => {
@@ -196,7 +197,7 @@ export default function CreateQuotationPage() {
     };
 
     const addItem = () => {
-        setItems([...items, { description: '', quantity: 1, unit: '', unitPrice: 0, taxRateIds: [], discount: 0 }]);
+        setItems([...items, { description: '', quantity: 1, unit: '', unitPrice: 0, hsnSacCode: '', taxRateIds: [], discount: 0 }]);
     };
 
     const removeItem = (index: number) => {
@@ -220,6 +221,7 @@ export default function CreateQuotationPage() {
                 quantity: 1,
                 unit: product.unit || '',
                 unitPrice: product.price,
+                hsnSacCode: product.hsnSacCode || '',
                 taxRateIds: product.taxRateIds || [],
                 discount: 0
             };
@@ -579,10 +581,11 @@ export default function CreateQuotationPage() {
                         <table className="min-w-full divide-y divide-gray-100">
                             <thead className="bg-gray-50/50">
                                 <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-black text-gray-500 uppercase tracking-wider w-4/12">Description</th>
+                                    <th className="px-6 py-3 text-left text-xs font-black text-gray-500 uppercase tracking-wider w-3/12">Description</th>
                                     <th className="px-4 py-3 text-center text-xs font-black text-gray-500 uppercase tracking-wider w-1/12">Qty</th>
                                     <th className="px-4 py-3 text-center text-xs font-black text-gray-500 uppercase tracking-wider w-1/12">UoM</th>
-                                    <th className="px-4 py-3 text-right text-xs font-black text-gray-500 uppercase tracking-wider w-2/12">Unit Price</th>
+                                    <th className="px-4 py-3 text-right text-xs font-black text-gray-500 uppercase tracking-wider w-1/12">Unit Price</th>
+                                    <th className="px-4 py-3 text-center text-xs font-black text-gray-500 uppercase tracking-wider w-1/12">HSN/SAC</th>
                                     <th className="px-4 py-3 text-center text-xs font-black text-gray-500 uppercase tracking-wider w-1/12">Disc %</th>
                                     <th className="px-4 py-3 text-right text-xs font-black text-gray-500 uppercase tracking-wider w-2/12">Tax Rule</th>
                                     <th className="px-4 py-3 text-right text-xs font-black text-gray-500 uppercase tracking-wider w-2/12">Net Amount</th>
@@ -627,6 +630,15 @@ export default function CreateQuotationPage() {
                                                 onChange={(e) => updateItem(index, 'unitPrice', parseFloat(e.target.value))}
                                                 className="block w-full border-0 border-b border-transparent bg-transparent focus:border-primary-500 focus:ring-0 text-sm text-right font-mono"
                                                 min="0"
+                                            />
+                                        </td>
+                                        <td className="px-4 py-2">
+                                            <input
+                                                type="text"
+                                                value={item.hsnSacCode}
+                                                onChange={(e) => updateItem(index, 'hsnSacCode', e.target.value)}
+                                                className="block w-full border-0 border-b border-transparent bg-transparent focus:border-primary-500 focus:ring-0 text-sm text-center"
+                                                placeholder="HSN/SAC"
                                             />
                                         </td>
                                         <td className="px-4 py-2">

@@ -271,8 +271,12 @@ const convertLeadToClient = async (req, res) => {
             where: { id },
             data: {
                 status: 'converted',
-                stage: 'closed',
             },
+        });
+        // Link existing quotations to new client
+        await client_1.default.quotation.updateMany({
+            where: { leadId: id },
+            data: { clientId: client.id }
         });
         res.json({
             message: 'Lead converted to client successfully',
@@ -477,6 +481,11 @@ const convertLeadToClientEnhanced = async (req, res) => {
                 convertedToClientId: client.id,
                 convertedAt: new Date()
             }
+        });
+        // Link existing quotations to new client
+        await client_1.default.quotation.updateMany({
+            where: { leadId: id },
+            data: { clientId: client.id }
         });
         // Log activity
         await client_1.default.leadActivity.create({

@@ -105,5 +105,20 @@ export const invoicesApi = {
   delete: async (id: string) => {
     const response = await api.delete(`/invoices/${id}`);
     return response.data;
+  },
+
+  generatePublicLink: async (id: string) => {
+    const response = await api.post(`/invoices/${id}/generate-link`);
+    return response.data;
+  },
+
+  revokePublicLink: async (id: string) => {
+    const response = await api.post(`/invoices/${id}/revoke-link`);
+    return response.data;
+  },
+
+  getActivities: async (id: string) => {
+    const response = await api.get(`/invoices/${id}/activities`);
+    return response.data;
   }
 };

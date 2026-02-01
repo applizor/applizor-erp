@@ -18,7 +18,7 @@ const itemSchema = z.object({
     unit: z.string().optional(),
     rate: z.number().min(0, 'Min 0'),
     taxRateIds: z.array(z.string()).default([]),
-    hsnCode: z.string().optional(),
+    hsnSacCode: z.string().optional(),
     discount: z.number().min(0).max(100).default(0),
 });
 
@@ -70,7 +70,7 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
             invoiceDate: new Date().toISOString().split('T')[0],
             dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
             currency: globalCurrency || 'USD',
-            items: [{ description: '', quantity: 1, rate: 0, taxRateIds: [], discount: 0 }],
+            items: [{ description: '', quantity: 1, rate: 0, taxRateIds: [], discount: 0, hsnSacCode: '' }],
             discount: 0,
         },
     });
@@ -366,7 +366,7 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
                     </h3>
                     <button
                         type="button"
-                        onClick={() => append({ description: '', quantity: 1, rate: 0, taxRateIds: [], discount: 0 })}
+                        onClick={() => append({ description: '', quantity: 1, rate: 0, taxRateIds: [], discount: 0, hsnSacCode: '' })}
                         className="text-[10px] font-black text-primary-600 hover:text-primary-700 uppercase tracking-widest flex items-center gap-1 transition-all"
                     >
                         <Plus size={14} /> Append Component
@@ -382,6 +382,7 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
                                 <th className="px-4 py-2 text-[9px] font-black text-gray-400 uppercase tracking-[0.1em] w-24">Units</th>
                                 <th className="px-4 py-2 text-[9px] font-black text-gray-400 uppercase tracking-[0.1em] w-28">Unit Rate</th>
                                 <th className="px-4 py-2 text-[9px] font-black text-gray-400 uppercase tracking-[0.1em] w-24">Disc %</th>
+                                <th className="px-4 py-2 text-[9px] font-black text-gray-400 uppercase tracking-[0.1em] w-24">HSN/SAC</th>
                                 <th className="px-4 py-2 text-[9px] font-black text-gray-400 uppercase tracking-[0.1em] w-24">Tax Factor %</th>
                                 <th className="px-4 py-2 text-[9px] font-black text-gray-400 uppercase tracking-[0.1em] w-32 text-right">Net Value</th>
                                 <th className="px-4 py-2 w-10"></th>
@@ -439,6 +440,14 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
                                             {...register(`items.${index}.discount`, { valueAsNumber: true })}
                                             className="w-full bg-gray-50/50 border border-transparent focus:border-rose-200 focus:bg-white rounded px-1.5 py-1 text-[11px] font-black text-rose-500 transition-all text-center"
                                             placeholder="0"
+                                        />
+                                    </td>
+                                    <td className="px-4 py-2">
+                                        <input
+                                            type="text"
+                                            {...register(`items.${index}.hsnSacCode`)}
+                                            className="w-full bg-gray-50/50 border border-transparent focus:border-gray-200 focus:bg-white rounded px-1.5 py-1 text-[11px] font-black text-gray-900 transition-all text-center"
+                                            placeholder="Code"
                                         />
                                     </td>
                                     <td className="px-4 py-2">

@@ -6,7 +6,7 @@ export interface InvoiceItemInput {
     quantity: number;
     rate: number;
     taxRateIds?: string[]; // Multiple tax rates
-    hsnCode?: string;
+    hsnSacCode?: string;
     discount?: number; // Optional item-level discount percentage
 }
 
@@ -128,7 +128,7 @@ export class InvoiceService {
                                 rate: new Decimal(item.rate),
                                 unit: item.unit,
                                 amount: item.amount,
-                                hsnCode: item.hsnCode,
+                                hsnSacCode: item.hsnSacCode,
                                 discount: item.discount,
                                 appliedTaxes: {
                                     create: item.appliedTaxes
@@ -164,6 +164,51 @@ export class InvoiceService {
             console.error('Create Invoice Transaction Failed:', error);
             throw error;
         }
+    }
+
+    /**
+     * Delete an invoice and its associated items
+     */
+    static async deleteInvoice(id: string, companyId: string) {
+        // Find the invoice first to check its status and paidAmount
+        const invoice = await prisma.invoice.findUnique({
+            where: { id },
+        });
+
+        if (!invoice) {
+            throw new Error('Invoice not found');
+        }
+
+        if (invoice.companyId !== companyId) {
+            throw new Error('Unauthorized access to this invoice');
+        }
+
+        // Prevent deletion of invoices with payments unless status is draft
+        if (Number(invoice.paidAmount) > 0 && invoice.status !== 'draft') {
+            throw new Error('Cannot delete an invoice with recorded payments. Please void or refund payments first.');
+        }
+
+        return await prisma.$transaction(async (tx) => {
+            // Delete associated taxes first (cascading handled by Prisma if configured, but let's be safe)
+            // Actually, based on schema, InvoiceItemTax has onDelete: Cascade
+            // And InvoiceItem has onDelete: Cascade
+
+            // Log deletion before we lose the record
+            await tx.auditLog.create({
+                data: {
+                    companyId,
+                    action: 'DELETE',
+                    module: 'INVOICE',
+                    entityType: 'Invoice',
+                    entityId: id,
+                    details: `Deleted invoice ${invoice.invoiceNumber}`
+                }
+            });
+
+            return await tx.invoice.delete({
+                where: { id }
+            });
+        });
     }
 
     /**
@@ -275,7 +320,7 @@ export class InvoiceService {
                         quantity: Number(item.quantity),
                         rate: Number(item.rate),
                         taxRateIds: item.appliedTaxes.map(at => at.taxRateId),
-                        hsnCode: item.hsnCode || undefined,
+                        hsnSacCode: item.hsnSacCode || undefined,
                         unit: item.unit || undefined,
                         discount: Number(item.discount)
                     })),
@@ -355,7 +400,9 @@ export class InvoiceService {
                 quantity: Number(item.quantity),
                 rate: Number(item.unitPrice),
                 taxRateIds: item.appliedTaxes.map(at => at.taxRateId),
-                unit: item.unit || undefined
+                unit: item.unit || undefined,
+                discount: Number(item.discount),
+                hsnSacCode: item.hsnSacCode || undefined
             })),
             currency: quotation.currency,
             notes: quotation.notes || undefined,
@@ -492,7 +539,7 @@ export class InvoiceService {
                                 rate: new Decimal(item.rate),
                                 unit: item.unit,
                                 amount: item.amount,
-                                hsnCode: item.hsnCode,
+                                hsnSacCode: item.hsnSacCode,
                                 discount: item.discount,
                                 appliedTaxes: {
                                     create: item.appliedTaxes

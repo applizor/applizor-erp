@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const invoice_controller_1 = require("../controllers/invoice.controller");
+const invoice_public_controller_1 = require("../controllers/invoice-public.controller");
 const auth_1 = require("../middleware/auth");
 const router = (0, express_1.Router)();
 router.post('/', auth_1.authenticate, invoice_controller_1.createInvoice);
@@ -17,6 +18,12 @@ router.post('/batch/status', auth_1.authenticate, invoice_controller_1.batchUpda
 router.post('/batch/send', auth_1.authenticate, invoice_controller_1.batchSendInvoices);
 router.post('/:id/convert', auth_1.authenticate, invoice_controller_1.convertQuotation);
 router.post('/:id/payments', auth_1.authenticate, invoice_controller_1.recordPayment);
+router.post('/:id/generate-link', auth_1.authenticate, invoice_controller_1.generatePublicLink);
+router.post('/:id/revoke-link', auth_1.authenticate, invoice_controller_1.revokePublicLink);
 router.put('/:id/status', auth_1.authenticate, invoice_controller_1.updateInvoiceStatus);
+// Public routes (no authentication required)
+router.get('/public/:token', invoice_public_controller_1.getInvoiceByToken);
+router.get('/public/:token/download', invoice_public_controller_1.downloadPDFPublic);
+router.get('/:id/activities', auth_1.authenticate, invoice_controller_1.getActivityLog);
 exports.default = router;
 //# sourceMappingURL=invoice.routes.js.map
