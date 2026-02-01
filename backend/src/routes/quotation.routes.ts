@@ -17,7 +17,8 @@ import {
     getQuotationByToken,
     acceptQuotation,
     rejectQuotation,
-    downloadSignedQuotationPDFPublic
+    downloadSignedQuotationPDFPublic,
+    downloadPDFPublic
 } from '../controllers/quotation-public.controller';
 import { authenticate } from '../middleware/auth';
 
@@ -49,6 +50,7 @@ router.get('/:id/analytics', authenticate, getQuotationAnalytics);
 router.get('/public/:token', getQuotationByToken);
 router.post('/public/:token/accept', acceptQuotation);
 router.post('/public/:token/reject', rejectQuotation);
+router.get('/public/:token/pdf', downloadPDFPublic);
 router.get('/public/:token/signed-pdf', downloadSignedQuotationPDFPublic);
 
 export default router;

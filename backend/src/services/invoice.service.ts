@@ -8,6 +8,7 @@ export interface InvoiceItemInput {
     taxRateIds?: string[]; // Multiple tax rates
     hsnSacCode?: string;
     discount?: number; // Optional item-level discount percentage
+    explicitAppliedTaxes?: any[]; // For strictly converting quotations with snapshot taxes
 }
 
 export interface CreateInvoiceInput {
@@ -47,32 +48,56 @@ export class InvoiceService {
         let totalTax = 0;
         let totalItemDiscount = 0;
 
+        // Fetch tax rates only if needed (if explicit taxes are NOT provided)
+        const taxRateIdsToFetch = items
+            .filter(item => !item.explicitAppliedTaxes && item.taxRateIds)
+            .flatMap(item => item.taxRateIds || []);
+
         const taxRates = await prisma.taxRate.findMany({
             where: {
-                id: { in: items.flatMap(item => item.taxRateIds || []) }
+                id: { in: taxRateIdsToFetch }
             }
         });
 
         const processedItems = items.map(item => {
-            const grossAmount = Number(item.quantity) * Number(item.rate);
+            const quantity = Number(item.quantity || 0);
+            const rate = Number(item.rate || 0);
+            const grossAmount = quantity * rate;
             const discountPercentage = Number(item.discount || 0);
             const itemDiscount = grossAmount * (discountPercentage / 100);
             const taxableAmount = grossAmount - itemDiscount;
 
             let itemTotalTax = 0;
+            let appliedTaxes = [];
 
-            const appliedTaxes = (item.taxRateIds || []).map(taxId => {
-                const taxConfig = taxRates.find(t => t.id === taxId);
-                const taxPercentage = taxConfig ? Number(taxConfig.percentage) : 0;
-                const taxAmount = taxableAmount * (taxPercentage / 100);
-                itemTotalTax += taxAmount;
-                return {
-                    taxRateId: taxId,
-                    name: taxConfig?.name || 'Tax',
-                    percentage: new Decimal(taxPercentage),
-                    amount: new Decimal(taxAmount)
-                };
-            });
+            if (item.explicitAppliedTaxes) {
+                // strict conversion mode
+                appliedTaxes = item.explicitAppliedTaxes.map(t => {
+                    const percentage = new Decimal(t.percentage);
+                    const amountValue = taxableAmount * (Number(percentage) / 100);
+                    itemTotalTax += amountValue;
+                    return {
+                        taxRateId: t.taxRateId,
+                        name: t.name,
+                        percentage: percentage,
+                        amount: new Decimal(amountValue)
+                    };
+                });
+            } else {
+                // Standard look up mode
+                appliedTaxes = (item.taxRateIds || []).map(taxId => {
+                    const taxConfig = taxRates.find(t => t.id === taxId);
+                    const taxPercentage = taxConfig ? Number(taxConfig.percentage) : 0;
+                    const taxAmount = taxableAmount * (taxPercentage / 100);
+                    itemTotalTax += taxAmount;
+                    return {
+                        taxRateId: taxId,
+                        name: taxConfig?.name || 'Tax',
+                        percentage: new Decimal(taxPercentage),
+                        amount: new Decimal(taxAmount)
+                    };
+                });
+            }
 
             subtotal += grossAmount;
             totalTax += itemTotalTax;
@@ -112,7 +137,7 @@ export class InvoiceService {
                         invoiceNumber,
                         subtotal: new Decimal(subtotal),
                         tax: new Decimal(totalTax),
-                        discount: new Decimal(overallDiscount + totalItemDiscount),
+                        discount: new Decimal(overallDiscount),
                         total: new Decimal(total),
                         status: invoiceData.type === 'quotation' ? 'sent' : 'draft',
                         isRecurring: invoiceData.isRecurring || false,
@@ -131,7 +156,12 @@ export class InvoiceService {
                                 hsnSacCode: item.hsnSacCode,
                                 discount: item.discount,
                                 appliedTaxes: {
-                                    create: item.appliedTaxes
+                                    create: item.appliedTaxes.map(t => ({
+                                        taxRateId: t.taxRateId,
+                                        name: t.name,
+                                        percentage: t.percentage,
+                                        amount: t.amount
+                                    }))
                                 }
                             }))
                         }
@@ -192,6 +222,16 @@ export class InvoiceService {
             // Delete associated taxes first (cascading handled by Prisma if configured, but let's be safe)
             // Actually, based on schema, InvoiceItemTax has onDelete: Cascade
             // And InvoiceItem has onDelete: Cascade
+
+            // Unlink any quotation that was converted to this invoice
+            await tx.quotation.updateMany({
+                where: { convertedToInvoiceId: id },
+                data: {
+                    status: 'sent', // Revert to sent status so it can be converted again
+                    convertedToInvoiceId: null,
+                    convertedAt: null
+                }
+            });
 
             // Log deletion before we lose the record
             await tx.auditLog.create({
@@ -385,25 +425,36 @@ export class InvoiceService {
 
         // Return existing invoice if already converted
         if (quotation.convertedToInvoiceId) {
-            return await prisma.invoice.findUnique({
+            const existingInvoice = await prisma.invoice.findUnique({
                 where: { id: quotation.convertedToInvoiceId }
             });
+            if (existingInvoice) {
+                return existingInvoice;
+            }
+            // If invoice was deleted, allow re-conversion
+            console.log(`[CONVERSION] Invoice ${quotation.convertedToInvoiceId} not found, allowing re-conversion for Quotation ${quotationId}`);
         }
+
+        console.log(`[CONVERSION] Starting conversion for Quotation ${quotationId} with ${quotation.items.length} items`);
 
         const invoice = await InvoiceService.createInvoice({
             companyId: quotation.companyId,
             clientId: quotation.clientId || '', // Handle optional clientId
             invoiceDate: new Date(),
             dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000), // Default 15 days for converted
-            items: quotation.items.map(item => ({
-                description: item.description,
-                quantity: Number(item.quantity),
-                rate: Number(item.unitPrice),
-                taxRateIds: item.appliedTaxes.map(at => at.taxRateId),
-                unit: item.unit || undefined,
-                discount: Number(item.discount),
-                hsnSacCode: item.hsnSacCode || undefined
-            })),
+            items: quotation.items.map(item => {
+                console.log(`[CONVERSION] Mapping item: ${item.description}, HSN: ${item.hsnSacCode}, UOM: ${item.unit}, Disc: ${item.discount}`);
+                return {
+                    description: item.description,
+                    quantity: Number(item.quantity),
+                    rate: Number(item.unitPrice),
+                    taxRateIds: item.appliedTaxes.map(at => at.taxRateId),
+                    unit: item.unit || undefined,
+                    discount: Number(item.discount || 0),
+                    hsnSacCode: item.hsnSacCode || undefined,
+                    explicitAppliedTaxes: item.appliedTaxes
+                };
+            }),
             currency: quotation.currency,
             notes: quotation.notes || undefined,
             terms: quotation.paymentTerms || undefined, // Map paymentTerms to terms
@@ -527,7 +578,7 @@ export class InvoiceService {
                         dueDate,
                         subtotal: new Decimal(subtotal),
                         tax: new Decimal(totalTax),
-                        discount: new Decimal(overallDiscount + totalItemDiscount),
+                        discount: new Decimal(overallDiscount), // Only store the overall/global discount
                         total: new Decimal(total),
                         isRecurring: invoiceData.isRecurring || false,
                         recurringInterval: invoiceData.recurringInterval,

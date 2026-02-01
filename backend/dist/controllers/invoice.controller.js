@@ -36,13 +36,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getActivityLog = exports.revokePublicLink = exports.generatePublicLink = exports.getPublicInvoicePdf = exports.getPublicInvoice = exports.convertQuotation = exports.updateInvoice = exports.batchSendInvoices = exports.batchUpdateStatus = exports.updateInvoiceStatus = exports.sendInvoice = exports.getInvoiceStats = exports.recordPayment = exports.generateInvoicePDF = exports.getInvoice = exports.getInvoices = exports.createInvoice = void 0;
+exports.getActivityLog = exports.revokePublicLink = exports.generatePublicLink = exports.getPublicInvoicePdf = exports.getPublicInvoice = exports.convertQuotation = exports.updateInvoice = exports.deleteInvoice = exports.batchSendInvoices = exports.batchUpdateStatus = exports.updateInvoiceStatus = exports.sendInvoice = exports.getInvoiceStats = exports.recordPayment = exports.generateInvoicePDF = exports.getInvoice = exports.getInvoices = exports.createInvoice = void 0;
 const library_1 = require("@prisma/client/runtime/library");
 const client_1 = __importDefault(require("../prisma/client"));
 const invoice_service_1 = require("../services/invoice.service");
 const emailService = __importStar(require("../services/email.service"));
 const pdf_service_1 = require("../services/pdf.service");
 const uuid_1 = require("uuid");
+const permission_service_1 = require("../services/permission.service");
 /**
  * Create a new invoice
  */
@@ -52,9 +53,7 @@ const createInvoice = async (req, res) => {
         if (!userId) {
             return res.status(401).json({ error: 'Unauthorized' });
         }
-        const user = await client_1.default.user.findUnique({
-            where: { id: userId },
-        });
+        const user = req.user;
         if (!user || !user.companyId) {
             return res.status(400).json({ error: 'User must belong to a company' });
         }
@@ -106,9 +105,7 @@ const getInvoices = async (req, res) => {
         if (!userId) {
             return res.status(401).json({ error: 'Unauthorized' });
         }
-        const user = await client_1.default.user.findUnique({
-            where: { id: userId },
-        });
+        const user = req.user;
         if (!user || !user.companyId) {
             return res.status(400).json({ error: 'User must belong to a company' });
         }
@@ -284,10 +281,56 @@ const generateInvoicePDF = async (req, res) => {
         });
         // Use PDFService (HTML-to-PDF) for cleaner output
         const pdfBuffer = await pdf_service_1.PDFService.generateInvoicePDF({
-            ...invoice,
+            invoiceNumber: invoice.invoiceNumber,
+            invoiceDate: invoice.invoiceDate,
+            dueDate: invoice.dueDate || undefined,
+            notes: invoice.notes || undefined,
+            terms: invoice.terms || undefined,
+            currency: invoice.currency,
+            subtotal: Number(invoice.subtotal),
+            tax: Number(invoice.tax),
+            discount: Number(invoice.discount),
+            total: Number(invoice.total),
+            client: invoice.client ? {
+                name: invoice.client.name,
+                company: invoice.client.companyName || undefined,
+                email: invoice.client.email || undefined,
+                phone: invoice.client.phone || undefined,
+                mobile: invoice.client.mobile || undefined,
+                address: invoice.client.address || undefined,
+                city: invoice.client.city || undefined,
+                state: invoice.client.state || undefined,
+                country: invoice.client.country || undefined,
+                pincode: invoice.client.pincode || undefined,
+                gstin: invoice.client.gstin || undefined,
+                pan: invoice.client.pan || undefined,
+                website: invoice.client.website || undefined,
+            } : undefined,
+            items: invoice.items.map(item => ({
+                description: item.description,
+                quantity: Number(item.quantity),
+                unit: item.unit || undefined,
+                rate: Number(item.rate || 0),
+                discount: Number(item.discount || 0),
+                hsnSacCode: item.hsnSacCode || undefined,
+                appliedTaxes: (item.appliedTaxes || []).map(t => ({
+                    name: t.name,
+                    percentage: Number(t.percentage),
+                    amount: Number(t.amount)
+                }))
+            })),
             taxBreakdown: Object.values(taxBreakdown),
             company: {
-                ...invoice.company,
+                name: invoice.company.name,
+                logo: invoice.company.logo || undefined,
+                address: invoice.company.address || undefined,
+                city: invoice.company.city || undefined,
+                state: invoice.company.state || undefined,
+                country: invoice.company.country || undefined,
+                pincode: invoice.company.pincode || undefined,
+                email: invoice.company.email || undefined,
+                phone: invoice.company.phone || undefined,
+                gstin: invoice.company.gstin || undefined,
                 digitalSignature: invoice.company.digitalSignature || undefined,
                 letterhead: invoice.company.letterhead || undefined,
                 continuationSheet: invoice.company.continuationSheet || undefined,
@@ -383,7 +426,7 @@ exports.recordPayment = recordPayment;
 const getInvoiceStats = async (req, res) => {
     try {
         const userId = req.userId;
-        const user = await client_1.default.user.findUnique({ where: { id: userId } });
+        const user = req.user;
         if (!user?.companyId)
             return res.status(400).json({ error: 'Company not found' });
         const stats = await invoice_service_1.InvoiceService.getDashboardStats(user.companyId);
@@ -456,8 +499,65 @@ const sendInvoice = async (req, res) => {
             }
         });
         const pdfBuffer = await pdf_service_1.PDFService.generateInvoicePDF({
-            ...invoice,
+            invoiceNumber: invoice.invoiceNumber,
+            invoiceDate: invoice.invoiceDate,
+            dueDate: invoice.dueDate || undefined,
+            notes: invoice.notes || undefined,
+            terms: invoice.terms || undefined,
+            currency: invoice.currency,
+            subtotal: Number(invoice.subtotal),
+            tax: Number(invoice.tax),
+            discount: Number(invoice.discount),
+            total: Number(invoice.total),
+            client: invoice.client ? {
+                name: invoice.client.name,
+                company: invoice.client.companyName || undefined,
+                email: invoice.client.email || undefined,
+                phone: invoice.client.phone || undefined,
+                mobile: invoice.client.mobile || undefined,
+                address: invoice.client.address || undefined,
+                city: invoice.client.city || undefined,
+                state: invoice.client.state || undefined,
+                country: invoice.client.country || undefined,
+                pincode: invoice.client.pincode || undefined,
+                gstin: invoice.client.gstin || undefined,
+                pan: invoice.client.pan || undefined,
+                website: invoice.client.website || undefined,
+            } : undefined,
+            items: invoice.items.map(item => ({
+                description: item.description,
+                quantity: Number(item.quantity),
+                unit: item.unit || undefined,
+                rate: Number(item.rate || 0),
+                discount: Number(item.discount || 0),
+                hsnSacCode: item.hsnSacCode || undefined,
+                appliedTaxes: (item.appliedTaxes || []).map(t => ({
+                    name: t.name,
+                    percentage: Number(t.percentage),
+                    amount: Number(t.amount)
+                }))
+            })),
             taxBreakdown: Object.values(taxBreakdown),
+            company: {
+                name: invoice.company.name,
+                logo: invoice.company.logo || undefined,
+                address: invoice.company.address || undefined,
+                city: invoice.company.city || undefined,
+                state: invoice.company.state || undefined,
+                country: invoice.company.country || undefined,
+                pincode: invoice.company.pincode || undefined,
+                email: invoice.company.email || undefined,
+                phone: invoice.company.phone || undefined,
+                gstin: invoice.company.gstin || undefined,
+                digitalSignature: invoice.company.digitalSignature || undefined,
+                letterhead: invoice.company.letterhead || undefined,
+                continuationSheet: invoice.company.continuationSheet || undefined,
+                pdfMarginTop: invoice.company.pdfMarginTop || undefined,
+                pdfMarginBottom: invoice.company.pdfMarginBottom || undefined,
+                pdfMarginLeft: invoice.company.pdfMarginLeft || undefined,
+                pdfMarginRight: invoice.company.pdfMarginRight || undefined,
+                pdfContinuationTop: invoice.company.pdfContinuationTop || undefined
+            },
             useLetterhead: req.body.useLetterhead === true
         });
         const publicUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/portal/invoices/${invoice.id}`;
@@ -603,8 +703,66 @@ const batchSendInvoices = async (req, res) => {
                     }
                 });
                 const pdfBuffer = await pdf_service_1.PDFService.generateInvoicePDF({
-                    ...invoice,
-                    taxBreakdown: Object.values(taxBreakdown)
+                    invoiceNumber: invoice.invoiceNumber,
+                    invoiceDate: invoice.invoiceDate,
+                    dueDate: invoice.dueDate || undefined,
+                    notes: invoice.notes || undefined,
+                    terms: invoice.terms || undefined,
+                    currency: invoice.currency,
+                    subtotal: Number(invoice.subtotal),
+                    tax: Number(invoice.tax),
+                    discount: Number(invoice.discount),
+                    total: Number(invoice.total),
+                    client: invoice.client ? {
+                        name: invoice.client.name,
+                        company: invoice.client.companyName || undefined,
+                        email: invoice.client.email || undefined,
+                        phone: invoice.client.phone || undefined,
+                        mobile: invoice.client.mobile || undefined,
+                        address: invoice.client.address || undefined,
+                        city: invoice.client.city || undefined,
+                        state: invoice.client.state || undefined,
+                        country: invoice.client.country || undefined,
+                        pincode: invoice.client.pincode || undefined,
+                        gstin: invoice.client.gstin || undefined,
+                        pan: invoice.client.pan || undefined,
+                        website: invoice.client.website || undefined,
+                    } : undefined,
+                    items: invoice.items.map(item => ({
+                        description: item.description,
+                        quantity: Number(item.quantity),
+                        unit: item.unit || undefined,
+                        rate: Number(item.rate || 0),
+                        discount: Number(item.discount || 0),
+                        hsnSacCode: item.hsnSacCode || undefined,
+                        appliedTaxes: (item.appliedTaxes || []).map(t => ({
+                            name: t.name,
+                            percentage: Number(t.percentage),
+                            amount: Number(t.amount)
+                        }))
+                    })),
+                    taxBreakdown: Object.values(taxBreakdown),
+                    company: {
+                        name: invoice.company.name,
+                        logo: invoice.company.logo || undefined,
+                        address: invoice.company.address || undefined,
+                        city: invoice.company.city || undefined,
+                        state: invoice.company.state || undefined,
+                        country: invoice.company.country || undefined,
+                        pincode: invoice.company.pincode || undefined,
+                        email: invoice.company.email || undefined,
+                        phone: invoice.company.phone || undefined,
+                        gstin: invoice.company.gstin || undefined,
+                        digitalSignature: invoice.company.digitalSignature || undefined,
+                        letterhead: invoice.company.letterhead || undefined,
+                        continuationSheet: invoice.company.continuationSheet || undefined,
+                        pdfMarginTop: invoice.company.pdfMarginTop || undefined,
+                        pdfMarginBottom: invoice.company.pdfMarginBottom || undefined,
+                        pdfMarginLeft: invoice.company.pdfMarginLeft || undefined,
+                        pdfMarginRight: invoice.company.pdfMarginRight || undefined,
+                        pdfContinuationTop: invoice.company.pdfContinuationTop || undefined
+                    },
+                    useLetterhead: true
                 });
                 emailService.sendInvoiceEmail(invoice.client.email, invoice, pdfBuffer).catch(err => {
                     console.error(`Failed to send batch email for ${invoice.invoiceNumber}`, err);
@@ -624,6 +782,30 @@ const batchSendInvoices = async (req, res) => {
     }
 };
 exports.batchSendInvoices = batchSendInvoices;
+/**
+ * Delete an invoice
+ */
+const deleteInvoice = async (req, res) => {
+    try {
+        const { id } = req.params;
+        // Use req.user which is already hydrated with roles by authenticate middleware
+        const user = req.user;
+        if (!user || !user.companyId) {
+            return res.status(400).json({ error: 'User must belong to a company' });
+        }
+        // Check permissions
+        if (!permission_service_1.PermissionService.hasBasicPermission(user, 'Invoice', 'delete')) {
+            return res.status(403).json({ error: 'Access denied: No delete rights for Invoice' });
+        }
+        await invoice_service_1.InvoiceService.deleteInvoice(id, user.companyId);
+        res.json({ message: 'Invoice deleted successfully' });
+    }
+    catch (error) {
+        console.error('Delete invoice error:', error);
+        res.status(500).json({ error: error.message || 'Failed to delete invoice' });
+    }
+};
+exports.deleteInvoice = deleteInvoice;
 /**
  * Convert quotation to invoice
  */
@@ -813,8 +995,65 @@ const getPublicInvoicePdf = async (req, res) => {
             }
         });
         const pdfBuffer = await pdf_service_1.PDFService.generateInvoicePDF({
-            ...invoice,
+            invoiceNumber: invoice.invoiceNumber,
+            invoiceDate: invoice.invoiceDate,
+            dueDate: invoice.dueDate || undefined,
+            notes: invoice.notes || undefined,
+            terms: invoice.terms || undefined,
+            currency: invoice.currency,
+            subtotal: Number(invoice.subtotal),
+            tax: Number(invoice.tax),
+            discount: Number(invoice.discount),
+            total: Number(invoice.total),
+            client: invoice.client ? {
+                name: invoice.client.name,
+                company: invoice.client.companyName || undefined,
+                email: invoice.client.email || undefined,
+                phone: invoice.client.phone || undefined,
+                mobile: invoice.client.mobile || undefined,
+                address: invoice.client.address || undefined,
+                city: invoice.client.city || undefined,
+                state: invoice.client.state || undefined,
+                country: invoice.client.country || undefined,
+                pincode: invoice.client.pincode || undefined,
+                gstin: invoice.client.gstin || undefined,
+                pan: invoice.client.pan || undefined,
+                website: invoice.client.website || undefined,
+            } : undefined,
+            items: invoice.items.map(item => ({
+                description: item.description,
+                quantity: Number(item.quantity),
+                unit: item.unit || undefined,
+                rate: Number(item.rate || 0),
+                discount: Number(item.discount || 0),
+                hsnSacCode: item.hsnSacCode || undefined,
+                appliedTaxes: (item.appliedTaxes || []).map(t => ({
+                    name: t.name,
+                    percentage: Number(t.percentage),
+                    amount: Number(t.amount)
+                }))
+            })),
             taxBreakdown: Object.values(taxBreakdown),
+            company: {
+                name: invoice.company.name,
+                logo: invoice.company.logo || undefined,
+                address: invoice.company.address || undefined,
+                city: invoice.company.city || undefined,
+                state: invoice.company.state || undefined,
+                country: invoice.company.country || undefined,
+                pincode: invoice.company.pincode || undefined,
+                email: invoice.company.email || undefined,
+                phone: invoice.company.phone || undefined,
+                gstin: invoice.company.gstin || undefined,
+                digitalSignature: invoice.company.digitalSignature || undefined,
+                letterhead: invoice.company.letterhead || undefined,
+                continuationSheet: invoice.company.continuationSheet || undefined,
+                pdfMarginTop: invoice.company.pdfMarginTop || undefined,
+                pdfMarginBottom: invoice.company.pdfMarginBottom || undefined,
+                pdfMarginLeft: invoice.company.pdfMarginLeft || undefined,
+                pdfMarginRight: invoice.company.pdfMarginRight || undefined,
+                pdfContinuationTop: invoice.company.pdfContinuationTop || undefined
+            },
             useLetterhead: true
         });
         res.setHeader('Content-Type', 'application/pdf');

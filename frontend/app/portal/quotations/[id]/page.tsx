@@ -265,6 +265,30 @@ export default function QuotationDetails({ params }: { params: { id: string } })
                                     </div>
 
                                     {(() => {
+                                        const formatter = new Intl.NumberFormat(quotation.currency === 'INR' ? 'en-IN' : 'en-US', { style: 'currency', currency: quotation.currency || 'USD' });
+                                        const itemDiscounts = (quotation.items || []).reduce((acc: number, item: any) => {
+                                            const gross = Number(item.quantity) * Number(item.unitPrice);
+                                            return acc + (gross * (Number(item.discount || 0) / 100));
+                                        }, 0);
+
+                                        if (itemDiscounts > 0) {
+                                            return (
+                                                <>
+                                                    <div className="flex justify-between items-center text-sm pt-1">
+                                                        <span className="text-[9px] font-black text-rose-400 uppercase tracking-widest leading-none">Item Discounts:</span>
+                                                        <span className="text-xs font-black text-rose-600">-{formatter.format(itemDiscounts)}</span>
+                                                    </div>
+                                                    <div className="flex justify-between items-center text-sm pt-1 border-t border-dashed border-slate-200 mt-1 pb-1">
+                                                        <span className="text-[9px] font-black text-slate-900 uppercase tracking-widest leading-none">Taxable Amount:</span>
+                                                        <span className="text-xs font-black text-slate-900">{formatter.format(Number(quotation.subtotal) - itemDiscounts)}</span>
+                                                    </div>
+                                                </>
+                                            );
+                                        }
+                                        return null;
+                                    })()}
+
+                                    {(() => {
                                         const taxBreakdown: Record<string, number> = {};
                                         (quotation.items || []).forEach((item: any) => {
                                             const appliedTaxes = item.appliedTaxes;

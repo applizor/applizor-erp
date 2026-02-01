@@ -170,14 +170,21 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
     const isQuotation = invoice.type === 'quotation';
 
     // Calculate Financials & Tax Breakdown
-    const { taxBreakdown, subtotal, totalTax } = (() => {
+    const { taxBreakdown, subtotal, totalTax, totalItemDiscount } = (() => {
         const breakdown: Record<string, number> = {};
         let calculatedSubtotal = 0;
+        let calculatedItemDiscount = 0;
 
         invoice.items.forEach((item: any) => {
             const quantity = Number(item.quantity) || 0;
             const rate = Number(item.rate) || 0;
-            calculatedSubtotal += quantity * rate;
+            const itemGross = quantity * rate;
+            const discountPercent = Number(item.discount || 0);
+            const itemDiscAmount = itemGross * (discountPercent / 100);
+            const taxableAmount = itemGross - itemDiscAmount;
+
+            calculatedSubtotal += itemGross;
+            calculatedItemDiscount += itemDiscAmount;
 
             if (item.appliedTaxes && item.appliedTaxes.length > 0) {
                 item.appliedTaxes.forEach((tax: any) => {
@@ -186,7 +193,7 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
                 });
             } else if (Number(item.taxRate) > 0) {
                 // Fallback
-                const taxAmount = (quantity * rate * Number(item.taxRate)) / 100;
+                const taxAmount = taxableAmount * (Number(item.taxRate) / 100);
                 const key = `Tax @${Number(item.taxRate)}%`;
                 breakdown[key] = (breakdown[key] || 0) + taxAmount;
             }
@@ -196,7 +203,8 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
         return {
             taxBreakdown: breakdown,
             subtotal: calculatedSubtotal,
-            totalTax: totalTaxCalc
+            totalTax: totalTaxCalc,
+            totalItemDiscount: calculatedItemDiscount
         };
     })();
 
@@ -395,7 +403,9 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
                                             <thead>
                                                 <tr>
                                                     <th className="text-[10px] uppercase tracking-widest">Specification</th>
-                                                    <th className="text-center text-[10px] uppercase tracking-widest">Units</th>
+                                                    <th className="text-[10px] uppercase tracking-widest">HSN/SAC</th>
+                                                    <th className="text-center text-[10px] uppercase tracking-widest">Qty</th>
+                                                    <th className="text-center text-[10px] uppercase tracking-widest">UoM</th>
                                                     <th className="text-right text-[10px] uppercase tracking-widest">Unit Rate</th>
                                                     <th className="text-right text-[10px] uppercase tracking-widest">Disc %</th>
                                                     <th className="text-right text-[10px] uppercase tracking-widest">Net Value</th>
@@ -404,8 +414,10 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
                                             <tbody className="divide-y divide-gray-50 border-b border-gray-50">
                                                 {invoice.items.map((item: any) => (
                                                     <tr key={item.id} className="hover:bg-gray-50/50 transition-colors">
-                                                        <td className="py-4 font-bold text-gray-900 text-xs">{item.description}</td>
+                                                        <td className="py-4 font-bold text-gray-900 text-xs text-left">{item.description}</td>
+                                                        <td className="py-4 text-xs font-mono text-gray-500">{item.hsnSacCode || '--'}</td>
                                                         <td className="py-4 text-center font-black text-gray-600 text-xs">{Number(item.quantity)}</td>
+                                                        <td className="py-4 text-center font-bold text-gray-500 text-xs">{item.unit || '--'}</td>
                                                         <td className="py-4 text-right font-bold text-gray-600 text-xs">{formatCurrency(item.rate)}</td>
                                                         <td className="py-4 text-right font-bold text-rose-500 text-xs">{Number(item.discount) > 0 ? `${Number(item.discount)}%` : '--'}</td>
                                                         <td className="py-4 text-right font-black text-gray-900 text-xs">{formatCurrency(item.amount)}</td>
@@ -414,7 +426,7 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
                                             </tbody>
                                             <tfoot>
                                                 <tr className="bg-gray-50/30">
-                                                    <td colSpan={4} className="py-4 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">Aggregated Valuation Total</td>
+                                                    <td colSpan={6} className="py-4 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">Aggregated Valuation Total</td>
                                                     <td className="py-4 text-right font-black text-lg text-primary-600">{formatCurrency(invoice.total)}</td>
                                                 </tr>
                                             </tfoot>
@@ -477,7 +489,7 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
 
                                         {Number(invoice.discount) > 0 && (
                                             <div className="flex justify-between text-sm text-gray-600">
-                                                <span className="font-medium text-xs uppercase tracking-wider text-gray-500">Total Discount:</span>
+                                                <span className="font-medium text-xs uppercase tracking-wider text-gray-500">Additional Discount:</span>
                                                 <span className="font-bold text-rose-600">-{formatCurrency(invoice.discount)}</span>
                                             </div>
                                         )}

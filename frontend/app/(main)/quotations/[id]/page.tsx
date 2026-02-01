@@ -257,11 +257,11 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
                         </Button>
                     )}
 
-                    {can('Quotation', 'update') && quotation.status === 'accepted' && !quotation.convertedToInvoiceId && (
+                    {can('Quotation', 'update') && (quotation.status === 'accepted' || quotation.clientAcceptedAt) && (
                         <Button
                             className="bg-emerald-600 hover:bg-emerald-700 border-emerald-600"
                             onClick={async () => {
-                                if (!await confirm({ message: 'Convert to Invoice?', type: 'info' })) return;
+                                if (!await confirm({ message: quotation.convertedToInvoiceId ? 'This quotation was already converted. Do you want to generate a NEW invoice (re-generation)?' : 'Convert to Invoice?', type: 'info' })) return;
                                 try {
                                     await quotationsApi.convertToInvoice(quotation.id);
                                     toast.success('Converted successfully');
@@ -271,7 +271,7 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
                             variant="primary"
                             icon={CheckCircle}
                         >
-                            Convert to Invoice
+                            {quotation.convertedToInvoiceId ? 'Re-generate Invoice' : 'Convert to Invoice'}
                         </Button>
                     )}
                 </div>
@@ -419,8 +419,9 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
                                     <thead>
                                         <tr className="border-b-2 border-gray-100">
                                             <th className="px-2 py-3 text-left text-xs font-black text-gray-400 uppercase tracking-wider w-1/3">Description</th>
-                                            <th className="px-2 py-3 text-right text-xs font-black text-gray-400 uppercase tracking-wider">Qty</th>
-                                            <th className="px-2 py-3 text-right text-xs font-black text-gray-400 uppercase tracking-wider">UoM</th>
+                                            <th className="px-2 py-3 text-center text-xs font-black text-gray-400 uppercase tracking-wider">HSN/SAC</th>
+                                            <th className="px-2 py-3 text-center text-xs font-black text-gray-400 uppercase tracking-wider">Qty</th>
+                                            <th className="px-2 py-3 text-center text-xs font-black text-gray-400 uppercase tracking-wider">UoM</th>
                                             <th className="px-2 py-3 text-right text-xs font-black text-gray-400 uppercase tracking-wider">Rate</th>
                                             <th className="px-2 py-3 text-right text-xs font-black text-gray-400 uppercase tracking-wider">Disc %</th>
                                             <th className="px-2 py-3 text-right text-xs font-black text-gray-400 uppercase tracking-wider">Tax</th>
@@ -433,11 +434,14 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
                                                 <td className="px-2 py-4">
                                                     <p className="text-sm font-bold text-gray-900">{item.description}</p>
                                                 </td>
-                                                <td className="px-2 py-4 text-right text-sm font-medium text-gray-600">
+                                                <td className="px-2 py-4 text-center text-sm font-medium text-gray-400 font-mono">
+                                                    {item.hsnSacCode || '--'}
+                                                </td>
+                                                <td className="px-2 py-4 text-center text-sm font-medium text-gray-600">
                                                     {Number(item.quantity)}
                                                 </td>
-                                                <td className="px-2 py-4 text-right text-sm font-medium text-gray-600">
-                                                    {item.unit || '-'}
+                                                <td className="px-2 py-4 text-center text-sm font-medium text-gray-600 uppercase">
+                                                    {item.unit || '--'}
                                                 </td>
                                                 <td className="px-2 py-4 text-right text-sm font-medium text-gray-600">
                                                     {formatCurrency(item.unitPrice)}
@@ -523,7 +527,7 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
 
                                         {Number(quotation.discount) > 0 && (
                                             <div className="flex justify-between text-sm text-gray-600">
-                                                <span className="font-medium text-xs uppercase tracking-wider text-gray-500">Total Discount:</span>
+                                                <span className="font-medium text-xs uppercase tracking-wider text-gray-500">Additional Discount:</span>
                                                 <span className="font-bold text-rose-600">-{formatCurrency(quotation.discount)}</span>
                                             </div>
                                         )}

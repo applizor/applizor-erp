@@ -231,8 +231,10 @@ export default function PublicInvoiceDetails({ params }: { params: { token: stri
                         <table className="min-w-full divide-y divide-gray-100">
                             <thead className="bg-slate-50/50">
                                 <tr>
-                                    <th className="px-8 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Description / HSN/SAC</th>
+                                    <th className="px-8 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Description</th>
+                                    <th className="px-8 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">HSN/SAC</th>
                                     <th className="px-8 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Qty</th>
+                                    <th className="px-8 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">UoM</th>
                                     <th className="px-8 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Rate</th>
                                     <th className="px-8 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Disc %</th>
                                     <th className="px-8 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Amount</th>
@@ -243,12 +245,10 @@ export default function PublicInvoiceDetails({ params }: { params: { token: stri
                                     <tr key={index} className="hover:bg-slate-50/30 transition-colors">
                                         <td className="px-8 py-5">
                                             <div className="text-sm font-bold text-slate-900">{item.description}</div>
-                                            <div className="text-[10px] text-slate-500 mt-1 uppercase font-bold tracking-wider">
-                                                {item.hsnSacCode ? `Code: ${item.hsnSacCode}` : ''}
-                                                {item.unit ? `${item.hsnSacCode ? ' | ' : ''}Unit: ${item.unit}` : ''}
-                                            </div>
                                         </td>
+                                        <td className="px-8 py-5 text-xs text-slate-500 text-center font-mono">{item.hsnSacCode || '--'}</td>
                                         <td className="px-8 py-5 text-sm font-medium text-slate-600 text-center">{Number(item.quantity)}</td>
+                                        <td className="px-8 py-5 text-sm font-medium text-slate-600 text-center uppercase">{item.unit || '--'}</td>
                                         <td className="px-8 py-5 text-sm font-medium text-slate-600 text-right">{formatCurrency(item.rate)}</td>
                                         <td className="px-8 py-5 text-sm font-bold text-rose-500 text-right">{Number(item.discount) > 0 ? `${Number(item.discount)}%` : '--'}</td>
                                         <td className="px-8 py-5 text-sm font-black text-slate-900 text-right">
@@ -259,7 +259,7 @@ export default function PublicInvoiceDetails({ params }: { params: { token: stri
                             </tbody>
                             <tfoot className="bg-slate-50/50">
                                 <tr>
-                                    <td colSpan={4} className="px-8 py-3 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Gross Subtotal:</td>
+                                    <td colSpan={6} className="px-8 py-3 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Gross Subtotal:</td>
                                     <td className="px-8 py-3 text-right text-sm font-bold text-slate-900">{formatCurrency(invoice.subtotal)}</td>
                                 </tr>
                                 {(() => {
@@ -272,11 +272,11 @@ export default function PublicInvoiceDetails({ params }: { params: { token: stri
                                         return (
                                             <>
                                                 <tr>
-                                                    <td colSpan={4} className="px-8 py-3 text-right text-[10px] font-black text-rose-500 uppercase tracking-widest">Item Discounts:</td>
+                                                    <td colSpan={6} className="px-8 py-3 text-right text-[10px] font-black text-rose-500 uppercase tracking-widest">Item Discounts:</td>
                                                     <td className="px-8 py-3 text-right text-sm font-bold text-rose-600">-{formatCurrency(itemDiscounts)}</td>
                                                 </tr>
                                                 <tr className="border-t border-dashed border-slate-200">
-                                                    <td colSpan={4} className="px-8 py-3 text-right text-[10px] font-black text-slate-900 uppercase tracking-widest">Taxable Amount:</td>
+                                                    <td colSpan={6} className="px-8 py-3 text-right text-[10px] font-black text-slate-900 uppercase tracking-widest">Taxable Amount:</td>
                                                     <td className="px-8 py-3 text-right text-sm font-bold text-slate-900">{formatCurrency(Number(invoice.subtotal) - itemDiscounts)}</td>
                                                 </tr>
                                             </>
@@ -308,12 +308,12 @@ export default function PublicInvoiceDetails({ params }: { params: { token: stri
                                     return (
                                         <>
                                             <tr>
-                                                <td colSpan={4} className="px-8 py-3 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Tax:</td>
+                                                <td colSpan={6} className="px-8 py-3 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Tax:</td>
                                                 <td className="px-8 py-3 text-right text-sm font-bold text-slate-900">{formatCurrency(invoice.tax)}</td>
                                             </tr>
                                             {Object.entries(taxBreakdown).map(([key, amount]) => (
                                                 <tr key={key}>
-                                                    <td colSpan={4} className="px-8 py-1.5 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest pl-16">
+                                                    <td colSpan={6} className="px-8 py-1.5 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest pl-16">
                                                         <span className="border-r border-slate-200 pr-2">{key}:</span>
                                                     </td>
                                                     <td className="px-8 py-1.5 text-right text-xs font-bold text-slate-500 italic">{formatCurrency(amount as number)}</td>
@@ -324,12 +324,12 @@ export default function PublicInvoiceDetails({ params }: { params: { token: stri
                                 })()}
                                 {Number(invoice.discount) > 0 && (
                                     <tr>
-                                        <td colSpan={4} className="px-8 py-3 text-right text-[10px] font-black text-rose-500 uppercase tracking-widest">Total Discount:</td>
+                                        <td colSpan={6} className="px-8 py-3 text-right text-[10px] font-black text-rose-500 uppercase tracking-widest">Additional Discount:</td>
                                         <td className="px-8 py-3 text-right text-sm font-bold text-rose-600">-{formatCurrency(invoice.discount)}</td>
                                     </tr>
                                 )}
                                 <tr className="bg-slate-100 border-t-2 border-slate-200">
-                                    <td colSpan={4} className="px-8 py-5 text-right text-xs font-black text-slate-900 uppercase tracking-widest">Total Valuation:</td>
+                                    <td colSpan={6} className="px-8 py-5 text-right text-xs font-black text-slate-900 uppercase tracking-widest">Total Valuation:</td>
                                     <td className="px-8 py-5 text-right text-xl font-black text-primary-700">{formatCurrency(invoice.total)}</td>
                                 </tr>
                             </tfoot>

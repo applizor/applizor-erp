@@ -20,7 +20,9 @@ router.post('/:id/convert', auth_1.authenticate, invoice_controller_1.convertQuo
 router.post('/:id/payments', auth_1.authenticate, invoice_controller_1.recordPayment);
 router.post('/:id/generate-link', auth_1.authenticate, invoice_controller_1.generatePublicLink);
 router.post('/:id/revoke-link', auth_1.authenticate, invoice_controller_1.revokePublicLink);
+router.post('/:id/revoke-link', auth_1.authenticate, invoice_controller_1.revokePublicLink);
 router.put('/:id/status', auth_1.authenticate, invoice_controller_1.updateInvoiceStatus);
+router.delete('/:id', auth_1.authenticate, invoice_controller_1.deleteInvoice);
 // Public routes (no authentication required)
 router.get('/public/:token', invoice_public_controller_1.getInvoiceByToken);
 router.get('/public/:token/download', invoice_public_controller_1.downloadPDFPublic);

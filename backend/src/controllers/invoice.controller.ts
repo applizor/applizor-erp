@@ -19,9 +19,7 @@ export const createInvoice = async (req: AuthRequest, res: Response) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-    });
+    const user = req.user;
 
     if (!user || !user.companyId) {
       return res.status(400).json({ error: 'User must belong to a company' });
@@ -76,9 +74,7 @@ export const getInvoices = async (req: AuthRequest, res: Response) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-    });
+    const user = req.user;
 
     if (!user || !user.companyId) {
       return res.status(400).json({ error: 'User must belong to a company' });
@@ -266,10 +262,56 @@ export const generateInvoicePDF = async (req: AuthRequest, res: Response) => {
 
     // Use PDFService (HTML-to-PDF) for cleaner output
     const pdfBuffer = await PDFService.generateInvoicePDF({
-      ...invoice,
+      invoiceNumber: invoice.invoiceNumber,
+      invoiceDate: invoice.invoiceDate,
+      dueDate: invoice.dueDate || undefined,
+      notes: invoice.notes || undefined,
+      terms: invoice.terms || undefined,
+      currency: invoice.currency,
+      subtotal: Number(invoice.subtotal),
+      tax: Number(invoice.tax),
+      discount: Number(invoice.discount),
+      total: Number(invoice.total),
+      client: invoice.client ? {
+        name: invoice.client.name,
+        company: invoice.client.companyName || undefined,
+        email: invoice.client.email || undefined,
+        phone: invoice.client.phone || undefined,
+        mobile: invoice.client.mobile || undefined,
+        address: invoice.client.address || undefined,
+        city: invoice.client.city || undefined,
+        state: invoice.client.state || undefined,
+        country: invoice.client.country || undefined,
+        pincode: invoice.client.pincode || undefined,
+        gstin: invoice.client.gstin || undefined,
+        pan: invoice.client.pan || undefined,
+        website: invoice.client.website || undefined,
+      } : undefined,
+      items: invoice.items.map(item => ({
+        description: item.description,
+        quantity: Number(item.quantity),
+        unit: item.unit || undefined,
+        rate: Number(item.rate || 0),
+        discount: Number(item.discount || 0),
+        hsnSacCode: item.hsnSacCode || undefined,
+        appliedTaxes: (item.appliedTaxes as any[] || []).map(t => ({
+          name: t.name,
+          percentage: Number(t.percentage),
+          amount: Number(t.amount)
+        }))
+      })),
       taxBreakdown: Object.values(taxBreakdown),
       company: {
-        ...invoice.company,
+        name: invoice.company.name,
+        logo: invoice.company.logo || undefined,
+        address: invoice.company.address || undefined,
+        city: invoice.company.city || undefined,
+        state: invoice.company.state || undefined,
+        country: invoice.company.country || undefined,
+        pincode: invoice.company.pincode || undefined,
+        email: invoice.company.email || undefined,
+        phone: invoice.company.phone || undefined,
+        gstin: invoice.company.gstin || undefined,
         digitalSignature: invoice.company.digitalSignature || undefined,
         letterhead: invoice.company.letterhead || undefined,
         continuationSheet: invoice.company.continuationSheet || undefined,
@@ -367,7 +409,7 @@ export const recordPayment = async (req: AuthRequest, res: Response) => {
 export const getInvoiceStats = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId;
-    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const user = req.user;
     if (!user?.companyId) return res.status(400).json({ error: 'Company not found' });
 
     const stats = await InvoiceService.getDashboardStats(user.companyId);
@@ -442,8 +484,65 @@ export const sendInvoice = async (req: AuthRequest, res: Response) => {
     });
 
     const pdfBuffer = await PDFService.generateInvoicePDF({
-      ...invoice,
+      invoiceNumber: invoice.invoiceNumber,
+      invoiceDate: invoice.invoiceDate,
+      dueDate: invoice.dueDate || undefined,
+      notes: invoice.notes || undefined,
+      terms: invoice.terms || undefined,
+      currency: invoice.currency,
+      subtotal: Number(invoice.subtotal),
+      tax: Number(invoice.tax),
+      discount: Number(invoice.discount),
+      total: Number(invoice.total),
+      client: invoice.client ? {
+        name: invoice.client.name,
+        company: invoice.client.companyName || undefined,
+        email: invoice.client.email || undefined,
+        phone: invoice.client.phone || undefined,
+        mobile: invoice.client.mobile || undefined,
+        address: invoice.client.address || undefined,
+        city: invoice.client.city || undefined,
+        state: invoice.client.state || undefined,
+        country: invoice.client.country || undefined,
+        pincode: invoice.client.pincode || undefined,
+        gstin: invoice.client.gstin || undefined,
+        pan: invoice.client.pan || undefined,
+        website: invoice.client.website || undefined,
+      } : undefined,
+      items: invoice.items.map(item => ({
+        description: item.description,
+        quantity: Number(item.quantity),
+        unit: item.unit || undefined,
+        rate: Number(item.rate || 0),
+        discount: Number(item.discount || 0),
+        hsnSacCode: item.hsnSacCode || undefined,
+        appliedTaxes: (item.appliedTaxes as any[] || []).map(t => ({
+          name: t.name,
+          percentage: Number(t.percentage),
+          amount: Number(t.amount)
+        }))
+      })),
       taxBreakdown: Object.values(taxBreakdown),
+      company: {
+        name: invoice.company.name,
+        logo: invoice.company.logo || undefined,
+        address: invoice.company.address || undefined,
+        city: invoice.company.city || undefined,
+        state: invoice.company.state || undefined,
+        country: invoice.company.country || undefined,
+        pincode: invoice.company.pincode || undefined,
+        email: invoice.company.email || undefined,
+        phone: invoice.company.phone || undefined,
+        gstin: invoice.company.gstin || undefined,
+        digitalSignature: invoice.company.digitalSignature || undefined,
+        letterhead: invoice.company.letterhead || undefined,
+        continuationSheet: invoice.company.continuationSheet || undefined,
+        pdfMarginTop: (invoice.company as any).pdfMarginTop || undefined,
+        pdfMarginBottom: (invoice.company as any).pdfMarginBottom || undefined,
+        pdfMarginLeft: (invoice.company as any).pdfMarginLeft || undefined,
+        pdfMarginRight: (invoice.company as any).pdfMarginRight || undefined,
+        pdfContinuationTop: (invoice.company as any).pdfContinuationTop || undefined
+      },
       useLetterhead: req.body.useLetterhead === true
     });
 
@@ -597,8 +696,66 @@ export const batchSendInvoices = async (req: AuthRequest, res: Response) => {
         });
 
         const pdfBuffer = await PDFService.generateInvoicePDF({
-          ...invoice as any,
-          taxBreakdown: Object.values(taxBreakdown)
+          invoiceNumber: invoice.invoiceNumber,
+          invoiceDate: invoice.invoiceDate,
+          dueDate: invoice.dueDate || undefined,
+          notes: invoice.notes || undefined,
+          terms: invoice.terms || undefined,
+          currency: invoice.currency,
+          subtotal: Number(invoice.subtotal),
+          tax: Number(invoice.tax),
+          discount: Number(invoice.discount),
+          total: Number(invoice.total),
+          client: invoice.client ? {
+            name: invoice.client.name,
+            company: invoice.client.companyName || undefined,
+            email: invoice.client.email || undefined,
+            phone: invoice.client.phone || undefined,
+            mobile: invoice.client.mobile || undefined,
+            address: invoice.client.address || undefined,
+            city: invoice.client.city || undefined,
+            state: invoice.client.state || undefined,
+            country: invoice.client.country || undefined,
+            pincode: invoice.client.pincode || undefined,
+            gstin: invoice.client.gstin || undefined,
+            pan: invoice.client.pan || undefined,
+            website: invoice.client.website || undefined,
+          } : undefined,
+          items: invoice.items.map(item => ({
+            description: item.description,
+            quantity: Number(item.quantity),
+            unit: item.unit || undefined,
+            rate: Number(item.rate || 0),
+            discount: Number(item.discount || 0),
+            hsnSacCode: item.hsnSacCode || undefined,
+            appliedTaxes: (item.appliedTaxes as any[] || []).map(t => ({
+              name: t.name,
+              percentage: Number(t.percentage),
+              amount: Number(t.amount)
+            }))
+          })),
+          taxBreakdown: Object.values(taxBreakdown),
+          company: {
+            name: invoice.company.name,
+            logo: invoice.company.logo || undefined,
+            address: invoice.company.address || undefined,
+            city: invoice.company.city || undefined,
+            state: invoice.company.state || undefined,
+            country: invoice.company.country || undefined,
+            pincode: invoice.company.pincode || undefined,
+            email: invoice.company.email || undefined,
+            phone: invoice.company.phone || undefined,
+            gstin: invoice.company.gstin || undefined,
+            digitalSignature: invoice.company.digitalSignature || undefined,
+            letterhead: invoice.company.letterhead || undefined,
+            continuationSheet: invoice.company.continuationSheet || undefined,
+            pdfMarginTop: (invoice.company as any).pdfMarginTop || undefined,
+            pdfMarginBottom: (invoice.company as any).pdfMarginBottom || undefined,
+            pdfMarginLeft: (invoice.company as any).pdfMarginLeft || undefined,
+            pdfMarginRight: (invoice.company as any).pdfMarginRight || undefined,
+            pdfContinuationTop: (invoice.company as any).pdfContinuationTop || undefined
+          },
+          useLetterhead: true
         });
         emailService.sendInvoiceEmail(invoice.client.email, invoice, pdfBuffer).catch(err => {
           console.error(`Failed to send batch email for ${invoice.invoiceNumber}`, err);
@@ -625,14 +782,8 @@ export const batchSendInvoices = async (req: AuthRequest, res: Response) => {
 export const deleteInvoice = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const userId = req.userId;
-    if (!userId) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-    });
+    // Use req.user which is already hydrated with roles by authenticate middleware
+    const user = req.user;
 
     if (!user || !user.companyId) {
       return res.status(400).json({ error: 'User must belong to a company' });
@@ -854,8 +1005,65 @@ export const getPublicInvoicePdf = async (req: AuthRequest, res: Response) => {
     });
 
     const pdfBuffer = await PDFService.generateInvoicePDF({
-      ...invoice,
+      invoiceNumber: invoice.invoiceNumber,
+      invoiceDate: invoice.invoiceDate,
+      dueDate: invoice.dueDate || undefined,
+      notes: invoice.notes || undefined,
+      terms: invoice.terms || undefined,
+      currency: invoice.currency,
+      subtotal: Number(invoice.subtotal),
+      tax: Number(invoice.tax),
+      discount: Number(invoice.discount),
+      total: Number(invoice.total),
+      client: invoice.client ? {
+        name: invoice.client.name,
+        company: invoice.client.companyName || undefined,
+        email: invoice.client.email || undefined,
+        phone: invoice.client.phone || undefined,
+        mobile: invoice.client.mobile || undefined,
+        address: invoice.client.address || undefined,
+        city: invoice.client.city || undefined,
+        state: invoice.client.state || undefined,
+        country: invoice.client.country || undefined,
+        pincode: invoice.client.pincode || undefined,
+        gstin: invoice.client.gstin || undefined,
+        pan: invoice.client.pan || undefined,
+        website: invoice.client.website || undefined,
+      } : undefined,
+      items: invoice.items.map(item => ({
+        description: item.description,
+        quantity: Number(item.quantity),
+        unit: item.unit || undefined,
+        rate: Number(item.rate || 0),
+        discount: Number(item.discount || 0),
+        hsnSacCode: item.hsnSacCode || undefined,
+        appliedTaxes: (item.appliedTaxes as any[] || []).map(t => ({
+          name: t.name,
+          percentage: Number(t.percentage),
+          amount: Number(t.amount)
+        }))
+      })),
       taxBreakdown: Object.values(taxBreakdown),
+      company: {
+        name: invoice.company.name,
+        logo: invoice.company.logo || undefined,
+        address: invoice.company.address || undefined,
+        city: invoice.company.city || undefined,
+        state: invoice.company.state || undefined,
+        country: invoice.company.country || undefined,
+        pincode: invoice.company.pincode || undefined,
+        email: invoice.company.email || undefined,
+        phone: invoice.company.phone || undefined,
+        gstin: invoice.company.gstin || undefined,
+        digitalSignature: invoice.company.digitalSignature || undefined,
+        letterhead: invoice.company.letterhead || undefined,
+        continuationSheet: invoice.company.continuationSheet || undefined,
+        pdfMarginTop: (invoice.company as any).pdfMarginTop || undefined,
+        pdfMarginBottom: (invoice.company as any).pdfMarginBottom || undefined,
+        pdfMarginLeft: (invoice.company as any).pdfMarginLeft || undefined,
+        pdfMarginRight: (invoice.company as any).pdfMarginRight || undefined,
+        pdfContinuationTop: (invoice.company as any).pdfContinuationTop || undefined
+      },
       useLetterhead: true
     });
 

@@ -463,6 +463,18 @@ export default function EditQuotationTemplatePage({ params }: { params: { id: st
                                     <span>Total Tax</span>
                                     <span>{formatCurrency(totals.tax)}</span>
                                 </div>
+                                {totals.discount > 0 && (
+                                    <>
+                                        <div className="flex justify-between text-xs font-bold text-rose-500 uppercase tracking-wide">
+                                            <span>Item Discounts</span>
+                                            <span>-{formatCurrency(totals.discount)}</span>
+                                        </div>
+                                        <div className="flex justify-between text-xs font-black text-gray-900 uppercase tracking-wide border-t border-dashed border-gray-200 pt-1">
+                                            <span>Taxable Amount</span>
+                                            <span>{formatCurrency(totals.subtotal - totals.discount)}</span>
+                                        </div>
+                                    </>
+                                )}
                                 <div className="pt-4 border-t border-gray-200 flex justify-between items-center">
                                     <span className="text-sm font-black text-gray-900 uppercase tracking-wide">Total Value</span>
                                     <span className="text-xl font-black text-primary-700 tracking-tight">{formatCurrency(totals.total)}</span>

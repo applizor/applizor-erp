@@ -4,6 +4,7 @@ import { AuthRequest } from '../middleware/auth';
 import { PermissionService } from '../services/permission.service';
 import { v4 as uuidv4 } from 'uuid';
 import { Decimal } from '@prisma/client/runtime/library';
+import { PDFService } from '../services/pdf.service';
 
 // Generate Public Link for Quotation
 export const generatePublicLink = async (req: AuthRequest, res: Response) => {
@@ -511,6 +512,14 @@ export const downloadSignedQuotationPDFPublic = async (req: Request, res: Respon
             validUntil: quotation.validUntil || undefined,
             title: quotation.title || undefined,
             description: quotation.description || undefined,
+            notes: quotation.notes || undefined,
+            paymentTerms: (quotation as any).paymentTerms || undefined,
+            deliveryTerms: (quotation as any).deliveryTerms || undefined,
+            currency: quotation.currency,
+            subtotal: Number(quotation.subtotal),
+            tax: Number(quotation.tax),
+            discount: Number(quotation.discount),
+            total: Number(quotation.total),
             company: {
                 name: quotation.company.name,
                 logo: quotation.company.logo || undefined,
@@ -525,11 +534,11 @@ export const downloadSignedQuotationPDFPublic = async (req: Request, res: Respon
                 digitalSignature: quotation.company.digitalSignature || undefined,
                 letterhead: quotation.company.letterhead || undefined,
                 continuationSheet: quotation.company.continuationSheet || undefined,
-                pdfMarginTop: (quotation.company as any).pdfMarginTop,
-                pdfMarginBottom: (quotation.company as any).pdfMarginBottom,
-                pdfMarginLeft: (quotation.company as any).pdfMarginLeft,
-                pdfMarginRight: (quotation.company as any).pdfMarginRight,
-                pdfContinuationTop: (quotation.company as any).pdfContinuationTop
+                pdfMarginTop: (quotation.company as any).pdfMarginTop || undefined,
+                pdfMarginBottom: (quotation.company as any).pdfMarginBottom || undefined,
+                pdfMarginLeft: (quotation.company as any).pdfMarginLeft || undefined,
+                pdfMarginRight: (quotation.company as any).pdfMarginRight || undefined,
+                pdfContinuationTop: (quotation.company as any).pdfContinuationTop || undefined
             },
             lead: quotation.lead ? {
                 name: quotation.lead.name,
@@ -541,17 +550,15 @@ export const downloadSignedQuotationPDFPublic = async (req: Request, res: Respon
                 description: item.description,
                 quantity: Number(item.quantity),
                 unit: item.unit || undefined,
-                unitPrice: Number(item.unitPrice),
-                taxRate: Number(item.tax),
-                discount: Number(item.discount),
-                hsnSacCode: item.hsnSacCode || undefined
+                rate: Number(item.unitPrice || 0),
+                discount: Number(item.discount || 0),
+                hsnSacCode: item.hsnSacCode || undefined,
+                appliedTaxes: (item.appliedTaxes as any[] || []).map(t => ({
+                    name: t.name,
+                    percentage: Number(t.percentage),
+                    amount: Number(t.amount)
+                }))
             })),
-            subtotal: Number(quotation.subtotal),
-            tax: Number(quotation.tax),
-            discount: Number(quotation.discount),
-            total: Number(quotation.total),
-            currency: quotation.currency,
-            notes: quotation.notes || undefined,
             clientSignature: quotation.clientSignature,
             clientName: quotation.clientName || undefined,
             clientAcceptedAt: quotation.clientAcceptedAt,
@@ -566,5 +573,174 @@ export const downloadSignedQuotationPDFPublic = async (req: Request, res: Respon
     } catch (error: any) {
         console.error('Download signed quotation PDF (public) error:', error);
         res.status(500).json({ error: 'Failed to generate signed PDF', details: error.message });
+    }
+};
+
+/**
+ * Download public quotation PDF by token
+ */
+export const downloadPDFPublic = async (req: Request, res: Response) => {
+    try {
+        const { token } = req.params;
+
+        const quotation = await prisma.quotation.findFirst({
+            where: {
+                publicToken: token,
+                isPublicEnabled: true,
+                OR: [
+                    { publicExpiresAt: null },
+                    { publicExpiresAt: { gt: new Date() } }
+                ]
+            },
+            include: {
+                company: true,
+                client: true,
+                lead: true,
+                items: {
+                    include: {
+                        appliedTaxes: true
+                    }
+                },
+            },
+        });
+
+        if (!quotation) {
+            return res.status(404).json({ error: 'Quotation not found or link expired' });
+        }
+
+        // Calculate Tax Breakdown
+        const allTaxRates = await prisma.taxRate.findMany({ where: { companyId: quotation.companyId } });
+        const taxMap = new Map<number, string>();
+        allTaxRates.forEach(t => taxMap.set(Number(t.percentage), t.name));
+
+        const taxBreakdown: Record<string, { name: string; percentage: number; amount: number }> = {};
+
+        ((quotation as any).items || []).forEach((item: any) => {
+            if (item.appliedTaxes && item.appliedTaxes.length > 0) {
+                item.appliedTaxes.forEach((tax: any) => {
+                    const key = `${tax.name}_${tax.percentage}`;
+                    if (!taxBreakdown[key]) {
+                        taxBreakdown[key] = {
+                            name: tax.name,
+                            percentage: Number(tax.percentage),
+                            amount: 0
+                        };
+                    }
+                    taxBreakdown[key].amount += Number(tax.amount);
+                });
+            } else if (item.taxRate || item.tax) {
+                const rate = Number(item.taxRate || item.tax);
+                if (rate > 0) {
+                    const key = `Tax_${rate}`;
+                    if (!taxBreakdown[key]) {
+                        const resolvedName = taxMap.get(rate) || 'Tax';
+                        taxBreakdown[key] = {
+                            name: resolvedName,
+                            percentage: rate,
+                            amount: 0
+                        };
+                    }
+                    const amount = (Number(item.quantity) * Number(item.unitPrice || item.unitPrice) * rate) / 100;
+                    taxBreakdown[key].amount += amount;
+                }
+            }
+        });
+
+        const pdfBuffer = await PDFService.generateQuotationPDF({
+            taxBreakdown: Object.values(taxBreakdown),
+            quotationNumber: quotation.quotationNumber,
+            quotationDate: quotation.quotationDate,
+            validUntil: quotation.validUntil || undefined,
+            title: quotation.title || undefined,
+            description: quotation.description || undefined,
+            notes: quotation.notes || undefined,
+            paymentTerms: (quotation as any).paymentTerms || undefined,
+            deliveryTerms: (quotation as any).deliveryTerms || undefined,
+            currency: quotation.currency,
+            subtotal: Number(quotation.subtotal),
+            tax: Number(quotation.tax),
+            discount: Number(quotation.discount),
+            total: Number(quotation.total),
+            company: {
+                name: quotation.company.name,
+                logo: quotation.company.logo || undefined,
+                address: quotation.company.address || undefined,
+                city: quotation.company.city || undefined,
+                state: quotation.company.state || undefined,
+                country: quotation.company.country,
+                pincode: quotation.company.pincode || undefined,
+                email: quotation.company.email || undefined,
+                phone: quotation.company.phone || undefined,
+                gstin: quotation.company.gstin || undefined,
+                digitalSignature: quotation.company.digitalSignature || undefined,
+                letterhead: quotation.company.letterhead || undefined,
+                continuationSheet: quotation.company.continuationSheet || undefined,
+                pdfMarginTop: (quotation.company as any).pdfMarginTop || undefined,
+                pdfMarginBottom: (quotation.company as any).pdfMarginBottom || undefined,
+                pdfMarginLeft: (quotation.company as any).pdfMarginLeft || undefined,
+                pdfMarginRight: (quotation.company as any).pdfMarginRight || undefined,
+                pdfContinuationTop: (quotation.company as any).pdfContinuationTop || undefined
+            },
+            client: quotation.client ? {
+                name: quotation.client.name,
+                company: quotation.client.companyName || undefined,
+                email: quotation.client.email || undefined,
+                phone: quotation.client.phone || undefined,
+                mobile: quotation.client.mobile || undefined,
+                address: quotation.client.address || undefined,
+                city: quotation.client.city || undefined,
+                state: quotation.client.state || undefined,
+                country: quotation.client.country || undefined,
+                pincode: quotation.client.pincode || undefined,
+                gstin: quotation.client.gstin || undefined,
+                pan: quotation.client.pan || undefined,
+                website: quotation.client.website || undefined,
+            } : undefined,
+            lead: quotation.lead ? {
+                name: quotation.lead.name,
+                company: quotation.lead.company || undefined,
+                email: quotation.lead.email || undefined,
+                phone: quotation.lead.phone || undefined
+            } : undefined,
+            items: quotation.items.map(item => ({
+                description: item.description,
+                quantity: Number(item.quantity),
+                unit: item.unit || undefined,
+                rate: Number(item.unitPrice || 0),
+                discount: Number(item.discount || 0),
+                hsnSacCode: item.hsnSacCode || undefined,
+                appliedTaxes: (item.appliedTaxes as any[] || []).map(t => ({
+                    name: t.name,
+                    percentage: Number(t.percentage),
+                    amount: Number(t.amount)
+                }))
+            })),
+            useLetterhead: true
+        });
+
+        // Log Activity
+        try {
+            const ipAddress = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
+            const userAgent = req.headers['user-agent'] || 'unknown';
+            await prisma.quotationActivity.create({
+                data: {
+                    quotationId: quotation.id,
+                    type: 'DOWNLOADED',
+                    ipAddress,
+                    userAgent,
+                    deviceType: userAgent.toLowerCase().includes('mobile') ? 'Mobile' : 'Desktop',
+                    browser: 'PublicLink'
+                }
+            });
+        } catch (logError) {
+            console.error('Failed to log public download activity:', logError);
+        }
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="Quotation-${quotation.quotationNumber}.pdf"`);
+        res.send(pdfBuffer);
+    } catch (error: any) {
+        console.error('Download public PDF error:', error);
+        res.status(500).json({ error: 'Failed to generate PDF', details: error.message });
     }
 };

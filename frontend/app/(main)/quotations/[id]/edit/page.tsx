@@ -281,7 +281,7 @@ export default function EditQuotationPage({ params }: { params: { id: string } }
             setSaving(true);
             await quotationsApi.update(params.id, {
                 ...formData,
-                discount: Number(formData.discount || 0) + totals.itemDiscount, // Store aggregated discount
+                discount: Number(formData.discount || 0), // Store ONLY the additional/global discount
                 items: validItems.map(item => ({
                     ...item,
                     total: item.quantity * item.unitPrice
@@ -649,9 +649,9 @@ export default function EditQuotationPage({ params }: { params: { id: string } }
                                     <span className="text-rose-500">-{formatCurrency(totals.itemDiscount)}</span>
                                 </div>
                                 <div className="flex justify-between items-center text-xs font-bold text-gray-500 uppercase tracking-wide">
-                                    <span>Overall Discount</span>
+                                    <span>Additional Discount</span>
                                     <div className="flex items-center gap-2">
-                                        <span className="text-gray-400 font-normal">₹</span>
+                                        <span className="text-gray-400 font-normal">{formData.currency === 'INR' ? '₹' : (formData.currency === 'USD' ? '$' : (formData.currency === 'EUR' ? '€' : (formData.currency === 'GBP' ? '£' : formData.currency)))}</span>
                                         <input
                                             type="number"
                                             value={formData.discount}

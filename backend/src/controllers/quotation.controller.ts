@@ -3,6 +3,7 @@ import { Decimal } from '@prisma/client/runtime/library';
 import prisma from '../prisma/client';
 import { AuthRequest } from '../middleware/auth';
 import { PermissionService } from '../services/permission.service';
+import { InvoiceService } from '../services/invoice.service';
 
 // Create Quotation
 // Create Quotation
@@ -138,7 +139,7 @@ export const createQuotation = async (req: AuthRequest, res: Response) => {
                 validUntil: new Date(validUntil),
                 subtotal,
                 tax: totalTax,
-                discount: totalDiscount + overallDiscount,
+                discount: overallDiscount,
                 total,
                 currency: currency, // Store determined currency
                 paymentTerms,
@@ -457,7 +458,7 @@ export const updateQuotation = async (req: AuthRequest, res: Response) => {
 
             updateData.subtotal = subtotal;
             updateData.tax = totalTax;
-            updateData.discount = totalDiscount + overallDiscount;
+            updateData.discount = overallDiscount;
             updateData.total = total;
 
             // Delete existing items and create new ones
@@ -530,7 +531,13 @@ export const convertQuotationToInvoice = async (req: AuthRequest, res: Response)
 
         const quotation = await prisma.quotation.findFirst({
             where: { AND: [{ id }, scopeFilter] },
-            include: { items: true }
+            include: {
+                items: {
+                    include: {
+                        appliedTaxes: true
+                    }
+                }
+            }
         });
 
         if (!quotation) {
@@ -562,37 +569,42 @@ export const convertQuotationToInvoice = async (req: AuthRequest, res: Response)
             }
         }
 
-        // Generate invoice number
-        const invoiceCount = await prisma.invoice.count({
-            where: { companyId: user.companyId }
-        });
-        const invoiceNumber = `INV-${new Date().getFullYear()}-${String(invoiceCount + 1).padStart(4, '0')}`;
+        // Calculate true additional discount to handle potentially "tainted" source data (legacy quotes)
+        const totalItemDiscount = (quotation.items as any[]).reduce((acc, item) => {
+            const gross = Number(item.quantity) * Number(item.unitPrice);
+            return acc + (gross * (Number(item.discount || 0) / 100));
+        }, 0);
 
-        // Create invoice
-        const invoice = await prisma.invoice.create({
-            data: {
-                companyId: user.companyId,
-                clientId: finalClientId,
-                invoiceNumber,
-                invoiceDate: new Date(),
-                dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
-                subtotal: quotation.subtotal,
-                tax: quotation.tax,
-                discount: quotation.discount,
-                total: quotation.total,
-                items: {
-                    create: quotation.items.map(item => ({
-                        description: item.description,
-                        quantity: item.quantity,
-                        rate: item.unitPrice,
-                        taxRate: item.tax,
-                        amount: item.total
-                    }))
-                }
-            },
-            include: {
-                items: true
-            }
+        // Formula: Total = Subtotal + Tax - ItemDiscounts - AdditionalDiscount
+        // Therefore: AdditionalDiscount = Subtotal + Tax - ItemDiscounts - Total
+        const overallDiscount = (Number(quotation.subtotal) + Number(quotation.tax) - totalItemDiscount) - Number(quotation.total);
+
+        // Create invoice using InvoiceService to centralized business logic and numbering
+        const invoice = await InvoiceService.createInvoice({
+            companyId: user.companyId,
+            clientId: finalClientId,
+            invoiceDate: new Date(),
+            dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+            currency: quotation.currency,
+            discount: Math.max(0, overallDiscount), // Use cleansed overall discount
+            notes: quotation.notes || undefined,
+            type: 'invoice',
+            items: quotation.items.map(item => ({
+                description: item.description,
+                hsnSacCode: item.hsnSacCode || undefined,
+                quantity: Number(item.quantity),
+                unit: item.unit || undefined,
+                rate: Number(item.unitPrice),
+                discount: Number(item.discount),
+                taxRate: Number(item.tax),
+                taxRateId: item.taxRateId || undefined,
+                explicitAppliedTaxes: item.appliedTaxes.map(t => ({
+                    taxRateId: t.taxRateId,
+                    name: t.name,
+                    percentage: Number(t.percentage),
+                    amount: Number(t.amount)
+                }))
+            }))
         });
 
         // Update quotation
@@ -792,15 +804,14 @@ export const downloadQuotationPDF = async (req: AuthRequest, res: Response) => {
                 description: item.description,
                 quantity: Number(item.quantity),
                 unit: item.unit || undefined,
-                unitPrice: Number(item.unitPrice),
-                taxRate: Number(item.tax),
-                discount: Number(item.discount),
+                rate: Number(item.unitPrice || 0),
+                discount: Number(item.discount || 0),
                 hsnSacCode: item.hsnSacCode || undefined,
-                appliedTaxes: item.appliedTaxes ? item.appliedTaxes.map((t: any) => ({
+                appliedTaxes: (item.appliedTaxes as any[] || []).map(t => ({
                     name: t.name,
                     percentage: Number(t.percentage),
                     amount: Number(t.amount)
-                })) : undefined
+                }))
             })),
             subtotal: Number(quotation.subtotal),
             tax: Number(quotation.tax),
@@ -808,6 +819,8 @@ export const downloadQuotationPDF = async (req: AuthRequest, res: Response) => {
             total: Number(quotation.total),
             currency: quotation.currency,
             notes: quotation.notes || undefined,
+            paymentTerms: quotation.paymentTerms || undefined,
+            deliveryTerms: quotation.deliveryTerms || undefined,
             useLetterhead: req.query.useLetterhead === 'true'
         });
 
@@ -938,8 +951,14 @@ export const downloadSignedQuotationPDF = async (req: AuthRequest, res: Response
                 description: item.description,
                 quantity: Number(item.quantity),
                 unit: item.unit || undefined,
-                unitPrice: Number(item.unitPrice),
-                taxRate: Number(item.tax)
+                rate: Number(item.unitPrice || 0),
+                discount: Number(item.discount || 0),
+                hsnSacCode: item.hsnSacCode || undefined,
+                appliedTaxes: (item.appliedTaxes as any[] || []).map((t: any) => ({
+                    name: t.name,
+                    percentage: Number(t.percentage),
+                    amount: Number(t.amount)
+                }))
             })),
             subtotal: Number(quotation.subtotal),
             tax: Number(quotation.tax),
@@ -947,6 +966,8 @@ export const downloadSignedQuotationPDF = async (req: AuthRequest, res: Response
             total: Number(quotation.total),
             currency: quotation.currency,
             notes: quotation.notes || undefined,
+            paymentTerms: quotation.paymentTerms || undefined,
+            deliveryTerms: quotation.deliveryTerms || undefined,
             clientSignature: quotation.clientSignature,
             clientName: quotation.clientName || undefined,
             clientAcceptedAt: quotation.clientAcceptedAt,

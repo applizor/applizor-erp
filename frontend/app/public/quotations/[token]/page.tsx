@@ -318,9 +318,11 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description / HSN/SAC</th>
-                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
-                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Unit Price</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">HSN/SAC</th>
+                                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Qty</th>
+                                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">UoM</th>
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Rate</th>
                                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Disc %</th>
                                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
                                 </tr>
@@ -329,18 +331,16 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
                                 {quotation.items?.map((item: any, index: number) => (
                                     <tr key={index}>
                                         <td className="px-6 py-4">
-                                            <div className="text-sm text-gray-900">{item.description}</div>
-                                            <div className="text-[10px] text-gray-500 mt-1">
-                                                {item.hsnSacCode ? `Code: ${item.hsnSacCode}` : ''}
-                                                {item.unit ? `${item.hsnSacCode ? ' | ' : ''}Unit: ${item.unit}` : ''}
-                                            </div>
+                                            <div className="text-sm text-gray-900 font-medium">{item.description}</div>
                                         </td>
-                                        <td className="px-6 py-4 text-sm text-gray-600 text-right">{Number(item.quantity)}</td>
+                                        <td className="px-6 py-4 text-xs text-gray-500 text-center font-mono">{item.hsnSacCode || '--'}</td>
+                                        <td className="px-6 py-4 text-sm text-gray-600 text-center">{Number(item.quantity)}</td>
+                                        <td className="px-6 py-4 text-sm text-gray-600 text-center uppercase">{item.unit || '--'}</td>
                                         <td className="px-6 py-4 text-sm text-gray-600 text-right">{formatCurrency(item.unitPrice)}</td>
                                         <td className="px-6 py-4 text-sm text-rose-500 font-bold text-right">
                                             {Number(item.discount) > 0 ? `${Number(item.discount)}%` : '--'}
                                         </td>
-                                        <td className="px-6 py-4 text-sm text-gray-900 font-medium text-right">
+                                        <td className="px-6 py-4 text-sm text-gray-900 font-bold text-right">
                                             {formatCurrency(Number(item.quantity) * Number(item.unitPrice) * (1 - Number(item.discount || 0) / 100))}
                                         </td>
                                     </tr>
@@ -348,9 +348,33 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
                             </tbody>
                             <tfoot className="bg-gray-50">
                                 <tr>
-                                    <td colSpan={4} className="px-6 py-3 text-right text-sm font-medium text-gray-600">Subtotal:</td>
+                                    <td colSpan={6} className="px-6 py-3 text-right text-sm font-medium text-gray-600">Subtotal:</td>
                                     <td className="px-6 py-3 text-right text-sm font-medium text-gray-900">{formatCurrency(quotation.subtotal)}</td>
                                 </tr>
+                                {/* Item Discounts */}
+                                {(() => {
+                                    const itemDiscounts = (quotation.items || []).reduce((acc: number, item: any) => {
+                                        const gross = Number(item.quantity) * Number(item.unitPrice || 0);
+                                        return acc + (gross * (Number(item.discount || 0) / 100));
+                                    }, 0);
+
+                                    if (itemDiscounts > 0) {
+                                        return (
+                                            <>
+                                                <tr>
+                                                    <td colSpan={6} className="px-6 py-2 text-right text-sm font-medium text-rose-600 italic">Item Discounts:</td>
+                                                    <td className="px-6 py-2 text-right text-sm font-medium text-rose-600">-{formatCurrency(itemDiscounts)}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td colSpan={6} className="px-6 py-1 text-right text-xs font-black text-gray-900 uppercase tracking-tighter">Taxable Amount:</td>
+                                                    <td className="px-6 py-1 text-right text-xs font-black text-gray-900">{formatCurrency(Number(quotation.subtotal) - itemDiscounts)}</td>
+                                                </tr>
+                                            </>
+                                        );
+                                    }
+                                    return null;
+                                })()}
+
                                 {/* Detailed Tax Breakdown */}
                                 {(() => {
                                     const taxBreakdown: Record<string, number> = {};
@@ -375,12 +399,12 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
                                     return (
                                         <>
                                             <tr>
-                                                <td colSpan={4} className="px-6 py-3 text-right text-sm font-medium text-gray-600">Total Tax:</td>
+                                                <td colSpan={6} className="px-6 py-3 text-right text-sm font-medium text-gray-600">Total Tax:</td>
                                                 <td className="px-6 py-3 text-right text-sm font-medium text-gray-900">{formatCurrency(quotation.tax)}</td>
                                             </tr>
                                             {Object.entries(taxBreakdown).map(([key, amount]) => (
                                                 <tr key={key}>
-                                                    <td colSpan={4} className="px-6 py-1 text-right text-[11px] font-medium text-gray-500 uppercase tracking-wider pl-10">
+                                                    <td colSpan={6} className="px-6 py-1 text-right text-[11px] font-medium text-gray-500 uppercase tracking-wider pl-10">
                                                         <span className="mr-8 border-r-2 border-gray-200 pr-2">{key}:</span>
                                                     </td>
                                                     <td className="px-6 py-1 text-right text-xs font-medium text-gray-900 italic">{formatCurrency(amount as number)}</td>
@@ -391,12 +415,12 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
                                 })()}
                                 {Number(quotation.discount) > 0 && (
                                     <tr>
-                                        <td colSpan={4} className="px-6 py-3 text-right text-sm font-medium text-rose-600">Total Discount:</td>
+                                        <td colSpan={6} className="px-6 py-3 text-right text-sm font-medium text-rose-600">Additional Discount:</td>
                                         <td className="px-6 py-3 text-right text-sm font-medium text-rose-600">-{formatCurrency(quotation.discount)}</td>
                                     </tr>
                                 )}
                                 <tr>
-                                    <td colSpan={4} className="px-6 py-3 text-right text-base font-bold text-gray-900">Total:</td>
+                                    <td colSpan={6} className="px-6 py-3 text-right text-base font-bold text-gray-900">Total:</td>
                                     <td className="px-6 py-3 text-right text-base font-bold text-green-600">{formatCurrency(quotation.total)}</td>
                                 </tr>
                             </tfoot>

@@ -1,7 +1,7 @@
 {
-  "/(main)/quotations/templates/create/page": "app/(main)/quotations/templates/create/page.js",
-  "/(main)/quotations/templates/[id]/edit/page": "app/(main)/quotations/templates/[id]/edit/page.js",
+  "/portal/quotations/[id]/page": "app/portal/quotations/[id]/page.js",
+  "/(main)/invoices/[id]/page": "app/(main)/invoices/[id]/page.js",
+  "/(main)/invoices/[id]/edit/page": "app/(main)/invoices/[id]/edit/page.js",
   "/(main)/quotations/[id]/page": "app/(main)/quotations/[id]/page.js",
-  "/(main)/quotations/page": "app/(main)/quotations/page.js",
-  "/(main)/quotations/[id]/edit/page": "app/(main)/quotations/[id]/edit/page.js"
+  "/(main)/invoices/page": "app/(main)/invoices/page.js"
 }

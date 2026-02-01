@@ -168,22 +168,65 @@ export const downloadPDFPublic = async (req: Request, res: Response) => {
         });
 
         const pdfBuffer = await PDFService.generateInvoicePDF({
-            ...invoice,
+            invoiceNumber: invoice.invoiceNumber,
+            invoiceDate: invoice.invoiceDate,
+            dueDate: invoice.dueDate || undefined,
+            notes: invoice.notes || undefined,
+            terms: invoice.terms || undefined,
+            currency: invoice.currency,
+            subtotal: Number(invoice.subtotal),
+            tax: Number(invoice.tax),
+            discount: Number(invoice.discount),
+            total: Number(invoice.total),
+            client: invoice.client ? {
+                name: invoice.client.name,
+                company: (invoice.client as any).companyName || undefined,
+                email: invoice.client.email || undefined,
+                phone: invoice.client.phone || undefined,
+                mobile: (invoice.client as any).mobile || undefined,
+                address: invoice.client.address || undefined,
+                city: invoice.client.city || undefined,
+                state: invoice.client.state || undefined,
+                country: invoice.client.country || undefined,
+                pincode: invoice.client.pincode || undefined,
+                gstin: invoice.client.gstin || undefined,
+                pan: invoice.client.pan || undefined,
+                website: invoice.client.website || undefined,
+            } : undefined,
             items: ((invoice as any).items || []).map((item: any) => ({
                 description: item.description,
                 quantity: Number(item.quantity),
                 unit: item.unit || undefined,
-                unitPrice: Number(item.rate || item.unitPrice),
-                taxRate: Number(item.taxRate || item.tax),
-                discount: Number(item.discount),
+                unitPrice: Number(item.rate || item.unitPrice || 0),
+                discount: Number(item.discount || 0),
                 hsnSacCode: item.hsnSacCode || undefined,
-                appliedTaxes: item.appliedTaxes ? item.appliedTaxes.map((t: any) => ({
+                appliedTaxes: item.appliedTaxes ? (item.appliedTaxes as any[]).map((t: any) => ({
                     name: t.name,
                     percentage: Number(t.percentage),
                     amount: Number(t.amount)
                 })) : undefined
             })),
             taxBreakdown: Object.values(taxBreakdown),
+            company: {
+                name: invoice.company.name,
+                logo: invoice.company.logo || undefined,
+                address: invoice.company.address || undefined,
+                city: invoice.company.city || undefined,
+                state: invoice.company.state || undefined,
+                country: invoice.company.country || undefined,
+                pincode: invoice.company.pincode || undefined,
+                email: invoice.company.email || undefined,
+                phone: invoice.company.phone || undefined,
+                gstin: invoice.company.gstin || undefined,
+                digitalSignature: invoice.company.digitalSignature || undefined,
+                letterhead: invoice.company.letterhead || undefined,
+                continuationSheet: invoice.company.continuationSheet || undefined,
+                pdfMarginTop: (invoice.company as any).pdfMarginTop || undefined,
+                pdfMarginBottom: (invoice.company as any).pdfMarginBottom || undefined,
+                pdfMarginLeft: (invoice.company as any).pdfMarginLeft || undefined,
+                pdfMarginRight: (invoice.company as any).pdfMarginRight || undefined,
+                pdfContinuationTop: (invoice.company as any).pdfContinuationTop || undefined
+            },
             useLetterhead: true
         });
 

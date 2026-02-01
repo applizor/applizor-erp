@@ -712,7 +712,7 @@ export default function CreateQuotationPage() {
                                 <div className="flex justify-between items-center text-xs font-bold text-gray-500 uppercase tracking-wide">
                                     <span>Overall Discount</span>
                                     <div className="flex items-center gap-2">
-                                        <span className="text-gray-400 font-normal">₹</span>
+                                        <span className="text-gray-400 font-normal">{formData.currency === 'INR' ? '₹' : (formData.currency === 'USD' ? '$' : (formData.currency === 'EUR' ? '€' : (formData.currency === 'GBP' ? '£' : formData.currency)))}</span>
                                         <input
                                             type="number"
                                             value={formData.discount}

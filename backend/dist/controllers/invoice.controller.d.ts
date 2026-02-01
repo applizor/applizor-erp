@@ -41,6 +41,10 @@ export declare const batchUpdateStatus: (req: AuthRequest, res: Response) => Pro
  */
 export declare const batchSendInvoices: (req: AuthRequest, res: Response) => Promise<Response<any, Record<string, any>> | undefined>;
 /**
+ * Delete an invoice
+ */
+export declare const deleteInvoice: (req: AuthRequest, res: Response) => Promise<Response<any, Record<string, any>> | undefined>;
+/**
  * Convert quotation to invoice
  */
 /**

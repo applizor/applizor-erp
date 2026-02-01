@@ -307,7 +307,85 @@ const getInvoicePdf = async (req, res) => {
             }
             return item;
         });
-        const pdfBuffer = await pdf_service_1.PDFService.generateInvoicePDF({ ...invoice, items: hydratedItems, useLetterhead: true });
+        // Calculate Tax Breakdown from Hydrated Items
+        const taxBreakdown = {};
+        hydratedItems.forEach((item) => {
+            if (item.appliedTaxes && item.appliedTaxes.length > 0) {
+                item.appliedTaxes.forEach((tax) => {
+                    const key = `${tax.name}_${tax.percentage}`;
+                    if (!taxBreakdown[key]) {
+                        taxBreakdown[key] = {
+                            name: tax.name,
+                            percentage: Number(tax.percentage),
+                            amount: 0
+                        };
+                    }
+                    taxBreakdown[key].amount += Number(tax.amount);
+                });
+            }
+        });
+        const pdfBuffer = await pdf_service_1.PDFService.generateInvoicePDF({
+            invoiceNumber: invoice.invoiceNumber,
+            invoiceDate: invoice.invoiceDate,
+            dueDate: invoice.dueDate || undefined,
+            notes: invoice.notes || undefined,
+            terms: invoice.terms || undefined,
+            currency: invoice.currency,
+            subtotal: Number(invoice.subtotal),
+            tax: Number(invoice.tax),
+            discount: Number(invoice.discount),
+            total: Number(invoice.total),
+            client: invoice.client ? {
+                name: invoice.client.name,
+                company: invoice.client.companyName || undefined,
+                email: invoice.client.email || undefined,
+                phone: invoice.client.phone || undefined,
+                mobile: invoice.client.mobile || undefined,
+                address: invoice.client.address || undefined,
+                city: invoice.client.city || undefined,
+                state: invoice.client.state || undefined,
+                country: invoice.client.country || undefined,
+                pincode: invoice.client.pincode || undefined,
+                gstin: invoice.client.gstin || undefined,
+                pan: invoice.client.pan || undefined,
+                website: invoice.client.website || undefined,
+            } : undefined,
+            items: hydratedItems.map((item) => ({
+                description: item.description,
+                quantity: Number(item.quantity),
+                unit: item.unit || undefined,
+                rate: Number(item.rate || item.unitPrice || 0),
+                discount: Number(item.discount || 0),
+                hsnSacCode: item.hsnSacCode || undefined,
+                appliedTaxes: (item.appliedTaxes || []).map(t => ({
+                    name: t.name,
+                    percentage: Number(t.percentage),
+                    amount: Number(t.amount)
+                }))
+            })),
+            taxBreakdown: Object.values(taxBreakdown),
+            company: {
+                name: invoice.company.name,
+                logo: invoice.company.logo || undefined,
+                address: invoice.company.address || undefined,
+                city: invoice.company.city || undefined,
+                state: invoice.company.state || undefined,
+                country: invoice.company.country || undefined,
+                pincode: invoice.company.pincode || undefined,
+                email: invoice.company.email || undefined,
+                phone: invoice.company.phone || undefined,
+                gstin: invoice.company.gstin || undefined,
+                digitalSignature: invoice.company.digitalSignature || undefined,
+                letterhead: invoice.company.letterhead || undefined,
+                continuationSheet: invoice.company.continuationSheet || undefined,
+                pdfMarginTop: invoice.company.pdfMarginTop || undefined,
+                pdfMarginBottom: invoice.company.pdfMarginBottom || undefined,
+                pdfMarginLeft: invoice.company.pdfMarginLeft || undefined,
+                pdfMarginRight: invoice.company.pdfMarginRight || undefined,
+                pdfContinuationTop: invoice.company.pdfContinuationTop || undefined
+            },
+            useLetterhead: true
+        });
         // Log Activity
         try {
             const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
@@ -699,6 +777,7 @@ const getQuotationPdf = async (req, res) => {
             include: {
                 lead: true,
                 company: true,
+                client: true,
                 items: {
                     include: { appliedTaxes: true }
                 }
@@ -734,8 +813,101 @@ const getQuotationPdf = async (req, res) => {
             }
             return item;
         });
+        // Calculate Tax Breakdown from Hydrated Items
+        const taxBreakdown = {};
+        hydratedItems.forEach((item) => {
+            if (item.appliedTaxes && item.appliedTaxes.length > 0) {
+                item.appliedTaxes.forEach((tax) => {
+                    const key = `${tax.name}_${tax.percentage}`;
+                    if (!taxBreakdown[key]) {
+                        taxBreakdown[key] = {
+                            name: tax.name,
+                            percentage: Number(tax.percentage),
+                            amount: 0
+                        };
+                    }
+                    taxBreakdown[key].amount += Number(tax.amount);
+                });
+            }
+        });
         // Use appropriate PDF generation (signed if accepted?)
-        const pdfBuffer = await pdf_service_1.PDFService.generateQuotationPDF({ ...quotation, items: hydratedItems, useLetterhead: true });
+        // Use signed template if quotation is accepted
+        const generateMethod = quotation.clientAcceptedAt && quotation.clientSignature ? 'generateSignedQuotationPDF' : 'generateQuotationPDF';
+        const pdfBuffer = await pdf_service_1.PDFService[generateMethod]({
+            quotationNumber: quotation.quotationNumber,
+            quotationDate: quotation.quotationDate,
+            validUntil: quotation.validUntil || undefined,
+            title: quotation.title || undefined,
+            description: quotation.description || undefined,
+            notes: quotation.notes || undefined,
+            paymentTerms: quotation.paymentTerms || undefined,
+            deliveryTerms: quotation.deliveryTerms || undefined,
+            currency: quotation.currency,
+            subtotal: Number(quotation.subtotal),
+            tax: Number(quotation.tax),
+            discount: Number(quotation.discount),
+            total: Number(quotation.total),
+            client: quotation.client ? {
+                name: quotation.client.name,
+                company: quotation.client.companyName || undefined,
+                email: quotation.client.email || undefined,
+                phone: quotation.client.phone || undefined,
+                mobile: quotation.client.mobile || undefined,
+                address: quotation.client.address || undefined,
+                city: quotation.client.city || undefined,
+                state: quotation.client.state || undefined,
+                country: quotation.client.country || undefined,
+                pincode: quotation.client.pincode || undefined,
+                gstin: quotation.client.gstin || undefined,
+                pan: quotation.client.pan || undefined,
+                website: quotation.client.website || undefined,
+            } : undefined,
+            lead: quotation.lead ? {
+                name: quotation.lead.name,
+                company: quotation.lead.company || undefined,
+                email: quotation.lead.email || undefined,
+                phone: quotation.lead.phone || undefined
+            } : undefined,
+            items: hydratedItems.map((item) => ({
+                description: item.description,
+                quantity: Number(item.quantity),
+                unit: item.unit || undefined,
+                rate: Number(item.unitPrice || 0),
+                discount: Number(item.discount || 0),
+                hsnSacCode: item.hsnSacCode || undefined,
+                appliedTaxes: (item.appliedTaxes || []).map(t => ({
+                    name: t.name,
+                    percentage: Number(t.percentage),
+                    amount: Number(t.amount)
+                }))
+            })),
+            taxBreakdown: Object.values(taxBreakdown),
+            company: {
+                name: quotation.company.name,
+                logo: quotation.company.logo || undefined,
+                address: quotation.company.address || undefined,
+                city: quotation.company.city || undefined,
+                state: quotation.company.state || undefined,
+                country: quotation.company.country || undefined,
+                pincode: quotation.company.pincode || undefined,
+                email: quotation.company.email || undefined,
+                phone: quotation.company.phone || undefined,
+                gstin: quotation.company.gstin || undefined,
+                digitalSignature: quotation.company.digitalSignature || undefined,
+                letterhead: quotation.company.letterhead || undefined,
+                continuationSheet: quotation.company.continuationSheet || undefined,
+                pdfMarginTop: quotation.company.pdfMarginTop || undefined,
+                pdfMarginBottom: quotation.company.pdfMarginBottom || undefined,
+                pdfMarginLeft: quotation.company.pdfMarginLeft || undefined,
+                pdfMarginRight: quotation.company.pdfMarginRight || undefined,
+                pdfContinuationTop: quotation.company.pdfContinuationTop || undefined
+            },
+            clientSignature: quotation.clientSignature || undefined,
+            clientName: quotation.clientName || undefined,
+            clientAcceptedAt: quotation.clientAcceptedAt || undefined,
+            signatureToken: quotation.publicToken || undefined,
+            useLetterhead: true
+        });
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="Quotation-${quotation.quotationNumber}.pdf"`);
         res.send(pdfBuffer);

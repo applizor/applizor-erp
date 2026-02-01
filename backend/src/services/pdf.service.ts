@@ -97,6 +97,9 @@ interface PDFData {
     companySignedAt?: Date;
     id?: string;
     taxBreakdown?: Array<{ name: string; percentage: number; amount: number }>;
+    terms?: string;
+    paymentTerms?: string;
+    deliveryTerms?: string;
 }
 
 export class PDFService {
@@ -478,29 +481,30 @@ export class PDFService {
     <table>
         <thead>
             <tr>
-                <th>Description / HSN/SAC</th>
-                <th style="text-align: center; width: 60px;">Qty</th>
+                <th>Specification</th>
+                <th style="width: 80px;">HSN/SAC</th>
+                <th style="text-align: center; width: 40px;">Qty</th>
+                <th style="text-align: center; width: 40px;">UoM</th>
                 <th style="text-align: right; width: 100px;">Rate</th>
-                <th style="text-align: right; width: 80px;">Disc %</th>
-                <th style="text-align: right; width: 120px;">Amount</th>
+                <th style="text-align: right; width: 60px;">Disc %</th>
+                <th style="text-align: right; width: 100px;">Amount</th>
             </tr>
         </thead>
         <tbody>
             ${data.items.map(item => {
             const rate = Number(item.unitPrice || item.rate || 0);
             const discount = Number(item.discount || 0);
-            const grossAmount = item.quantity * rate;
+            const quantity = Number(item.quantity || 0);
+            const grossAmount = quantity * rate;
             const netAmount = grossAmount * (1 - discount / 100);
             return `
                 <tr>
                     <td>
                         <div style="font-weight: bold;">${item.description}</div>
-                        <div style="font-size: 10px; color: #666;">
-                            ${item.hsnSacCode ? `Code: ${item.hsnSacCode}` : ''}
-                            ${item.unit ? `${item.hsnSacCode ? ' | ' : ''}Unit: ${item.unit}` : ''}
-                        </div>
                     </td>
-                    <td style="text-align: center;">${item.quantity}</td>
+                    <td style="font-size: 11px; color: #555;">${item.hsnSacCode || '-'}</td>
+                    <td style="text-align: center;">${quantity}</td>
+                    <td style="text-align: center;">${item.unit || '-'}</td>
                     <td style="text-align: right;">${formatCurrency(rate)}</td>
                     <td style="text-align: right; color: #dc2626;">${discount > 0 ? `${discount}%` : '-'}</td>
                     <td style="text-align: right;">${formatCurrency(netAmount)}</td>
@@ -539,7 +543,7 @@ export class PDFService {
         ` : ''}
         ${Number(data.discount) > 0 ? `
         <div class="totals-row">
-            <span style="color: #dc2626;">Total Discount:</span>
+            <span style="color: #dc2626;">Additional Discount:</span>
             <span style="color: #dc2626;">-${formatCurrency(Number(data.discount))}</span>
         </div>
         ` : ''}
@@ -551,8 +555,29 @@ export class PDFService {
 
     ${data.notes ? `
     <div class="notes">
-        <h3>Notes & Terms</h3>
+        <h3>Remarks / Notes</h3>
         <p>${data.notes}</p>
+    </div>
+    ` : ''}
+
+    ${data.paymentTerms ? `
+    <div class="notes" style="margin-top: 15px;">
+        <h3 style="color: #4b5563;">Payment Terms</h3>
+        <p style="font-size: 11px;">${data.paymentTerms}</p>
+    </div>
+    ` : ''}
+
+    ${data.deliveryTerms ? `
+    <div class="notes" style="margin-top: 15px;">
+        <h3 style="color: #4b5563;">Delivery / Fulfillment Terms</h3>
+        <p style="font-size: 11px;">${data.deliveryTerms}</p>
+    </div>
+    ` : ''}
+
+    ${data.terms ? `
+    <div class="notes" style="margin-top: 15px;">
+        <h3 style="color: #4b5563;">Contractual Terms</h3>
+        <p style="font-size: 11px;">${data.terms}</p>
     </div>
     ` : ''}
 

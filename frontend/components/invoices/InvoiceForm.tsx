@@ -542,7 +542,7 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
                             </div>
                         ))}
                         <div className="flex justify-between items-center gap-4">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 leading-none">Correction / Discount</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 leading-none">Additional Discount</span>
                             <div className="w-24 flex items-center bg-white/5 rounded px-2 border border-white/10 hover:border-white/20 transition-all">
                                 <span className="text-[10px] text-gray-500 mr-1">-</span>
                                 <input
