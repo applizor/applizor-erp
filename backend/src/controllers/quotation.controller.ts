@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import { Decimal } from '@prisma/client/runtime/library';
 import prisma from '../prisma/client';
 import { AuthRequest } from '../middleware/auth';
 import { PermissionService } from '../services/permission.service';
@@ -31,6 +32,7 @@ export const createQuotation = async (req: AuthRequest, res: Response) => {
             paymentTerms,
             deliveryTerms,
             notes,
+            discount, // Extract overall discount
             reminderFrequency,
             maxReminders
         } = req.body;
@@ -82,7 +84,8 @@ export const createQuotation = async (req: AuthRequest, res: Response) => {
             };
         });
 
-        const total = subtotal + totalTax - totalDiscount;
+        const overallDiscount = Number(discount || 0);
+        const total = subtotal + totalTax - totalDiscount - overallDiscount;
 
         // Fetch company currency
 
@@ -135,7 +138,7 @@ export const createQuotation = async (req: AuthRequest, res: Response) => {
                 validUntil: new Date(validUntil),
                 subtotal,
                 tax: totalTax,
-                discount: totalDiscount,
+                discount: totalDiscount + overallDiscount,
                 total,
                 currency: currency, // Store determined currency
                 paymentTerms,
@@ -302,7 +305,37 @@ export const getQuotation = async (req: AuthRequest, res: Response) => {
             return res.status(404).json({ error: 'Quotation not found or access denied' });
         }
 
-        res.json({ quotation });
+        // Hydrate appliedTaxes for legacy items
+        const allTaxRates = await prisma.taxRate.findMany({ where: { companyId: quotation.companyId } });
+        const taxMap = new Map<number, any>();
+        allTaxRates.forEach(t => taxMap.set(Number(t.percentage), t));
+
+        const hydratedItems = quotation.items.map((item: any) => {
+            if ((!item.appliedTaxes || item.appliedTaxes.length === 0)) {
+                const legacyRate = Number(item.tax) || 0;
+                if (legacyRate > 0) {
+                    const taxConfig = taxMap.get(legacyRate);
+                    const quantity = Number(item.quantity);
+                    const unitPrice = Number(item.unitPrice || 0);
+                    const amount = (quantity * unitPrice * legacyRate) / 100;
+
+                    return {
+                        ...item,
+                        appliedTaxes: [{
+                            id: 'legacy-hydrate',
+                            quotationItemId: item.id,
+                            taxRateId: taxConfig?.id || 'legacy',
+                            name: taxConfig?.name || 'Tax',
+                            percentage: new Decimal(legacyRate),
+                            amount: new Decimal(amount)
+                        }]
+                    };
+                }
+            }
+            return item;
+        });
+
+        res.json({ quotation: { ...quotation, items: hydratedItems } });
     } catch (error: any) {
         console.error('Get quotation error:', error);
         res.status(500).json({ error: 'Failed to fetch quotation', details: error.message });
@@ -339,6 +372,7 @@ export const updateQuotation = async (req: AuthRequest, res: Response) => {
             paymentTerms,
             deliveryTerms,
             notes,
+            discount, // Extract overall discount
             items,
             reminderFrequency,
             maxReminders
@@ -417,11 +451,12 @@ export const updateQuotation = async (req: AuthRequest, res: Response) => {
                 };
             });
 
-            const total = subtotal + totalTax - totalDiscount;
+            const overallDiscount = Number(discount || 0);
+            const total = subtotal + totalTax - totalDiscount - overallDiscount;
 
             updateData.subtotal = subtotal;
             updateData.tax = totalTax;
-            updateData.discount = totalDiscount;
+            updateData.discount = totalDiscount + overallDiscount;
             updateData.total = total;
 
             // Delete existing items and create new ones
@@ -646,6 +681,39 @@ export const downloadQuotationPDF = async (req: AuthRequest, res: Response) => {
         if (!quotation) {
             return res.status(404).json({ error: 'Quotation not found' });
         }
+
+        // Hydrate appliedTaxes for legacy items
+        const allTaxRates = await prisma.taxRate.findMany({ where: { companyId: quotation.companyId } });
+        const taxMap = new Map<number, any>();
+        allTaxRates.forEach(t => taxMap.set(Number(t.percentage), t));
+
+        const hydratedItems = quotation.items.map((item: any) => {
+            if ((!item.appliedTaxes || item.appliedTaxes.length === 0)) {
+                const legacyRate = Number(item.tax) || 0;
+                if (legacyRate > 0) {
+                    const taxConfig = taxMap.get(legacyRate);
+                    const quantity = Number(item.quantity);
+                    const unitPrice = Number(item.unitPrice || 0);
+                    const amount = (quantity * unitPrice * legacyRate) / 100;
+
+                    return {
+                        ...item,
+                        appliedTaxes: [{
+                            id: 'legacy-hydrate',
+                            quotationItemId: item.id,
+                            taxRateId: taxConfig?.id || 'legacy',
+                            name: taxConfig?.name || 'Tax',
+                            percentage: new Decimal(legacyRate),
+                            amount: new Decimal(amount)
+                        }]
+                    };
+                }
+            }
+            return item;
+        });
+
+        // Use hydrated items for breakdowns
+        (quotation as any).items = hydratedItems;
 
         // Import PDF service dynamically
         const { PDFService } = await import('../services/pdf.service');

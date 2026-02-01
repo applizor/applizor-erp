@@ -348,8 +348,13 @@ export const convertLeadToClient = async (req: AuthRequest, res: Response) => {
       where: { id },
       data: {
         status: 'converted',
-        stage: 'closed',
       },
+    });
+
+    // Link existing quotations to new client
+    await prisma.quotation.updateMany({
+      where: { leadId: id },
+      data: { clientId: client.id }
     });
 
     res.json({
@@ -591,6 +596,12 @@ export const convertLeadToClientEnhanced = async (req: AuthRequest, res: Respons
         convertedToClientId: client.id,
         convertedAt: new Date()
       }
+    });
+
+    // Link existing quotations to new client
+    await prisma.quotation.updateMany({
+      where: { leadId: id },
+      data: { clientId: client.id }
     });
 
     // Log activity

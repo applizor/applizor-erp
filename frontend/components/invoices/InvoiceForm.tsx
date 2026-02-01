@@ -19,6 +19,7 @@ const itemSchema = z.object({
     rate: z.number().min(0, 'Min 0'),
     taxRateIds: z.array(z.string()).default([]),
     hsnCode: z.string().optional(),
+    discount: z.number().min(0).max(100).default(0),
 });
 
 const invoiceSchema = z.object({
@@ -69,7 +70,7 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
             invoiceDate: new Date().toISOString().split('T')[0],
             dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
             currency: globalCurrency || 'USD',
-            items: [{ description: '', quantity: 1, rate: 0, taxRateIds: [] }],
+            items: [{ description: '', quantity: 1, rate: 0, taxRateIds: [], discount: 0 }],
             discount: 0,
         },
     });
@@ -134,16 +135,19 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
     const calculateTotals = () => {
         let subtotal = 0;
         let totalTax = 0;
+        let totalItemDiscount = 0;
         const taxBreakdown: Record<string, number> = {};
 
         watchItems.forEach((item) => {
-            const amount = (item.quantity || 0) * (item.rate || 0);
+            const grossAmount = (item.quantity || 0) * (item.rate || 0);
+            const discountAmount = grossAmount * ((item.discount || 0) / 100);
+            const taxableAmount = grossAmount - discountAmount;
 
             let itemTax = 0;
             (item.taxRateIds || []).forEach((taxId: string) => {
                 const taxConfig = taxRates.find(t => t.id === taxId);
                 if (taxConfig) {
-                    const taxAmount = amount * (Number(taxConfig.percentage) / 100);
+                    const taxAmount = taxableAmount * (Number(taxConfig.percentage) / 100);
                     itemTax += taxAmount;
 
                     const key = `${taxConfig.name} @${Number(taxConfig.percentage)}%`;
@@ -151,12 +155,13 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
                 }
             });
 
-            subtotal += amount;
+            subtotal += grossAmount;
             totalTax += itemTax;
+            totalItemDiscount += discountAmount;
         });
 
-        const total = subtotal + totalTax - (watchDiscount || 0);
-        return { subtotal, totalTax, total, taxBreakdown };
+        const total = subtotal + totalTax - totalItemDiscount - (watchDiscount || 0);
+        return { subtotal, totalTax, totalItemDiscount, total, taxBreakdown };
     };
 
     const totals = calculateTotals();
@@ -361,7 +366,7 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
                     </h3>
                     <button
                         type="button"
-                        onClick={() => append({ description: '', quantity: 1, rate: 0, taxRateIds: [] })}
+                        onClick={() => append({ description: '', quantity: 1, rate: 0, taxRateIds: [], discount: 0 })}
                         className="text-[10px] font-black text-primary-600 hover:text-primary-700 uppercase tracking-widest flex items-center gap-1 transition-all"
                     >
                         <Plus size={14} /> Append Component
@@ -375,9 +380,10 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
                                 <th className="px-4 py-2 text-[9px] font-black text-gray-400 uppercase tracking-[0.1em]">Resource Description</th>
                                 <th className="px-4 py-2 text-[9px] font-black text-gray-400 uppercase tracking-[0.1em] w-20">UoM</th>
                                 <th className="px-4 py-2 text-[9px] font-black text-gray-400 uppercase tracking-[0.1em] w-24">Units</th>
-                                <th className="px-4 py-2 text-[9px] font-black text-gray-400 uppercase tracking-[0.1em] w-32">Unit Rate</th>
+                                <th className="px-4 py-2 text-[9px] font-black text-gray-400 uppercase tracking-[0.1em] w-28">Unit Rate</th>
+                                <th className="px-4 py-2 text-[9px] font-black text-gray-400 uppercase tracking-[0.1em] w-24">Disc %</th>
                                 <th className="px-4 py-2 text-[9px] font-black text-gray-400 uppercase tracking-[0.1em] w-24">Tax Factor %</th>
-                                <th className="px-4 py-2 text-[9px] font-black text-gray-400 uppercase tracking-[0.1em] w-40 text-right">Net Value</th>
+                                <th className="px-4 py-2 text-[9px] font-black text-gray-400 uppercase tracking-[0.1em] w-32 text-right">Net Value</th>
                                 <th className="px-4 py-2 w-10"></th>
                             </tr>
                         </thead>
@@ -427,6 +433,15 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
                                         />
                                     </td>
                                     <td className="px-4 py-2">
+                                        <input
+                                            type="number"
+                                            step="any"
+                                            {...register(`items.${index}.discount`, { valueAsNumber: true })}
+                                            className="w-full bg-gray-50/50 border border-transparent focus:border-rose-200 focus:bg-white rounded px-1.5 py-1 text-[11px] font-black text-rose-500 transition-all text-center"
+                                            placeholder="0"
+                                        />
+                                    </td>
+                                    <td className="px-4 py-2">
                                         <Controller
                                             name={`items.${index}.taxRateIds`}
                                             control={control}
@@ -447,7 +462,7 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
                                         />
                                     </td>
                                     <td className="px-4 py-2 text-right text-[11px] font-black text-gray-900">
-                                        {formatCurrency((watchItems[index]?.quantity || 0) * (watchItems[index]?.rate || 0))}
+                                        {formatCurrency(((watchItems[index]?.quantity || 0) * (watchItems[index]?.rate || 0)) * (1 - (watchItems[index]?.discount || 0) / 100))}
                                     </td>
                                     <td className="px-4 py-2 text-center">
                                         {fields.length > 1 && (
@@ -502,6 +517,10 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
                         <div className="flex justify-between items-center text-gray-400">
                             <span className="text-[10px] font-black uppercase tracking-widest leading-none">Gross Subtotal</span>
                             <span className="text-xs font-black text-white">{formatCurrency(totals.subtotal)}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-gray-400">
+                            <span className="text-[10px] font-black uppercase tracking-widest leading-none">Total Item Discounts</span>
+                            <span className="text-xs font-black text-rose-400">-{formatCurrency(totals.totalItemDiscount)}</span>
                         </div>
                         <div className="flex justify-between items-center text-gray-400">
                             <span className="text-[10px] font-black uppercase tracking-widest leading-none">Total Tax</span>

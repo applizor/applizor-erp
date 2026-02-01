@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import { Decimal } from '@prisma/client/runtime/library';
 import prisma from '../prisma/client';
 import { ClientAuthRequest } from '../middleware/client.auth';
 import { PDFService } from '../services/pdf.service';
@@ -159,7 +160,9 @@ export const getInvoiceDetails = async (req: ClientAuthRequest, res: Response) =
         const invoice = await prisma.invoice.findUnique({
             where: { id },
             include: {
-                items: true,
+                items: {
+                    include: { appliedTaxes: true }
+                },
                 payments: { orderBy: { createdAt: 'desc' } },
                 project: true,
                 company: true
@@ -170,6 +173,38 @@ export const getInvoiceDetails = async (req: ClientAuthRequest, res: Response) =
             return res.status(404).json({ error: 'Invoice not found' });
         }
 
+        // Hydrate appliedTaxes for legacy items
+        const allTaxRates = await prisma.taxRate.findMany({ where: { companyId: invoice.companyId } });
+        const taxMap = new Map<number, any>();
+        allTaxRates.forEach(t => taxMap.set(Number(t.percentage), t));
+
+        const hydratedItems = invoice.items.map((item: any) => {
+            if ((!item.appliedTaxes || item.appliedTaxes.length === 0) && (Number(item.taxRate) > 0 || Number(item.tax) > 0)) {
+                const rate = Number(item.taxRate || item.tax);
+                const taxConfig = taxMap.get(rate);
+
+                if (rate > 0) {
+                    const quantity = Number(item.quantity);
+                    const rateVal = Number(item.rate);
+                    const discount = Number(item.discount || 0);
+                    const taxableAmount = quantity * rateVal * (1 - discount / 100);
+                    const amount = (taxableAmount * rate) / 100;
+                    return {
+                        ...item,
+                        appliedTaxes: [{
+                            id: 'legacy-hydrate',
+                            invoiceItemId: item.id,
+                            taxRateId: taxConfig?.id || 'legacy',
+                            name: taxConfig?.name || 'Tax',
+                            percentage: new Decimal(rate),
+                            amount: new Decimal(amount)
+                        }]
+                    };
+                }
+            }
+            return item;
+        });
+
         // Timeline Logic
         const timeline = [
             { status: 'Draft', date: invoice.createdAt, completed: true },
@@ -177,7 +212,7 @@ export const getInvoiceDetails = async (req: ClientAuthRequest, res: Response) =
             { status: 'Paid', date: invoice.payments[0]?.createdAt, completed: invoice.status === 'paid' }
         ];
 
-        res.json({ invoice, timeline });
+        res.json({ invoice: { ...invoice, items: hydratedItems }, timeline });
     } catch (error) {
         console.error('Get invoice details error:', error);
         res.status(500).json({ error: 'Failed to fetch invoice details' });
@@ -194,7 +229,9 @@ export const getInvoicePdf = async (req: ClientAuthRequest, res: Response) => {
             include: {
                 client: true,
                 company: true,
-                items: true,
+                items: {
+                    include: { appliedTaxes: true }
+                },
             }
         });
 
@@ -202,7 +239,35 @@ export const getInvoicePdf = async (req: ClientAuthRequest, res: Response) => {
             return res.status(404).json({ error: 'Invoice not found' });
         }
 
-        const pdfBuffer = await PDFService.generateInvoicePDF({ ...invoice, useLetterhead: true });
+        // Hydrate appliedTaxes for legacy items
+        const allTaxRates = await prisma.taxRate.findMany({ where: { companyId: invoice.companyId } });
+        const taxMap = new Map<number, any>();
+        allTaxRates.forEach(t => taxMap.set(Number(t.percentage), t));
+
+        const hydratedItems = invoice.items.map((item: any) => {
+            if ((!item.appliedTaxes || item.appliedTaxes.length === 0) && (Number(item.taxRate) > 0 || Number(item.tax) > 0)) {
+                const rate = Number(item.taxRate || item.tax);
+                const taxConfig = taxMap.get(rate);
+
+                if (rate > 0) {
+                    const amount = (Number(item.quantity) * Number(item.rate) * rate) / 100;
+                    return {
+                        ...item,
+                        appliedTaxes: [{
+                            id: 'legacy-hydrate',
+                            invoiceItemId: item.id,
+                            taxRateId: taxConfig?.id || 'legacy',
+                            name: taxConfig?.name || 'Tax',
+                            percentage: new Decimal(rate),
+                            amount: new Decimal(amount)
+                        }]
+                    };
+                }
+            }
+            return item;
+        });
+
+        const pdfBuffer = await PDFService.generateInvoicePDF({ ...invoice, items: hydratedItems, useLetterhead: true });
 
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="Invoice-${invoice.invoiceNumber}.pdf"`);
@@ -289,9 +354,10 @@ export const getMyQuotations = async (req: ClientAuthRequest, res: Response) => 
         // Note: Prisma where clause structure depends on schema. 
         // Assuming Quotation -> Lead -> email
         const where: any = {
-            lead: {
-                email: clientEmail
-            }
+            OR: [
+                { clientId },
+                { lead: { email: clientEmail } }
+            ]
         };
 
         if (status && status !== 'all') {
@@ -326,32 +392,282 @@ export const getMyQuotations = async (req: ClientAuthRequest, res: Response) => 
 export const getQuotationDetails = async (req: ClientAuthRequest, res: Response) => {
     try {
         const { id } = req.params;
+        const clientId = req.clientId;
         const clientEmail = req.client?.email;
 
         const quotation = await prisma.quotation.findUnique({
             where: { id },
             include: {
-                items: true,
+                items: {
+                    include: { appliedTaxes: true }
+                },
                 lead: true,
                 company: true
             }
         });
 
-        // Security check: Ensure quotation belongs to this client (via lead email)
-        if (!quotation || quotation.lead?.email !== clientEmail) {
+        // Security check: Ensure quotation belongs to this client
+        if (!quotation || (quotation.clientId !== clientId && quotation.lead?.email !== clientEmail)) {
             return res.status(404).json({ error: 'Quotation not found' });
         }
 
-        res.json({ quotation });
+        // Hydrate appliedTaxes for legacy items
+        const allTaxRates = await prisma.taxRate.findMany({ where: { companyId: quotation.companyId } });
+        const taxMap = new Map<number, any>();
+        allTaxRates.forEach(t => taxMap.set(Number(t.percentage), t));
+
+        const hydratedItems = quotation.items.map((item: any) => {
+            if ((!item.appliedTaxes || item.appliedTaxes.length === 0)) {
+                const legacyRate = Number(item.tax) || 0;
+                if (legacyRate > 0) {
+                    const taxConfig = taxMap.get(legacyRate);
+                    const quantity = Number(item.quantity);
+                    const unitPrice = Number(item.unitPrice || 0);
+                    const amount = (quantity * unitPrice * legacyRate) / 100;
+
+                    return {
+                        ...item,
+                        appliedTaxes: [{
+                            id: 'legacy-hydrate',
+                            quotationItemId: item.id,
+                            taxRateId: taxConfig?.id || 'legacy',
+                            name: taxConfig?.name || 'Tax',
+                            percentage: new Decimal(legacyRate),
+                            amount: new Decimal(amount)
+                        }]
+                    };
+                }
+            }
+            return item;
+        });
+
+        // Capture Analytics Data
+        const ipAddress = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
+        const userAgent = req.headers['user-agent'] || 'unknown';
+
+        // Update View Statistics & Activity Log
+        await prisma.$transaction(async (tx) => {
+            // 1. Update Quotation Stats
+            await tx.quotation.update({
+                where: { id: quotation.id },
+                data: {
+                    viewCount: { increment: 1 },
+                    lastViewedAt: new Date(),
+                    ...(quotation.status === 'sent' ? {
+                        status: 'viewed',
+                        clientViewedAt: new Date()
+                    } : {})
+                }
+            });
+
+            // 2. Log Activity
+            await tx.quotationActivity.create({
+                data: {
+                    quotationId: quotation.id,
+                    type: 'VIEWED',
+                    ipAddress,
+                    userAgent,
+                    deviceType: userAgent.toLowerCase().includes('mobile') ? 'Mobile' : 'Desktop',
+                    browser: 'Portal'
+                }
+            });
+        });
+
+        res.json({ quotation: { ...quotation, items: hydratedItems } });
     } catch (error) {
         console.error('Get quotation details error:', error);
         res.status(500).json({ error: 'Failed to fetch quotation details' });
     }
 };
 
+export const acceptQuotation = async (req: ClientAuthRequest, res: Response) => {
+    try {
+        const { id } = req.params;
+        const clientId = req.clientId;
+        const clientEmail = req.client?.email;
+        const { signature, email, name, comments } = req.body;
+
+        // Validate required fields
+        if (!signature || !email || !name) {
+            return res.status(400).json({ error: 'Signature, email, and name are required' });
+        }
+
+        const quotation = await prisma.quotation.findUnique({
+            where: { id },
+            include: { lead: true }
+        });
+
+        // Security check
+        if (!quotation || (quotation.clientId !== clientId && quotation.lead?.email !== clientEmail)) {
+            return res.status(404).json({ error: 'Quotation not found' });
+        }
+
+        // Check if already accepted/rejected
+        if (quotation.clientAcceptedAt) {
+            return res.status(400).json({ error: 'This quotation has already been accepted' });
+        }
+        if (quotation.clientRejectedAt) {
+            return res.status(400).json({ error: 'This quotation has already been rejected' });
+        }
+
+        // Update quotation
+        const updated = await prisma.quotation.update({
+            where: { id: quotation.id },
+            data: {
+                clientAcceptedAt: new Date(),
+                clientSignature: signature,
+                clientEmail: email,
+                clientName: name,
+                clientComments: comments || null,
+                status: 'accepted'
+            },
+            include: {
+                lead: true,
+                company: true
+            }
+        });
+
+        // Send acceptance emails
+        try {
+            const { sendQuotationAcceptanceToClient, sendQuotationAcceptanceToCompany } = await import('../services/email.service');
+            await sendQuotationAcceptanceToClient(updated);
+            if (updated.lead?.email && updated.lead.email !== email) {
+                await sendQuotationAcceptanceToClient({
+                    ...updated,
+                    clientEmail: updated.lead.email,
+                    clientName: updated.lead.name
+                });
+            }
+            await sendQuotationAcceptanceToCompany(updated);
+        } catch (emailError) {
+            console.error('Failed to send acceptance emails:', emailError);
+        }
+
+        // Create activity log
+        try {
+            const ipAddress = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
+            const userAgent = req.headers['user-agent'] || 'unknown';
+
+            await prisma.quotationActivity.create({
+                data: {
+                    quotationId: quotation.id,
+                    type: 'STATUS_CHANGE',
+                    ipAddress,
+                    userAgent,
+                    deviceType: userAgent.toLowerCase().includes('mobile') ? 'Mobile' : 'Desktop',
+                    browser: 'Portal',
+                    metadata: {
+                        new_status: 'accepted',
+                        client_action: true,
+                        portal_user: req.client?.name || 'Client'
+                    }
+                }
+            });
+        } catch (logError) {
+            console.error('Failed to log acceptance activity:', logError);
+        }
+
+        res.json({
+            message: 'Quotation accepted successfully',
+            quotation: updated
+        });
+    } catch (error: any) {
+        console.error('Accept quotation error:', error);
+        res.status(500).json({ error: 'Failed to accept quotation', details: error.message });
+    }
+};
+
+export const rejectQuotation = async (req: ClientAuthRequest, res: Response) => {
+    try {
+        const { id } = req.params;
+        const clientId = req.clientId;
+        const clientEmail = req.client?.email;
+        const { email, name, comments } = req.body;
+
+        // Validate required fields
+        if (!email || !name) {
+            return res.status(400).json({ error: 'Email and name are required' });
+        }
+
+        const quotation = await prisma.quotation.findUnique({
+            where: { id },
+            include: { lead: true }
+        });
+
+        // Security check
+        if (!quotation || (quotation.clientId !== clientId && quotation.lead?.email !== clientEmail)) {
+            return res.status(404).json({ error: 'Quotation not found' });
+        }
+
+        // Check if already accepted/rejected
+        if (quotation.clientAcceptedAt) {
+            return res.status(400).json({ error: 'This quotation has already been accepted' });
+        }
+        if (quotation.clientRejectedAt) {
+            return res.status(400).json({ error: 'This quotation has already been rejected' });
+        }
+
+        // Update quotation
+        const updated = await prisma.quotation.update({
+            where: { id: quotation.id },
+            data: {
+                clientRejectedAt: new Date(),
+                clientEmail: email,
+                clientName: name,
+                clientComments: comments || null,
+                status: 'rejected'
+            },
+            include: {
+                company: true
+            }
+        });
+
+        // Send rejection notification email to company
+        try {
+            const { sendQuotationRejectionToCompany } = await import('../services/email.service');
+            await sendQuotationRejectionToCompany(updated);
+        } catch (emailError) {
+            console.error('Failed to send rejection email:', emailError);
+        }
+
+        // Create activity log
+        try {
+            const ipAddress = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
+            const userAgent = req.headers['user-agent'] || 'unknown';
+
+            await prisma.quotationActivity.create({
+                data: {
+                    quotationId: quotation.id,
+                    type: 'STATUS_CHANGE',
+                    ipAddress,
+                    userAgent,
+                    deviceType: userAgent.toLowerCase().includes('mobile') ? 'Mobile' : 'Desktop',
+                    browser: 'Portal',
+                    metadata: {
+                        new_status: 'rejected',
+                        client_action: true,
+                        portal_user: req.client?.name || 'Client'
+                    }
+                }
+            });
+        } catch (logError) {
+            console.error('Failed to log rejection activity:', logError);
+        }
+
+        res.json({
+            message: 'Quotation rejected',
+            quotation: updated
+        });
+    } catch (error: any) {
+        console.error('Reject quotation error:', error);
+        res.status(500).json({ error: 'Failed to reject quotation', details: error.message });
+    }
+};
+
 export const getQuotationPdf = async (req: ClientAuthRequest, res: Response) => {
     try {
         const { id } = req.params;
+        const clientId = req.clientId;
         const clientEmail = req.client?.email;
 
         const quotation = await prisma.quotation.findUnique({
@@ -359,16 +675,48 @@ export const getQuotationPdf = async (req: ClientAuthRequest, res: Response) => 
             include: {
                 lead: true,
                 company: true,
-                items: true
+                items: {
+                    include: { appliedTaxes: true }
+                }
             }
         });
 
-        if (!quotation || quotation.lead?.email !== clientEmail) {
+        if (!quotation || (quotation.clientId !== clientId && quotation.lead?.email !== clientEmail)) {
             return res.status(404).json({ error: 'Quotation not found' });
         }
 
+        // Hydrate appliedTaxes for legacy items
+        const allTaxRates = await prisma.taxRate.findMany({ where: { companyId: quotation.companyId } });
+        const taxMap = new Map<number, any>();
+        allTaxRates.forEach(t => taxMap.set(Number(t.percentage), t));
+
+        const hydratedItems = quotation.items.map((item: any) => {
+            if ((!item.appliedTaxes || item.appliedTaxes.length === 0)) {
+                const legacyRate = Number(item.tax) || 0;
+                if (legacyRate > 0) {
+                    const taxConfig = taxMap.get(legacyRate);
+                    const quantity = Number(item.quantity);
+                    const unitPrice = Number(item.unitPrice || 0);
+                    const amount = (quantity * unitPrice * legacyRate) / 100;
+
+                    return {
+                        ...item,
+                        appliedTaxes: [{
+                            id: 'legacy-hydrate',
+                            quotationItemId: item.id,
+                            taxRateId: taxConfig?.id || 'legacy',
+                            name: taxConfig?.name || 'Tax',
+                            percentage: new Decimal(legacyRate),
+                            amount: new Decimal(amount)
+                        }]
+                    };
+                }
+            }
+            return item;
+        });
+
         // Use appropriate PDF generation (signed if accepted?)
-        const pdfBuffer = await PDFService.generateQuotationPDF({ ...quotation, useLetterhead: true });
+        const pdfBuffer = await PDFService.generateQuotationPDF({ ...quotation, items: hydratedItems, useLetterhead: true });
 
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="Quotation-${quotation.quotationNumber}.pdf"`);

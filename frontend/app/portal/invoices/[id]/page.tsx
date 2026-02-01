@@ -124,6 +124,7 @@ export default function InvoiceDetails({ params }: { params: { id: string } }) {
                                         <th className="px-6 py-3">Description</th>
                                         <th className="px-6 py-3 text-center">Qty</th>
                                         <th className="px-6 py-3 text-right">Price</th>
+                                        <th className="px-6 py-3 text-right">Disc %</th>
                                         <th className="px-6 py-3 text-right">Amount</th>
                                     </tr>
                                 </thead>
@@ -133,10 +134,13 @@ export default function InvoiceDetails({ params }: { params: { id: string } }) {
                                             <td className="px-6 py-4 font-medium text-slate-900">{item.description}</td>
                                             <td className="px-6 py-4 text-center text-slate-600">{item.quantity}</td>
                                             <td className="px-6 py-4 text-right text-slate-600">
-                                                {new Intl.NumberFormat('en-US', { style: 'currency', currency: invoice.currency || 'USD' }).format(Number(item.rate))}
+                                                {new Intl.NumberFormat(invoice.currency === 'INR' ? 'en-IN' : 'en-US', { style: 'currency', currency: invoice.currency || 'USD' }).format(Number(item.rate))}
+                                            </td>
+                                            <td className="px-6 py-4 text-right font-bold text-rose-500">
+                                                {Number(item.discount) > 0 ? `${Number(item.discount)}%` : '--'}
                                             </td>
                                             <td className="px-6 py-4 text-right font-bold text-slate-900">
-                                                {new Intl.NumberFormat('en-US', { style: 'currency', currency: invoice.currency || 'USD' }).format(Number(item.quantity * item.rate))}
+                                                {new Intl.NumberFormat(invoice.currency === 'INR' ? 'en-IN' : 'en-US', { style: 'currency', currency: invoice.currency || 'USD' }).format(Number(item.amount))}
                                             </td>
                                         </tr>
                                     ))}
@@ -149,20 +153,65 @@ export default function InvoiceDetails({ params }: { params: { id: string } }) {
                             <div className="flex justify-end">
                                 <div className="w-64 space-y-2">
                                     <div className="flex justify-between text-sm text-slate-600">
-                                        <span>Subtotal</span>
-                                        <span>{new Intl.NumberFormat('en-US', { style: 'currency', currency: invoice.currency || 'USD' }).format(Number(invoice.subtotal))}</span>
+                                        <span className="font-bold text-slate-400 uppercase tracking-widest text-[9px]">Gross Subtotal:</span>
+                                        <span className="font-bold">{new Intl.NumberFormat(invoice.currency === 'INR' ? 'en-IN' : 'en-US', { style: 'currency', currency: invoice.currency || 'USD' }).format(Number(invoice.subtotal))}</span>
                                     </div>
+
+                                    {(() => {
+                                        const taxBreakdown: Record<string, number> = {};
+                                        (invoice.items || []).forEach((item: any) => {
+                                            const appliedTaxes = item.appliedTaxes;
+                                            if (appliedTaxes && appliedTaxes.length > 0) {
+                                                appliedTaxes.forEach((tax: any) => {
+                                                    const key = `${tax.name} @${Number(tax.percentage)}%`;
+                                                    taxBreakdown[key] = (taxBreakdown[key] || 0) + Number(tax.amount);
+                                                });
+                                            } else if (Number(item.taxRate || item.tax) > 0) {
+                                                const rate = Number(item.taxRate || item.tax);
+                                                const amount = (Number(item.quantity) * Number(item.rate) * rate) / 100;
+                                                const key = `Tax @${rate}%`;
+                                                taxBreakdown[key] = (taxBreakdown[key] || 0) + amount;
+                                            }
+                                        });
+
+                                        const hasTax = Number(invoice.tax) > 0 || Object.keys(taxBreakdown).length > 0;
+                                        if (!hasTax) return null;
+
+                                        return (
+                                            <>
+                                                <div className="flex justify-between text-sm text-slate-600">
+                                                    <span>Total Tax:</span>
+                                                    <span>{new Intl.NumberFormat(invoice.currency === 'INR' ? 'en-IN' : 'en-US', { style: 'currency', currency: invoice.currency || 'USD' }).format(Number(invoice.tax))}</span>
+                                                </div>
+                                                {Object.entries(taxBreakdown).map(([key, amount]) => (
+                                                    <div key={key} className="flex justify-between text-[11px] text-slate-500 pl-4 border-l-2 border-slate-100 ml-1">
+                                                        <span>{key}:</span>
+                                                        <span>
+                                                            {new Intl.NumberFormat(invoice.currency === 'INR' ? 'en-IN' : 'en-US', { style: 'currency', currency: invoice.currency || 'USD' }).format(amount as number)}
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </>
+                                        );
+                                    })()}
+
+                                    {Number(invoice.discount) > 0 && (
+                                        <div className="flex justify-between text-sm text-rose-600">
+                                            <span className="font-bold uppercase tracking-widest text-[9px]">Total Discount:</span>
+                                            <span className="font-bold">-{new Intl.NumberFormat(invoice.currency === 'INR' ? 'en-IN' : 'en-US', { style: 'currency', currency: invoice.currency || 'USD' }).format(Number(invoice.discount))}</span>
+                                        </div>
+                                    )}
                                     <div className="flex justify-between text-base font-black text-slate-900 pt-2 border-t border-slate-200">
-                                        <span>Total</span>
-                                        <span>{new Intl.NumberFormat('en-US', { style: 'currency', currency: invoice.currency || 'USD' }).format(Number(invoice.total))}</span>
+                                        <span>Total:</span>
+                                        <span>{new Intl.NumberFormat(invoice.currency === 'INR' ? 'en-IN' : 'en-US', { style: 'currency', currency: invoice.currency || 'USD' }).format(Number(invoice.total))}</span>
                                     </div>
                                     <div className="flex justify-between text-xs text-emerald-600 font-bold pt-1">
-                                        <span>Paid</span>
-                                        <span>{new Intl.NumberFormat('en-US', { style: 'currency', currency: invoice.currency || 'USD' }).format(Number(invoice.paidAmount))}</span>
+                                        <span>Paid:</span>
+                                        <span>{new Intl.NumberFormat(invoice.currency === 'INR' ? 'en-IN' : 'en-US', { style: 'currency', currency: invoice.currency || 'USD' }).format(Number(invoice.paidAmount))}</span>
                                     </div>
                                     <div className="flex justify-between text-sm font-black text-rose-600 pt-2 border-t border-slate-100">
-                                        <span>Balance Due</span>
-                                        <span>{new Intl.NumberFormat('en-US', { style: 'currency', currency: invoice.currency || 'USD' }).format(Number(invoice.total - invoice.paidAmount))}</span>
+                                        <span>Balance Due:</span>
+                                        <span>{new Intl.NumberFormat(invoice.currency === 'INR' ? 'en-IN' : 'en-US', { style: 'currency', currency: invoice.currency || 'USD' }).format(Number(invoice.total - invoice.paidAmount))}</span>
                                     </div>
                                 </div>
                             </div>

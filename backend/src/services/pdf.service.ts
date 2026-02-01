@@ -73,6 +73,9 @@ interface PDFData {
         quantity: number;
         unitPrice?: number;
         rate?: number;
+        unit?: string;
+        discount?: number;
+        appliedTaxes?: Array<{ name: string; percentage: number; amount: number }>;
     }>;
     subtotal: number;
     tax: number;
@@ -205,6 +208,48 @@ export class PDFService {
         const recipient = data.client || data.lead;
 
         const backgroundCSS = this.getBackgroundCSS(data.company, !!data.useLetterhead);
+
+        // Aggregate Tax Breakdown if not provided
+        if ((!data.taxBreakdown || data.taxBreakdown.length === 0) && data.items) {
+            const tempBreakdown: Record<string, { name: string; percentage: number; amount: number }> = {};
+            data.items.forEach(item => {
+                // Check for appliedTaxes (database relation or hydrated)
+                const appliedTaxes = (item as any).appliedTaxes;
+                if (appliedTaxes && Array.isArray(appliedTaxes)) {
+                    appliedTaxes.forEach((tax: any) => {
+                        const key = `${tax.name}_${Number(tax.percentage)}`;
+                        if (!tempBreakdown[key]) {
+                            tempBreakdown[key] = {
+                                name: tax.name,
+                                percentage: Number(tax.percentage),
+                                amount: 0
+                            };
+                        }
+                        tempBreakdown[key].amount += Number(tax.amount);
+                    });
+                }
+                // Fallback for legacy items without appliedTaxes array but with single tax
+                else if (Number((item as any).tax) > 0) {
+                    // This handles legacy items that weren't hydrated OR explicitly passed with just rate
+                    // Ideally, controllers should have hydrated, but this is a fail-safe
+                    const rate = Number((item as any).tax);
+                    // Note: We don't have tax name here easily unless we guess 'Tax'
+                    const key = `Tax_${rate}`;
+                    if (!tempBreakdown[key]) {
+                        tempBreakdown[key] = {
+                            name: 'Tax',
+                            percentage: rate,
+                            amount: 0
+                        };
+                    }
+                    // Estimate amount if not present? Or assume caller passed accurate total tax?
+                    // Calculating amount per item here is complex without original logic.
+                    // Skipping amount agg for pure legacy fallback to rely on total tax only if breakdown fails.
+                }
+            });
+
+            data.taxBreakdown = Object.values(tempBreakdown);
+        }
 
         const logoBase64 = this.getImageBase64(data.company.logo);
         const signatureBase64 = this.getImageBase64(data.company.digitalSignature);
@@ -419,20 +464,31 @@ export class PDFService {
         <thead>
             <tr>
                 <th>Description</th>
-                <th style="text-align: center;">Quantity</th>
-                <th style="text-align: right;">Unit Price</th>
-                <th style="text-align: right;">Amount</th>
+                <th style="text-align: center; width: 60px;">Qty</th>
+                <th style="text-align: right; width: 100px;">Rate</th>
+                <th style="text-align: right; width: 80px;">Disc %</th>
+                <th style="text-align: right; width: 120px;">Amount</th>
             </tr>
         </thead>
         <tbody>
-            ${data.items.map(item => `
+            ${data.items.map(item => {
+            const rate = Number(item.unitPrice || item.rate || 0);
+            const discount = Number(item.discount || 0);
+            const grossAmount = item.quantity * rate;
+            const netAmount = grossAmount * (1 - discount / 100);
+            return `
                 <tr>
-                    <td>${item.description}</td>
+                    <td>
+                        <div style="font-weight: bold;">${item.description}</div>
+                        ${item.unit ? `<div style="font-size: 10px; color: #666;">Unit: ${item.unit}</div>` : ''}
+                    </td>
                     <td style="text-align: center;">${item.quantity}</td>
-                    <td style="text-align: right;">${formatCurrency(item.unitPrice || item.rate || 0)}</td>
-                    <td style="text-align: right;">${formatCurrency(item.quantity * (item.unitPrice || item.rate || 0))}</td>
+                    <td style="text-align: right;">${formatCurrency(rate)}</td>
+                    <td style="text-align: right; color: #dc2626;">${discount > 0 ? `${discount}%` : '-'}</td>
+                    <td style="text-align: right;">${formatCurrency(netAmount)}</td>
                 </tr>
-            `).join('')}
+                `;
+        }).join('')}
         </tbody>
     </table>
 
@@ -455,8 +511,8 @@ export class PDFService {
         ` : ''}
         ${Number(data.discount) > 0 ? `
         <div class="totals-row">
-            <span>Discount:</span>
-            <span>-${formatCurrency(Number(data.discount))}</span>
+            <span style="color: #dc2626;">Total Discount:</span>
+            <span style="color: #dc2626;">-${formatCurrency(Number(data.discount))}</span>
         </div>
         ` : ''}
         <div class="totals-row total">

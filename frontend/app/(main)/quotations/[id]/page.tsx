@@ -100,6 +100,22 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
         return `ent-badge ${styles[status] || 'bg-gray-100 text-gray-800'}`;
     };
 
+    // Calculate Tax Breakdown
+    const taxBreakdown = quotation?.items?.reduce((acc: Record<string, number>, item: any) => {
+        if (item.appliedTaxes && item.appliedTaxes.length > 0) {
+            item.appliedTaxes.forEach((tax: any) => {
+                const key = `${tax.name} @${Number(tax.percentage)}%`;
+                acc[key] = (acc[key] || 0) + Number(tax.amount);
+            });
+        } else if (Number(item.tax) > 0) {
+            // Legacy/Simple Tax Fallback
+            const taxAmount = (Number(item.quantity) * Number(item.unitPrice) * Number(item.tax)) / 100;
+            const key = `Tax @${Number(item.tax)}%`;
+            acc[key] = (acc[key] || 0) + taxAmount;
+        }
+        return acc;
+    }, {}) || {};
+
     if (loading) {
         return (
             <div className="flex items-center justify-center h-screen">
@@ -406,6 +422,7 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
                                             <th className="px-2 py-3 text-right text-xs font-black text-gray-400 uppercase tracking-wider">Qty</th>
                                             <th className="px-2 py-3 text-right text-xs font-black text-gray-400 uppercase tracking-wider">UoM</th>
                                             <th className="px-2 py-3 text-right text-xs font-black text-gray-400 uppercase tracking-wider">Rate</th>
+                                            <th className="px-2 py-3 text-right text-xs font-black text-gray-400 uppercase tracking-wider">Disc %</th>
                                             <th className="px-2 py-3 text-right text-xs font-black text-gray-400 uppercase tracking-wider">Tax</th>
                                             <th className="px-2 py-3 text-right text-xs font-black text-gray-400 uppercase tracking-wider">Amount</th>
                                         </tr>
@@ -425,11 +442,14 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
                                                 <td className="px-2 py-4 text-right text-sm font-medium text-gray-600">
                                                     {formatCurrency(item.unitPrice)}
                                                 </td>
+                                                <td className="px-2 py-4 text-right text-sm font-bold text-rose-500">
+                                                    {Number(item.discount) > 0 ? `${Number(item.discount)}%` : '--'}
+                                                </td>
                                                 <td className="px-2 py-4 text-right text-sm font-medium text-gray-600">
                                                     {Number(item.tax)}%
                                                 </td>
                                                 <td className="px-2 py-4 text-right text-sm font-bold text-gray-900">
-                                                    {formatCurrency(Number(item.quantity) * Number(item.unitPrice))}
+                                                    {formatCurrency(Number(item.quantity) * Number(item.unitPrice) * (1 - Number(item.discount || 0) / 100))}
                                                 </td>
                                             </tr>
                                         ))}
@@ -452,19 +472,40 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
                                     </div>
                                     <div className="md:w-2/5 space-y-3">
                                         <div className="flex justify-between text-sm text-gray-600">
-                                            <span className="font-medium">Subtotal</span>
+                                            <span className="font-medium">Subtotal:</span>
                                             <span className="font-bold">{formatCurrency(quotation.subtotal)}</span>
                                         </div>
-                                        <div className="flex justify-between text-sm text-gray-600">
-                                            <span className="font-medium">Tax</span>
-                                            <span className="font-bold">{formatCurrency(quotation.tax)}</span>
-                                        </div>
-                                        <div className="flex justify-between text-sm text-gray-600">
-                                            <span className="font-medium">Discount</span>
-                                            <span className="font-bold">-{formatCurrency(quotation.discount)}</span>
-                                        </div>
+
+                                        {(() => {
+                                            const hasTax = Number(quotation.tax) > 0 || Object.keys(taxBreakdown).length > 0;
+                                            if (!hasTax) return null;
+
+                                            return (
+                                                <>
+                                                    <div className="flex justify-between text-sm text-gray-600">
+                                                        <span className="font-medium">Total Tax:</span>
+                                                        <span className="font-bold text-emerald-600">{formatCurrency(quotation.tax)}</span>
+                                                    </div>
+                                                    <div className="pl-4 border-l-2 border-gray-100 space-y-1 py-1 ml-1">
+                                                        {Object.entries(taxBreakdown).map(([key, amount]) => (
+                                                            <div key={key} className="flex justify-between text-xs text-gray-500">
+                                                                <span className="italic">{key}:</span>
+                                                                <span>{formatCurrency(amount as number)}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </>
+                                            );
+                                        })()}
+
+                                        {Number(quotation.discount) > 0 && (
+                                            <div className="flex justify-between text-sm text-gray-600">
+                                                <span className="font-medium text-xs uppercase tracking-wider text-gray-500">Total Discount:</span>
+                                                <span className="font-bold text-rose-600">-{formatCurrency(quotation.discount)}</span>
+                                            </div>
+                                        )}
                                         <div className="pt-3 border-t-2 border-gray-200 flex justify-between items-center text-gray-900">
-                                            <span className="text-base font-black uppercase tracking-tight">Total</span>
+                                            <span className="text-base font-black uppercase tracking-tight">Total:</span>
                                             <span className="text-xl font-black">{formatCurrency(quotation.total)}</span>
                                         </div>
                                     </div>

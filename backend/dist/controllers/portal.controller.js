@@ -4,6 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getContractDetails = exports.getMyContracts = exports.getContractPdf = exports.getQuotationPdf = exports.getQuotationDetails = exports.getMyQuotations = exports.exportInvoices = exports.getInvoicePdf = exports.getInvoiceDetails = exports.getMyProjects = exports.getMyInvoices = exports.getDashboardStats = void 0;
+const library_1 = require("@prisma/client/runtime/library");
 const client_1 = __importDefault(require("../prisma/client"));
 const pdf_service_1 = require("../services/pdf.service");
 const getDashboardStats = async (req, res) => {
@@ -159,13 +160,38 @@ const getInvoiceDetails = async (req, res) => {
         if (!invoice || invoice.clientId !== clientId) {
             return res.status(404).json({ error: 'Invoice not found' });
         }
+        // Hydrate appliedTaxes for legacy items
+        const allTaxRates = await client_1.default.taxRate.findMany({ where: { companyId: invoice.companyId } });
+        const taxMap = new Map();
+        allTaxRates.forEach(t => taxMap.set(Number(t.percentage), t));
+        const hydratedItems = invoice.items.map((item) => {
+            if ((!item.appliedTaxes || item.appliedTaxes.length === 0) && (Number(item.taxRate) > 0 || Number(item.tax) > 0)) {
+                const rate = Number(item.taxRate || item.tax);
+                const taxConfig = taxMap.get(rate);
+                if (rate > 0) {
+                    const amount = (Number(item.quantity) * Number(item.rate) * rate) / 100;
+                    return {
+                        ...item,
+                        appliedTaxes: [{
+                                id: 'legacy-hydrate',
+                                invoiceItemId: item.id,
+                                taxRateId: taxConfig?.id || 'legacy',
+                                name: taxConfig?.name || 'Tax',
+                                percentage: new library_1.Decimal(rate),
+                                amount: new library_1.Decimal(amount)
+                            }]
+                    };
+                }
+            }
+            return item;
+        });
         // Timeline Logic
         const timeline = [
             { status: 'Draft', date: invoice.createdAt, completed: true },
             { status: 'Sent', date: invoice.invoiceDate || invoice.createdAt, completed: invoice.status !== 'draft' },
             { status: 'Paid', date: invoice.payments[0]?.createdAt, completed: invoice.status === 'paid' }
         ];
-        res.json({ invoice, timeline });
+        res.json({ invoice: { ...invoice, items: hydratedItems }, timeline });
     }
     catch (error) {
         console.error('Get invoice details error:', error);
@@ -188,7 +214,32 @@ const getInvoicePdf = async (req, res) => {
         if (!invoice || invoice.clientId !== clientId) {
             return res.status(404).json({ error: 'Invoice not found' });
         }
-        const pdfBuffer = await pdf_service_1.PDFService.generateInvoicePDF({ ...invoice, useLetterhead: true });
+        // Hydrate appliedTaxes for legacy items
+        const allTaxRates = await client_1.default.taxRate.findMany({ where: { companyId: invoice.companyId } });
+        const taxMap = new Map();
+        allTaxRates.forEach(t => taxMap.set(Number(t.percentage), t));
+        const hydratedItems = invoice.items.map((item) => {
+            if ((!item.appliedTaxes || item.appliedTaxes.length === 0) && (Number(item.taxRate) > 0 || Number(item.tax) > 0)) {
+                const rate = Number(item.taxRate || item.tax);
+                const taxConfig = taxMap.get(rate);
+                if (rate > 0) {
+                    const amount = (Number(item.quantity) * Number(item.rate) * rate) / 100;
+                    return {
+                        ...item,
+                        appliedTaxes: [{
+                                id: 'legacy-hydrate',
+                                invoiceItemId: item.id,
+                                taxRateId: taxConfig?.id || 'legacy',
+                                name: taxConfig?.name || 'Tax',
+                                percentage: new library_1.Decimal(rate),
+                                amount: new library_1.Decimal(amount)
+                            }]
+                    };
+                }
+            }
+            return item;
+        });
+        const pdfBuffer = await pdf_service_1.PDFService.generateInvoicePDF({ ...invoice, items: hydratedItems, useLetterhead: true });
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="Invoice-${invoice.invoiceNumber}.pdf"`);
         res.send(pdfBuffer);
@@ -312,7 +363,34 @@ const getQuotationDetails = async (req, res) => {
         if (!quotation || quotation.lead?.email !== clientEmail) {
             return res.status(404).json({ error: 'Quotation not found' });
         }
-        res.json({ quotation });
+        // Hydrate appliedTaxes for legacy items
+        const allTaxRates = await client_1.default.taxRate.findMany({ where: { companyId: quotation.companyId } });
+        const taxMap = new Map();
+        allTaxRates.forEach(t => taxMap.set(Number(t.percentage), t));
+        const hydratedItems = quotation.items.map((item) => {
+            if ((!item.appliedTaxes || item.appliedTaxes.length === 0)) {
+                const legacyRate = Number(item.tax) || 0;
+                if (legacyRate > 0) {
+                    const taxConfig = taxMap.get(legacyRate);
+                    const quantity = Number(item.quantity);
+                    const unitPrice = Number(item.unitPrice || 0);
+                    const amount = (quantity * unitPrice * legacyRate) / 100;
+                    return {
+                        ...item,
+                        appliedTaxes: [{
+                                id: 'legacy-hydrate',
+                                quotationItemId: item.id,
+                                taxRateId: taxConfig?.id || 'legacy',
+                                name: taxConfig?.name || 'Tax',
+                                percentage: new library_1.Decimal(legacyRate),
+                                amount: new library_1.Decimal(amount)
+                            }]
+                    };
+                }
+            }
+            return item;
+        });
+        res.json({ quotation: { ...quotation, items: hydratedItems } });
     }
     catch (error) {
         console.error('Get quotation details error:', error);
@@ -335,8 +413,35 @@ const getQuotationPdf = async (req, res) => {
         if (!quotation || quotation.lead?.email !== clientEmail) {
             return res.status(404).json({ error: 'Quotation not found' });
         }
+        // Hydrate appliedTaxes for legacy items
+        const allTaxRates = await client_1.default.taxRate.findMany({ where: { companyId: quotation.companyId } });
+        const taxMap = new Map();
+        allTaxRates.forEach(t => taxMap.set(Number(t.percentage), t));
+        const hydratedItems = quotation.items.map((item) => {
+            if ((!item.appliedTaxes || item.appliedTaxes.length === 0)) {
+                const legacyRate = Number(item.tax) || 0;
+                if (legacyRate > 0) {
+                    const taxConfig = taxMap.get(legacyRate);
+                    const quantity = Number(item.quantity);
+                    const unitPrice = Number(item.unitPrice || 0);
+                    const amount = (quantity * unitPrice * legacyRate) / 100;
+                    return {
+                        ...item,
+                        appliedTaxes: [{
+                                id: 'legacy-hydrate',
+                                quotationItemId: item.id,
+                                taxRateId: taxConfig?.id || 'legacy',
+                                name: taxConfig?.name || 'Tax',
+                                percentage: new library_1.Decimal(legacyRate),
+                                amount: new library_1.Decimal(amount)
+                            }]
+                    };
+                }
+            }
+            return item;
+        });
         // Use appropriate PDF generation (signed if accepted?)
-        const pdfBuffer = await pdf_service_1.PDFService.generateQuotationPDF({ ...quotation, useLetterhead: true });
+        const pdfBuffer = await pdf_service_1.PDFService.generateQuotationPDF({ ...quotation, items: hydratedItems, useLetterhead: true });
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="Quotation-${quotation.quotationNumber}.pdf"`);
         res.send(pdfBuffer);

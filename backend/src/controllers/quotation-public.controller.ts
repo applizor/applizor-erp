@@ -3,6 +3,7 @@ import prisma from '../prisma/client';
 import { AuthRequest } from '../middleware/auth';
 import { PermissionService } from '../services/permission.service';
 import { v4 as uuidv4 } from 'uuid';
+import { Decimal } from '@prisma/client/runtime/library';
 
 // Generate Public Link for Quotation
 export const generatePublicLink = async (req: AuthRequest, res: Response) => {
@@ -120,7 +121,11 @@ export const getQuotationByToken = async (req: Request, res: Response) => {
                 isPublicEnabled: true
             },
             include: {
-                items: true,
+                items: {
+                    include: {
+                        appliedTaxes: true
+                    }
+                },
                 lead: true,
                 company: {
                     select: {
@@ -152,6 +157,42 @@ export const getQuotationByToken = async (req: Request, res: Response) => {
         if (!quotation) {
             return res.status(404).json({ error: 'Quotation not found or link expired' });
         }
+
+        // Hydrate appliedTaxes for legacy items
+        const allTaxRates = await prisma.taxRate.findMany({ where: { companyId: quotation.companyId } });
+        const taxMap = new Map<number, any>();
+        allTaxRates.forEach(t => taxMap.set(Number(t.percentage), t));
+
+        const hydratedItems = quotation.items.map((item: any) => {
+            // Check for legacy tax rate if appliedTaxes is empty
+            if ((!item.appliedTaxes || item.appliedTaxes.length === 0)) {
+                const legacyRate = Number(item.tax) || 0;
+
+                if (legacyRate > 0) {
+                    const taxConfig = taxMap.get(legacyRate);
+                    const quantity = Number(item.quantity);
+                    const unitPrice = Number(item.unitPrice || 0);
+                    const discount = Number(item.discount || 0);
+                    const taxableAmount = quantity * unitPrice * (1 - discount / 100);
+                    const amount = (taxableAmount * legacyRate) / 100;
+
+                    return {
+                        ...item,
+                        appliedTaxes: [{
+                            id: 'legacy-hydrate',
+                            quotationItemId: item.id,
+                            taxRateId: taxConfig?.id || 'legacy',
+                            name: taxConfig?.name || 'Tax',
+                            percentage: new Decimal(legacyRate),
+                            amount: new Decimal(amount)
+                        }]
+                    };
+                }
+            }
+            return item;
+        });
+
+        const hydratedQuotation = { ...quotation, items: hydratedItems };
 
         // Check expiration
         if (quotation.publicExpiresAt && new Date() > quotation.publicExpiresAt) {
@@ -197,7 +238,7 @@ export const getQuotationByToken = async (req: Request, res: Response) => {
             });
         });
 
-        res.json({ quotation });
+        res.json({ quotation: hydratedQuotation });
     } catch (error: any) {
         console.error('Get quotation by token error:', error);
         res.status(500).json({ error: 'Failed to fetch quotation', details: error.message });
@@ -279,6 +320,30 @@ export const acceptQuotation = async (req: Request, res: Response) => {
             // Don't fail the request if email fails
         }
 
+        // Create activity log
+        try {
+            const ipAddress = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
+            const userAgent = req.headers['user-agent'] || 'unknown';
+
+            await prisma.quotationActivity.create({
+                data: {
+                    quotationId: quotation.id,
+                    type: 'STATUS_CHANGE',
+                    ipAddress,
+                    userAgent,
+                    deviceType: userAgent.toLowerCase().includes('mobile') ? 'Mobile' : 'Desktop',
+                    browser: 'PublicLink',
+                    metadata: {
+                        new_status: 'accepted',
+                        client_action: true,
+                        public_form: true
+                    }
+                }
+            });
+        } catch (logError) {
+            console.error('Failed to log public acceptance activity:', logError);
+        }
+
         res.json({
             message: 'Quotation accepted successfully',
             quotation: updated
@@ -348,6 +413,30 @@ export const rejectQuotation = async (req: Request, res: Response) => {
             // Don't fail the request if email fails
         }
 
+        // Create activity log
+        try {
+            const ipAddress = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
+            const userAgent = req.headers['user-agent'] || 'unknown';
+
+            await prisma.quotationActivity.create({
+                data: {
+                    quotationId: quotation.id,
+                    type: 'STATUS_CHANGE',
+                    ipAddress,
+                    userAgent,
+                    deviceType: userAgent.toLowerCase().includes('mobile') ? 'Mobile' : 'Desktop',
+                    browser: 'PublicLink',
+                    metadata: {
+                        new_status: 'rejected',
+                        client_action: true,
+                        public_form: true
+                    }
+                }
+            });
+        } catch (logError) {
+            console.error('Failed to log public rejection activity:', logError);
+        }
+
         res.json({
             message: 'Quotation rejected',
             quotation: updated
@@ -369,7 +458,11 @@ export const downloadSignedQuotationPDFPublic = async (req: Request, res: Respon
                 isPublicEnabled: true
             },
             include: {
-                items: true,
+                items: {
+                    include: {
+                        appliedTaxes: true
+                    }
+                },
                 lead: true,
                 company: true
             }
@@ -392,8 +485,27 @@ export const downloadSignedQuotationPDFPublic = async (req: Request, res: Respon
         // Import PDF service dynamically
         const { PDFService } = await import('../services/pdf.service');
 
+        // Calculate Tax Breakdown
+        const taxBreakdown: Record<string, { name: string; percentage: number; amount: number }> = {};
+        quotation.items.forEach((item: any) => {
+            if (item.appliedTaxes) {
+                item.appliedTaxes.forEach((tax: any) => {
+                    const key = `${tax.name}_${tax.percentage}`;
+                    if (!taxBreakdown[key]) {
+                        taxBreakdown[key] = {
+                            name: tax.name,
+                            percentage: Number(tax.percentage),
+                            amount: 0
+                        };
+                    }
+                    taxBreakdown[key].amount += Number(tax.amount);
+                });
+            }
+        });
+
         // Generate signed PDF
         const pdfBuffer = await PDFService.generateSignedQuotationPDF({
+            taxBreakdown: Object.values(taxBreakdown),
             quotationNumber: quotation.quotationNumber,
             quotationDate: quotation.quotationDate,
             validUntil: quotation.validUntil || undefined,
@@ -428,7 +540,9 @@ export const downloadSignedQuotationPDFPublic = async (req: Request, res: Respon
             items: quotation.items.map(item => ({
                 description: item.description,
                 quantity: Number(item.quantity),
-                unitPrice: Number(item.unitPrice)
+                unit: item.unit || undefined,
+                unitPrice: Number(item.unitPrice),
+                taxRate: Number(item.tax)
             })),
             subtotal: Number(quotation.subtotal),
             tax: Number(quotation.tax),

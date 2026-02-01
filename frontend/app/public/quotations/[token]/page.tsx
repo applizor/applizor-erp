@@ -321,6 +321,7 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
                                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
                                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Unit Price</th>
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Disc %</th>
                                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
                                 </tr>
                             </thead>
@@ -330,31 +331,66 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
                                         <td className="px-6 py-4 text-sm text-gray-900">{item.description}</td>
                                         <td className="px-6 py-4 text-sm text-gray-600 text-right">{Number(item.quantity)}</td>
                                         <td className="px-6 py-4 text-sm text-gray-600 text-right">{formatCurrency(item.unitPrice)}</td>
+                                        <td className="px-6 py-4 text-sm text-rose-500 font-bold text-right">
+                                            {Number(item.discount) > 0 ? `${Number(item.discount)}%` : '--'}
+                                        </td>
                                         <td className="px-6 py-4 text-sm text-gray-900 font-medium text-right">
-                                            {formatCurrency(Number(item.quantity) * Number(item.unitPrice))}
+                                            {formatCurrency(Number(item.quantity) * Number(item.unitPrice) * (1 - Number(item.discount || 0) / 100))}
                                         </td>
                                     </tr>
                                 ))}
                             </tbody>
                             <tfoot className="bg-gray-50">
                                 <tr>
-                                    <td colSpan={3} className="px-6 py-3 text-right text-sm font-medium text-gray-600">Sub Total</td>
+                                    <td colSpan={4} className="px-6 py-3 text-right text-sm font-medium text-gray-600">Subtotal:</td>
                                     <td className="px-6 py-3 text-right text-sm font-medium text-gray-900">{formatCurrency(quotation.subtotal)}</td>
                                 </tr>
-                                {Number(quotation.tax) > 0 && (
-                                    <tr>
-                                        <td colSpan={3} className="px-6 py-3 text-right text-sm font-medium text-gray-600">Tax</td>
-                                        <td className="px-6 py-3 text-right text-sm font-medium text-gray-900">{formatCurrency(quotation.tax)}</td>
-                                    </tr>
-                                )}
+                                {/* Detailed Tax Breakdown */}
+                                {(() => {
+                                    const taxBreakdown: Record<string, number> = {};
+                                    (quotation.items || []).forEach((item: any) => {
+                                        const appliedTaxes = item.appliedTaxes;
+                                        if (appliedTaxes && appliedTaxes.length > 0) {
+                                            appliedTaxes.forEach((tax: any) => {
+                                                const key = `${tax.name} @${Number(tax.percentage)}%`;
+                                                taxBreakdown[key] = (taxBreakdown[key] || 0) + Number(tax.amount);
+                                            });
+                                        } else if (Number(item.taxRate || item.tax) > 0) {
+                                            const rate = Number(item.taxRate || item.tax);
+                                            const amount = (Number(item.quantity) * Number(item.unitPrice || 0) * rate) / 100;
+                                            const key = `Tax @${rate}%`;
+                                            taxBreakdown[key] = (taxBreakdown[key] || 0) + amount;
+                                        }
+                                    });
+
+                                    const hasTax = Number(quotation.tax) > 0 || Object.keys(taxBreakdown).length > 0;
+                                    if (!hasTax) return null;
+
+                                    return (
+                                        <>
+                                            <tr>
+                                                <td colSpan={4} className="px-6 py-3 text-right text-sm font-medium text-gray-600">Total Tax:</td>
+                                                <td className="px-6 py-3 text-right text-sm font-medium text-gray-900">{formatCurrency(quotation.tax)}</td>
+                                            </tr>
+                                            {Object.entries(taxBreakdown).map(([key, amount]) => (
+                                                <tr key={key}>
+                                                    <td colSpan={4} className="px-6 py-1 text-right text-[11px] font-medium text-gray-500 uppercase tracking-wider pl-10">
+                                                        <span className="mr-8 border-r-2 border-gray-200 pr-2">{key}:</span>
+                                                    </td>
+                                                    <td className="px-6 py-1 text-right text-xs font-medium text-gray-900 italic">{formatCurrency(amount as number)}</td>
+                                                </tr>
+                                            ))}
+                                        </>
+                                    );
+                                })()}
                                 {Number(quotation.discount) > 0 && (
                                     <tr>
-                                        <td colSpan={3} className="px-6 py-3 text-right text-sm font-medium text-gray-600">Discount</td>
-                                        <td className="px-6 py-3 text-right text-sm font-medium text-gray-900">-{formatCurrency(quotation.discount)}</td>
+                                        <td colSpan={4} className="px-6 py-3 text-right text-sm font-medium text-rose-600">Total Discount:</td>
+                                        <td className="px-6 py-3 text-right text-sm font-medium text-rose-600">-{formatCurrency(quotation.discount)}</td>
                                     </tr>
                                 )}
                                 <tr>
-                                    <td colSpan={3} className="px-6 py-3 text-right text-base font-bold text-gray-900">Total</td>
+                                    <td colSpan={4} className="px-6 py-3 text-right text-base font-bold text-gray-900">Total:</td>
                                     <td className="px-6 py-3 text-right text-base font-bold text-green-600">{formatCurrency(quotation.total)}</td>
                                 </tr>
                             </tfoot>

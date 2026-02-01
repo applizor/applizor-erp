@@ -42,7 +42,8 @@ export default function EditQuotationPage({ params }: { params: { id: string } }
         notes: '',
         currency: globalCurrency,
         reminderFrequency: '',
-        maxReminders: 3
+        maxReminders: 3,
+        discount: 0
     });
 
     const [items, setItems] = useState<any[]>([
@@ -90,7 +91,8 @@ export default function EditQuotationPage({ params }: { params: { id: string } }
                     notes: q.notes || '',
                     currency: q.currency || globalCurrency,
                     reminderFrequency: q.reminderFrequency || '',
-                    maxReminders: q.maxReminders || 3
+                    maxReminders: q.maxReminders || 3,
+                    discount: Number(q.discount || 0)
                 });
 
                 if (q.items && q.items.length > 0) {
@@ -251,8 +253,9 @@ export default function EditQuotationPage({ params }: { params: { id: string } }
         return {
             subtotal,
             tax: totalTax,
-            discount: totalDiscount,
-            total: subtotal + totalTax - totalDiscount,
+            itemDiscount: totalDiscount,
+            overallDiscount: Number(formData.discount || 0),
+            total: subtotal + totalTax - totalDiscount - Number(formData.discount || 0),
             taxBreakdown
         };
     };
@@ -276,6 +279,7 @@ export default function EditQuotationPage({ params }: { params: { id: string } }
             setSaving(true);
             await quotationsApi.update(params.id, {
                 ...formData,
+                discount: Number(formData.discount || 0) + totals.itemDiscount, // Store aggregated discount
                 items: validItems.map(item => ({
                     ...item,
                     total: item.quantity * item.unitPrice
@@ -518,6 +522,7 @@ export default function EditQuotationPage({ params }: { params: { id: string } }
                                     <th className="px-4 py-3 text-center text-xs font-black text-gray-500 uppercase tracking-wider w-1/12">Qty</th>
                                     <th className="px-4 py-3 text-center text-xs font-black text-gray-500 uppercase tracking-wider w-1/12">UoM</th>
                                     <th className="px-4 py-3 text-right text-xs font-black text-gray-500 uppercase tracking-wider w-2/12">Unit Price</th>
+                                    <th className="px-4 py-3 text-center text-xs font-black text-gray-500 uppercase tracking-wider w-1/12">Disc %</th>
                                     <th className="px-4 py-3 text-right text-xs font-black text-gray-500 uppercase tracking-wider w-2/12">Tax Rule</th>
                                     <th className="px-4 py-3 text-right text-xs font-black text-gray-500 uppercase tracking-wider w-2/12">Net Amount</th>
                                     <th className="px-4 py-3 w-1/12"></th>
@@ -564,6 +569,16 @@ export default function EditQuotationPage({ params }: { params: { id: string } }
                                             />
                                         </td>
                                         <td className="px-4 py-2">
+                                            <input
+                                                type="number"
+                                                value={item.discount}
+                                                onChange={(e) => updateItem(index, 'discount', parseFloat(e.target.value))}
+                                                className="block w-full border-0 border-b border-transparent bg-transparent focus:border-rose-500 focus:ring-0 text-sm text-center text-rose-500 font-bold"
+                                                min="0"
+                                                max="100"
+                                            />
+                                        </td>
+                                        <td className="px-4 py-2">
                                             <MultiSelect
                                                 options={taxRates.map(t => ({
                                                     label: `${t.name} (${Number(t.percentage)}%)`,
@@ -578,7 +593,7 @@ export default function EditQuotationPage({ params }: { params: { id: string } }
                                             />
                                         </td>
                                         <td className="px-4 py-2 text-right text-sm font-bold text-gray-900 tracking-tight">
-                                            {formatCurrency((item.quantity * item.unitPrice))}
+                                            {formatCurrency((item.quantity * item.unitPrice) * (1 - (item.discount || 0) / 100))}
                                         </td>
                                         <td className="px-4 py-2 text-center">
                                             {items.length > 1 && (
@@ -617,9 +632,21 @@ export default function EditQuotationPage({ params }: { params: { id: string } }
                                     </div>
                                 ))}
 
-                                <div className="flex justify-between text-xs font-bold text-gray-500 uppercase tracking-wide">
-                                    <span>Applicable Discount</span>
-                                    <span>-{formatCurrency(totals.discount)}</span>
+                                <div className="flex justify-between items-center text-xs font-bold text-gray-500 uppercase tracking-wide">
+                                    <span>Item Discounts</span>
+                                    <span className="text-rose-500">-{formatCurrency(totals.itemDiscount)}</span>
+                                </div>
+                                <div className="flex justify-between items-center text-xs font-bold text-gray-500 uppercase tracking-wide">
+                                    <span>Overall Discount</span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-gray-400 font-normal">₹</span>
+                                        <input
+                                            type="number"
+                                            value={formData.discount}
+                                            onChange={(e) => setFormData({ ...formData, discount: parseFloat(e.target.value) || 0 })}
+                                            className="w-24 text-right bg-white border border-gray-200 rounded px-1.5 py-0.5 text-rose-500 font-bold outline-none focus:border-rose-500"
+                                        />
+                                    </div>
                                 </div>
                                 <div className="pt-4 border-t border-gray-200 flex justify-between items-center">
                                     <span className="text-sm font-black text-gray-900 uppercase tracking-wide">Total Value</span>

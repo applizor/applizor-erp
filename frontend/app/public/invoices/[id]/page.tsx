@@ -9,21 +9,51 @@ import { CheckCircle2, Download, Info, ShieldCheck, ArrowLeft, CreditCard, Send,
 export default function PublicInvoiceDetails({ params }: { params: { id: string } }) {
     const router = useRouter();
     const [invoice, setInvoice] = useState<any>(null);
-    const [timeline, setTimeline] = useState<any[]>([]); // Keep timeline if API returns it, or remove if unused in public view
+    const [timeline, setTimeline] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         // Use the public endpoint
         api.get(`/invoices/${params.id}/public`)
             .then((res: any) => {
                 setInvoice(res.data.invoice);
-                // If the public API returns a timeline, set it here. 
-                // Currently getPublicInvoice might only return { invoice }. 
-                // We'll define a basic timeline based on status if needed or hide it.
             })
-            .catch((err: any) => console.error(err))
+            .catch((err: any) => {
+                console.error(err);
+                setError(err.response?.data?.error || err.message || 'Failed to load invoice');
+            })
             .finally(() => setLoading(false));
     }, [params.id]);
+
+    // ... handleDownloadPdf ...
+
+    // ... formatCurrency ...
+
+    if (loading) return (
+        <div className="flex items-center justify-center min-h-screen">
+            <LoadingSpinner size="lg" />
+        </div>
+    );
+
+    if (error) return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+            <div className="bg-white p-8 rounded-lg shadow-lg border border-red-100 max-w-md w-full text-center">
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Info className="w-8 h-8 text-red-600" />
+                </div>
+                <h2 className="text-xl font-bold text-gray-900 mb-2">Unable to Load Invoice</h2>
+                <p className="text-sm text-gray-600 mb-6">
+                    {error}
+                </p>
+                <div className="text-xs text-gray-400 bg-gray-100 p-2 rounded">
+                    ID: {params.id}
+                </div>
+            </div>
+        </div>
+    );
+
+    if (!invoice) return null;
 
     const handleDownloadPdf = async () => {
         try {
@@ -203,7 +233,8 @@ export default function PublicInvoiceDetails({ params }: { params: { id: string 
                                 <tr>
                                     <th className="px-8 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Description</th>
                                     <th className="px-8 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Qty</th>
-                                    <th className="px-8 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Price</th>
+                                    <th className="px-8 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Rate</th>
+                                    <th className="px-8 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Disc %</th>
                                     <th className="px-8 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Amount</th>
                                 </tr>
                             </thead>
@@ -213,31 +244,64 @@ export default function PublicInvoiceDetails({ params }: { params: { id: string 
                                         <td className="px-8 py-5 text-sm font-bold text-slate-900">{item.description}</td>
                                         <td className="px-8 py-5 text-sm font-medium text-slate-600 text-center">{Number(item.quantity)}</td>
                                         <td className="px-8 py-5 text-sm font-medium text-slate-600 text-right">{formatCurrency(item.rate)}</td>
+                                        <td className="px-8 py-5 text-sm font-bold text-rose-500 text-right">{Number(item.discount) > 0 ? `${Number(item.discount)}%` : '--'}</td>
                                         <td className="px-8 py-5 text-sm font-black text-slate-900 text-right">
-                                            {formatCurrency(Number(item.quantity) * Number(item.rate))}
+                                            {formatCurrency(item.amount)}
                                         </td>
                                     </tr>
                                 ))}
                             </tbody>
                             <tfoot className="bg-slate-50/50">
                                 <tr>
-                                    <td colSpan={3} className="px-8 py-3 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Subtotal</td>
+                                    <td colSpan={4} className="px-8 py-3 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Gross Subtotal:</td>
                                     <td className="px-8 py-3 text-right text-sm font-bold text-slate-900">{formatCurrency(invoice.subtotal)}</td>
                                 </tr>
-                                {Number(invoice.tax) > 0 && (
-                                    <tr>
-                                        <td colSpan={3} className="px-8 py-3 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Tax</td>
-                                        <td className="px-8 py-3 text-right text-sm font-bold text-slate-900">{formatCurrency(invoice.tax)}</td>
-                                    </tr>
-                                )}
+                                {/* Detailed Tax Breakdown */}
+                                {(() => {
+                                    const taxBreakdown: Record<string, number> = {};
+                                    (invoice.items || []).forEach((item: any) => {
+                                        const appliedTaxes = item.appliedTaxes;
+                                        if (appliedTaxes && appliedTaxes.length > 0) {
+                                            appliedTaxes.forEach((tax: any) => {
+                                                const key = `${tax.name} @${Number(tax.percentage)}%`;
+                                                taxBreakdown[key] = (taxBreakdown[key] || 0) + Number(tax.amount);
+                                            });
+                                        } else if (Number(item.taxRate || item.tax) > 0) {
+                                            const rate = Number(item.taxRate || item.tax);
+                                            const amount = (Number(item.quantity) * Number(item.rate) * rate) / 100;
+                                            const key = `Tax @${rate}%`;
+                                            taxBreakdown[key] = (taxBreakdown[key] || 0) + amount;
+                                        }
+                                    });
+
+                                    const hasTax = Number(invoice.tax) > 0 || Object.keys(taxBreakdown).length > 0;
+                                    if (!hasTax) return null;
+
+                                    return (
+                                        <>
+                                            <tr>
+                                                <td colSpan={4} className="px-8 py-3 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Tax:</td>
+                                                <td className="px-8 py-3 text-right text-sm font-bold text-slate-900">{formatCurrency(invoice.tax)}</td>
+                                            </tr>
+                                            {Object.entries(taxBreakdown).map(([key, amount]) => (
+                                                <tr key={key}>
+                                                    <td colSpan={4} className="px-8 py-1.5 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest pl-16">
+                                                        <span className="border-r border-slate-200 pr-2">{key}:</span>
+                                                    </td>
+                                                    <td className="px-8 py-1.5 text-right text-xs font-bold text-slate-500 italic">{formatCurrency(amount as number)}</td>
+                                                </tr>
+                                            ))}
+                                        </>
+                                    );
+                                })()}
                                 {Number(invoice.discount) > 0 && (
                                     <tr>
-                                        <td colSpan={3} className="px-8 py-3 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Discount</td>
-                                        <td className="px-8 py-3 text-right text-sm font-bold text-emerald-600">-{formatCurrency(invoice.discount)}</td>
+                                        <td colSpan={4} className="px-8 py-3 text-right text-[10px] font-black text-rose-500 uppercase tracking-widest">Total Discount:</td>
+                                        <td className="px-8 py-3 text-right text-sm font-bold text-rose-600">-{formatCurrency(invoice.discount)}</td>
                                     </tr>
                                 )}
                                 <tr className="bg-slate-100 border-t-2 border-slate-200">
-                                    <td colSpan={3} className="px-8 py-5 text-right text-xs font-black text-slate-900 uppercase tracking-widest">Total Valuation</td>
+                                    <td colSpan={4} className="px-8 py-5 text-right text-xs font-black text-slate-900 uppercase tracking-widest">Total Valuation:</td>
                                     <td className="px-8 py-5 text-right text-xl font-black text-primary-700">{formatCurrency(invoice.total)}</td>
                                 </tr>
                             </tfoot>

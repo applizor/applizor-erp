@@ -10,6 +10,8 @@ import {
     getMyQuotations,
     getQuotationDetails,
     getQuotationPdf,
+    acceptQuotation,
+    rejectQuotation,
     getContractPdf,
     getMyContracts,
     getContractDetails
@@ -27,6 +29,8 @@ router.get('/dashboard', authenticateClient, getDashboardStats);
 router.get('/quotations', authenticateClient, getMyQuotations);
 router.get('/quotations/:id', authenticateClient, getQuotationDetails);
 router.get('/quotations/:id/pdf', authenticateClient, getQuotationPdf);
+router.post('/quotations/:id/accept', authenticateClient, acceptQuotation);
+router.post('/quotations/:id/reject', authenticateClient, rejectQuotation);
 
 // Contracts
 router.get('/contracts', authenticateClient, getMyContracts);

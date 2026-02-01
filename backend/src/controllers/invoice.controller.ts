@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import { Decimal } from '@prisma/client/runtime/library';
 import prisma from '../prisma/client';
 import { AuthRequest } from '../middleware/auth';
 import { InvoiceService } from '../services/invoice.service';
@@ -135,7 +136,39 @@ export const getInvoice = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'Invoice not found' });
     }
 
-    res.json({ invoice });
+    // Hydrate appliedTaxes for legacy invoices
+    const allTaxRates = await prisma.taxRate.findMany({ where: { companyId: invoice.companyId } });
+    const taxMap = new Map<number, any>();
+    allTaxRates.forEach(t => taxMap.set(Number(t.percentage), t));
+
+    const hydratedItems = invoice.items.map((item: any) => {
+      // Check for legacy tax rate if appliedTaxes is empty
+      if ((!item.appliedTaxes || item.appliedTaxes.length === 0)) {
+        const legacyRate = Number(item.taxRate) || Number(item.tax) || 0;
+
+        if (legacyRate > 0) {
+          const taxConfig = taxMap.get(legacyRate);
+          const quantity = Number(item.quantity);
+          const unitPrice = Number(item.rate || item.unitPrice || 0);
+          const amount = (quantity * unitPrice * legacyRate) / 100;
+
+          return {
+            ...item,
+            appliedTaxes: [{
+              id: 'legacy-hydrate',
+              invoiceItemId: item.id,
+              taxRateId: taxConfig?.id || 'legacy',
+              name: taxConfig?.name || 'Tax',
+              percentage: new Decimal(legacyRate),
+              amount: new Decimal(amount)
+            }]
+          };
+        }
+      }
+      return item;
+    });
+
+    res.json({ invoice: { ...invoice, items: hydratedItems } });
   } catch (error: any) {
     console.error('Get invoice error:', error);
     res.status(500).json({ error: 'Failed to get invoice', details: error.message });
@@ -164,24 +197,52 @@ export const generateInvoicePDF = async (req: AuthRequest, res: Response) => {
     if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
 
     // Calculate Tax Breakdown
-    const taxBreakdown: Record<string, number> = {};
+    // Fetch all tax rates to fallback intelligently
+    const allTaxRates = await prisma.taxRate.findMany({ where: { companyId: invoice.companyId } });
+    const taxMap = new Map<number, string>();
+    allTaxRates.forEach(t => taxMap.set(Number(t.percentage), t.name));
+
+    const taxBreakdown: Record<string, { name: string; percentage: number; amount: number }> = {};
+
     ((invoice as any).items || []).forEach((item: any) => {
-      if (item.appliedTaxes) {
+      // 1. Detailed Taxes
+      if (item.appliedTaxes && item.appliedTaxes.length > 0) {
         item.appliedTaxes.forEach((tax: any) => {
-          const key = `${tax.name} @${Number(tax.percentage)}%`;
-          taxBreakdown[key] = (taxBreakdown[key] || 0) + Number(tax.amount);
+          const key = `${tax.name}_${tax.percentage}`;
+          if (!taxBreakdown[key]) {
+            taxBreakdown[key] = {
+              name: tax.name,
+              percentage: Number(tax.percentage),
+              amount: 0
+            };
+          }
+          taxBreakdown[key].amount += Number(tax.amount);
         });
+      }
+      // 2. Fallback to simple tax rate
+      else if (item.taxRate || item.tax) {
+        const rate = Number(item.taxRate || item.tax);
+        if (rate > 0) {
+          const key = `Tax_${rate}`;
+          if (!taxBreakdown[key]) {
+            // Try to resolve name from Tax Map
+            const resolvedName = taxMap.get(rate) || 'Tax';
+            taxBreakdown[key] = {
+              name: resolvedName,
+              percentage: rate,
+              amount: 0
+            };
+          }
+          const amount = (Number(item.quantity) * Number(item.rate || item.unitPrice) * rate) / 100;
+          taxBreakdown[key].amount += amount;
+        }
       }
     });
 
     // Use PDFService (HTML-to-PDF) for cleaner output
     const pdfBuffer = await PDFService.generateInvoicePDF({
       ...invoice,
-      taxBreakdown: Object.entries(taxBreakdown).map(([name, amount]) => ({
-        name,
-        rate: 0,
-        amount
-      })),
+      taxBreakdown: Object.values(taxBreakdown),
       company: {
         ...invoice.company,
         digitalSignature: invoice.company.digitalSignature || undefined,
@@ -268,23 +329,50 @@ export const sendInvoice = async (req: AuthRequest, res: Response) => {
     if (!invoice.client.email) return res.status(400).json({ error: 'Client has no email' });
 
     // Calculate Tax Breakdown
-    const taxBreakdown: Record<string, number> = {};
+    const allTaxRates = await prisma.taxRate.findMany({ where: { companyId: invoice.companyId } });
+    const taxMap = new Map<number, string>();
+    allTaxRates.forEach(t => taxMap.set(Number(t.percentage), t.name));
+
+    const taxBreakdown: Record<string, { name: string; percentage: number; amount: number }> = {};
+
     ((invoice as any).items || []).forEach((item: any) => {
-      if (item.appliedTaxes) {
+      // 1. Detailed Taxes
+      if (item.appliedTaxes && item.appliedTaxes.length > 0) {
         item.appliedTaxes.forEach((tax: any) => {
-          const key = `${tax.name} @${Number(tax.percentage)}%`;
-          taxBreakdown[key] = (taxBreakdown[key] || 0) + Number(tax.amount);
+          const key = `${tax.name}_${tax.percentage}`;
+          if (!taxBreakdown[key]) {
+            taxBreakdown[key] = {
+              name: tax.name,
+              percentage: Number(tax.percentage),
+              amount: 0
+            };
+          }
+          taxBreakdown[key].amount += Number(tax.amount);
         });
+      }
+      // 2. Fallback
+      else if (item.taxRate || item.tax) {
+        const rate = Number(item.taxRate || item.tax);
+        if (rate > 0) {
+          const key = `Tax_${rate}`;
+          if (!taxBreakdown[key]) {
+            // Try to resolve name from Tax Map
+            const resolvedName = taxMap.get(rate) || 'Tax';
+            taxBreakdown[key] = {
+              name: resolvedName,
+              percentage: rate,
+              amount: 0
+            };
+          }
+          const amount = (Number(item.quantity) * Number(item.rate || item.unitPrice) * rate) / 100;
+          taxBreakdown[key].amount += amount;
+        }
       }
     });
 
     const pdfBuffer = await PDFService.generateInvoicePDF({
       ...invoice,
-      taxBreakdown: Object.entries(taxBreakdown).map(([name, amount]) => ({
-        name,
-        rate: 0,
-        amount
-      })),
+      taxBreakdown: Object.values(taxBreakdown),
       useLetterhead: req.body.useLetterhead === true
     });
 
@@ -376,23 +464,48 @@ export const batchSendInvoices = async (req: AuthRequest, res: Response) => {
     for (const invoice of invoices) {
       if (invoice.client?.email) {
         // Calculate Tax Breakdown
-        const taxBreakdown: Record<string, number> = {};
+        // In Batch mode, fetching tax rates repeatedly might be slow, but safe for now.
+        const allTaxRates = await prisma.taxRate.findMany({ where: { companyId: invoice.companyId } });
+        const taxMap = new Map<number, string>();
+        allTaxRates.forEach(t => taxMap.set(Number(t.percentage), t.name));
+
+        const taxBreakdown: Record<string, { name: string; percentage: number; amount: number }> = {};
+
         ((invoice as any).items || []).forEach((item: any) => {
-          if (item.appliedTaxes) {
+          if (item.appliedTaxes && item.appliedTaxes.length > 0) {
             item.appliedTaxes.forEach((tax: any) => {
-              const key = `${tax.name} @${Number(tax.percentage)}%`;
-              taxBreakdown[key] = (taxBreakdown[key] || 0) + Number(tax.amount);
+              const key = `${tax.name}_${tax.percentage}`;
+              if (!taxBreakdown[key]) {
+                taxBreakdown[key] = {
+                  name: tax.name,
+                  percentage: Number(tax.percentage),
+                  amount: 0
+                };
+              }
+              taxBreakdown[key].amount += Number(tax.amount);
             });
+          } else if (item.taxRate || item.tax) {
+            // Fallback for simple tax rate
+            const rate = Number(item.taxRate || item.tax);
+            if (rate > 0) {
+              const key = `Tax_${rate}`;
+              if (!taxBreakdown[key]) {
+                const resolvedName = taxMap.get(rate) || 'Tax';
+                taxBreakdown[key] = {
+                  name: resolvedName,
+                  percentage: rate,
+                  amount: 0
+                };
+              }
+              const amount = (Number(item.quantity) * Number(item.rate) * rate) / 100;
+              taxBreakdown[key].amount += amount;
+            }
           }
         });
 
         const pdfBuffer = await PDFService.generateInvoicePDF({
           ...invoice as any,
-          taxBreakdown: Object.entries(taxBreakdown).map(([name, amount]) => ({
-            name,
-            rate: 0,
-            amount
-          }))
+          taxBreakdown: Object.values(taxBreakdown)
         });
         emailService.sendInvoiceEmail(invoice.client.email, invoice, pdfBuffer).catch(err => {
           console.error(`Failed to send batch email for ${invoice.invoiceNumber}`, err);
@@ -470,6 +583,7 @@ export const convertQuotation = async (req: AuthRequest, res: Response) => {
 export const getPublicInvoice = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
+    console.log(`[DEBUG] getPublicInvoice called with ID: ${id}`);
     const invoice = await prisma.invoice.findUnique({
       where: { id },
       include: {
@@ -488,7 +602,39 @@ export const getPublicInvoice = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'Invoice not found' });
     }
 
-    res.json({ invoice });
+    // Hydrate appliedTaxes for legacy invoices
+    const allTaxRates = await prisma.taxRate.findMany({ where: { companyId: invoice.companyId } });
+    const taxMap = new Map<number, any>();
+    allTaxRates.forEach(t => taxMap.set(Number(t.percentage), t));
+
+    const hydratedItems = invoice.items.map((item: any) => {
+      // Check for legacy tax rate if appliedTaxes is empty
+      if ((!item.appliedTaxes || item.appliedTaxes.length === 0)) {
+        const legacyRate = Number(item.taxRate) || Number(item.tax) || 0;
+
+        if (legacyRate > 0) {
+          const taxConfig = taxMap.get(legacyRate);
+          const quantity = Number(item.quantity);
+          const unitPrice = Number(item.rate || item.unitPrice || 0);
+          const amount = (quantity * unitPrice * legacyRate) / 100;
+
+          return {
+            ...item,
+            appliedTaxes: [{
+              id: 'legacy-hydrate',
+              invoiceItemId: item.id,
+              taxRateId: taxConfig?.id || 'legacy',
+              name: taxConfig?.name || 'Tax',
+              percentage: new Decimal(legacyRate),
+              amount: new Decimal(amount)
+            }]
+          };
+        }
+      }
+      return item;
+    });
+
+    res.json({ invoice: { ...invoice, items: hydratedItems } });
   } catch (error: any) {
     res.status(500).json({ error: 'Failed to fetch invoice', details: error.message });
   }
@@ -518,23 +664,51 @@ export const getPublicInvoicePdf = async (req: AuthRequest, res: Response) => {
     }
 
     // Calculate Tax Breakdown
-    const taxBreakdown: Record<string, number> = {};
+    // Fetch all tax rates to fallback intelligently
+    const allTaxRates = await prisma.taxRate.findMany({ where: { companyId: invoice.companyId } });
+    const taxMap = new Map<number, string>();
+    allTaxRates.forEach(t => taxMap.set(Number(t.percentage), t.name));
+
+    const taxBreakdown: Record<string, { name: string; percentage: number; amount: number }> = {};
+
     ((invoice as any).items || []).forEach((item: any) => {
-      if (item.appliedTaxes) {
+      // 1. Detailed Taxes
+      if (item.appliedTaxes && item.appliedTaxes.length > 0) {
         item.appliedTaxes.forEach((tax: any) => {
-          const key = `${tax.name} @${Number(tax.percentage)}%`;
-          taxBreakdown[key] = (taxBreakdown[key] || 0) + Number(tax.amount);
+          const key = `${tax.name}_${tax.percentage}`;
+          if (!taxBreakdown[key]) {
+            taxBreakdown[key] = {
+              name: tax.name,
+              percentage: Number(tax.percentage),
+              amount: 0
+            };
+          }
+          taxBreakdown[key].amount += Number(tax.amount);
         });
+      }
+      // 2. Fallback
+      else if (item.taxRate || item.tax) {
+        // Fallback for simple tax rate
+        const rate = Number(item.taxRate || item.tax);
+        if (rate > 0) {
+          const key = `Tax_${rate}`;
+          if (!taxBreakdown[key]) {
+            const resolvedName = taxMap.get(rate) || 'Tax';
+            taxBreakdown[key] = {
+              name: resolvedName,
+              percentage: rate,
+              amount: 0
+            };
+          }
+          const amount = (Number(item.quantity) * Number(item.rate || item.unitPrice) * rate) / 100;
+          taxBreakdown[key].amount += amount;
+        }
       }
     });
 
     const pdfBuffer = await PDFService.generateInvoicePDF({
       ...invoice,
-      taxBreakdown: Object.entries(taxBreakdown).map(([name, amount]) => ({
-        name,
-        rate: 0,
-        amount
-      })),
+      taxBreakdown: Object.values(taxBreakdown),
       useLetterhead: true
     });
 

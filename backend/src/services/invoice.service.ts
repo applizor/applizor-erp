@@ -7,6 +7,7 @@ export interface InvoiceItemInput {
     rate: number;
     taxRateIds?: string[]; // Multiple tax rates
     hsnCode?: string;
+    discount?: number; // Optional item-level discount percentage
 }
 
 export interface CreateInvoiceInput {
@@ -18,7 +19,7 @@ export interface CreateInvoiceInput {
     currency?: string;
     notes?: string;
     terms?: string;
-    discount?: number;
+    discount?: number; // Overall discount amount
     type?: string;
     projectId?: string;
     isRecurring?: boolean;
@@ -44,6 +45,7 @@ export class InvoiceService {
         // Calculate subtotal and total tax
         let subtotal = 0;
         let totalTax = 0;
+        let totalItemDiscount = 0;
 
         const taxRates = await prisma.taxRate.findMany({
             where: {
@@ -52,13 +54,17 @@ export class InvoiceService {
         });
 
         const processedItems = items.map(item => {
-            const amount = Number(item.quantity) * Number(item.rate);
+            const grossAmount = Number(item.quantity) * Number(item.rate);
+            const discountPercentage = Number(item.discount || 0);
+            const itemDiscount = grossAmount * (discountPercentage / 100);
+            const taxableAmount = grossAmount - itemDiscount;
+
             let itemTotalTax = 0;
 
             const appliedTaxes = (item.taxRateIds || []).map(taxId => {
                 const taxConfig = taxRates.find(t => t.id === taxId);
                 const taxPercentage = taxConfig ? Number(taxConfig.percentage) : 0;
-                const taxAmount = amount * (taxPercentage / 100);
+                const taxAmount = taxableAmount * (taxPercentage / 100);
                 itemTotalTax += taxAmount;
                 return {
                     taxRateId: taxId,
@@ -68,18 +74,20 @@ export class InvoiceService {
                 };
             });
 
-            subtotal += amount;
+            subtotal += grossAmount;
             totalTax += itemTotalTax;
+            totalItemDiscount += itemDiscount;
 
             return {
                 ...item,
-                amount: new Decimal(amount),
+                discount: new Decimal(discountPercentage),
+                amount: new Decimal(taxableAmount), // Storing taxable amount (net of item discount)
                 appliedTaxes
             };
         });
 
-        const discount = Number(invoiceData.discount || 0);
-        const total = subtotal + totalTax - discount;
+        const overallDiscount = Number(invoiceData.discount || 0);
+        const total = subtotal + totalTax - totalItemDiscount - overallDiscount;
 
         // Generate Invoice Number
         const prefix = invoiceData.type === 'quotation' ? 'QTN' : 'INV';
@@ -104,6 +112,7 @@ export class InvoiceService {
                         invoiceNumber,
                         subtotal: new Decimal(subtotal),
                         tax: new Decimal(totalTax),
+                        discount: new Decimal(overallDiscount + totalItemDiscount),
                         total: new Decimal(total),
                         status: invoiceData.type === 'quotation' ? 'sent' : 'draft',
                         isRecurring: invoiceData.isRecurring || false,
@@ -120,6 +129,7 @@ export class InvoiceService {
                                 unit: item.unit,
                                 amount: item.amount,
                                 hsnCode: item.hsnCode,
+                                discount: item.discount,
                                 appliedTaxes: {
                                     create: item.appliedTaxes
                                 }
@@ -266,7 +276,8 @@ export class InvoiceService {
                         rate: Number(item.rate),
                         taxRateIds: item.appliedTaxes.map(at => at.taxRateId),
                         hsnCode: item.hsnCode || undefined,
-                        unit: item.unit || undefined
+                        unit: item.unit || undefined,
+                        discount: Number(item.discount)
                     })),
                     currency: source.currency,
                     notes: source.notes || undefined,
@@ -409,6 +420,7 @@ export class InvoiceService {
         // Calculate subtotal and total tax
         let subtotal = 0;
         let totalTax = 0;
+        let totalItemDiscount = 0;
 
         const taxRates = await prisma.taxRate.findMany({
             where: {
@@ -417,13 +429,17 @@ export class InvoiceService {
         });
 
         const processedItems = items.map(item => {
-            const amount = Number(item.quantity) * Number(item.rate);
+            const grossAmount = Number(item.quantity) * Number(item.rate);
+            const discountPercentage = Number((item as any).discount || 0);
+            const itemDiscount = grossAmount * (discountPercentage / 100);
+            const taxableAmount = grossAmount - itemDiscount;
+
             let itemTotalTax = 0;
 
             const appliedTaxes = (item.taxRateIds || []).map(taxId => {
                 const taxConfig = taxRates.find(t => t.id === taxId);
                 const taxPercentage = taxConfig ? Number(taxConfig.percentage) : 0;
-                const taxAmount = amount * (taxPercentage / 100);
+                const taxAmount = taxableAmount * (taxPercentage / 100);
                 itemTotalTax += taxAmount;
                 return {
                     taxRateId: taxId,
@@ -433,18 +449,20 @@ export class InvoiceService {
                 };
             });
 
-            subtotal += amount;
+            subtotal += grossAmount;
             totalTax += itemTotalTax;
+            totalItemDiscount += itemDiscount;
 
             return {
                 ...item,
-                amount: new Decimal(amount),
+                discount: new Decimal(discountPercentage),
+                amount: new Decimal(taxableAmount),
                 appliedTaxes
             };
         });
 
-        const discount = Number(invoiceData.discount || 0);
-        const total = subtotal + totalTax - discount;
+        const overallDiscount = Number(invoiceData.discount || 0);
+        const total = subtotal + totalTax - totalItemDiscount - overallDiscount;
 
         try {
             return await prisma.$transaction(async (tx) => {
@@ -462,6 +480,7 @@ export class InvoiceService {
                         dueDate,
                         subtotal: new Decimal(subtotal),
                         tax: new Decimal(totalTax),
+                        discount: new Decimal(overallDiscount + totalItemDiscount),
                         total: new Decimal(total),
                         isRecurring: invoiceData.isRecurring || false,
                         recurringInterval: invoiceData.recurringInterval,
@@ -474,6 +493,7 @@ export class InvoiceService {
                                 unit: item.unit,
                                 amount: item.amount,
                                 hsnCode: item.hsnCode,
+                                discount: item.discount,
                                 appliedTaxes: {
                                     create: item.appliedTaxes
                                 }

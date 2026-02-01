@@ -37,6 +37,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getPublicInvoicePdf = exports.getPublicInvoice = exports.convertQuotation = exports.updateInvoice = exports.batchSendInvoices = exports.batchUpdateStatus = exports.updateInvoiceStatus = exports.sendInvoice = exports.getInvoiceStats = exports.recordPayment = exports.generateInvoicePDF = exports.getInvoice = exports.getInvoices = exports.createInvoice = void 0;
+const library_1 = require("@prisma/client/runtime/library");
 const client_1 = __importDefault(require("../prisma/client"));
 const invoice_service_1 = require("../services/invoice.service");
 const emailService = __importStar(require("../services/email.service"));
@@ -161,7 +162,35 @@ const getInvoice = async (req, res) => {
         if (!invoice) {
             return res.status(404).json({ error: 'Invoice not found' });
         }
-        res.json({ invoice });
+        // Hydrate appliedTaxes for legacy invoices
+        const allTaxRates = await client_1.default.taxRate.findMany({ where: { companyId: invoice.companyId } });
+        const taxMap = new Map();
+        allTaxRates.forEach(t => taxMap.set(Number(t.percentage), t));
+        const hydratedItems = invoice.items.map((item) => {
+            // Check for legacy tax rate if appliedTaxes is empty
+            if ((!item.appliedTaxes || item.appliedTaxes.length === 0)) {
+                const legacyRate = Number(item.taxRate) || Number(item.tax) || 0;
+                if (legacyRate > 0) {
+                    const taxConfig = taxMap.get(legacyRate);
+                    const quantity = Number(item.quantity);
+                    const unitPrice = Number(item.rate || item.unitPrice || 0);
+                    const amount = (quantity * unitPrice * legacyRate) / 100;
+                    return {
+                        ...item,
+                        appliedTaxes: [{
+                                id: 'legacy-hydrate',
+                                invoiceItemId: item.id,
+                                taxRateId: taxConfig?.id || 'legacy',
+                                name: taxConfig?.name || 'Tax',
+                                percentage: new library_1.Decimal(legacyRate),
+                                amount: new library_1.Decimal(amount)
+                            }]
+                    };
+                }
+            }
+            return item;
+        });
+        res.json({ invoice: { ...invoice, items: hydratedItems } });
     }
     catch (error) {
         console.error('Get invoice error:', error);
@@ -190,23 +219,49 @@ const generateInvoicePDF = async (req, res) => {
         if (!invoice)
             return res.status(404).json({ error: 'Invoice not found' });
         // Calculate Tax Breakdown
+        // Fetch all tax rates to fallback intelligently
+        const allTaxRates = await client_1.default.taxRate.findMany({ where: { companyId: invoice.companyId } });
+        const taxMap = new Map();
+        allTaxRates.forEach(t => taxMap.set(Number(t.percentage), t.name));
         const taxBreakdown = {};
         (invoice.items || []).forEach((item) => {
-            if (item.appliedTaxes) {
+            // 1. Detailed Taxes
+            if (item.appliedTaxes && item.appliedTaxes.length > 0) {
                 item.appliedTaxes.forEach((tax) => {
-                    const key = `${tax.name} @${Number(tax.percentage)}%`;
-                    taxBreakdown[key] = (taxBreakdown[key] || 0) + Number(tax.amount);
+                    const key = `${tax.name}_${tax.percentage}`;
+                    if (!taxBreakdown[key]) {
+                        taxBreakdown[key] = {
+                            name: tax.name,
+                            percentage: Number(tax.percentage),
+                            amount: 0
+                        };
+                    }
+                    taxBreakdown[key].amount += Number(tax.amount);
                 });
+            }
+            // 2. Fallback to simple tax rate
+            else if (item.taxRate || item.tax) {
+                const rate = Number(item.taxRate || item.tax);
+                if (rate > 0) {
+                    const key = `Tax_${rate}`;
+                    if (!taxBreakdown[key]) {
+                        // Try to resolve name from Tax Map
+                        const resolvedName = taxMap.get(rate) || 'Tax';
+                        taxBreakdown[key] = {
+                            name: resolvedName,
+                            percentage: rate,
+                            amount: 0
+                        };
+                    }
+                    const amount = (Number(item.quantity) * Number(item.rate || item.unitPrice) * rate) / 100;
+                    taxBreakdown[key].amount += amount;
+                }
             }
         });
         // Use PDFService (HTML-to-PDF) for cleaner output
         const pdfBuffer = await pdf_service_1.PDFService.generateInvoicePDF({
             ...invoice,
-            taxBreakdown: Object.entries(taxBreakdown).map(([name, amount]) => ({
-                name,
-                rate: 0,
-                amount
-            })),
+            taxBreakdown: Object.values(taxBreakdown),
             company: {
                 ...invoice.company,
                 digitalSignature: invoice.company.digitalSignature || undefined,
@@ -292,22 +347,47 @@ const sendInvoice = async (req, res) => {
         if (!invoice.client.email)
             return res.status(400).json({ error: 'Client has no email' });
         // Calculate Tax Breakdown
+        const allTaxRates = await client_1.default.taxRate.findMany({ where: { companyId: invoice.companyId } });
+        const taxMap = new Map();
+        allTaxRates.forEach(t => taxMap.set(Number(t.percentage), t.name));
         const taxBreakdown = {};
         (invoice.items || []).forEach((item) => {
-            if (item.appliedTaxes) {
+            // 1. Detailed Taxes
+            if (item.appliedTaxes && item.appliedTaxes.length > 0) {
                 item.appliedTaxes.forEach((tax) => {
-                    const key = `${tax.name} @${Number(tax.percentage)}%`;
-                    taxBreakdown[key] = (taxBreakdown[key] || 0) + Number(tax.amount);
+                    const key = `${tax.name}_${tax.percentage}`;
+                    if (!taxBreakdown[key]) {
+                        taxBreakdown[key] = {
+                            name: tax.name,
+                            percentage: Number(tax.percentage),
+                            amount: 0
+                        };
+                    }
+                    taxBreakdown[key].amount += Number(tax.amount);
                 });
+            }
+            // 2. Fallback
+            else if (item.taxRate || item.tax) {
+                const rate = Number(item.taxRate || item.tax);
+                if (rate > 0) {
+                    const key = `Tax_${rate}`;
+                    if (!taxBreakdown[key]) {
+                        // Try to resolve name from Tax Map
+                        const resolvedName = taxMap.get(rate) || 'Tax';
+                        taxBreakdown[key] = {
+                            name: resolvedName,
+                            percentage: rate,
+                            amount: 0
+                        };
+                    }
+                    const amount = (Number(item.quantity) * Number(item.rate || item.unitPrice) * rate) / 100;
+                    taxBreakdown[key].amount += amount;
+                }
             }
         });
         const pdfBuffer = await pdf_service_1.PDFService.generateInvoicePDF({
             ...invoice,
-            taxBreakdown: Object.entries(taxBreakdown).map(([name, amount]) => ({
-                name,
-                rate: 0,
-                amount
-            })),
+            taxBreakdown: Object.values(taxBreakdown),
             useLetterhead: req.body.useLetterhead === true
         });
         const publicUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/portal/invoices/${invoice.id}`;
@@ -393,22 +473,46 @@ const batchSendInvoices = async (req, res) => {
         for (const invoice of invoices) {
             if (invoice.client?.email) {
                 // Calculate Tax Breakdown
+                // In Batch mode, fetching tax rates repeatedly might be slow, but safe for now.
+                const allTaxRates = await client_1.default.taxRate.findMany({ where: { companyId: invoice.companyId } });
+                const taxMap = new Map();
+                allTaxRates.forEach(t => taxMap.set(Number(t.percentage), t.name));
                 const taxBreakdown = {};
                 (invoice.items || []).forEach((item) => {
-                    if (item.appliedTaxes) {
+                    if (item.appliedTaxes && item.appliedTaxes.length > 0) {
                         item.appliedTaxes.forEach((tax) => {
-                            const key = `${tax.name} @${Number(tax.percentage)}%`;
-                            taxBreakdown[key] = (taxBreakdown[key] || 0) + Number(tax.amount);
+                            const key = `${tax.name}_${tax.percentage}`;
+                            if (!taxBreakdown[key]) {
+                                taxBreakdown[key] = {
+                                    name: tax.name,
+                                    percentage: Number(tax.percentage),
+                                    amount: 0
+                                };
+                            }
+                            taxBreakdown[key].amount += Number(tax.amount);
                         });
+                    }
+                    else if (item.taxRate || item.tax) {
+                        // Fallback for simple tax rate
+                        const rate = Number(item.taxRate || item.tax);
+                        if (rate > 0) {
+                            const key = `Tax_${rate}`;
+                            if (!taxBreakdown[key]) {
+                                const resolvedName = taxMap.get(rate) || 'Tax';
+                                taxBreakdown[key] = {
+                                    name: resolvedName,
+                                    percentage: rate,
+                                    amount: 0
+                                };
+                            }
+                            const amount = (Number(item.quantity) * Number(item.rate) * rate) / 100;
+                            taxBreakdown[key].amount += amount;
+                        }
                     }
                 });
                 const pdfBuffer = await pdf_service_1.PDFService.generateInvoicePDF({
                     ...invoice,
-                    taxBreakdown: Object.entries(taxBreakdown).map(([name, amount]) => ({
-                        name,
-                        rate: 0,
-                        amount
-                    }))
+                    taxBreakdown: Object.values(taxBreakdown)
                 });
                 emailService.sendInvoiceEmail(invoice.client.email, invoice, pdfBuffer).catch(err => {
                     console.error(`Failed to send batch email for ${invoice.invoiceNumber}`, err);
@@ -482,6 +586,7 @@ exports.convertQuotation = convertQuotation;
 const getPublicInvoice = async (req, res) => {
     try {
         const { id } = req.params;
+        console.log(`[DEBUG] getPublicInvoice called with ID: ${id}`);
         const invoice = await client_1.default.invoice.findUnique({
             where: { id },
             include: {
@@ -498,7 +603,35 @@ const getPublicInvoice = async (req, res) => {
         if (!invoice) {
             return res.status(404).json({ error: 'Invoice not found' });
         }
-        res.json({ invoice });
+        // Hydrate appliedTaxes for legacy invoices
+        const allTaxRates = await client_1.default.taxRate.findMany({ where: { companyId: invoice.companyId } });
+        const taxMap = new Map();
+        allTaxRates.forEach(t => taxMap.set(Number(t.percentage), t));
+        const hydratedItems = invoice.items.map((item) => {
+            // Check for legacy tax rate if appliedTaxes is empty
+            if ((!item.appliedTaxes || item.appliedTaxes.length === 0)) {
+                const legacyRate = Number(item.taxRate) || Number(item.tax) || 0;
+                if (legacyRate > 0) {
+                    const taxConfig = taxMap.get(legacyRate);
+                    const quantity = Number(item.quantity);
+                    const unitPrice = Number(item.rate || item.unitPrice || 0);
+                    const amount = (quantity * unitPrice * legacyRate) / 100;
+                    return {
+                        ...item,
+                        appliedTaxes: [{
+                                id: 'legacy-hydrate',
+                                invoiceItemId: item.id,
+                                taxRateId: taxConfig?.id || 'legacy',
+                                name: taxConfig?.name || 'Tax',
+                                percentage: new library_1.Decimal(legacyRate),
+                                amount: new library_1.Decimal(amount)
+                            }]
+                    };
+                }
+            }
+            return item;
+        });
+        res.json({ invoice: { ...invoice, items: hydratedItems } });
     }
     catch (error) {
         res.status(500).json({ error: 'Failed to fetch invoice', details: error.message });
@@ -527,22 +660,48 @@ const getPublicInvoicePdf = async (req, res) => {
             return res.status(404).json({ error: 'Invoice not found' });
         }
         // Calculate Tax Breakdown
+        // Fetch all tax rates to fallback intelligently
+        const allTaxRates = await client_1.default.taxRate.findMany({ where: { companyId: invoice.companyId } });
+        const taxMap = new Map();
+        allTaxRates.forEach(t => taxMap.set(Number(t.percentage), t.name));
         const taxBreakdown = {};
         (invoice.items || []).forEach((item) => {
-            if (item.appliedTaxes) {
+            // 1. Detailed Taxes
+            if (item.appliedTaxes && item.appliedTaxes.length > 0) {
                 item.appliedTaxes.forEach((tax) => {
-                    const key = `${tax.name} @${Number(tax.percentage)}%`;
-                    taxBreakdown[key] = (taxBreakdown[key] || 0) + Number(tax.amount);
+                    const key = `${tax.name}_${tax.percentage}`;
+                    if (!taxBreakdown[key]) {
+                        taxBreakdown[key] = {
+                            name: tax.name,
+                            percentage: Number(tax.percentage),
+                            amount: 0
+                        };
+                    }
+                    taxBreakdown[key].amount += Number(tax.amount);
                 });
+            }
+            // 2. Fallback
+            else if (item.taxRate || item.tax) {
+                // Fallback for simple tax rate
+                const rate = Number(item.taxRate || item.tax);
+                if (rate > 0) {
+                    const key = `Tax_${rate}`;
+                    if (!taxBreakdown[key]) {
+                        const resolvedName = taxMap.get(rate) || 'Tax';
+                        taxBreakdown[key] = {
+                            name: resolvedName,
+                            percentage: rate,
+                            amount: 0
+                        };
+                    }
+                    const amount = (Number(item.quantity) * Number(item.rate || item.unitPrice) * rate) / 100;
+                    taxBreakdown[key].amount += amount;
+                }
             }
         });
         const pdfBuffer = await pdf_service_1.PDFService.generateInvoicePDF({
             ...invoice,
-            taxBreakdown: Object.entries(taxBreakdown).map(([name, amount]) => ({
-                name,
-                rate: 0,
-                amount
-            })),
+            taxBreakdown: Object.values(taxBreakdown),
             useLetterhead: true
         });
         res.setHeader('Content-Type', 'application/pdf');
