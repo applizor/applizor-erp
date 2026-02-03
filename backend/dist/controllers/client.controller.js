@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteClient = exports.updateClient = exports.getClient = exports.getClients = exports.createClient = void 0;
+exports.rejectDocument = exports.approveDocument = exports.getClientDocuments = exports.deleteClient = exports.updateClient = exports.getClient = exports.getClients = exports.createClient = void 0;
 const client_1 = __importDefault(require("../prisma/client"));
 const permission_service_1 = require("../services/permission.service");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
@@ -251,4 +251,72 @@ const deleteClient = async (req, res) => {
     }
 };
 exports.deleteClient = deleteClient;
+// ============================================
+// CLIENT DOCUMENT APPROVAL
+// ============================================
+const getClientDocuments = async (req, res) => {
+    try {
+        const { id } = req.params; // Client ID
+        const documents = await client_1.default.document.findMany({
+            where: { clientId: id },
+            orderBy: { createdAt: 'desc' }
+        });
+        res.json(documents);
+    }
+    catch (error) {
+        console.error('Get Client Documents Error:', error);
+        res.status(500).json({ error: 'Failed to fetch documents' });
+    }
+};
+exports.getClientDocuments = getClientDocuments;
+const approveDocument = async (req, res) => {
+    try {
+        const { id, documentId } = req.params; // Client ID, Document ID
+        // Verify permissions (using Client update permission as a proxy for now)
+        if (!permission_service_1.PermissionService.hasBasicPermission(req.user, 'Client', 'update')) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+        const document = await client_1.default.document.update({
+            where: { id: documentId, clientId: id }, // Ensure document belongs to this client
+            data: {
+                status: 'approved',
+                rejectionReason: null // Clear any previous rejection reason
+            }
+        });
+        // TODO: Notify client via email
+        res.json({ message: 'Document approved', document });
+    }
+    catch (error) {
+        console.error('Approve Document Error:', error);
+        res.status(500).json({ error: 'Failed to approve document' });
+    }
+};
+exports.approveDocument = approveDocument;
+const rejectDocument = async (req, res) => {
+    try {
+        const { id, documentId } = req.params;
+        const { reason } = req.body;
+        if (!reason) {
+            return res.status(400).json({ error: 'Rejection reason is required' });
+        }
+        // Verify permissions
+        if (!permission_service_1.PermissionService.hasBasicPermission(req.user, 'Client', 'update')) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+        const document = await client_1.default.document.update({
+            where: { id: documentId, clientId: id },
+            data: {
+                status: 'rejected',
+                rejectionReason: reason
+            }
+        });
+        // TODO: Notify client via email
+        res.json({ message: 'Document rejected', document });
+    }
+    catch (error) {
+        console.error('Reject Document Error:', error);
+        res.status(500).json({ error: 'Failed to reject document' });
+    }
+};
+exports.rejectDocument = rejectDocument;
 //# sourceMappingURL=client.controller.js.map

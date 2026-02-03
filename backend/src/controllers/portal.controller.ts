@@ -1022,3 +1022,83 @@ export const getContractDetails = async (req: ClientAuthRequest, res: Response) 
         res.status(500).json({ error: 'Failed to fetch contract' });
     }
 };
+
+// ============================================
+// DOCUMENTS (CLIENT UPLOAD)
+// ============================================
+
+export const getDocuments = async (req: ClientAuthRequest, res: Response) => {
+    try {
+        const clientId = req.clientId;
+        const documents = await prisma.document.findMany({
+            where: { clientId },
+            orderBy: { createdAt: 'desc' },
+            select: {
+                id: true,
+                name: true,
+                type: true,
+                status: true,
+                createdAt: true,
+                fileSize: true,
+                filePath: true,
+                mimeType: true,
+                rejectionReason: true
+            }
+        });
+        res.json(documents);
+    } catch (error) {
+        console.error('Get Documents Error:', error);
+        res.status(500).json({ error: 'Failed to fetch documents' });
+    }
+};
+
+export const uploadDocument = async (req: ClientAuthRequest, res: Response) => {
+    try {
+        const clientId = req.clientId;
+        const { name, type } = req.body;
+        // The file upload middleware should populate req.file
+        // Assuming we use multer and it places file info in req.file
+        const file = (req as any).file;
+
+        if (!file) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+
+        if (!name || !type) {
+            return res.status(400).json({ error: 'Document name and type are required' });
+        }
+
+        // Get Client to link CompanyId
+        const client = await prisma.client.findUnique({
+            where: { id: clientId },
+            select: { companyId: true }
+        });
+
+        if (!client) {
+            return res.status(404).json({ error: 'Client not found' });
+        }
+
+        const document = await prisma.document.create({
+            data: {
+                clientId,
+                companyId: client.companyId,
+                name,
+                type,
+                filePath: file.path || file.location,
+                fileSize: file.size,
+                mimeType: file.mimetype,
+                status: 'pending', // Default status for review
+                category: 'Onboarding'
+            }
+        });
+
+        res.status(201).json({
+            message: 'Document uploaded successfully',
+            document
+        });
+
+    } catch (error) {
+        console.error('Upload Document Error:', error);
+        res.status(500).json({ error: 'Failed to upload document' });
+    }
+};

@@ -10,6 +10,10 @@ router.get('/', auth_1.authenticate, client_controller_1.getClients);
 router.get('/:id', auth_1.authenticate, client_controller_1.getClient);
 router.put('/:id', auth_1.authenticate, client_controller_1.updateClient);
 router.delete('/:id', auth_1.authenticate, client_controller_1.deleteClient);
+// Document Approval Routes
+router.get('/:id/documents', auth_1.authenticate, client_controller_1.getClientDocuments);
+router.post('/:id/documents/:documentId/approve', auth_1.authenticate, client_controller_1.approveDocument);
+router.post('/:id/documents/:documentId/reject', auth_1.authenticate, client_controller_1.rejectDocument);
 router.post('/upload', auth_1.authenticate, upload_1.uploadLogo.single('image'), (req, res) => {
     if (!req.file) {
         return res.status(400).json({ error: 'No file uploaded' });

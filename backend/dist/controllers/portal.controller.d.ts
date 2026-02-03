@@ -14,4 +14,6 @@ export declare const getQuotationPdf: (req: ClientAuthRequest, res: Response) =>
 export declare const getContractPdf: (req: ClientAuthRequest, res: Response) => Promise<Response<any, Record<string, any>> | undefined>;
 export declare const getMyContracts: (req: ClientAuthRequest, res: Response) => Promise<void>;
 export declare const getContractDetails: (req: ClientAuthRequest, res: Response) => Promise<Response<any, Record<string, any>> | undefined>;
+export declare const getDocuments: (req: ClientAuthRequest, res: Response) => Promise<void>;
+export declare const uploadDocument: (req: ClientAuthRequest, res: Response) => Promise<Response<any, Record<string, any>> | undefined>;
 //# sourceMappingURL=portal.controller.d.ts.map

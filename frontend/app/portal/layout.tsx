@@ -59,6 +59,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
         { name: 'My Invoices', href: '/portal/invoices', icon: FileText },
         { name: 'My Contracts', href: '/portal/contracts', icon: FileSignature },
         { name: 'My Projects', href: '/portal/projects', icon: Briefcase },
+        { name: 'Documents', href: '/portal/documents', icon: FileText },
     ];
 
     return (

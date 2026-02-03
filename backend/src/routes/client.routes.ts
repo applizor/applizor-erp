@@ -5,6 +5,9 @@ import {
   getClient,
   updateClient,
   deleteClient,
+  getClientDocuments,
+  approveDocument,
+  rejectDocument
 } from '../controllers/client.controller';
 import { authenticate } from '../middleware/auth';
 import { uploadLogo, uploadProfilePicture } from '../utils/upload';
@@ -16,6 +19,12 @@ router.get('/', authenticate, getClients);
 router.get('/:id', authenticate, getClient);
 router.put('/:id', authenticate, updateClient);
 router.delete('/:id', authenticate, deleteClient);
+
+// Document Approval Routes
+router.get('/:id/documents', authenticate, getClientDocuments);
+router.post('/:id/documents/:documentId/approve', authenticate, approveDocument);
+router.post('/:id/documents/:documentId/reject', authenticate, rejectDocument);
+
 
 router.post('/upload', authenticate, uploadLogo.single('image'), (req: any, res) => {
   if (!req.file) {

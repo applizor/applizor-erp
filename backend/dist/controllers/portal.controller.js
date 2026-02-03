@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getContractDetails = exports.getMyContracts = exports.getContractPdf = exports.getQuotationPdf = exports.rejectQuotation = exports.acceptQuotation = exports.getQuotationDetails = exports.getMyQuotations = exports.exportInvoices = exports.getInvoicePdf = exports.getInvoiceDetails = exports.getMyProjects = exports.getMyInvoices = exports.getDashboardStats = void 0;
+exports.uploadDocument = exports.getDocuments = exports.getContractDetails = exports.getMyContracts = exports.getContractPdf = exports.getQuotationPdf = exports.rejectQuotation = exports.acceptQuotation = exports.getQuotationDetails = exports.getMyQuotations = exports.exportInvoices = exports.getInvoicePdf = exports.getInvoiceDetails = exports.getMyProjects = exports.getMyInvoices = exports.getDashboardStats = void 0;
 const library_1 = require("@prisma/client/runtime/library");
 const client_1 = __importDefault(require("../prisma/client"));
 const pdf_service_1 = require("../services/pdf.service");
@@ -984,4 +984,79 @@ const getContractDetails = async (req, res) => {
     }
 };
 exports.getContractDetails = getContractDetails;
+// ============================================
+// DOCUMENTS (CLIENT UPLOAD)
+// ============================================
+const getDocuments = async (req, res) => {
+    try {
+        const clientId = req.clientId;
+        const documents = await client_1.default.document.findMany({
+            where: { clientId },
+            orderBy: { createdAt: 'desc' },
+            select: {
+                id: true,
+                name: true,
+                type: true,
+                status: true,
+                createdAt: true,
+                fileSize: true,
+                filePath: true,
+                mimeType: true,
+                rejectionReason: true
+            }
+        });
+        res.json(documents);
+    }
+    catch (error) {
+        console.error('Get Documents Error:', error);
+        res.status(500).json({ error: 'Failed to fetch documents' });
+    }
+};
+exports.getDocuments = getDocuments;
+const uploadDocument = async (req, res) => {
+    try {
+        const clientId = req.clientId;
+        const { name, type } = req.body;
+        // The file upload middleware should populate req.file
+        // Assuming we use multer and it places file info in req.file
+        const file = req.file;
+        if (!file) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+        if (!name || !type) {
+            return res.status(400).json({ error: 'Document name and type are required' });
+        }
+        // Get Client to link CompanyId
+        const client = await client_1.default.client.findUnique({
+            where: { id: clientId },
+            select: { companyId: true }
+        });
+        if (!client) {
+            return res.status(404).json({ error: 'Client not found' });
+        }
+        const document = await client_1.default.document.create({
+            data: {
+                clientId,
+                companyId: client.companyId,
+                name,
+                type,
+                filePath: file.path || file.location, // Depends on storage provider (disk vs s3)
+                fileSize: file.size,
+                mimeType: file.mimetype,
+                status: 'pending', // Default status for review
+                uploadedById: clientId, // Track who uploaded
+                category: 'Onboarding'
+            }
+        });
+        res.status(201).json({
+            message: 'Document uploaded successfully',
+            document
+        });
+    }
+    catch (error) {
+        console.error('Upload Document Error:', error);
+        res.status(500).json({ error: 'Failed to upload document' });
+    }
+};
+exports.uploadDocument = uploadDocument;
 //# sourceMappingURL=portal.controller.js.map

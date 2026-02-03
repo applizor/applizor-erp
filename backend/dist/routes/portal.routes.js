@@ -72,5 +72,9 @@ router.get('/tasks/:id/comments', client_auth_1.authenticateClient, portalTaskCo
 router.post('/tasks/:id/comments', client_auth_1.authenticateClient, portalTaskController.addPortalComment);
 router.put('/tasks/:id/status', client_auth_1.authenticateClient, portalTaskController.updatePortalTaskStatus);
 router.get('/tasks/:id/history', client_auth_1.authenticateClient, portalTaskController.getPortalTaskHistory);
+// Documents
+const portal_controller_2 = require("../controllers/portal.controller");
+router.get('/documents', client_auth_1.authenticateClient, portal_controller_2.getDocuments);
+router.post('/documents', client_auth_1.authenticateClient, upload_1.upload.single('file'), portal_controller_2.uploadDocument);
 exports.default = router;
 //# sourceMappingURL=portal.routes.js.map
