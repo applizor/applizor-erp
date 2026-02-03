@@ -1,7 +1,10 @@
 {
+  "/portal/quotations/page": "app/portal/quotations/page.js",
+  "/portal/contracts/page": "app/portal/contracts/page.js",
   "/portal/quotations/[id]/page": "app/portal/quotations/[id]/page.js",
-  "/(main)/invoices/[id]/page": "app/(main)/invoices/[id]/page.js",
+  "/portal/invoices/[id]/page": "app/portal/invoices/[id]/page.js",
+  "/portal/invoices/page": "app/portal/invoices/page.js",
   "/(main)/invoices/[id]/edit/page": "app/(main)/invoices/[id]/edit/page.js",
-  "/(main)/quotations/[id]/page": "app/(main)/quotations/[id]/page.js",
-  "/(main)/invoices/page": "app/(main)/invoices/page.js"
+  "/(main)/clients/page": "app/(main)/clients/page.js",
+  "/portal/projects/page": "app/portal/projects/page.js"
 }

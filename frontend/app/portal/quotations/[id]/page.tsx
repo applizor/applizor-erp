@@ -219,13 +219,16 @@ export default function QuotationDetails({ params }: { params: { id: string } })
 
                         {/* Items Table */}
                         <div className="border-t border-slate-100">
-                            <table className="w-full text-left">
+                            <table className="w-full text-left text-xs">
                                 <thead className="bg-slate-50">
                                     <tr>
-                                        <th className="px-6 py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest">Description / HSN/SAC</th>
-                                        <th className="px-6 py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">Qty</th>
-                                        <th className="px-6 py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest text-right">Price</th>
-                                        <th className="px-6 py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest text-right">Disc %</th>
+                                        <th className="px-6 py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest">Description</th>
+                                        <th className="px-4 py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">HSN/SAC</th>
+                                        <th className="px-4 py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">Qty</th>
+                                        <th className="px-4 py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">UoM</th>
+                                        <th className="px-6 py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest text-right">Rate</th>
+                                        <th className="px-4 py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">Disc %</th>
+                                        <th className="px-6 py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest text-right w-32">Tax</th>
                                         <th className="px-6 py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest text-right">Amount</th>
                                     </tr>
                                 </thead>
@@ -234,19 +237,30 @@ export default function QuotationDetails({ params }: { params: { id: string } })
                                         <tr key={i}>
                                             <td className="px-6 py-4">
                                                 <div className="text-xs font-bold text-slate-900">{item.description}</div>
-                                                <div className="text-[10px] text-slate-500 mt-0.5">
-                                                    {item.hsnSacCode ? `Code: ${item.hsnSacCode}` : ''}
-                                                    {item.unit ? `${item.hsnSacCode ? ' | ' : ''}Unit: ${item.unit}` : ''}
-                                                </div>
                                             </td>
-                                            <td className="px-6 py-4 text-xs text-center font-bold text-slate-600">{Number(item.quantity)}</td>
-                                            <td className="px-6 py-4 text-xs text-right font-bold text-slate-600">
+                                            <td className="px-4 py-4 text-center text-slate-500 font-bold">{item.hsnSacCode || '--'}</td>
+                                            <td className="px-4 py-4 text-center text-slate-600 font-bold">{Number(item.quantity)}</td>
+                                            <td className="px-4 py-4 text-center text-slate-500 font-bold uppercase">{item.unit || '-'}</td>
+                                            <td className="px-6 py-4 text-right font-bold text-slate-600">
                                                 {new Intl.NumberFormat(quotation.currency === 'INR' ? 'en-IN' : 'en-US', { style: 'currency', currency: quotation.currency || 'USD' }).format(Number(item.unitPrice))}
                                             </td>
-                                            <td className="px-6 py-4 text-xs text-right font-black text-rose-500 italic">
-                                                {Number(item.discount) > 0 ? `${Number(item.discount)}%` : '--'}
+                                            <td className="px-4 py-4 text-center font-black text-rose-500 italic">
+                                                {Number(item.discount) > 0 ? `${Number(item.discount)}%` : '-'}
                                             </td>
-                                            <td className="px-6 py-4 text-xs text-right font-black text-slate-900">
+                                            <td className="px-6 py-4 text-right">
+                                                <div className="flex flex-col items-end gap-1">
+                                                    {(item.appliedTaxes && item.appliedTaxes.length > 0) ? (
+                                                        item.appliedTaxes.map((t: any, i: number) => (
+                                                            <span key={i} className="text-slate-500 font-medium">
+                                                                {t.name} <span className="text-slate-400">({Number(t.percentage)}%)</span>
+                                                            </span>
+                                                        ))
+                                                    ) : (
+                                                        <span className="text-slate-300">-</span>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 text-right font-black text-slate-900">
                                                 {new Intl.NumberFormat(quotation.currency === 'INR' ? 'en-IN' : 'en-US', { style: 'currency', currency: quotation.currency || 'USD' }).format(Number(item.quantity) * Number(item.unitPrice) * (1 - Number(item.discount || 0) / 100))}
                                             </td>
                                         </tr>

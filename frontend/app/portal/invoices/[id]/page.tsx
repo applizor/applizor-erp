@@ -121,10 +121,13 @@ export default function InvoiceDetails({ params }: { params: { id: string } }) {
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-slate-50 text-slate-500 font-medium">
                                     <tr>
-                                        <th className="px-6 py-3">Description / HSN/SAC</th>
-                                        <th className="px-6 py-3 text-center">Qty</th>
-                                        <th className="px-6 py-3 text-right">Price</th>
-                                        <th className="px-6 py-3 text-right">Disc %</th>
+                                        <th className="px-6 py-3">Description</th>
+                                        <th className="px-4 py-3 text-center w-24">HSN/SAC</th>
+                                        <th className="px-4 py-3 text-center w-20">Qty</th>
+                                        <th className="px-4 py-3 text-center w-20">UoM</th>
+                                        <th className="px-6 py-3 text-right">Rate</th>
+                                        <th className="px-4 py-3 text-center w-24">Disc %</th>
+                                        <th className="px-6 py-3 text-right w-32">Tax</th>
                                         <th className="px-6 py-3 text-right">Amount</th>
                                     </tr>
                                 </thead>
@@ -133,17 +136,30 @@ export default function InvoiceDetails({ params }: { params: { id: string } }) {
                                         <tr key={item.id}>
                                             <td className="px-6 py-4">
                                                 <div className="font-medium text-slate-900">{item.description}</div>
-                                                <div className="text-[10px] text-slate-500 mt-0.5">
-                                                    {item.hsnSacCode ? `Code: ${item.hsnSacCode}` : ''}
-                                                    {item.unit ? `${item.hsnSacCode ? ' | ' : ''}Unit: ${item.unit}` : ''}
-                                                </div>
                                             </td>
-                                            <td className="px-6 py-4 text-center text-slate-600">{item.quantity}</td>
+                                            <td className="px-4 py-4 text-center text-slate-500 text-xs">
+                                                {item.hsnSacCode || '--'}
+                                            </td>
+                                            <td className="px-4 py-4 text-center text-slate-600 font-bold">{item.quantity}</td>
+                                            <td className="px-4 py-4 text-center text-slate-500 text-xs uppercase">{item.unit || '-'}</td>
                                             <td className="px-6 py-4 text-right text-slate-600">
                                                 {new Intl.NumberFormat(invoice.currency === 'INR' ? 'en-IN' : 'en-US', { style: 'currency', currency: invoice.currency || 'USD' }).format(Number(item.rate))}
                                             </td>
-                                            <td className="px-6 py-4 text-right font-bold text-rose-500">
-                                                {Number(item.discount) > 0 ? `${Number(item.discount)}%` : '--'}
+                                            <td className="px-4 py-4 text-center font-bold text-rose-500">
+                                                {Number(item.discount) > 0 ? `${Number(item.discount)}%` : '-'}
+                                            </td>
+                                            <td className="px-6 py-4 text-right text-xs">
+                                                <div className="flex flex-col items-end gap-1">
+                                                    {(item.appliedTaxes && item.appliedTaxes.length > 0) ? (
+                                                        item.appliedTaxes.map((t: any, i: number) => (
+                                                            <span key={i} className="text-slate-500">
+                                                                {t.name} <span className="text-slate-400">({Number(t.percentage)}%)</span>
+                                                            </span>
+                                                        ))
+                                                    ) : (
+                                                        <span className="text-slate-300">-</span>
+                                                    )}
+                                                </div>
                                             </td>
                                             <td className="px-6 py-4 text-right font-bold text-slate-900">
                                                 {new Intl.NumberFormat(invoice.currency === 'INR' ? 'en-IN' : 'en-US', { style: 'currency', currency: invoice.currency || 'USD' }).format(Number(item.amount))}

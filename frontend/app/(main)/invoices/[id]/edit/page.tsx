@@ -40,6 +40,7 @@ export default function EditInvoicePage({ params }: { params: { id: string } }) 
                     description: item.description,
                     quantity: Number(item.quantity),
                     rate: Number(item.rate),
+                    unit: item.unit || '',
                     taxRateIds: item.appliedTaxes ? item.appliedTaxes.map((t: any) => t.taxRateId) : [],
                     discount: Number(item.discount || 0),
                     hsnSacCode: item.hsnSacCode || ''
