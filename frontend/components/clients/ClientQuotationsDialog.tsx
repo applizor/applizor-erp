@@ -46,7 +46,7 @@ export function ClientQuotationsDialog({ isOpen, onClose, quotations, clientName
             isOpen={isOpen}
             onClose={onClose}
             title={`Quotations - ${clientName}`}
-            maxWidth="max-w-4xl"
+            maxWidth="4xl"
         >
             <div className="mt-4">
                 {quotations.length === 0 ? (

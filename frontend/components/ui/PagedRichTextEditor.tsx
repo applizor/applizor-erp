@@ -67,7 +67,6 @@ interface PagedRichTextEditorProps {
     showLetterhead?: boolean;
     pageOneBg?: string;
     continuationBg?: string;
-    continuationBg?: string;
     readOnly?: boolean;
     marginTop?: number;
     marginBottom?: number;

@@ -8,7 +8,8 @@ import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { usePermission } from '@/hooks/usePermission';
 import Link from 'next/link';
-import { ChevronLeft, Save } from 'lucide-react';
+import { ChevronLeft, Save, Globe } from 'lucide-react';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 export default function NewProjectPage() {
     const router = useRouter();
@@ -123,17 +124,20 @@ export default function NewProjectPage() {
                         </div>
 
                         <div className="ent-form-group">
-                            <label className="ent-label">Client</label>
-                            <select
-                                className="ent-select"
+                            <CustomSelect
+                                label="Client"
                                 value={clientId}
-                                onChange={e => setClientId(e.target.value)}
-                            >
-                                <option value="">Internal Project</option>
-                                {clients.map(c => (
-                                    <option key={c.id} value={c.id}>{c.name} ({c.companyName})</option>
-                                ))}
-                            </select>
+                                onChange={setClientId}
+                                options={[
+                                    { label: 'Internal Project', value: '', icon: <Globe size={14} className="text-slate-400" /> },
+                                    ...clients.map(c => ({
+                                        label: c.name,
+                                        value: c.id,
+                                        description: c.companyName
+                                    }))
+                                ]}
+                                placeholder="Select Client"
+                            />
                         </div>
 
                         <div className="ent-form-group">
@@ -176,30 +180,32 @@ export default function NewProjectPage() {
                         </div>
 
                         <div className="ent-form-group">
-                            <label className="ent-label">Priority</label>
-                            <select
-                                className="ent-select uppercase"
+                            <CustomSelect
+                                label="Priority"
                                 value={priority}
-                                onChange={e => setPriority(e.target.value)}
-                            >
-                                <option value="low">Low</option>
-                                <option value="medium">Medium</option>
-                                <option value="high">High</option>
-                                <option value="urgent">Urgent</option>
-                            </select>
+                                onChange={setPriority}
+                                options={[
+                                    { label: 'Low', value: 'low' },
+                                    { label: 'Medium', value: 'medium' },
+                                    { label: 'High', value: 'high' },
+                                    { label: 'Urgent', value: 'urgent' }
+                                ]}
+                                className="uppercase"
+                            />
                         </div>
 
                         <div className="ent-form-group">
-                            <label className="ent-label">Initial Status</label>
-                            <select
-                                className="ent-select uppercase"
+                            <CustomSelect
+                                label="Initial Status"
                                 value={status}
-                                onChange={e => setStatus(e.target.value)}
-                            >
-                                <option value="planning">Planning</option>
-                                <option value="active">Active</option>
-                                <option value="on-hold">On Hold</option>
-                            </select>
+                                onChange={setStatus}
+                                options={[
+                                    { label: 'Planning', value: 'planning' },
+                                    { label: 'Active', value: 'active' },
+                                    { label: 'On Hold', value: 'on-hold' }
+                                ]}
+                                className="uppercase"
+                            />
                         </div>
                     </div>
                 </div>
@@ -210,7 +216,7 @@ export default function NewProjectPage() {
                         disabled={loading}
                         className="btn-primary w-full md:w-auto flex items-center justify-center gap-2 py-3 px-8"
                     >
-                        {loading ? <LoadingSpinner size="sm" color="white" /> : <Save size={16} />}
+                        {loading ? <LoadingSpinner size="sm" /> : <Save size={16} />}
                         Create Project
                     </button>
                 </div>

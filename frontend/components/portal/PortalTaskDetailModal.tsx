@@ -28,6 +28,8 @@ export default function PortalTaskDetailModal({ taskId, onClose, onUpdate }: Por
     const { socket } = useSocket();
 
     const [members, setMembers] = useState<any[]>([]);
+    const [isRejecting, setIsRejecting] = useState(false);
+    const [rejectionReason, setRejectionReason] = useState('');
 
     useEffect(() => {
         if (taskId) {
@@ -50,7 +52,23 @@ export default function PortalTaskDetailModal({ taskId, onClose, onUpdate }: Por
         } catch (error) { console.error(error); }
     };
 
-    // ... (keep fetch logic same) ...
+    const fetchComments = async () => {
+        try {
+            const res = await api.get(`/portal/tasks/${taskId}/comments`);
+            setComments(res.data);
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
+    const fetchHistory = async () => {
+        try {
+            const res = await api.get(`/portal/tasks/${taskId}/history`);
+            setHistory(res.data);
+        } catch (error) {
+            console.error(error);
+        }
+    };
 
     useEffect(() => {
         const handleGlobalKeyDown = (e: KeyboardEvent) => {
@@ -74,8 +92,63 @@ export default function PortalTaskDetailModal({ taskId, onClose, onUpdate }: Por
         return () => window.removeEventListener('keydown', handleGlobalKeyDown);
     }, []);
 
-    // ... (keep socket logic same) ...
-    // ... (keep fetch functions same) ...
+    useEffect(() => {
+        if (!socket || !taskId) return;
+
+        const onTaskUpdated = (data: any) => {
+            if (data.id === taskId) fetchTaskDetails();
+        };
+        const onCommentAdded = (data: any) => {
+            if (data.taskId === taskId) fetchComments();
+        };
+
+        socket.on('TASK_UPDATED', onTaskUpdated);
+        socket.on('COMMENT_ADDED', onCommentAdded);
+
+        return () => {
+            socket.off('TASK_UPDATED', onTaskUpdated);
+            socket.off('COMMENT_ADDED', onCommentAdded);
+        };
+    }, [socket, taskId]);
+
+    const handleReviewAction = async (action: 'approve' | 'reject') => {
+        if (action === 'reject' && !isRejecting) {
+            setIsRejecting(true);
+            return;
+        }
+
+        try {
+            await api.put(`/portal/tasks/${taskId}/status`, {
+                action,
+                reason: action === 'reject' ? rejectionReason : undefined
+            });
+            toast.success(action === 'approve' ? 'Task approved' : 'Changes requested');
+            setIsRejecting(false);
+            setRejectionReason('');
+            fetchTaskDetails();
+            fetchComments();
+            fetchHistory();
+            onUpdate();
+        } catch (error) {
+            toast.error('Action failed');
+        }
+    };
+
+    const postComment = async () => {
+        if (!newComment.trim()) return;
+        try {
+            await api.post(`/portal/tasks/${taskId}/comments`, {
+                content: newComment,
+                parentId: replyTo?.id || null
+            });
+            setNewComment('');
+            setReplyTo(null);
+            fetchComments();
+            toast.success('Comment posted');
+        } catch (error) {
+            toast.error('Failed to post comment');
+        }
+    };
 
     const fetchTaskDetails = async () => {
         try {
@@ -228,8 +301,6 @@ export default function PortalTaskDetailModal({ taskId, onClose, onUpdate }: Por
                                             onPost={postComment}
                                             placeholder={replyTo ? "Type your reply..." : "Add a comment..."}
                                             className="min-h-[100px] border-none"
-                                            showSuggestions={true}
-                                            mentions={members.map(m => ({ id: m.id, name: `${m.firstName} ${m.lastName}` }))}
                                         />
                                     </div>
                                     <div className="bg-slate-50/80 px-4 py-2.5 flex justify-between items-center border-t border-slate-100">

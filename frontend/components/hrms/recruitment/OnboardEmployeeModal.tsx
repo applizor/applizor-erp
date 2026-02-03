@@ -53,7 +53,7 @@ export default function OnboardEmployeeModal({ isOpen, onClose, onSubmit, candid
                 firstName: candidate.firstName,
                 lastName: candidate.lastName,
                 email: candidate.email,
-                phone: candidate.phone,
+                phone: candidate.phone || '',
                 candidateId: candidate.id,
                 dateOfJoining: offer?.startDate ? new Date(offer.startDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
             }));
@@ -70,8 +70,9 @@ export default function OnboardEmployeeModal({ isOpen, onClose, onSubmit, candid
             setPositions(pos);
 
             // smart match department
-            if (offer?.department) {
-                const matchedDept = depts.find(d => d.name.toLowerCase() === offer.department.toLowerCase());
+            if (offer && offer.department) {
+                const deptName = offer.department;
+                const matchedDept = depts.find((d: Department) => d.name.toLowerCase() === deptName.toLowerCase());
                 if (matchedDept) {
                     setFormData(prev => ({ ...prev, departmentId: matchedDept.id }));
                 }

@@ -1,10 +1,13 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import api from '@/lib/api';
-import { Plus, LayoutGrid, List, Filter, Search, Briefcase, Clock, CheckCircle, Percent, User } from 'lucide-react';
+import {
+    Plus, LayoutGrid, List, Filter, Search, Briefcase, Clock,
+    CheckCircle2, AlertTriangle, ArrowUpRight, Calendar, Users,
+    MoreHorizontal, ChevronRight, BarChart3
+} from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { usePermission } from '@/hooks/usePermission';
@@ -15,7 +18,7 @@ export default function ProjectsPage() {
     const { can, user } = usePermission();
     const [projects, setProjects] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [view, setView] = useState<'grid' | 'list'>('grid');
+    const [view, setView] = useState<'grid' | 'table'>('table');
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
 
@@ -49,15 +52,34 @@ export default function ProjectsPage() {
         });
     }, [projects, search, statusFilter]);
 
+    // Metrics
+    const metrics = useMemo(() => {
+        const total = projects.length;
+        const active = projects.filter(p => p.status === 'active').length;
+        const completed = projects.filter(p => p.status === 'completed').length;
+        const delayed = projects.filter(p => {
+            if (!p.endDate || p.status === 'completed') return false;
+            return new Date(p.endDate) < new Date();
+        }).length;
+        return { total, active, completed, delayed };
+    }, [projects]);
+
     const getStatusColor = (status: string) => {
         switch (status) {
-            case 'active': return 'bg-emerald-50 text-emerald-700 border-emerald-100';
-            case 'planning': return 'bg-blue-50 text-blue-700 border-blue-100';
-            case 'on-hold': return 'bg-amber-50 text-amber-700 border-amber-100';
-            case 'completed': return 'bg-purple-50 text-purple-700 border-purple-100';
-            case 'cancelled': return 'bg-rose-50 text-rose-700 border-rose-100';
-            default: return 'bg-slate-50 text-slate-600 border-slate-100';
+            case 'active': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+            case 'planning': return 'bg-blue-50 text-blue-700 border-blue-200';
+            case 'on-hold': return 'bg-amber-50 text-amber-700 border-amber-200';
+            case 'completed': return 'bg-slate-100 text-slate-600 border-slate-200';
+            case 'cancelled': return 'bg-rose-50 text-rose-700 border-rose-200';
+            default: return 'bg-slate-50 text-slate-600 border-slate-200';
         }
+    };
+
+    const getProgressColor = (percent: number) => {
+        if (percent >= 100) return 'bg-emerald-500';
+        if (percent >= 75) return 'bg-blue-500';
+        if (percent >= 50) return 'bg-amber-500';
+        return 'bg-slate-400';
     };
 
     if (user && !can('Project', 'read')) {
@@ -75,44 +97,80 @@ export default function ProjectsPage() {
     }
 
     return (
-        <div className="space-y-6 pb-20 animate-fade-in">
-            {/* Header */}
-            <div className="bg-white p-5 rounded-md border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-primary-900 rounded-md shadow-lg flex items-center justify-center text-white">
-                        <Briefcase size={20} />
-                    </div>
-                    <div>
-                        <h1 className="text-lg font-black text-gray-900 tracking-tight uppercase leading-none truncate">Project Portfolio</h1>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">
-                            Strategic Initiatives & Deliverables
-                        </p>
-                    </div>
+        <div className="space-y-8 pb-20 animate-fade-in">
+            {/* Header Area */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight flex items-center gap-3">
+                        Project Control Center
+                        <span className="px-2.5 py-1 rounded-full bg-slate-900 text-white text-[10px] tracking-widest font-bold">
+                            {projects.length}
+                        </span>
+                    </h1>
+                    <p className="text-xs text-slate-500 font-bold mt-1 uppercase tracking-wide">
+                        Manage strategic initiatives, timelines, and deliverables
+                    </p>
                 </div>
                 {can('Project', 'create') && (
                     <Link
                         href="/projects/new"
-                        className="btn-primary flex items-center gap-2 text-[10px]"
+                        className="bg-slate-900 hover:bg-primary-600 text-white px-5 py-2.5 rounded-md text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-slate-900/10 flex items-center gap-2"
                     >
-                        <Plus size={14} /> New Project
+                        <Plus size={14} strokeWidth={3} /> New Project
                     </Link>
                 )}
             </div>
 
+            {/* Metric Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <MetricCard
+                    label="Active Projects"
+                    value={metrics.active}
+                    icon={<Briefcase size={18} />}
+                    trend="+2 this month"
+                    color="text-emerald-600"
+                    bgColor="bg-emerald-50"
+                />
+                <MetricCard
+                    label="On Schedule"
+                    value={metrics.active - metrics.delayed}
+                    icon={<CheckCircle2 size={18} />}
+                    trend="94% Compliance"
+                    color="text-blue-600"
+                    bgColor="bg-blue-50"
+                />
+                <MetricCard
+                    label="Delayed"
+                    value={metrics.delayed}
+                    icon={<AlertTriangle size={18} />}
+                    trend="Action Required"
+                    color="text-rose-600"
+                    bgColor="bg-rose-50"
+                />
+                <MetricCard
+                    label="Avg. Progress"
+                    value="0%"
+                    icon={<BarChart3 size={18} />}
+                    trend="Across all projects"
+                    color="text-slate-600"
+                    bgColor="bg-slate-50"
+                />
+            </div>
+
             {/* Filters & Controls */}
-            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+            <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
                 <div className="flex items-center gap-3 w-full md:w-auto">
-                    <div className="relative w-full md:w-72">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-3.5 h-3.5" />
+                    <div className="relative w-full md:w-80">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
                         <input
                             type="text"
-                            placeholder="SEARCH PROJECTS & CLIENTS..."
+                            placeholder="SEARCH BY PROJECT OR CLIENT..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            className="ent-input pl-9"
+                            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-md text-xs font-bold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent uppercase tracking-wide transition-all"
                         />
                     </div>
-                    <div className="w-44">
+                    <div className="w-48">
                         <CustomSelect
                             options={[
                                 { label: 'All Status', value: '' },
@@ -126,18 +184,18 @@ export default function ProjectsPage() {
                         />
                     </div>
                 </div>
-                <div className="flex bg-white border border-slate-200 p-1 rounded-md shadow-sm">
+                <div className="flex bg-slate-100 p-1 rounded-md">
                     <button
-                        onClick={() => setView('grid')}
-                        className={`p-2 rounded transition-all ${view === 'grid' ? 'bg-primary-50 text-primary-700 shadow-sm ring-1 ring-primary-100' : 'text-slate-400 hover:text-slate-600'}`}
+                        onClick={() => setView('table')}
+                        className={`px-3 py-1.5 rounded-sm text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-2 ${view === 'table' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                     >
-                        <LayoutGrid size={14} />
+                        <List size={12} /> List View
                     </button>
                     <button
-                        onClick={() => setView('list')}
-                        className={`p-2 rounded transition-all ${view === 'list' ? 'bg-primary-50 text-primary-700 shadow-sm ring-1 ring-primary-100' : 'text-slate-400 hover:text-slate-600'}`}
+                        onClick={() => setView('grid')}
+                        className={`px-3 py-1.5 rounded-sm text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-2 ${view === 'grid' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                     >
-                        <List size={14} />
+                        <LayoutGrid size={12} /> Grid View
                     </button>
                 </div>
             </div>
@@ -148,115 +206,184 @@ export default function ProjectsPage() {
                     <LoadingSpinner />
                 </div>
             ) : filteredProjects.length === 0 ? (
-                <div className="ent-card p-16 text-center border-dashed flex flex-col items-center justify-center">
-                    <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
-                        <Briefcase className="w-8 h-8 text-slate-300" />
+                <div className="ent-card p-16 text-center border-dashed flex flex-col items-center justify-center bg-slate-50/50">
+                    <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mb-6 shadow-sm border border-slate-100">
+                        <Briefcase className="w-10 h-10 text-slate-300" />
                     </div>
-                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-wide">No Projects Found</h3>
-                    <p className="text-[11px] text-slate-500 font-bold mt-1 max-w-xs mx-auto">
-                        {search || statusFilter ? 'No projects match your current filters.' : 'Get started by creating your first project.'}
+                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">No Projects Found</h3>
+                    <p className="text-xs text-slate-500 font-medium mt-2 max-w-xs mx-auto">
+                        {search || statusFilter ? 'Adjust your filters to see more results.' : 'Launch a new initiative to get started.'}
                     </p>
                     {(search || statusFilter) && (
                         <button
                             onClick={() => { setSearch(''); setStatusFilter(''); }}
-                            className="mt-4 text-[10px] font-black text-primary-600 uppercase tracking-widest hover:underline"
+                            className="mt-6 text-[10px] font-black text-primary-600 uppercase tracking-widest hover:underline"
                         >
-                            Clear Filters
+                            Reset Filters
                         </button>
                     )}
                 </div>
             ) : (
-                <div className={view === 'grid' ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6" : "space-y-3"}>
-                    {filteredProjects.map((project: any) => (
-                        <Link
-                            href={`/projects/${project.id}`}
-                            key={project.id}
-                            className={`group ent-card block hover:ring-2 hover:ring-primary-500/20 hover:shadow-lg transition-all duration-300 ${view === 'list' ? 'flex items-center justify-between p-4' : 'p-6 flex flex-col h-full'}`}
-                        >
-                            <div className={view === 'list' ? "flex items-center gap-6 flex-1" : "flex-1"}>
-                                <div className="flex justify-between items-start mb-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-md bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center text-white font-black shadow-md border border-slate-700/50 group-hover:scale-105 transition-transform duration-300">
+                <>
+                    {view === 'table' ? (
+                        <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="bg-slate-50 border-b border-slate-200">
+                                            <th className="px-6 py-4 text-[9px] font-black text-slate-500 uppercase tracking-widest w-[40%]">Project & Client</th>
+                                            <th className="px-6 py-4 text-[9px] font-black text-slate-500 uppercase tracking-widest text-center">Status</th>
+                                            <th className="px-6 py-4 text-[9px] font-black text-slate-500 uppercase tracking-widest text-center">Timeline</th>
+                                            <th className="px-6 py-4 text-[9px] font-black text-slate-500 uppercase tracking-widest text-center">Team</th>
+                                            <th className="px-6 py-4 text-[9px] font-black text-slate-500 uppercase tracking-widest text-right">Progress</th>
+                                            <th className="px-6 py-4 text-[9px] font-black text-slate-500 uppercase tracking-widest"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {filteredProjects.map((project) => (
+                                            <tr key={project.id} className="group hover:bg-slate-50/80 transition-colors">
+                                                <td className="px-6 py-4">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-10 h-10 rounded-lg bg-slate-900 text-white flex items-center justify-center text-sm font-black shadow-md group-hover:scale-105 transition-transform">
+                                                            {project.name.charAt(0)}
+                                                        </div>
+                                                        <div>
+                                                            <Link href={`/projects/${project.id}`} className="text-sm font-bold text-slate-900 hover:text-primary-600 transition-colors block leading-tight">
+                                                                {project.name}
+                                                            </Link>
+                                                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5 block">
+                                                                {project.client?.name || 'Internal'}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 text-center">
+                                                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${getStatusColor(project.status)}`}>
+                                                        {project.status.replace('-', ' ')}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <div className="flex flex-col items-center">
+                                                        <span className="text-xs font-bold text-slate-700">
+                                                            {project.endDate ? new Date(project.endDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'TBD'}
+                                                        </span>
+                                                        {project.endDate && new Date(project.endDate) < new Date() && project.status !== 'completed' && (
+                                                            <span className="text-[9px] font-bold text-rose-500 uppercase tracking-wide flex items-center gap-1 mt-0.5">
+                                                                <AlertTriangle size={8} /> Delayed
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 text-center">
+                                                    <div className="flex items-center justify-center -space-x-2">
+                                                        {[...Array(Math.min(3, project._count?.members || 0))].map((_, i) => (
+                                                            <div key={i} className="w-7 h-7 rounded-full bg-slate-200 border-2 border-white flex items-center justify-center text-[9px] font-bold text-slate-500">
+                                                                <Users size={12} />
+                                                            </div>
+                                                        ))}
+                                                        {(project._count?.members || 0) > 3 && (
+                                                            <div className="w-7 h-7 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center text-[9px] font-bold text-slate-500">
+                                                                +{project._count.members - 3}
+                                                            </div>
+                                                        )}
+                                                        {(project._count?.members || 0) === 0 && (
+                                                            <span className="text-[10px] text-slate-400 italic">No members</span>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 text-right">
+                                                    <div className="w-24 ml-auto">
+                                                        <div className="flex justify-end mb-1">
+                                                            <span className="text-xs font-bold text-slate-700">0%</span>
+                                                        </div>
+                                                        <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                                            <div className="h-full bg-slate-400 w-[0%]" />
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 text-right">
+                                                    <Link
+                                                        href={`/projects/${project.id}`}
+                                                        className="text-slate-300 hover:text-primary-600 transition-colors"
+                                                    >
+                                                        <ChevronRight size={18} />
+                                                    </Link>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                            {filteredProjects.map((project: any) => (
+                                <Link
+                                    href={`/projects/${project.id}`}
+                                    key={project.id}
+                                    className="group bg-white rounded-lg border border-slate-200 p-6 hover:shadow-xl hover:shadow-slate-200/50 hover:border-primary-500/30 transition-all duration-300 flex flex-col h-full"
+                                >
+                                    <div className="flex justify-between items-start mb-6">
+                                        <div className="w-12 h-12 rounded-xl bg-slate-900 text-white flex items-center justify-center text-lg font-black shadow-lg group-hover:scale-110 transition-transform">
                                             {project.name.charAt(0)}
                                         </div>
-                                        <div>
-                                            <h3 className="text-sm font-black text-slate-900 leading-tight group-hover:text-primary-700 transition-colors">
-                                                {project.name}
-                                            </h3>
-                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">
-                                                {project.client?.name || 'Internal Project'}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    {view === 'grid' && (
-                                        <span className={`px-2.5 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border ${getStatusColor(project.status)}`}>
-                                            {project.status}
+                                        <span className={`px-2.5 py-1 rounded text-[9px] font-black uppercase tracking-widest border ${getStatusColor(project.status)}`}>
+                                            {project.status.replace('-', ' ')}
                                         </span>
-                                    )}
-                                </div>
+                                    </div>
 
-                                <p className="text-xs text-slate-500 font-medium line-clamp-2 mb-6 min-h-[2.5em]">
-                                    {project.description || 'No description provided for this project.'}
-                                </p>
+                                    <h3 className="text-base font-black text-slate-900 mb-1 group-hover:text-primary-600 transition-colors">
+                                        {project.name}
+                                    </h3>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-4">
+                                        {project.client?.name || 'Internal Project'}
+                                    </p>
 
-                                {view === 'grid' && (
-                                    <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-50 mt-auto">
-                                        <div className="space-y-1">
-                                            <div className="flex items-center gap-1.5 text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                                    <p className="text-xs text-slate-500 font-medium line-clamp-2 mb-6 min-h-[2.5em] leading-relaxed">
+                                        {project.description || 'No description provided for this project.'}
+                                    </p>
+
+                                    <div className="mt-auto pt-5 border-t border-slate-100 grid grid-cols-2 gap-4">
+                                        <div>
+                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1">
                                                 <Clock size={10} /> Deadline
-                                            </div>
+                                            </p>
                                             <p className="text-xs font-bold text-slate-700">
                                                 {project.endDate ? new Date(project.endDate).toLocaleDateString() : 'TBD'}
                                             </p>
                                         </div>
-                                        <div className="space-y-1 text-right">
-                                            <div className="flex items-center justify-end gap-1.5 text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                                                <CheckCircle size={10} /> Progress
-                                            </div>
-                                            <div className="flex items-center justify-end gap-2">
-                                                <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                                    <div className="h-full bg-emerald-500 w-[0%] animate-pulse" />
-                                                </div>
-                                                <span className="text-xs font-bold text-emerald-600">0%</span>
-                                            </div>
+                                        <div className="text-right">
+                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center justify-end gap-1">
+                                                <Users size={10} /> Team
+                                            </p>
+                                            <p className="text-xs font-bold text-slate-700">
+                                                {project._count?.members || 0} Members
+                                            </p>
                                         </div>
                                     </div>
-                                )}
-                            </div>
-
-                            {view === 'list' && (
-                                <div className="flex items-center gap-8 min-w-fit">
-                                    <div className="text-right">
-                                        <p className="text-[9px] text-slate-400 font-black uppercase tracking-wider">Deadline</p>
-                                        <p className="text-xs font-bold text-slate-700">
-                                            {project.endDate ? new Date(project.endDate).toLocaleDateString() : 'TBD'}
-                                        </p>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-[9px] text-slate-400 font-black uppercase tracking-wider">Members</p>
-                                        <div className="flex items-center gap-1 justify-end">
-                                            <User size={12} className="text-slate-400" />
-                                            <p className="text-xs font-bold text-slate-900">{project._count?.members || 0}</p>
-                                        </div>
-                                    </div>
-                                    <span className={`px-2.5 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border ${getStatusColor(project.status)}`}>
-                                        {project.status}
-                                    </span>
-                                </div>
-                            )}
-                        </Link>
-                    ))}
-                </div>
+                                </Link>
+                            ))}
+                        </div>
+                    )}
+                </>
             )}
         </div>
     );
 }
 
-function ShieldCheck({ className }: { className?: string }) {
+function MetricCard({ label, value, icon, trend, color, bgColor }: any) {
     return (
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            <path d="m9 12 2 2 4-4" />
-        </svg>
-    )
+        <div className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm flex items-start justify-between group hover:border-slate-300 transition-colors">
+            <div>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</p>
+                <h2 className="text-2xl font-black text-slate-900 mt-1">{value}</h2>
+                <p className={`text-[10px] font-bold mt-2 ${color} flex items-center gap-1`}>
+                    <ArrowUpRight size={10} strokeWidth={3} /> {trend}
+                </p>
+            </div>
+            <div className={`p-2.5 rounded-lg ${bgColor} ${color} group-hover:scale-110 transition-transform`}>
+                {icon}
+            </div>
+        </div>
+    );
 }

@@ -8,6 +8,8 @@ import { Briefcase, Calendar, CheckCircle2, Plus, ArrowLeft } from 'lucide-react
 import PortalTaskBoard from '@/components/portal/PortalTaskBoard';
 import PortalCreateIssueModal from '@/components/portal/PortalCreateIssueModal';
 import PortalTaskDetailModal from '@/components/portal/PortalTaskDetailModal';
+import PortalRoadmap from '@/components/portal/PortalRoadmap';
+import PortalFiles from '@/components/portal/PortalFiles';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useSocket } from '@/contexts/SocketContext';
@@ -16,7 +18,7 @@ export default function PortalProjectDetail({ params }: { params: { id: string }
     const router = useRouter();
     const [project, setProject] = useState<any>(null);
     const [tasks, setTasks] = useState<any[]>([]);
-    const [activeTab, setActiveTab] = useState<'board' | 'review'>('board');
+    const [activeTab, setActiveTab] = useState<'board' | 'review' | 'roadmap' | 'files'>('board');
     const [loading, setLoading] = useState(true);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [selectedTask, setSelectedTask] = useState<any | null>(null);
@@ -152,6 +154,18 @@ export default function PortalProjectDetail({ params }: { params: { id: string }
                         </span>
                     )}
                 </button>
+                <button
+                    onClick={() => setActiveTab('roadmap')}
+                    className={`px-4 py-3 text-xs font-bold uppercase tracking-wider border-b-2 transition-all ${activeTab === 'roadmap' ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+                >
+                    Roadmap
+                </button>
+                <button
+                    onClick={() => setActiveTab('files')}
+                    className={`px-4 py-3 text-xs font-bold uppercase tracking-wider border-b-2 transition-all ${activeTab === 'files' ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+                >
+                    Files
+                </button>
             </div>
 
             {/* Board Area */}
@@ -163,6 +177,10 @@ export default function PortalProjectDetail({ params }: { params: { id: string }
                         </div>
                         <p className="text-sm font-bold uppercase tracking-widest">No tasks pending review</p>
                     </div>
+                ) : activeTab === 'roadmap' ? (
+                    <PortalRoadmap projectId={params.id} />
+                ) : activeTab === 'files' ? (
+                    <PortalFiles projectId={params.id} />
                 ) : (
                     <PortalTaskBoard
                         tasks={filteredTasks}

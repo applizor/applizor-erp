@@ -882,7 +882,8 @@ model Milestone {
   dueDate     DateTime?
   amount      Decimal?  @db.Decimal(12, 2)
   currency    String    @default("INR")
-  status      String    @default("pending") // pending, completed, overdue
+  status      String    @default("pending") // pending, completed, overdue, in_review
+  reviewStatus String   @default("none") // none, pending, approved, rejected
   order       Int       @default(0)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt

@@ -327,19 +327,26 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
                 }}
             />
 
-            {/* Modal: Review Document (Approve/Reject) */}
-            {reviewModal.isOpen && reviewModal.docId && (
-                <ReviewDocumentModal
-                    isOpen={reviewModal.isOpen}
-                    onClose={() => setReviewModal({ isOpen: false, docId: null, docName: '' })}
-                    docId={reviewModal.docId}
-                    docName={reviewModal.docName}
-                    onReviewComplete={() => {
-                        setReviewModal({ isOpen: false, docId: null, docName: '' });
+            <ReviewDocumentModal
+                isOpen={reviewModal.isOpen}
+                onClose={() => setReviewModal({ isOpen: false, docId: null, docName: '' })}
+                documentName={reviewModal.docName}
+                onReview={async (status: 'approved' | 'rejected', remarks?: string) => {
+                    if (!reviewModal.docId) return;
+                    try {
+                        if (status === 'approved') {
+                            await documentsApi.review(reviewModal.docId, 'approved');
+                        } else {
+                            await documentsApi.review(reviewModal.docId, 'rejected', remarks || '');
+                        }
+                        toast.success(`Document ${status}`);
                         loadData();
-                    }}
-                />
-            )}
+                    } catch (error: any) {
+                        toast.error(error.response?.data?.error || `Failed to ${status} document`);
+                        throw error;
+                    }
+                }}
+            />
 
             {/* Dialog: Delete Confirmation */}
             <ConfirmDialog
@@ -358,8 +365,8 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
                     }
                 }}
                 title="Delete Document"
-                description="Are you sure you want to delete this document? This action cannot be undone."
-                variant="danger"
+                message="Are you sure you want to delete this document? This action cannot be undone."
+                type="danger"
             />
 
             <div className="max-w-6xl mx-auto px-4 lg:px-8 py-8">

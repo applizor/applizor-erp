@@ -321,11 +321,42 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
 
                             {/* Header Section */}
                             <div className="mb-8">
-                                {/* Breadcrumbs */}
-                                <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">
-                                    <span className="hover:text-primary-600 transition-colors cursor-pointer">Project</span>
-                                    <span className="text-slate-300">/</span>
-                                    <span className="text-slate-600">{isNew ? 'New Issue' : `TASK-${task?.id?.split('-')[0].toUpperCase()}`}</span>
+                                {/* Breadcrumbs & Timer */}
+                                <div className="flex justify-between items-start mb-4 gap-4">
+                                    <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                        <span className="hover:text-primary-600 transition-colors cursor-pointer">Project</span>
+                                        <span className="text-slate-300">/</span>
+                                        <span className="text-slate-600">{isNew ? 'New Issue' : `TASK-${task?.id?.split('-')[0].toUpperCase()}`}</span>
+                                    </div>
+
+                                    {!isNew && (
+                                        <button
+                                            type="button"
+                                            onClick={toggleTimer}
+                                            className={`
+                                                flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all
+                                                ${timerActive
+                                                    ? 'bg-rose-100 text-rose-700 border border-rose-200 shadow-sm shadow-rose-200/50'
+                                                    : 'bg-primary-50 text-primary-900 border border-primary-100 hover:bg-primary-100 transition-colors'
+                                                }
+                                            `}
+                                        >
+                                            <div className="relative">
+                                                <Clock size={12} className={timerActive ? 'text-rose-600 animate-[spin_3s_linear_infinite]' : 'text-primary-600'} />
+                                                {timerActive && (
+                                                    <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-rose-500 rounded-full animate-ping" />
+                                                )}
+                                            </div>
+                                            {timerActive ? (
+                                                <div className="flex items-center gap-1.5 font-mono">
+                                                    <span className="text-rose-500 font-black">STOP</span>
+                                                    <LiveTimerDisplay startTime={timerStartTime || Date.now()} formatTime={formatTime} />
+                                                </div>
+                                            ) : (
+                                                'Start Tracker'
+                                            )}
+                                        </button>
+                                    )}
                                 </div>
 
                                 {/* Title Input */}
@@ -354,7 +385,6 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                                                     onChange={field.onChange}
                                                     placeholder="Describe the task details, acceptance criteria, and technical notes..."
                                                     className="min-h-[200px] border-none"
-                                                    mentions={employees.map(e => ({ id: e.userId || e.id, name: `${e.firstName} ${e.lastName}` }))}
                                                 />
                                             )}
                                         />
@@ -410,25 +440,36 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                             {/* Activity / Comments */}
                             {!isNew && (
                                 <div className="mt-12 pt-8 border-t border-slate-100">
-                                    <div className="flex items-center gap-6 mb-6 border-b border-slate-100">
-                                        <button
-                                            onClick={() => setActiveTab('comments')}
-                                            className={`pb-4 text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${activeTab === 'comments' ? 'text-primary-900 border-b-2 border-primary-900' : 'text-slate-400 hover:text-slate-600'}`}
-                                        >
-                                            <div className="flex items-center gap-2">Comments {comments.length > 0 && <span className="bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded text-[9px]">{comments.length}</span>}</div>
-                                        </button>
-                                        <button
-                                            onClick={() => setActiveTab('history')}
-                                            className={`pb-4 text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${activeTab === 'history' ? 'text-primary-900 border-b-2 border-primary-900' : 'text-slate-400 hover:text-slate-600'}`}
-                                        >
-                                            <div className="flex items-center gap-2">History <Clock size={14} /></div>
-                                        </button>
-                                        <button
-                                            onClick={() => setActiveTab('worklog')}
-                                            className={`pb-4 text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${activeTab === 'worklog' ? 'text-primary-900 border-b-2 border-primary-900' : 'text-slate-400 hover:text-slate-600'}`}
-                                        >
-                                            <div className="flex items-center gap-2">Work Log <Briefcase size={14} /></div>
-                                        </button>
+                                    <div className="flex justify-between items-center mb-6 border-b border-slate-100">
+                                        <div className="flex items-center gap-6">
+                                            <button
+                                                onClick={() => setActiveTab('comments')}
+                                                className={`pb-4 text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${activeTab === 'comments' ? 'text-primary-900 border-b-2 border-primary-900' : 'text-slate-400 hover:text-slate-600'}`}
+                                            >
+                                                <div className="flex items-center gap-2">Comments {comments.length > 0 && <span className="bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded text-[9px]">{comments.length}</span>}</div>
+                                            </button>
+                                            <button
+                                                onClick={() => setActiveTab('history')}
+                                                className={`pb-4 text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${activeTab === 'history' ? 'text-primary-900 border-b-2 border-primary-900' : 'text-slate-400 hover:text-slate-600'}`}
+                                            >
+                                                <div className="flex items-center gap-2">History <Clock size={14} /></div>
+                                            </button>
+                                            <button
+                                                onClick={() => setActiveTab('worklog')}
+                                                className={`pb-4 text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${activeTab === 'worklog' ? 'text-primary-900 border-b-2 border-primary-900' : 'text-slate-400 hover:text-slate-600'}`}
+                                            >
+                                                <div className="flex items-center gap-2">Work Log <Briefcase size={14} /></div>
+                                            </button>
+                                        </div>
+
+                                        {activeTab === 'worklog' && (
+                                            <button
+                                                onClick={() => setIsLogModalOpen(true)}
+                                                className="pb-4 flex items-center gap-1.5 text-primary-600 hover:text-primary-700 text-[10px] font-black uppercase tracking-widest transition-all"
+                                            >
+                                                <Plus size={14} /> Log Time
+                                            </button>
+                                        )}
                                     </div>
 
 
@@ -473,7 +514,6 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                                                         onPost={postComment}
                                                         placeholder={replyTo ? `Replying to ${replyTo.user?.firstName || replyTo.client?.name}...` : "Add a comment..."}
                                                         className="min-h-[100px] border-none"
-                                                        mentions={employees.map(e => ({ id: e.userId || e.id, name: `${e.firstName} ${e.lastName}` }))}
                                                     />
                                                 </div>
                                                 <div className="bg-slate-50/50 px-4 py-3 flex justify-end border-t border-slate-100">

@@ -163,7 +163,6 @@ export default function ProjectWiki({ params }: { params: { id: string } }) {
                     <RichTextEditor
                         value={content}
                         onChange={setContent}
-                        mentions={members}
                         className="flex-1 overflow-y-auto"
                         placeholder="Start typing documentation here..."
                     />

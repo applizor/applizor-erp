@@ -14,7 +14,11 @@ import {
     rejectQuotation,
     getContractPdf,
     getMyContracts,
-    getContractDetails
+    getContractDetails,
+    getPortalProjectMilestones,
+    reviewPortalMilestone,
+    getPortalProjectDocuments,
+    downloadPortalDocument
 } from '../controllers/portal.controller';
 import { authenticateClient } from '../middleware/client.auth';
 
@@ -43,6 +47,10 @@ router.get('/invoices/export', authenticateClient, exportInvoices);
 router.get('/invoices/:id', authenticateClient, getInvoiceDetails);
 router.get('/invoices/:id/pdf', authenticateClient, getInvoicePdf);
 router.get('/projects', authenticateClient, getMyProjects);
+router.get('/projects/:id/milestones', authenticateClient, getPortalProjectMilestones);
+router.post('/milestones/:id/review', authenticateClient, reviewPortalMilestone);
+router.get('/projects/:id/documents', authenticateClient, getPortalProjectDocuments);
+router.get('/documents/:id/download', authenticateClient, downloadPortalDocument);
 
 // Portal Task Management
 import * as portalTaskController from '../controllers/portal.task.controller';

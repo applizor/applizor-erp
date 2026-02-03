@@ -3,6 +3,7 @@ import { Decimal } from '@prisma/client/runtime/library';
 import prisma from '../prisma/client';
 import { ClientAuthRequest } from '../middleware/client.auth';
 import { PDFService } from '../services/pdf.service';
+import { NotificationService } from '../services/notification.service';
 
 export const getDashboardStats = async (req: ClientAuthRequest, res: Response) => {
     try {
@@ -1100,5 +1101,164 @@ export const uploadDocument = async (req: ClientAuthRequest, res: Response) => {
     } catch (error) {
         console.error('Upload Document Error:', error);
         res.status(500).json({ error: 'Failed to upload document' });
+    }
+};
+
+// ============================================
+// PROJECT EXTENSIONS (ROADMAP & FILES)
+// ============================================
+
+export const getPortalProjectMilestones = async (req: ClientAuthRequest, res: Response) => {
+    try {
+        const { id: projectId } = req.params;
+        const clientId = req.clientId;
+
+        // Verify project ownership
+        const project = await prisma.project.findFirst({
+            where: { id: projectId, clientId }
+        });
+
+        if (!project) {
+            return res.status(404).json({ error: 'Project not found' });
+        }
+
+        const milestones = await prisma.milestone.findMany({
+            where: { projectId },
+            orderBy: { order: 'asc' },
+            include: {
+                _count: {
+                    select: { tasks: true }
+                }
+            }
+        });
+
+        res.json(milestones);
+    } catch (error) {
+        console.error('Get Portal Milestones Error:', error);
+        res.status(500).json({ error: 'Failed to fetch milestones' });
+    }
+};
+
+export const reviewPortalMilestone = async (req: ClientAuthRequest, res: Response) => {
+    try {
+        const { id: milestoneId } = req.params;
+        const { action, remarks } = req.body; // action: 'approve' | 'reject'
+        const clientId = req.clientId;
+
+        if (!['approve', 'reject'].includes(action)) {
+            return res.status(400).json({ error: 'Invalid action' });
+        }
+
+        const milestone = await prisma.milestone.findFirst({
+            where: {
+                id: milestoneId,
+                project: { clientId }
+            },
+            include: { project: true }
+        });
+
+        if (!milestone) {
+            return res.status(404).json({ error: 'Milestone not found' });
+        }
+
+        const updatedMilestone = await prisma.milestone.update({
+            where: { id: milestoneId },
+            data: {
+                reviewStatus: action === 'approve' ? 'approved' : 'rejected',
+                status: action === 'approve' ? 'completed' : milestone.status,
+                description: remarks ? `${milestone.description || ''}\n\n[Client Feedback]: ${remarks}` : milestone.description
+            }
+        });
+
+        // 1. Emit real-time update to Project Room (Admins/Members)
+        NotificationService.emitProjectUpdate(milestone.projectId, 'MILESTONE_UPDATED', updatedMilestone);
+
+        // 2. Create in-app notification for the internal team (Manager/Owner)
+        // We'll notify the project creator or any assigned project managers
+        const projectWithManagers = await prisma.project.findUnique({
+            where: { id: milestone.projectId },
+            select: { companyId: true, members: { where: { role: 'manager' }, select: { employee: { select: { userId: true } } } } }
+        });
+
+        if (projectWithManagers && projectWithManagers.members.length > 0) {
+            for (const member of projectWithManagers.members) {
+                if (member.employee.userId) {
+                    await NotificationService.createNotification({
+                        companyId: projectWithManagers.companyId,
+                        userId: member.employee.userId,
+                        title: `Milestone ${action === 'approve' ? 'Approved' : 'Correction Requested'}`,
+                        message: `Client has ${action}ed the milestone: "${milestone.title}" in ${milestone.project.name}.`,
+                        type: action === 'approve' ? 'success' : 'warning',
+                        link: `/projects/${milestone.projectId}`
+                    });
+                }
+            }
+        }
+
+        res.json({
+            message: `Milestone ${action}ed successfully`,
+            milestone: updatedMilestone
+        });
+    } catch (error) {
+        console.error('Review Portal Milestone Error:', error);
+        res.status(500).json({ error: 'Failed to review milestone' });
+    }
+};
+
+export const getPortalProjectDocuments = async (req: ClientAuthRequest, res: Response) => {
+    try {
+        const { id: projectId } = req.params;
+        const clientId = req.clientId;
+
+        // Verify project ownership
+        const project = await prisma.project.findFirst({
+            where: { id: projectId, clientId }
+        });
+
+        if (!project) {
+            return res.status(404).json({ error: 'Project not found' });
+        }
+
+        const documents = await prisma.document.findMany({
+            where: { projectId },
+            orderBy: { createdAt: 'desc' },
+            select: {
+                id: true,
+                name: true,
+                type: true,
+                status: true,
+                createdAt: true,
+                fileSize: true,
+                filePath: true,
+                mimeType: true,
+                uploadedById: true
+            }
+        });
+
+        res.json(documents);
+    } catch (error) {
+        console.error('Get Portal Project Documents Error:', error);
+        res.status(500).json({ error: 'Failed to fetch project documents' });
+    }
+};
+
+export const downloadPortalDocument = async (req: ClientAuthRequest, res: Response) => {
+    try {
+        const { id } = req.params;
+        const clientId = req.clientId;
+
+        const document = await prisma.document.findFirst({
+            where: { id, clientId }
+        });
+
+        if (!document) {
+            return res.status(404).json({ error: 'Document not found' });
+        }
+
+        const path = document.filePath;
+        res.download(path, document.name);
+    } catch (error) {
+        console.error('Download Portal Document Error:', error);
+        res.status(500).json({ error: 'Failed to download document' });
     }
 };

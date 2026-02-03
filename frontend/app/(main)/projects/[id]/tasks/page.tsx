@@ -1,15 +1,19 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { useToast } from '@/hooks/useToast';
 import api from '@/lib/api';
 import { useParams } from 'next/navigation';
-import { Plus, MoreVertical, Paperclip, MessageSquare, Bug, Bookmark, Layout, CheckSquare } from 'lucide-react';
+import {
+    Plus, MoreVertical, Paperclip, MessageSquare, Bug, Bookmark, Layout, CheckSquare,
+    Filter, LayoutGrid, Users, Calendar, Clock
+} from 'lucide-react';
 import TaskDetailModal from '@/components/tasks/TaskDetailModal';
 import BulkTimeLogModal from '@/components/hrms/timesheets/BulkTimeLogModal';
-import { Clock as ClockIcon } from 'lucide-react';
 import { useSocket } from '@/contexts/SocketContext';
+import { useProjectPermissions } from '@/hooks/useProjectPermissions';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 // Types
 interface Task {
@@ -20,35 +24,36 @@ interface Task {
     type: string; // epic, story, task, bug
     priority: string;
     storyPoints?: number;
-    assignee?: { firstName: string, lastName: string };
+    assignee?: { id: string, firstName: string, lastName: string };
     epic?: { id: string, title: string };
     _count?: { comments: number, documents: number };
 }
 
 const COLUMNS = {
-    'todo': { title: 'To Do', color: 'bg-gray-100 border-gray-200' },
-    'in-progress': { title: 'In Progress', color: 'bg-blue-50 border-blue-200' },
-    'review': { title: 'Review', color: 'bg-purple-50 border-purple-200' },
-    'done': { title: 'Done', color: 'bg-green-50 border-green-200' },
+    'todo': { title: 'To Do', color: 'bg-slate-100 border-slate-200 text-slate-700' },
+    'in-progress': { title: 'In Progress', color: 'bg-blue-50 border-blue-200 text-blue-700' },
+    'review': { title: 'Review', color: 'bg-purple-50 border-purple-200 text-purple-700' },
+    'done': { title: 'Done', color: 'bg-emerald-50 border-emerald-200 text-emerald-700' },
 };
-
-import { useProjectPermissions } from '@/hooks/useProjectPermissions';
-
-// ... (other imports)
 
 export default function KanbanBoard() {
     const { id: projectId } = useParams();
     const [tasks, setTasks] = useState<Task[]>([]);
     const [sprints, setSprints] = useState<any[]>([]);
     const [selectedSprintId, setSelectedSprintId] = useState<string>('all');
+    const [filters, setFilters] = useState({ assignee: '', type: '', search: '' });
     const [columns, setColumns] = useState<any>({ todo: [], 'in-progress': [], review: [], done: [] });
     const toast = useToast();
     const { socket } = useSocket();
+
+    // Modal States
     const [isDetailOpen, setIsDetailOpen] = useState(false);
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
     const [isBulkLogOpen, setIsBulkLogOpen] = useState(false);
     const [quickLogTask, setQuickLogTask] = useState<any>(null);
-    const [project, setProject] = useState<any>(null); // Need project for permissions
+
+    // Permissions
+    const [project, setProject] = useState<any>(null);
     const { can } = useProjectPermissions(project);
 
     const fetchProjectSettings = useCallback(async () => {
@@ -64,8 +69,6 @@ export default function KanbanBoard() {
         try {
             const res = await api.get(`/projects/${projectId}/sprints`);
             setSprints(res.data);
-
-            // Set active sprint as default if nothing selected yet
             const active = res.data.find((s: any) => s.status === 'active');
             if (active && selectedSprintId === 'all') {
                 setSelectedSprintId(active.id);
@@ -79,14 +82,13 @@ export default function KanbanBoard() {
         try {
             const sprintQuery = selectedSprintId !== 'all' ? `&sprintId=${selectedSprintId}` : '';
             const res = await api.get(`/tasks?projectId=${projectId}${sprintQuery}`);
-            const data = res.data;
-            setTasks(data);
-            distributeTasks(data);
+            setTasks(res.data);
         } catch (error) {
             toast.error('Failed to load tasks');
         }
     }, [projectId, selectedSprintId, toast]);
 
+    // Initial Load & Socket
     useEffect(() => {
         if (projectId) {
             fetchTasks();
@@ -97,83 +99,76 @@ export default function KanbanBoard() {
 
     useEffect(() => {
         if (!socket || !projectId) return;
-
-        const onConnect = () => {
-            console.log('Socket connected/reconnected, joining project room:', projectId);
-            socket.emit('join-project', projectId);
-        };
-
-        // Join immediately if already connected
-        if (socket.connected) {
-            onConnect();
-        }
+        const onConnect = () => socket.emit('join-project', projectId);
+        if (socket.connected) onConnect();
 
         socket.on('connect', onConnect);
-        socket.on('TASK_CREATED', (data) => {
+        const refresh = (data: any) => {
             if (data.projectId === projectId) fetchTasks();
-        });
-        socket.on('TASK_UPDATED', (data) => {
-            if (data.projectId === projectId) fetchTasks();
-        });
-        socket.on('TASK_DELETED', (data) => {
-            if (data.projectId === projectId) fetchTasks();
-        });
+        };
+
+        socket.on('TASK_CREATED', refresh);
+        socket.on('TASK_UPDATED', refresh);
+        socket.on('TASK_DELETED', refresh);
 
         return () => {
             socket.off('connect', onConnect);
-            socket.off('TASK_CREATED');
-            socket.off('TASK_UPDATED');
-            socket.off('TASK_DELETED');
+            socket.off('TASK_CREATED', refresh);
+            socket.off('TASK_UPDATED', refresh);
+            socket.off('TASK_DELETED', refresh);
         };
     }, [socket, projectId, fetchTasks]);
 
-    const distributeTasks = (taskList: Task[]) => {
+    // Derived State: Distribute tasks into columns based on filters
+    useEffect(() => {
+        const filtered = tasks.filter(t => {
+            const matchAssignee = filters.assignee ? t.assignee?.id === filters.assignee : true;
+            const matchType = filters.type ? t.type === filters.type : true;
+            const matchSearch = filters.search ? t.title.toLowerCase().includes(filters.search.toLowerCase()) : true;
+            return matchAssignee && matchType && matchSearch;
+        });
+
         const newCols: any = { todo: [], 'in-progress': [], review: [], done: [] };
-        taskList.forEach(task => {
-            if (newCols[task.status]) {
-                newCols[task.status].push(task);
-            } else {
-                newCols['todo'].push(task); // Fallback
-            }
+        filtered.forEach(task => {
+            if (newCols[task.status]) newCols[task.status].push(task);
+            else newCols['todo'].push(task);
         });
         setColumns(newCols);
-    };
+    }, [tasks, filters]);
 
     const onDragEnd = async (result: DropResult) => {
         const { source, destination, draggableId } = result;
-
         if (!destination) return;
         if (source.droppableId === destination.droppableId && source.index === destination.index) return;
 
-        // Optimistic Update
         const startCol = columns[source.droppableId];
         const finishCol = columns[destination.droppableId];
+        const newStatus = destination.droppableId;
 
         if (source.droppableId === destination.droppableId) {
-            // Reorder in same column (if we stored order, currently purely optimistic visual)
+            // Reorder same column
             const newTasks = Array.from(startCol);
             const [moved] = newTasks.splice(source.index, 1);
             newTasks.splice(destination.index, 0, moved);
-            setColumns((prev: any) => ({ ...prev, [source.droppableId]: newTasks }));
+            setColumns({ ...columns, [source.droppableId]: newTasks });
         } else {
             // Move across columns
             const startTasks = Array.from(startCol);
             const finishTasks = Array.from(finishCol);
             const [moved] = startTasks.splice(source.index, 1);
 
-            // Update status internally
-            const updatedTask = { ...(moved as any), status: destination.droppableId };
+            // Optimistic update
+            const updatedTask = { ...moved as any, status: newStatus };
             finishTasks.splice(destination.index, 0, updatedTask);
 
-            setColumns((prev: Record<string, Task[]>) => ({
-                ...prev,
+            setColumns({
+                ...columns,
                 [source.droppableId]: startTasks,
                 [destination.droppableId]: finishTasks
-            }));
+            });
 
-            // API Call
             try {
-                await api.put(`/tasks/${draggableId}`, { status: destination.droppableId });
+                await api.put(`/tasks/${draggableId}`, { status: newStatus });
             } catch (error) {
                 toast.error('Failed to update status');
                 fetchTasks(); // Revert
@@ -187,47 +182,64 @@ export default function KanbanBoard() {
     };
 
     return (
-        <div className="h-full flex flex-col">
-            {/* Header */}
-            <div className="flex justify-between items-center mb-6 px-1">
-                <h2 className="text-xl font-bold text-slate-800">Board</h2>
+        <div className="h-[calc(100vh-140px)] flex flex-col animate-fade-in">
+            {/* Control Bar */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 px-1">
                 <div className="flex items-center gap-3">
-                    <select
-                        value={selectedSprintId}
-                        onChange={(e) => setSelectedSprintId(e.target.value)}
-                        className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-widest focus:ring-2 focus:ring-indigo-100 outline-none transition-all"
-                    >
-                        <option value="all">All Issues</option>
-                        {sprints.map(s => (
-                            <option key={s.id} value={s.id}>{s.name} ({s.status})</option>
-                        ))}
-                    </select>
-                    {/* Add Task Button */}
-                    {can('tasks', 'create') && (
-                        <button
-                            onClick={() => openTask('new')}
-                            className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm text-sm font-medium"
+                    <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm">
+                        <LayoutGrid size={14} className="text-slate-400" />
+                        <select
+                            value={selectedSprintId}
+                            onChange={(e) => setSelectedSprintId(e.target.value)}
+                            className="bg-transparent border-none text-xs font-black uppercase tracking-widest text-slate-700 focus:ring-0 cursor-pointer outline-none"
                         >
-                            <Plus size={16} />
-                            Create Issue
-                        </button>
-                    )}
+                            <option value="all">All Issues</option>
+                            {sprints.map(s => (
+                                <option key={s.id} value={s.id}>{s.name}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="h-6 w-[1px] bg-slate-200 mx-1" />
+
+                    <div className="relative">
+                        <input
+                            placeholder="Filter tasks..."
+                            className="bg-white pl-8 pr-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold w-48 focus:ring-2 focus:ring-primary-100 outline-none transition-all"
+                            value={filters.search}
+                            onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                        />
+                        <Filter size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    </div>
                 </div>
+
+                {can('tasks', 'create') && (
+                    <button
+                        onClick={() => openTask('new')}
+                        className="btn-primary flex items-center gap-2 text-[10px]"
+                    >
+                        <Plus size={14} /> New Issue
+                    </button>
+                )}
             </div>
 
-            {/* Board */}
+            {/* Board Area */}
             <DragDropContext onDragEnd={onDragEnd}>
-                <div className="flex-1 flex gap-4 overflow-x-auto pb-4">
+                <div className="flex-1 flex gap-4 overflow-x-auto pb-4 custom-scrollbar">
                     {Object.entries(COLUMNS).map(([colId, colDef]: [string, any]) => (
-                        <div key={colId} className={`flex-shrink-0 w-80 flex flex-col rounded-xl bg-gray-50/50 border border-gray-100`}>
+                        <div key={colId} className="flex-shrink-0 w-80 flex flex-col h-full rounded-xl bg-slate-50/50 border border-slate-200/60">
                             {/* Column Header */}
-                            <div className={`p-3 border-b ${colDef.color.split(' ')[1]} flex justify-between items-center sticky top-0 bg-inherit rounded-t-xl z-10`}>
+                            <div className={`p-4 border-b ${colDef.color.split(' ').filter((c: string) => c.startsWith('border')).join(' ')} flex justify-between items-center bg-white/50 backdrop-blur-sm rounded-t-xl`}>
                                 <div className="flex items-center gap-2">
-                                    <span className={`w-2 h-2 rounded-full ${colId === 'done' ? 'bg-green-500' : colId === 'review' ? 'bg-purple-500' : colId === 'in-progress' ? 'bg-blue-500' : 'bg-gray-400'}`} />
-                                    <h3 className="font-semibold text-slate-700 text-sm uppercase tracking-wide">{colDef.title}</h3>
-                                    <span className="bg-slate-200 text-slate-600 text-[10px] px-2 py-0.5 rounded-full font-bold">
+                                    <h3 className={`font-black text-[11px] uppercase tracking-widest ${colDef.color.split(' ').filter((c: string) => c.startsWith('text')).join(' ')}`}>
+                                        {colDef.title}
+                                    </h3>
+                                    <span className="bg-slate-100 text-slate-500 text-[10px] px-1.5 py-0.5 rounded font-black">
                                         {columns[colId]?.length || 0}
                                     </span>
+                                </div>
+                                <div className="flex gap-1">
+                                    {/* Action buttons could go here */}
                                 </div>
                             </div>
 
@@ -237,7 +249,7 @@ export default function KanbanBoard() {
                                     <div
                                         ref={provided.innerRef}
                                         {...provided.droppableProps}
-                                        className={`flex-1 p-2 space-y-2 min-h-[150px] transition-colors ${snapshot.isDraggingOver ? 'bg-indigo-50/50' : ''}`}
+                                        className={`flex-1 p-3 space-y-3 overflow-y-auto custom-scrollbar transition-colors ${snapshot.isDraggingOver ? 'bg-primary-50/30' : ''}`}
                                     >
                                         {columns[colId]?.map((task: Task, index: number) => (
                                             <Draggable key={task.id} draggableId={task.id} index={index}>
@@ -247,84 +259,73 @@ export default function KanbanBoard() {
                                                         {...provided.draggableProps}
                                                         {...provided.dragHandleProps}
                                                         onClick={() => openTask(task.id)}
-                                                        className={`bg-white p-3 rounded-lg border border-slate-200 shadow-sm hover:shadow-md transition-shadow group cursor-pointer ${snapshot.isDragging ? 'rotate-2 shadow-lg ring-2 ring-indigo-500/20' : ''}`}
+                                                        className={`bg-white p-4 rounded-lg border border-slate-200 shadow-sm group cursor-pointer hover:border-primary-300 transition-all ${snapshot.isDragging ? 'rotate-1 shadow-xl ring-2 ring-primary-500/20 z-50' : 'hover:shadow-md'}`}
                                                     >
-                                                        <div className="flex justify-between items-start mb-2">
-                                                            <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${task.priority === 'urgent' ? 'bg-red-100 text-red-600' :
-                                                                task.priority === 'high' ? 'bg-orange-100 text-orange-600' :
-                                                                    'bg-slate-100 text-slate-500'
-                                                                }`}>
-                                                                {task.priority}
-                                                            </span>
-                                                            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                <button className="text-slate-400 hover:text-slate-600 p-1 rounded hover:bg-slate-100">
-                                                                    <MoreVertical size={14} />
-                                                                </button>
+                                                        {/* Task Tags & ID */}
+                                                        <div className="flex justify-between items-start mb-3">
+                                                            <div className="flex gap-1.5 flex-wrap">
+                                                                <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded border ${task.priority === 'urgent' ? 'bg-rose-50 text-rose-600 border-rose-100' :
+                                                                        task.priority === 'high' ? 'bg-orange-50 text-orange-600 border-orange-100' :
+                                                                            'bg-slate-50 text-slate-500 border-slate-100'
+                                                                    }`}>
+                                                                    {task.priority}
+                                                                </span>
+                                                                {task.epic && (
+                                                                    <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded border bg-indigo-50 text-indigo-600 border-indigo-100 max-w-[100px] truncate">
+                                                                        {task.epic.title}
+                                                                    </span>
+                                                                )}
                                                             </div>
+                                                            <MoreVertical size={14} className="text-slate-300 opacity-0 group-hover:opacity-100 hover:text-slate-600" />
                                                         </div>
 
-                                                        {/* Epic Label */}
-                                                        {task.epic && (
-                                                            <div className="mb-2">
-                                                                <span className="text-[8px] font-black uppercase tracking-widest bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded border border-purple-200 truncate inline-block max-w-full">
-                                                                    {task.epic.title}
-                                                                </span>
-                                                            </div>
-                                                        )}
-
-                                                        <h4 className="text-[13px] font-bold text-slate-800 mb-3 leading-snug line-clamp-2">
+                                                        {/* Content */}
+                                                        <h4 className="text-xs font-bold text-slate-800 mb-2 leading-relaxed">
                                                             {task.title}
                                                         </h4>
 
-                                                        <div className="flex items-center justify-between mt-auto pt-2 border-t border-slate-50">
+                                                        {/* Footer */}
+                                                        <div className="flex items-center justify-between mt-4 border-t border-slate-50 pt-3">
                                                             <div className="flex items-center gap-2">
-                                                                {/* Type Indicator */}
-                                                                <div title={task.type} className="flex items-center">
+                                                                <div title={task.type}>
                                                                     {task.type === 'bug' ? <Bug size={14} className="text-rose-500" /> :
                                                                         task.type === 'story' ? <Bookmark size={14} className="text-emerald-500" /> :
                                                                             task.type === 'epic' ? <Layout size={14} className="text-purple-600" /> :
                                                                                 <CheckSquare size={14} className="text-blue-500" />}
                                                                 </div>
-
-                                                                {/* Story Points */}
-                                                                {task.storyPoints !== undefined && task.storyPoints > 0 && (
-                                                                    <span className="w-5 h-5 flex items-center justify-center bg-slate-100 text-slate-600 rounded-full text-[9px] font-black">
-                                                                        {task.storyPoints}
-                                                                    </span>
-                                                                )}
+                                                                {task.storyPoints ? (
+                                                                    <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-[9px] font-black">{task.storyPoints}</span>
+                                                                ) : null}
                                                             </div>
 
-                                                            <div className="flex items-center gap-3 text-slate-400">
-                                                                {(task._count?.documents || 0) > 0 && (
-                                                                    <div className="flex items-center gap-1 text-[10px]">
-                                                                        <Paperclip size={12} />
-                                                                        <span>{task._count?.documents}</span>
-                                                                    </div>
-                                                                )}
+                                                            <div className="flex items-center gap-3">
                                                                 {(task._count?.comments || 0) > 0 && (
-                                                                    <div className="flex items-center gap-1 text-[10px]">
-                                                                        <MessageSquare size={12} />
-                                                                        <span>{task._count?.comments}</span>
+                                                                    <div className="flex items-center gap-1 text-[10px] text-slate-400">
+                                                                        <MessageSquare size={12} /> {task._count?.comments}
                                                                     </div>
                                                                 )}
 
-                                                                <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-[10px] font-bold border-2 border-white ring-1 ring-slate-100">
-                                                                    {task.assignee?.firstName?.[0] || '?'}
+                                                                <div className="flex -space-x-2">
+                                                                    {task.assignee ? (
+                                                                        <div title={`${task.assignee.firstName} ${task.assignee.lastName}`} className="w-6 h-6 rounded-md bg-indigo-600 text-white flex items-center justify-center text-[9px] font-black border-2 border-white uppercase shadow-sm">
+                                                                            {task.assignee.firstName[0]}
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div className="w-6 h-6 rounded-md bg-slate-100 text-slate-300 flex items-center justify-center border-2 border-white shadow-sm">
+                                                                            <Users size={12} />
+                                                                        </div>
+                                                                    )}
                                                                 </div>
-                                                            </div>
 
-                                                            {/* Quick Actions */}
-                                                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                                 <button
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
                                                                         setQuickLogTask(task);
                                                                         setIsBulkLogOpen(true);
                                                                     }}
-                                                                    className="p-1.5 rounded-md hover:bg-slate-100 text-slate-400 hover:text-indigo-600 transition-all"
-                                                                    title="Quick Log Time"
+                                                                    className="w-6 h-6 rounded-md hover:bg-slate-100 text-slate-400 flex items-center justify-center transition-colors"
                                                                 >
-                                                                    <ClockIcon size={14} />
+                                                                    <Clock size={12} />
                                                                 </button>
                                                             </div>
                                                         </div>
@@ -341,21 +342,15 @@ export default function KanbanBoard() {
                 </div>
             </DragDropContext>
 
-            {/* Modal Placeholder */}
-            {/* Task Detail Modal */}
             {isDetailOpen && (
                 <TaskDetailModal
                     taskId={selectedTaskId}
                     projectId={projectId as string}
                     onClose={() => setIsDetailOpen(false)}
-                    onUpdate={() => {
-                        fetchTasks();
-                        // fetchProjectSettings(); // Optional: if tasks affect project stats
-                    }}
+                    onUpdate={fetchTasks}
                 />
             )}
 
-            {/* Quick Log Modal */}
             <BulkTimeLogModal
                 open={isBulkLogOpen}
                 onClose={() => {

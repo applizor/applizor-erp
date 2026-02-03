@@ -14,7 +14,7 @@ import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
 import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary';
 import { $generateHtmlFromNodes, $generateNodesFromDOM } from '@lexical/html';
 import { $getRoot, $insertNodes, $getSelection, SELECTION_CHANGE_COMMAND, FORMAT_TEXT_COMMAND, COMMAND_PRIORITY_CRITICAL, FORMAT_ELEMENT_COMMAND } from 'lexical';
-import { HeadingNode, QuoteNode, $createHeadingNode } from '@lexical/rich-text';
+import { HeadingNode, QuoteNode, $createHeadingNode, $createQuoteNode } from '@lexical/rich-text';
 import { TableNode, TableCellNode, TableRowNode } from '@lexical/table';
 import { ListItemNode, ListNode } from '@lexical/list';
 import { LinkNode, AutoLinkNode } from '@lexical/link';
@@ -124,7 +124,7 @@ const Toolbar = ({ onPost }: { onPost?: () => void }) => {
             <div className="flex items-center gap-0.5">
                 <ToolbarBtn onClick={() => editor.update(() => { const selection = $getSelection(); if (selection) $insertNodes([$createHeadingNode('h1')]) })} icon={Heading1} title="Heading 1" />
                 <ToolbarBtn onClick={() => editor.update(() => { const selection = $getSelection(); if (selection) $insertNodes([$createHeadingNode('h2')]) })} icon={Heading2} title="Heading 2" />
-                <ToolbarBtn onClick={() => editor.update(() => { const selection = $getSelection(); if (selection) $insertNodes([$createHeadingNode('quote')]) })} icon={Quote} title="Quote" />
+                <ToolbarBtn onClick={() => editor.update(() => { const selection = $getSelection(); if (selection) $insertNodes([$createQuoteNode()]) })} icon={Quote} title="Quote" />
             </div>
 
             <Divider />
