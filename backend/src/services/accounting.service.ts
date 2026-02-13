@@ -277,11 +277,41 @@ export const getProfitAndLoss = async (companyId: string, startDate?: Date, endD
  * Deletes all journal entries and lines for a specific reference
  */
 export const deleteLedgerPostings = async (reference: string) => {
-    // Note: JournalEntry has onDelete: Cascade for lines in many setups, 
-    // but Prisma relation needs explicit or db-level cascade.
-    // Based on our schema, we should find and delete.
-    return await prisma.journalEntry.deleteMany({
-        where: { reference }
+    return await prisma.$transaction(async (tx) => {
+        // 1. Find all entries for this reference
+        const entries = await tx.journalEntry.findMany({
+            where: { reference },
+            include: { lines: { include: { account: true } } }
+        });
+
+        // 2. Revert balances for all lines
+        for (const entry of entries) {
+            for (const line of entry.lines) {
+                const account = line.account;
+                let balanceChange = 0;
+                const debit = Number(line.debit);
+                const credit = Number(line.credit);
+
+                // Reversal logic: opposite of createJournalEntry
+                if (['asset', 'expense'].includes(account.type)) {
+                    balanceChange = credit - debit; // To revert a debit (+), we subtract it
+                } else {
+                    balanceChange = debit - credit; // To revert a credit (+), we subtract it
+                }
+
+                await tx.ledgerAccount.update({
+                    where: { id: account.id },
+                    data: {
+                        balance: { increment: balanceChange }
+                    }
+                });
+            }
+        }
+
+        // 3. Delete headers (lines will cascade if setup, or we delete explicitly)
+        return await tx.journalEntry.deleteMany({
+            where: { reference }
+        });
     });
 };
 
@@ -299,7 +329,8 @@ export const postInvoiceToLedger = async (invoiceId: string) => {
 
     if (!invoice) throw new Error('Invoice not found');
 
-    const reference = `INV-${invoice.invoiceNumber}`;
+    // Standardize reference: invoice.invoiceNumber already includes 'INV-' or 'QTN-'
+    const reference = invoice.invoiceNumber;
 
     // Integrity: Delete any previous postings for this invoice to handle UPDATES
     // If it transitions to 'draft', 'canceled', or 'voided', this cleans up any old postings.
