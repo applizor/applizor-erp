@@ -30,6 +30,7 @@ export const DEFAULT_ACCOUNTS = [
     { code: '5000', name: 'Salary Expense', type: 'expense' },
     { code: '5100', name: 'Rent Expense', type: 'expense' },
     { code: '5200', name: 'General & Admin Expense', type: 'expense' },
+    { code: '5201', name: 'Discount Allowed', type: 'expense' },
     { code: '5300', name: 'Marketing Expense', type: 'expense' },
     { code: '5400', name: 'Bank Charges', type: 'expense' },
 ];
@@ -315,28 +316,31 @@ export const postInvoiceToLedger = async (invoiceId: string) => {
     const cgstAcc = await ensureAccount(companyId, '2200', 'Output CGST', 'liability');
     const sgstAcc = await ensureAccount(companyId, '2201', 'Output SGST', 'liability');
     const igstAcc = await ensureAccount(companyId, '2202', 'Output IGST', 'liability');
+    const discountAcc = await ensureAccount(companyId, '5201', 'Discount Allowed', 'expense');
 
     const lines: JournalLineInput[] = [];
 
-    // 1. Debit Total to Sundry Debtors
+    // 1. Debit Total to Sundry Debtors (Net Receivable)
     lines.push({
         accountId: debtorsAcc.id,
         debit: Number(invoice.total)
     });
 
-    // 2. Credit Subtotal to Sales Revenue
+    // 2. Credit Subtotal to Sales Revenue (Gross Amount)
     lines.push({
         accountId: salesAcc.id,
         credit: Number(invoice.subtotal)
     });
 
     // 3. Credit Tax Components
+    let totalTaxRecorded = 0;
     const taxMap: Record<string, number> = {};
     invoice.items.forEach(item => {
         item.appliedTaxes.forEach(t => {
             const name = t.name.toUpperCase();
             if (!taxMap[name]) taxMap[name] = 0;
             taxMap[name] += Number(t.amount);
+            totalTaxRecorded += Number(t.amount);
         });
     });
 
@@ -351,6 +355,16 @@ export const postInvoiceToLedger = async (invoiceId: string) => {
         lines.push({
             accountId: accId,
             credit: amount
+        });
+    }
+
+    // 4. Debit Discount Allowed if applicable (To Balance: Total + Discount = Subtotal + Tax)
+    // We calculate it dynamically to handle rounding and item-level vs global discounts
+    const discountAmount = Math.max(0, (Number(invoice.subtotal) + totalTaxRecorded) - Number(invoice.total));
+    if (discountAmount > 0.009) { // Using slightly lower threshold for float precision
+        lines.push({
+            accountId: discountAcc.id,
+            debit: discountAmount
         });
     }
 
