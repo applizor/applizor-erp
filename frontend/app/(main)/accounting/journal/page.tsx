@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { accountingApi, LedgerAccount, JournalEntry } from '@/lib/api/accounting';
-import { FileText, Plus, Trash2 } from 'lucide-react';
+import { FileText, Plus, Trash2, BookOpen, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
 import { format } from 'date-fns';
 
@@ -117,6 +117,29 @@ export default function JournalEntryPage() {
         }
     };
 
+    const handleDelete = async (id: string) => {
+        if (!confirm('Are you sure you want to delete this journal entry? Account balances will be reverted.')) return;
+
+        try {
+            await accountingApi.deleteJournalEntry(id);
+            toast.success('Journal entry deleted');
+            fetchRecentEntries();
+        } catch (error: any) {
+            toast.error(error.response?.data?.error || 'Failed to delete entry');
+        }
+    };
+
+    const handleSync = async () => {
+        try {
+            toast.info('Reconciling ledger balances...');
+            await accountingApi.reconcileLedger();
+            toast.success('Ledger reconciled successfully');
+            fetchRecentEntries();
+        } catch (error) {
+            toast.error('Reconciliation failed');
+        }
+    };
+
     const { totalDebit, totalCredit, difference } = calculateTotals();
 
     return (
@@ -136,13 +159,23 @@ export default function JournalEntryPage() {
                         </p>
                     </div>
                 </div>
-                <button
-                    onClick={() => setIsModalOpen(true)}
-                    className="btn-primary flex items-center gap-2"
-                >
-                    <Plus size={14} />
-                    New Entry
-                </button>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={handleSync}
+                        className="ent-button-secondary flex items-center gap-2"
+                        title="Fix balance discrepancies"
+                    >
+                        <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
+                        Sync Ledgers
+                    </button>
+                    <button
+                        onClick={() => setIsModalOpen(true)}
+                        className="btn-primary flex items-center gap-2"
+                    >
+                        <Plus size={14} />
+                        New Entry
+                    </button>
+                </div>
             </div>
 
             <div className="ent-card overflow-hidden">
@@ -154,6 +187,7 @@ export default function JournalEntryPage() {
                             <th className="text-left w-1/3">Description</th>
                             <th className="text-right">Total Debit</th>
                             <th className="text-right">Lines</th>
+                            <th className="text-center w-10">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -173,6 +207,15 @@ export default function JournalEntryPage() {
                                     </td>
                                     <td className="text-right text-[10px] text-gray-400 font-bold uppercase">
                                         {entry.lines.length} Lines
+                                    </td>
+                                    <td className="text-center">
+                                        <button
+                                            onClick={() => handleDelete(entry.id)}
+                                            className="p-1.5 text-rose-400 hover:text-rose-600 transition-colors rounded-sm hover:bg-rose-50"
+                                            title="Delete Entry"
+                                        >
+                                            <Trash2 size={13} />
+                                        </button>
                                     </td>
                                 </tr>
                             );

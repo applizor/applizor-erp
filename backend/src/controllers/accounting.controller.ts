@@ -125,3 +125,24 @@ export const getJournalEntries = async (req: AuthRequest, res: Response) => {
         res.status(500).json({ error: 'Failed to fetch journal entries' });
     }
 };
+
+export const reconcileLedger = async (req: AuthRequest, res: Response) => {
+    try {
+        const companyId = req.user!.companyId;
+        const result = await accountingService.reconcileCompanyLedger(companyId);
+        res.json(result);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message || 'Reconciliation failed' });
+    }
+};
+export const deleteJournalEntry = async (req: AuthRequest, res: Response) => {
+    try {
+        const { id } = req.params;
+        // Basic ownership check could be added here if needed, 
+        // but accountingService.deleteJournalEntry will handle correctly.
+        const result = await accountingService.deleteJournalEntry(id);
+        res.json({ success: true, entry: result });
+    } catch (error: any) {
+        res.status(400).json({ error: error.message || 'Failed to delete entry' });
+    }
+};

@@ -68,4 +68,6 @@ export const accountingApi = {
     getGstSummary: (startDate: string, endDate: string) =>
         api.get(`/accounting/reports/gst-summary?startDate=${startDate}&endDate=${endDate}`).then(res => res.data),
     getJournalEntries: () => api.get('/accounting/journal').then(res => res.data),
+    reconcileLedger: () => api.post('/accounting/reconcile').then(res => res.data),
+    deleteJournalEntry: (id: string) => api.delete(`/accounting/journal/${id}`).then(res => res.data),
 };

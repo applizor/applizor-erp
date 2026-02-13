@@ -1,6 +1,6 @@
-
 import prisma from '../prisma/client';
 import { Prisma } from '@prisma/client';
+import { Decimal } from '@prisma/client/runtime/library';
 
 export type AccountType = 'asset' | 'liability' | 'equity' | 'income' | 'expense';
 
@@ -159,7 +159,7 @@ export const getGeneralLedger = async (companyId: string, accountId: string, sta
 };
 
 export const getGstSummary = async (companyId: string, startDate: Date, endDate: Date) => {
-    // Fetch all journal lines for GST accounts in the period
+    // 1. Fetch all journal lines for GST accounts in the period
     const gstAccounts = await prisma.ledgerAccount.findMany({
         where: {
             companyId,
@@ -181,7 +181,7 @@ export const getGstSummary = async (companyId: string, startDate: Date, endDate:
         include: { account: true, journalEntry: true }
     });
 
-    // Group by Account Type (CGST, SGST, IGST) and direction (Input vs Output)
+    // 2. Group by Account Type for High-Level Summary
     const summary: Record<string, { input: number, output: number }> = {
         CGST: { input: 0, output: 0 },
         SGST: { input: 0, output: 0 },
@@ -199,7 +199,63 @@ export const getGstSummary = async (companyId: string, startDate: Date, endDate:
         else summary[type].input += amount;
     });
 
-    return summary;
+    // 3. Prepare Detailed Transaction List (Sales / Output Focus)
+    // We filter for lines that reference an Invoice (usually starts with INV-)
+    const invoiceRefs = [...new Set(
+        lines
+            .filter(l => l.journalEntry.reference && l.journalEntry.reference.startsWith('INV-'))
+            .map(l => l.journalEntry.reference!)
+    )];
+
+    const invoices = await prisma.invoice.findMany({
+        where: {
+            companyId,
+            invoiceNumber: { in: invoiceRefs }
+        },
+        include: { client: true }
+    });
+
+    const transactions = invoices.map(inv => {
+        // Find all GST lines associated with this invoice's journal entry
+        // Note: Manual journals might match ref but be separate. 
+        // Best reliance is on the fact that auto-posting uses ref=invoiceNumber
+        const invLines = lines.filter(l => l.journalEntry.reference === inv.invoiceNumber);
+
+        let cgst = 0, sgst = 0, igst = 0;
+
+        // Sum up tax components from the ledger lines
+        invLines.forEach(l => {
+            // Check if it's an Output tax line
+            const isOutput = ['2200', '2201', '2202'].includes(l.account.code); // Liability codes
+            if (isOutput) {
+                const val = Number(l.credit) - Number(l.debit);
+                if (l.account.code === '2200') cgst += val;      // Output CGST
+                else if (l.account.code === '2201') sgst += val; // Output SGST
+                else if (l.account.code === '2202') igst += val; // Output IGST
+            }
+        });
+
+        // Use invoice subtotal for taxable value to be precise
+        const taxableValue = Number(inv.subtotal);
+
+        return {
+            date: inv.invoiceDate,
+            invoiceNumber: inv.invoiceNumber,
+            clientName: inv.client.name,
+            clientGstin: inv.client.gstin || 'N/A',
+            taxableValue,
+            cgst,
+            sgst,
+            igst,
+            totalTax: cgst + sgst + igst,
+            totalAmount: Number(inv.total)
+        };
+    });
+
+    // Sort by date desc
+    transactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    return { summary, transactions };
 };
 
 export const getBalanceSheet = async (companyId: string) => {
@@ -311,6 +367,49 @@ export const deleteLedgerPostings = async (reference: string) => {
         // 3. Delete headers (lines will cascade if setup, or we delete explicitly)
         return await tx.journalEntry.deleteMany({
             where: { reference }
+        });
+    });
+};
+
+/**
+ * Deletes a single journal entry and reverts balances
+ */
+export const deleteJournalEntry = async (id: string) => {
+    return await prisma.$transaction(async (tx) => {
+        // 1. Find the entry
+        const entry = await tx.journalEntry.findUnique({
+            where: { id },
+            include: { lines: { include: { account: true } } }
+        });
+
+        if (!entry) throw new Error('Journal Entry not found');
+
+        // 2. Revert balances if it was posted
+        if (entry.status === 'posted') {
+            for (const line of entry.lines) {
+                const account = line.account;
+                let balanceChange = 0;
+                const debit = Number(line.debit);
+                const credit = Number(line.credit);
+
+                if (['asset', 'expense'].includes(account.type)) {
+                    balanceChange = credit - debit;
+                } else {
+                    balanceChange = debit - credit;
+                }
+
+                await tx.ledgerAccount.update({
+                    where: { id: account.id },
+                    data: {
+                        balance: { increment: balanceChange }
+                    }
+                });
+            }
+        }
+
+        // 3. Delete the entry
+        return await tx.journalEntry.delete({
+            where: { id }
         });
     });
 };
@@ -463,6 +562,52 @@ export const getJournalEntries = async (companyId: string, limit = 50) => {
     });
 };
 
+export const reconcileCompanyLedger = async (companyId: string) => {
+    return await prisma.$transaction(async (tx) => {
+        // 1. Reset all balances to 0
+        await tx.ledgerAccount.updateMany({
+            where: { companyId },
+            data: { balance: new Decimal(0) }
+        });
+
+        // 2. Fetch all posted journal lines for the company
+        const lines = await tx.journalEntryLine.findMany({
+            where: {
+                journalEntry: {
+                    companyId,
+                    status: 'posted'
+                }
+            },
+            include: { account: true }
+        });
+
+        // 3. Group by accountId and calculate new balances
+        const accountTotals: Record<string, number> = {};
+        for (const line of lines) {
+            if (!accountTotals[line.accountId]) accountTotals[line.accountId] = 0;
+
+            const debit = Number(line.debit);
+            const credit = Number(line.credit);
+
+            if (['asset', 'expense'].includes(line.account.type)) {
+                accountTotals[line.accountId] += (debit - credit);
+            } else {
+                accountTotals[line.accountId] += (credit - debit);
+            }
+        }
+
+        // 4. Update ledger accounts with correct balances
+        for (const [accountId, balance] of Object.entries(accountTotals)) {
+            await tx.ledgerAccount.update({
+                where: { id: accountId },
+                data: { balance: new Decimal(balance) }
+            });
+        }
+
+        return { success: true, accountsReconciled: Object.keys(accountTotals).length };
+    });
+};
+
 const accountingService = {
     seedAccounts,
     createJournalEntry,
@@ -476,7 +621,9 @@ const accountingService = {
     postInvoiceToLedger,
     postPaymentToLedger,
     getJournalEntries,
-    deleteLedgerPostings, // Added
+    reconcileCompanyLedger,
+    deleteLedgerPostings,
+    deleteJournalEntry,
     DEFAULT_ACCOUNTS
 };
 

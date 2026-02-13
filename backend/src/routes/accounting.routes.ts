@@ -9,7 +9,9 @@ import {
     getProfitAndLossReport,
     getGstSummaryReport,
     createAccount,
-    getJournalEntries
+    getJournalEntries,
+    reconcileLedger,
+    deleteJournalEntry
 } from '../controllers/accounting.controller';
 
 const router = express.Router();
@@ -24,5 +26,7 @@ router.get('/reports/balance-sheet', authenticate, getBalanceSheetReport);
 router.get('/reports/profit-loss', authenticate, getProfitAndLossReport);
 router.get('/journal', authenticate, getJournalEntries);
 router.get('/reports/gst-summary', authenticate, getGstSummaryReport);
+router.post('/reconcile', authenticate, reconcileLedger);
+router.delete('/journal/:id', authenticate, deleteJournalEntry);
 
 export default router;
