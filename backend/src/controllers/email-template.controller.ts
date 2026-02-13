@@ -7,7 +7,7 @@ const prisma = new PrismaClient();
 // Create Email Template
 export const createTemplate = async (req: AuthRequest, res: Response) => {
     try {
-        const userId = req.user?.userId;
+        const userId = req.userId;
         const user = await prisma.user.findUnique({ where: { id: userId } });
 
         if (!user?.companyId) return res.status(400).json({ error: 'User/Company not found' });
@@ -34,7 +34,7 @@ export const createTemplate = async (req: AuthRequest, res: Response) => {
 // Get All Templates
 export const getTemplates = async (req: AuthRequest, res: Response) => {
     try {
-        const userId = req.user?.userId;
+        const userId = req.userId;
         const user = await prisma.user.findUnique({ where: { id: userId } });
 
         if (!user?.companyId) {

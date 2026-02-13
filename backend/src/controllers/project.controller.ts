@@ -94,81 +94,135 @@ export const getProjects = async (req: AuthRequest, res: Response) => {
     }
 };
 
-// Enterprise Upgrade: Detailed Project Stats
+// --- 2. Get Project by ID (Standard Detail View) ---
 export const getProjectById = async (req: AuthRequest, res: Response) => {
     try {
-        if (!PermissionService.hasBasicPermission(req.user, 'Project', 'read')) {
-            return res.status(403).json({ error: 'Access denied: No read rights for Project' });
-        }
         const { id } = req.params;
+        const user = req.user!;
 
+        // 1. Fetch Project with Members & Stats relations
         const project = await prisma.project.findUnique({
             where: { id },
             include: {
-                client: true,
+                client: { select: { companyName: true, name: true } }, // Use name instead of contactPerson
                 members: {
                     include: {
                         employee: {
                             select: {
-                                id: true, firstName: true, lastName: true, userId: true,
-                                position: { select: { title: true } },
-                                // profilePicture: true // Removed: Field does not exist on Employee
+                                id: true,
+                                firstName: true,
+                                lastName: true,
+                                userId: true,
+                                // designation removed
+                                position: { select: { title: true } }
                             }
                         }
                     }
                 },
                 milestones: {
-                    include: {
-                        tasks: true
-                    },
-                    orderBy: { dueDate: 'asc' } // Critical Path: Sort by Date
+                    include: { tasks: true },
+                    orderBy: { dueDate: 'asc' }
                 },
-                tasks: {
-                    select: { status: true }
-                },
-                // Include Timesheets for efficiency calculation
-                timesheets: {
-                    select: { hours: true }
-                }
+                tasks: { select: { status: true } },
+                timesheets: { select: { hours: true } },
+                _count: { select: { tasks: true } }
             }
         });
 
         if (!project) return res.status(404).json({ error: 'Project not found' });
 
-        // --- 1. Financial Calculations ---
-        const budget = Number(project.budget) || 0;
-        const revenue = Number(project.actualRevenue) || 0;
-        const expenses = Number(project.actualExpenses) || 0;
-        const netProfit = revenue - expenses;
-        const margin = revenue > 0 ? (netProfit / revenue) * 100 : 0;
+        // 2. Permission Check (Granular)
+        const isSuperAdmin = user.roles.some((r: any) => r.role.name === 'Admin' || r.role.name === 'Super Admin');
 
-        // --- 2. Efficiency Index & Task Velocity ---
-        const totalTasks = project.tasks.length;
-        const completedTasks = project.tasks.filter(t => t.status === 'done' || t.status === 'completed').length;
+        // Default: Hidden
+        let canViewBudget = isSuperAdmin;
+        let canManageTasks = isSuperAdmin;
+        let canManageTeam = isSuperAdmin;
+
+        if (!isSuperAdmin) {
+            // Find if this User is linked to any Employee in the project
+            // We need to match User -> Employee.id against Member.employeeId
+            const userEmployee = await prisma.employee.findFirst({ where: { userId: user.id } });
+
+            let isMember = false;
+            // Explicit cast to access relations safely
+            const projectAny = project as any;
+
+            if (userEmployee) {
+                const memberRecord = projectAny.members.find((m: any) => m.employeeId === userEmployee.id);
+                if (memberRecord) {
+                    isMember = true;
+                    canViewBudget = memberRecord.canViewBudget;
+                    canManageTasks = memberRecord.canManageTasks;
+                    canManageTeam = memberRecord.canManageTeam;
+                }
+            }
+
+            if (!isMember) {
+                if (!PermissionService.hasBasicPermission(user, 'Project', 'read')) {
+                    return res.status(403).json({ error: 'Access denied' });
+                }
+                // Generic read access (e.g. auditor/observer)
+                canViewBudget = false;
+                canManageTasks = false;
+                canManageTeam = false;
+            }
+        }
+
+        // 3. Financial Calculations (Masked if needed)
+        // Explicit cast for TS to recognize included relations
+        const p = project as any;
+
+        let financials: any = {};
+
+        if (canViewBudget) {
+            const budget = Number(p.budget) || 0;
+            const revenue = Number(p.actualRevenue) || 0;
+            const expenses = Number(p.actualExpenses) || 0;
+            const netProfit = revenue - expenses;
+            const margin = revenue > 0 ? (netProfit / revenue) * 100 : 0;
+
+            financials = {
+                budget,
+                revenue,
+                expenses,
+                netProfit,
+                margin: Math.round(margin * 100) / 100
+            };
+        } else {
+            financials = {
+                budget: 0,
+                revenue: 0,
+                expenses: 0,
+                netProfit: 0,
+                margin: 0,
+                masked: true // Frontend can show "Restricted"
+            };
+        }
+
+        // 4. Efficiency Metrics (Visible to all project members usually)
+        const totalTasks = p.tasks.length;
+        const completedTasks = p.tasks.filter((t: any) => t.status === 'done' || t.status === 'completed').length;
         const taskCompletionRate = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+        const totalLoggedHours = p.timesheets.reduce((acc: number, t: any) => acc + Number(t.hours), 0);
 
-        // Calculate total logged hours
-        const totalLoggedHours = project.timesheets.reduce((acc, t) => acc + Number(t.hours), 0);
-
-        // Simple Efficiency Score (Example Logic: High completion + Low hours = High Efficiency)
-        // Ideally compare vs Estimated Hours. For now, we return raw metrics.
         let efficiencyStatus = 'optimal';
-        if (taskCompletionRate < 50 && totalLoggedHours > (budget / 100)) efficiencyStatus = 'at-risk'; // Arbitrary threshold
+        const safeBudget = Number(p.budget) || 10000;
+        if (taskCompletionRate < 50 && totalLoggedHours > (safeBudget / 100)) efficiencyStatus = 'at-risk';
 
-        // --- 3. Critical Path (Next Milestone) ---
-        const futureMilestones = project.milestones.filter(m => m.status !== 'completed' && m.dueDate && new Date(m.dueDate) >= new Date());
+        // 5. Critical Path
+        const futureMilestones = p.milestones.filter((m: any) => m.status !== 'completed' && m.dueDate && new Date(m.dueDate) >= new Date());
         const nextMilestone = futureMilestones.length > 0 ? futureMilestones[0] : null;
 
         res.json({
-            ...project,
+            ...p,
+            // Mask budget fields on the root object too if necessary, or rely on stats.financials
+            budget: canViewBudget ? p.budget : 0,
+            actualRevenue: canViewBudget ? p.actualRevenue : 0,
+            actualExpenses: canViewBudget ? p.actualExpenses : 0,
+
             stats: {
-                financials: {
-                    budget,
-                    revenue,
-                    expenses,
-                    netProfit,
-                    margin: Math.round(margin * 100) / 100
-                },
+                financials,
                 efficiency: {
                     totalTasks,
                     completedTasks,
@@ -179,8 +233,10 @@ export const getProjectById = async (req: AuthRequest, res: Response) => {
                 criticalPath: {
                     nextMilestone
                 }
-            }
+            },
+            permissions: { canViewBudget, canManageTasks, canManageTeam }
         });
+
     } catch (error: any) {
         console.error("Get Project Details Error:", error);
         res.status(500).json({ error: 'Failed to fetch project details' });
@@ -488,5 +544,98 @@ export const deleteSprint = async (req: AuthRequest, res: Response) => {
     } catch (error) {
         console.error('Delete Sprint Error:', error);
         res.status(500).json({ error: 'Failed to delete sprint' });
+    }
+};
+
+// --- SOW Generation (Global Letterhead Standard) ---
+
+export const generateSOW = async (req: AuthRequest, res: Response) => {
+    try {
+        const { id } = req.params;
+        const user = req.user!;
+        const project = await prisma.project.findUnique({
+            where: { id },
+            include: {
+                client: true,
+                company: true
+            }
+        });
+
+        if (!project) return res.status(404).json({ error: 'Project not found' });
+
+        // 1. Fetch SOW Template (or fallback)
+        let htmlContent = '';
+        const template = await prisma.documentTemplate.findFirst({
+            where: {
+                companyId: user.companyId,
+                type: 'sow',
+                isActive: true
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+
+        if (template) {
+            htmlContent = template.content || '';
+        } else {
+            htmlContent = `
+                <div style="font-family: 'Inter', sans-serif; padding: 40px; color: #333;">
+                    <h1 style="text-align: center; color: #1e40af; margin-bottom: 20px;">STATEMENT OF WORK</h1>
+                    <h3 style="text-align: center; color: #64748b; margin-bottom: 40px;">${project.name}</h3>
+                    
+                    <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
+                    <p><strong>Client:</strong> ${project.client?.companyName || 'N/A'}</p>
+                    <p><strong>Project ID:</strong> ${project.id.slice(0, 8).toUpperCase()}</p>
+                    
+                    <h4 style="border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; margin-top: 30px;">1. SCOPE OF SERVICES</h4>
+                    <p>${project.description || 'As discussed and agreed upon.'}</p>
+                    
+                    <h4 style="border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; margin-top: 30px;">2. TIMELINE</h4>
+                    <p>Start Date: <strong>${project.startDate ? project.startDate.toLocaleDateString() : 'TBD'}</strong></p>
+                    <p>End Date: <strong>${project.endDate ? project.endDate.toLocaleDateString() : 'TBD'}</strong></p>
+                    
+                    <h4 style="border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; margin-top: 30px;">3. INVESTMENT</h4>
+                    <p>Total Budget: <strong>${project.budget ? project.currency + ' ' + project.budget : 'Time & Materials'}</strong></p>
+                    
+                    <div style="margin-top: 60px; display: flex; justify-content: space-between;">
+                        <div>
+                            <p>__________________________</p>
+                            <p><strong>${project.company.name}</strong></p>
+                        </div>
+                        <div>
+                            <p>__________________________</p>
+                            <p><strong>${project.client?.companyName || 'Client Representative'}</strong></p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        if (!project.client) {
+            console.warn('SOW Generation Warning: Project has no client');
+        }
+
+        // 2. Data Preparation
+        const data = {
+            company: project.company,
+            useLetterhead: true, // MANDATORY RULE
+            project: {
+                ...project,
+                clientName: project.client?.companyName || ''
+            },
+            client: project.client || {}
+        };
+
+        // 3. Generate PDF
+        const { PDFService } = await import('../services/pdf.service');
+        const pdfBuffer = await PDFService.generateGenericPDF(htmlContent, data);
+
+        // 4. Return
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename=SOW_${project.name}.pdf`);
+        res.send(pdfBuffer);
+
+    } catch (error) {
+        console.error('Generate SOW Error:', error);
+        res.status(500).json({ error: 'Failed to generate SOW' });
     }
 };

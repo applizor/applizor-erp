@@ -8,7 +8,7 @@ const prisma = new PrismaClient();
 // Create Job Opening
 export const createJobOpening = async (req: AuthRequest, res: Response) => {
     try {
-        const userId = req.user?.userId;
+        const userId = req.userId;
         if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
         if (!PermissionService.hasBasicPermission(req.user, 'Recruitment', 'create')) {
@@ -42,7 +42,7 @@ export const createJobOpening = async (req: AuthRequest, res: Response) => {
 // Get All Job Openings (for Company)
 export const getJobOpenings = async (req: AuthRequest, res: Response) => {
     try {
-        const userId = req.user?.userId;
+        const userId = req.userId;
         if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
         if (!PermissionService.hasBasicPermission(req.user, 'Recruitment', 'read')) {
@@ -72,7 +72,7 @@ export const getJobOpenings = async (req: AuthRequest, res: Response) => {
 // Get Single Job
 export const getJobOpeningById = async (req: AuthRequest, res: Response) => {
     try {
-        const userId = req.user?.userId;
+        const userId = req.userId;
         if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
         if (!PermissionService.hasBasicPermission(req.user, 'Recruitment', 'read')) {

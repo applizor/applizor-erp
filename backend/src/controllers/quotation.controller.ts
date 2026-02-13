@@ -791,6 +791,7 @@ export const downloadQuotationPDF = async (req: AuthRequest, res: Response) => {
                 pincode: quotation.client.pincode || undefined,
                 gstin: quotation.client.gstin || undefined,
                 pan: quotation.client.pan || undefined,
+                tan: quotation.client.tan || undefined,
                 website: quotation.client.website || undefined,
                 taxName: quotation.client.taxName || undefined
             } : undefined,

@@ -9,39 +9,52 @@ import { CustomSelect } from '@/components/ui/CustomSelect';
 
 interface ProjectAutomationRuleModalProps {
     projectId: string;
+    rule?: any; // Optional rule for editing
     onClose: () => void;
     onSuccess: () => void;
 }
 
-export default function ProjectAutomationRuleModal({ projectId, onClose, onSuccess }: ProjectAutomationRuleModalProps) {
+export default function ProjectAutomationRuleModal({ projectId, rule, onClose, onSuccess }: ProjectAutomationRuleModalProps) {
+    const isEditing = !!rule;
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
     const toast = useToast();
 
     // Form State
-    const [name, setName] = useState('');
-    const [triggerType, setTriggerType] = useState<string>('TASK_STATUS_CHANGE');
-    const [triggerConfig, setTriggerConfig] = useState<any>({ from: '*', to: 'done' });
-    const [actionType, setActionType] = useState<string>('SEND_EMAIL');
-    const [actionConfig, setActionConfig] = useState<any>({ recipient: 'client', subject: '', body: '', useTemplate: 'none' });
+    const [name, setName] = useState(rule?.name || '');
+    const [triggerType, setTriggerType] = useState<string>(rule?.triggerType || 'TASK_STATUS_CHANGE');
+    const [triggerConfig, setTriggerConfig] = useState<any>(rule?.triggerConfig || { from: '*', to: 'done' });
+    const [actionType, setActionType] = useState<string>(rule?.actionType || 'SEND_EMAIL');
+    const [actionConfig, setActionConfig] = useState<any>(rule?.actionConfig || { recipient: 'client', subject: '', body: '', useTemplate: 'none' });
+    const [isActive, setIsActive] = useState<boolean>(rule ? rule.isActive : true);
+
+    const [showGuide, setShowGuide] = useState(false);
 
     const handleSubmit = async () => {
         if (!name) return toast.error('Rule name required');
 
         setLoading(true);
         try {
-            await api.post(`/projects/${projectId}/automation`, {
+            const payload = {
                 name,
                 triggerType,
                 triggerConfig,
                 actionType,
-                actionConfig
-            });
-            toast.success('Rule created!');
+                actionConfig,
+                isActive
+            };
+
+            if (isEditing) {
+                await api.put(`/projects/automation/${rule.id}`, payload);
+                toast.success('Rule updated!');
+            } else {
+                await api.post(`/projects/${projectId}/automation`, payload);
+                toast.success('Rule created!');
+            }
             onSuccess();
             onClose();
         } catch (error) {
-            toast.error('Failed to create rule');
+            toast.error(isEditing ? 'Failed to update rule' : 'Failed to create rule');
         } finally {
             setLoading(false);
         }
@@ -59,8 +72,8 @@ export default function ProjectAutomationRuleModal({ projectId, onClose, onSucce
                                 <Zap size={18} />
                             </div>
                             <div>
-                                <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight leading-none">Automation Rule</h3>
-                                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Configure Smart Integration Workflows</p>
+                                <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight leading-none">{isEditing ? 'Edit Rule' : 'Automation Rule'}</h3>
+                                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">{isEditing ? 'Modify your smart workflow' : 'Configure Smart Integration Workflows'}</p>
                             </div>
                         </div>
                         <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors p-1 hover:bg-slate-50 rounded-full">
@@ -69,17 +82,32 @@ export default function ProjectAutomationRuleModal({ projectId, onClose, onSucce
                     </div>
 
                     <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar bg-slate-50/30">
-                        {/* Name */}
-                        <div>
-                            <label className="ent-label">Rule Name</label>
-                            <input
-                                type="text"
-                                value={name}
-                                onChange={e => setName(e.target.value)}
-                                placeholder="E.g. ALERT LEAD ON STATUS CHANGE"
-                                className="ent-input font-bold"
-                                autoFocus
-                            />
+                        {/* Name & Status */}
+                        <div className="flex gap-4 items-end">
+                            <div className="flex-1">
+                                <label className="ent-label">Rule Name</label>
+                                <input
+                                    type="text"
+                                    value={name}
+                                    onChange={e => setName(e.target.value)}
+                                    placeholder="E.g. ALERT LEAD ON STATUS CHANGE"
+                                    className="ent-input font-bold"
+                                    autoFocus
+                                />
+                            </div>
+                            {isEditing && (
+                                <div className="mb-1">
+                                    <label className="flex items-center gap-2 cursor-pointer group">
+                                        <div
+                                            onClick={() => setIsActive(!isActive)}
+                                            className={`relative w-10 h-5 rounded-full transition-colors ${isActive ? 'bg-emerald-500' : 'bg-slate-300'}`}
+                                        >
+                                            <div className={`absolute top-1 w-3 h-3 rounded-full bg-white transition-all ${isActive ? 'left-6' : 'left-1'}`} />
+                                        </div>
+                                        <span className="text-[9px] font-black uppercase text-slate-400 group-hover:text-slate-600 transition-colors">Active</span>
+                                    </label>
+                                </div>
+                            )}
                         </div>
 
                         {/* Trigger Section */}
@@ -166,8 +194,16 @@ export default function ProjectAutomationRuleModal({ projectId, onClose, onSucce
 
                             <div className="space-y-4 border-t border-slate-100 pt-4">
                                 {['TEAMS_NOTIFICATION', 'SLACK_NOTIFICATION'].includes(actionType) ? (
-                                    <div className="animate-fade-in">
-                                        <label className="ent-label">Webhook URL</label>
+                                    <div className="animate-fade-in space-y-3">
+                                        <div className="flex justify-between items-center">
+                                            <label className="ent-label">Webhook URL</label>
+                                            <button
+                                                onClick={() => setShowGuide(true)}
+                                                className="text-[9px] font-black text-primary-600 hover:text-primary-700 uppercase tracking-widest flex items-center gap-1 bg-primary-50 px-2 py-1 rounded border border-primary-100 hover:bg-primary-100 transition-all"
+                                            >
+                                                <Info size={10} /> guide: Setup {actionType === 'SLACK_NOTIFICATION' ? 'Slack' : 'Teams'} Webhook
+                                            </button>
+                                        </div>
                                         <input
                                             type="url"
                                             placeholder="https://hooks.slack.com/services/..."
@@ -175,8 +211,8 @@ export default function ProjectAutomationRuleModal({ projectId, onClose, onSucce
                                             value={actionConfig.customEmail || ''}
                                             onChange={e => setActionConfig({ ...actionConfig, customEmail: e.target.value, recipient: 'custom' })}
                                         />
-                                        <p className="text-[9px] text-slate-400 mt-1.5 font-bold uppercase tracking-wide">
-                                            Incoming webhook URL from channel settings
+                                        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wide">
+                                            Incoming webhook URL from {actionType === 'SLACK_NOTIFICATION' ? 'Slack' : 'Teams'} channel settings
                                         </p>
                                     </div>
                                 ) : (
@@ -268,11 +304,21 @@ export default function ProjectAutomationRuleModal({ projectId, onClose, onSucce
                             className="btn-primary text-[10px] flex items-center gap-2"
                         >
                             {loading && <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-                            Create Rule
+                            {isEditing ? 'Update Rule' : 'Create Rule'}
                         </button>
                     </div>
+
+                    {showGuide && (
+                        <WebhookGuideModal
+                            type={actionType === 'SLACK_NOTIFICATION' ? 'slack' : 'teams'}
+                            onClose={() => setShowGuide(false)}
+                        />
+                    )}
                 </div>
             </div>
         </Portal>
     );
 }
+
+import { Info } from 'lucide-react';
+import WebhookGuideModal from './WebhookGuideModal';

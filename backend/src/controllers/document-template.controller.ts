@@ -73,3 +73,19 @@ export const deleteTemplate = async (req: AuthRequest, res: Response) => {
         res.status(500).json({ error: 'Failed to delete template' });
     }
 };
+export const getTemplatesByType = async (req: AuthRequest, res: Response) => {
+    try {
+        const { type } = req.params;
+        const templates = await prisma.documentTemplate.findMany({
+            where: {
+                companyId: req.user!.companyId,
+                type,
+                isActive: true
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+        res.json(templates);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch templates' });
+    }
+};

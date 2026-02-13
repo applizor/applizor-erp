@@ -60,11 +60,8 @@ app.use('/api/branches', branchRoutes);
 import auditRoutes from './routes/audit.routes';
 app.use('/api/audit-logs', auditRoutes);
 
-// CRM Routes (Sales only, leads moved to main routes below)
-import salesRoutes from './routes/crm/sales.routes';
 import portalRoutes from './routes/portal.routes';
 
-app.use('/api/crm/sales', salesRoutes);
 app.use('/api/portal', portalRoutes);
 
 // Company routes
@@ -115,6 +112,11 @@ import shiftRoutes from './routes/shift.routes';
 app.use('/api/shifts', shiftRoutes);
 
 // Asset Routes
+// Ticket routes
+import ticketRoutes from './routes/ticket.routes';
+app.use('/api/tickets', ticketRoutes);
+
+// Quotation routes
 import assetRoutes from './routes/asset.routes';
 app.use('/api/assets', assetRoutes);
 
@@ -144,10 +146,8 @@ app.use('/api/automation', automationRoutes);
 
 // New HRMS Module Routes
 import policyRoutes from './routes/policy.routes';
-import ticketRoutes from './routes/ticket.routes';
-
 app.use('/api/policies', policyRoutes);
-app.use('/api/tickets', ticketRoutes);
+// app.use('/api/tickets', ticketRoutes); // Duplicate removed
 import employeeDocumentRoutes from './routes/employee-document.routes';
 app.use('/api/employee-documents', employeeDocumentRoutes);
 

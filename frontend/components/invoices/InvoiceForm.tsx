@@ -37,6 +37,7 @@ const invoiceSchema = z.object({
     recurringInterval: z.string().optional(),
     recurringStartDate: z.string().optional(),
     recurringEndDate: z.string().optional(),
+    includeBankDetails: z.boolean().default(true),
 });
 
 type InvoiceFormValues = z.infer<typeof invoiceSchema>;
@@ -72,6 +73,7 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
             currency: globalCurrency || 'USD',
             items: [{ description: '', quantity: 1, rate: 0, taxRateIds: [], discount: 0, hsnSacCode: '' }],
             discount: 0,
+            includeBankDetails: true,
         },
     });
 
@@ -296,6 +298,20 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
                                 />
                             )}
                         />
+                    </div>
+
+                    <div className="ent-form-group">
+                        <div className="flex items-center gap-2 mt-6">
+                            <input
+                                type="checkbox"
+                                id="includeBankDetails"
+                                {...register('includeBankDetails')}
+                                className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
+                            />
+                            <label htmlFor="includeBankDetails" className="text-[10px] font-black text-gray-500 uppercase tracking-widest cursor-pointer select-none">
+                                Include Bank Details
+                            </label>
+                        </div>
                     </div>
 
                     {/* Automation Logic */}

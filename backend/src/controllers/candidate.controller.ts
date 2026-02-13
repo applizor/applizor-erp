@@ -8,7 +8,7 @@ const prisma = new PrismaClient();
 // Create a new candidate (Apply)
 export const createCandidate = async (req: AuthRequest, res: Response) => {
     try {
-        const userId = req.user?.userId;
+        const userId = req.userId;
         if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
         // Candidates are part of Recruitment module
@@ -61,7 +61,7 @@ export const createCandidate = async (req: AuthRequest, res: Response) => {
 // Get all candidates with filters
 export const getCandidates = async (req: AuthRequest, res: Response) => {
     try {
-        const userId = req.user?.userId;
+        const userId = req.userId;
         if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
         if (!PermissionService.hasBasicPermission(req.user, 'Recruitment', 'read')) {
@@ -95,7 +95,7 @@ export const getCandidates = async (req: AuthRequest, res: Response) => {
 // Get a single candidate by ID
 export const getCandidateById = async (req: AuthRequest, res: Response) => {
     try {
-        const userId = req.user?.userId;
+        const userId = req.userId;
         if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
         if (!PermissionService.hasBasicPermission(req.user, 'Recruitment', 'read')) {
@@ -129,7 +129,7 @@ export const getCandidateById = async (req: AuthRequest, res: Response) => {
 // Update candidate status
 export const updateCandidateStatus = async (req: AuthRequest, res: Response) => {
     try {
-        const userId = req.user?.userId;
+        const userId = req.userId;
         if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
         if (!PermissionService.hasBasicPermission(req.user, 'Recruitment', 'update')) {
@@ -155,10 +155,42 @@ export const updateCandidateStatus = async (req: AuthRequest, res: Response) => 
     }
 };
 
+// Update candidate details (General)
+export const updateCandidate = async (req: AuthRequest, res: Response) => {
+    try {
+        const userId = req.userId;
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+        if (!PermissionService.hasBasicPermission(req.user, 'Recruitment', 'update')) {
+            return res.status(403).json({ error: 'Access denied: No update rights for Recruitment' });
+        }
+
+        const { id } = req.params;
+        const { firstName, lastName, email, phone, jobOpeningId, notes } = req.body;
+
+        const candidate = await prisma.candidate.update({
+            where: { id },
+            data: {
+                firstName,
+                lastName,
+                email,
+                phone,
+                jobOpeningId,
+                notes
+            },
+        });
+
+        res.json(candidate);
+    } catch (error) {
+        console.error('Update candidate error:', error);
+        res.status(500).json({ error: 'Failed to update candidate' });
+    }
+};
+
 // Delete a candidate
 export const deleteCandidate = async (req: AuthRequest, res: Response) => {
     try {
-        const userId = req.user?.userId;
+        const userId = req.userId;
         if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
         if (!PermissionService.hasBasicPermission(req.user, 'Recruitment', 'delete')) {

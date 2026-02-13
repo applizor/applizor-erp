@@ -4,6 +4,7 @@ import {
   handlePaymentWebhook,
   verifyPayment,
   getPayments,
+  deletePayment // Import the new controller
 } from '../controllers/payment.controller';
 import { authenticate } from '../middleware/auth';
 
@@ -18,5 +19,6 @@ router.post('/webhook', (req: Request, res: Response) => {
 router.post('/link', authenticate, createPaymentLink);
 router.post('/verify', authenticate, verifyPayment);
 router.get('/', authenticate, getPayments);
+router.delete('/:id', authenticate, deletePayment); // Add delete route
 
 export default router;

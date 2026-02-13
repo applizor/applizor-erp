@@ -39,6 +39,30 @@ export const createRule = async (req: AuthRequest, res: Response) => {
     }
 };
 
+export const updateRule = async (req: AuthRequest, res: Response) => {
+    try {
+        const { ruleId } = req.params;
+        const { name, triggerType, triggerConfig, actionType, actionConfig, isActive } = req.body;
+
+        const rule = await prisma.automationRule.update({
+            where: { id: ruleId },
+            data: {
+                name,
+                triggerType,
+                triggerConfig,
+                actionType,
+                actionConfig,
+                isActive
+            }
+        });
+
+        res.json(rule);
+    } catch (error) {
+        console.error('Update Rule Error:', error);
+        res.status(500).json({ error: 'Failed to update rule' });
+    }
+};
+
 export const deleteRule = async (req: AuthRequest, res: Response) => {
     try {
         const { ruleId } = req.params;

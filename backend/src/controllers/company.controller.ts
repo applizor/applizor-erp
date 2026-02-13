@@ -57,6 +57,7 @@ export const updateCompany = async (req: AuthRequest, res: Response) => {
       currency, // Added
       allowedIPs, latitude, longitude, radius,
       legalName, gstin, pan, tan,
+      bankName, bankAccountName, bankAccountNumber, bankIfscCode, bankBranch, // Added bank details
       enabledModules,
       digitalSignature,
       letterhead,
@@ -75,6 +76,7 @@ export const updateCompany = async (req: AuthRequest, res: Response) => {
         currency, // Added
         allowedIPs, latitude: latitude ? parseFloat(latitude) : undefined, longitude: longitude ? parseFloat(longitude) : undefined, radius: radius ? parseInt(radius) : undefined,
         legalName, gstin, pan, tan,
+        bankName, bankAccountName, bankAccountNumber, bankIfscCode, bankBranch, // Added bank details
         enabledModules,
         digitalSignature,
         letterhead,

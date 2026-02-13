@@ -48,6 +48,7 @@ export default function CreateRolePage() {
             setMatrix(initMatrix);
         } catch (error) {
             console.error('Failed to fetch permission metadata');
+            toast.error('Failed to load permission modules. Please refresh.');
         } finally {
             setFetching(false);
         }

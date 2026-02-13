@@ -50,11 +50,11 @@ export default function DashboardPage() {
       // Calculate stats
       const totalRevenue = invoicesData
         .filter((inv: any) => inv.status === 'paid')
-        .reduce((sum: number, inv: any) => sum + (inv.total || 0), 0);
+        .reduce((sum: number, inv: any) => sum + (Number(inv.total) || 0), 0);
 
       const pendingAmount = invoicesData
         .filter((inv: any) => inv.status === 'sent' || inv.status === 'overdue')
-        .reduce((sum: number, inv: any) => sum + (inv.total || 0), 0);
+        .reduce((sum: number, inv: any) => sum + (Number(inv.total) || 0), 0);
 
       setStats({
         totalClients: clientsData.length,

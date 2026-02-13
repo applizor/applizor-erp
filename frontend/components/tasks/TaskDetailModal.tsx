@@ -23,15 +23,25 @@ interface TaskDetailModalProps {
 
 // --- Helper Components ---
 
-function LiveTimerDisplay({ startTime, formatTime }: { startTime: number, formatTime: (s: number) => string }) {
-    const [seconds, setSeconds] = useState(Math.floor((Date.now() - startTime) / 1000));
+function LiveTimerDisplay({ startTime, formatTime, accumulatedTime = 0, isPaused = false }: { startTime: number, formatTime: (s: number) => string, accumulatedTime?: number, isPaused?: boolean }) {
+    const [seconds, setSeconds] = useState(0);
 
     useEffect(() => {
+        const calculateElapsed = () => {
+            if (isPaused) return accumulatedTime;
+            const elapsedSinceStart = Math.floor((Date.now() - startTime) / 1000);
+            return accumulatedTime + elapsedSinceStart;
+        };
+
+        setSeconds(calculateElapsed());
+
+        if (isPaused) return;
+
         const interval = setInterval(() => {
-            setSeconds(Math.max(0, Math.floor((Date.now() - startTime) / 1000)));
+            setSeconds(calculateElapsed());
         }, 1000);
         return () => clearInterval(interval);
-    }, [startTime]);
+    }, [startTime, accumulatedTime, isPaused]);
 
     return <span>{formatTime(seconds)}</span>;
 }
@@ -57,7 +67,9 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
     // Timer state
     const [timerActive, setTimerActive] = useState(false);
     const [timerStartTime, setTimerStartTime] = useState<number | null>(null);
-    const [elapsedSeconds, setElapsedSeconds] = useState(0);
+    const [isPaused, setIsPaused] = useState(false);
+    const [accumulatedSeconds, setAccumulatedSeconds] = useState(0);
+    const [activeTimerId, setActiveTimerId] = useState<string | null>(null);
     const { socket } = useSocket();
 
     // User Context for Delete Permissions
@@ -133,15 +145,19 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
 
     const syncTimerWithServer = async () => {
         try {
-            const res = await api.get('/timesheets/timer/active');
-            if (res.data && res.data.taskId === taskId) {
+            const res = await api.get(`/timesheets/timer/task/${taskId}`);
+            if (res.data) {
                 setTimerActive(true);
-                const serverStartTime = new Date(res.data.startTime).getTime();
-                setTimerStartTime(serverStartTime);
+                setActiveTimerId(res.data.id);
+                setIsPaused(res.data.isPaused);
+                setAccumulatedSeconds(res.data.accumulatedTime);
+                setTimerStartTime(new Date(res.data.startTime).getTime());
             } else {
                 setTimerActive(false);
+                setActiveTimerId(null);
                 setTimerStartTime(null);
-                setElapsedSeconds(0);
+                setIsPaused(false);
+                setAccumulatedSeconds(0);
             }
         } catch (error) { console.error('Failed to sync timer'); }
     };
@@ -161,12 +177,17 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
             if (!timerActive) {
                 const res = await api.post('/timesheets/timer/start', { projectId, taskId });
                 setTimerActive(true);
+                setActiveTimerId(res.data.id);
                 setTimerStartTime(new Date(res.data.startTime).getTime());
+                setIsPaused(res.data.isPaused);
+                setAccumulatedSeconds(res.data.accumulatedTime);
             } else {
-                const res = await api.post('/timesheets/timer/stop');
+                const res = await api.post(`/timesheets/timer/stop/${activeTimerId}`);
                 setTimerActive(false);
-                setElapsedSeconds(0);
+                setActiveTimerId(null);
                 setTimerStartTime(null);
+                setIsPaused(false);
+                setAccumulatedSeconds(0);
 
                 toast.success(`Work logged: ${res.data.durationHours}h`);
 
@@ -178,6 +199,20 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
             fetchTaskDetails();
         } catch (error) {
             toast.error('Failed to update timer');
+        }
+    };
+
+    const handlePauseResume = async () => {
+        if (!activeTimerId) return;
+        try {
+            const endpoint = isPaused ? 'resume' : 'pause';
+            const res = await api.post(`/timesheets/timer/${endpoint}/${activeTimerId}`);
+            setIsPaused(res.data.isPaused);
+            setAccumulatedSeconds(res.data.accumulatedTime);
+            setTimerStartTime(new Date(res.data.startTime).getTime());
+            toast.success(isPaused ? 'Timer Resumed' : 'Timer Paused');
+        } catch (error) {
+            toast.error('Action failed');
         }
     };
 
@@ -330,32 +365,46 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                                     </div>
 
                                     {!isNew && (
-                                        <button
-                                            type="button"
-                                            onClick={toggleTimer}
-                                            className={`
-                                                flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all
-                                                ${timerActive
-                                                    ? 'bg-rose-100 text-rose-700 border border-rose-200 shadow-sm shadow-rose-200/50'
-                                                    : 'bg-primary-50 text-primary-900 border border-primary-100 hover:bg-primary-100 transition-colors'
-                                                }
-                                            `}
-                                        >
-                                            <div className="relative">
-                                                <Clock size={12} className={timerActive ? 'text-rose-600 animate-[spin_3s_linear_infinite]' : 'text-primary-600'} />
-                                                {timerActive && (
-                                                    <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-rose-500 rounded-full animate-ping" />
-                                                )}
+                                        <div className="flex items-center gap-3 bg-slate-50 border border-slate-100 p-3 rounded-lg">
+                                            <div className={`p-2 rounded-lg ${timerActive && !isPaused ? 'bg-emerald-100 text-emerald-600 animate-pulse' : 'bg-slate-200 text-slate-500'}`}>
+                                                <Clock size={16} />
                                             </div>
-                                            {timerActive ? (
-                                                <div className="flex items-center gap-1.5 font-mono">
-                                                    <span className="text-rose-500 font-black">STOP</span>
-                                                    <LiveTimerDisplay startTime={timerStartTime || Date.now()} formatTime={formatTime} />
+                                            <div className="flex-1">
+                                                <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Time Tracker</div>
+                                                <div className="text-sm font-black text-slate-900 flex items-center gap-2">
+                                                    {timerActive ? (
+                                                        <LiveTimerDisplay
+                                                            startTime={timerStartTime || Date.now()}
+                                                            formatTime={formatTime}
+                                                            accumulatedTime={accumulatedSeconds}
+                                                            isPaused={isPaused}
+                                                        />
+                                                    ) : '00:00:00'}
+                                                    {isPaused && (
+                                                        <span className="text-[8px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded uppercase tracking-widest">Paused</span>
+                                                    )}
                                                 </div>
-                                            ) : (
-                                                'Start Tracker'
-                                            )}
-                                        </button>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                {timerActive && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={handlePauseResume}
+                                                        className={`p-1.5 rounded-md transition-all ${isPaused ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' : 'bg-amber-50 text-amber-600 hover:bg-amber-100'}`}
+                                                        title={isPaused ? "Resume Session" : "Pause Session"}
+                                                    >
+                                                        {isPaused ? <Plus size={14} className="rotate-45" /> : <div className="flex gap-0.5"><div className="w-0.5 h-3 bg-current" /><div className="w-0.5 h-3 bg-current" /></div>}
+                                                    </button>
+                                                )}
+                                                <button
+                                                    type="button"
+                                                    onClick={toggleTimer}
+                                                    className={`px-3 py-1.5 rounded text-[10px] font-black uppercase tracking-widest transition-all ${timerActive ? 'bg-rose-600 text-white hover:bg-rose-700' : 'bg-primary-600 text-white hover:bg-primary-700'}`}
+                                                >
+                                                    {timerActive ? 'Stop' : 'Start'}
+                                                </button>
+                                            </div>
+                                        </div>
                                     )}
                                 </div>
 
@@ -783,14 +832,18 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                 open={isLogModalOpen}
                 onClose={() => {
                     setIsLogModalOpen(false);
-                    setElapsedSeconds(0); // Reset timer after logging
+                    setAccumulatedSeconds(0);
+                    setTimerStartTime(null);
+                    setTimerActive(false);
+                    setIsPaused(false);
+                    setActiveTimerId(null);
                     fetchSpentHours();
                     onUpdate();
                 }}
                 defaultEntry={{
                     projectId,
                     taskId: taskId ?? undefined,
-                    hours: timerActive ? undefined : (elapsedSeconds > 0 ? (elapsedSeconds / 3600).toFixed(2) : undefined)
+                    hours: timerActive ? undefined : (accumulatedSeconds > 0 ? (accumulatedSeconds / 3600).toFixed(2) : undefined)
                 }}
             />
         </Portal>

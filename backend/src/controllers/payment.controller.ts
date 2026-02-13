@@ -247,3 +247,77 @@ export const getPayments = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: 'Failed to get payments', details: error.message });
   }
 };
+
+export const deletePayment = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Find payment first to check permissions and get amount
+    const payment = await prisma.payment.findUnique({
+      where: { id },
+      include: { invoice: true }
+    });
+
+    if (!payment) {
+      return res.status(404).json({ error: 'Payment not found' });
+    }
+
+    // Transaction to delete payment and update invoice
+    await prisma.$transaction(async (tx) => {
+      // 1. Update Invoice Paid Amount and Status
+      if (payment.invoiceId) {
+        const invoice = await tx.invoice.findUnique({
+          where: { id: payment.invoiceId }
+        });
+
+        if (invoice) {
+          const newPaidAmount = Math.max(0, Number(invoice.paidAmount) - Number(payment.amount));
+          let newStatus = invoice.status;
+
+          if (newPaidAmount === 0) {
+            newStatus = 'sent'; // Revert to sent if no payment left
+          } else if (newPaidAmount < Number(invoice.total)) {
+            newStatus = 'partial';
+          }
+
+          await tx.invoice.update({
+            where: { id: payment.invoiceId },
+            data: {
+              paidAmount: newPaidAmount,
+              status: newStatus
+            }
+          });
+        }
+      }
+
+      // 2. Delete Payment
+      await tx.payment.delete({
+        where: { id }
+      });
+
+      // 3. Log Activity
+      await tx.auditLog.create({
+        data: {
+          companyId: payment.invoice?.companyId || '',
+          action: 'DELETE',
+          module: 'PAYMENT',
+          entityType: 'Payment',
+          entityId: id,
+          details: `Deleted payment of ${payment.amount} for Invoice ${payment.invoice?.invoiceNumber}`,
+          userId: userId
+        }
+      });
+    });
+
+    res.json({ message: 'Payment deleted successfully' });
+  } catch (error: any) {
+    console.error('Error deleting payment:', error);
+    res.status(500).json({ error: 'Failed to delete payment' });
+  }
+};
+

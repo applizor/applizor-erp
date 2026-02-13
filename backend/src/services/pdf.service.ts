@@ -34,8 +34,14 @@ interface PDFData {
         pdfMarginBottom?: number;
         pdfMarginLeft?: number;
         pdfMarginRight?: number;
+        bankName?: string;
+        bankAccountName?: string;
+        bankAccountNumber?: string;
+        bankIfscCode?: string;
+        bankBranch?: string;
     };
     useLetterhead?: boolean;
+    includeBankDetails?: boolean;
     client?: {
         name: string;
         company?: string;
@@ -51,6 +57,7 @@ interface PDFData {
         website?: string;
         taxName?: string;
         mobile?: string;
+        tan?: string;
     };
     lead?: {
         name: string;
@@ -67,6 +74,7 @@ interface PDFData {
         website?: string;
         taxName?: string;
         mobile?: string;
+        tan?: string;
     };
     items: Array<{
         description: string;
@@ -282,186 +290,264 @@ export class PDFService {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             color: #333;
             line-height: 1.6;
+            font-size: 13px;
         }
         ${backgroundCSS}
+        
+        /* HEADER SECTION (Company Info Only) */
         .header {
-            display: ${data.useLetterhead ? 'none' : 'flex'};
-            justify-content: space-between;
-            align-items: start;
-            margin-bottom: 40px;
+            margin-bottom: 20px;
             padding-bottom: 20px;
-            border-bottom: 3px solid ${type === 'QUOTATION' ? '#2563eb' : '#059669'};
+            border-bottom: 2px solid ${type === 'QUOTATION' ? '#2563eb' : '#059669'};
+            /* Hide if letterhead is used */
+            display: ${data.useLetterhead ? 'none' : 'block'};
         }
+        
         .company-info {
-            flex: 1;
+            width: 100%;
         }
         .company-logo {
-            max-width: 200px;
-            max-height: 80px;
-            margin-bottom: 15px;
+            max-width: 180px;
+            max-height: 70px;
+            margin-bottom: 10px;
         }
         .company-details {
             font-size: 12px;
-            color: #666;
-            line-height: 1.8;
+            color: #555;
+            line-height: 1.5;
         }
+
+        /* INFO ROW (Split Layout) */
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 30px;
+            gap: 30px;
+        }
+
+        /* BILLED TO SECTION (Left) */
+        .billed-to {
+            flex: 1;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 15px;
+        }
+        .section-title {
+            font-size: 10px;
+            text-transform: uppercase;
+            color: #64748b;
+            font-weight: bold;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 4px;
+            display: inline-block;
+        }
+        .billed-to-details {
+            font-size: 13px;
+            line-height: 1.5;
+            color: #334155;
+        }
+        .recipient-name {
+            font-size: 14px;
+            font-weight: bold;
+            color: #0f172a;
+            margin-bottom: 4px;
+        }
+
+        /* DOCUMENT DETAILS (Right) */
         .document-info {
+            width: 300px;
             text-align: right;
+            padding-top: 5px;
         }
         .document-title {
             font-size: 32px;
-            font-weight: bold;
-            color: ${type === 'QUOTATION' ? '#1e40af' : '#065f46'};
-            margin-bottom: 10px;
-        }
-        .document-meta {
-            font-size: 13px;
-            color: #666;
-            line-height: 1.8;
-        }
-        .document-meta strong {
-            color: #333;
-        }
-        .billed-to {
-            background: #f3f4f6;
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 30px;
-        }
-        .billed-to h3 {
-            font-size: 11px;
+            font-weight: 900;
+            color: ${type === 'QUOTATION' ? '#2563eb' : '#059669'};
             text-transform: uppercase;
-            color: #6b7280;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
+            line-height: 1;
             letter-spacing: 0.5px;
         }
-        .billed-to-details {
-            font-size: 14px;
-            line-height: 1.8;
+        .meta-table {
+            width: 100%;
+            border-collapse: collapse;
         }
-        table {
+        .meta-table td {
+            text-align: right;
+            padding: 4px 0;
+            font-size: 13px;
+        }
+        .meta-label {
+            color: #64748b;
+            font-size: 12px;
+            padding-right: 15px !important;
+            font-weight: 500;
+        }
+        .meta-value {
+            color: #0f172a;
+            font-weight: bold;
+        }
+
+        /* TABLE STYLES */
+        table.items-table {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 30px;
         }
-        thead {
-            background: ${type === 'QUOTATION' ? '#1e40af' : '#065f46'};
+        table.items-table thead {
+            background: ${type === 'QUOTATION' ? '#2563eb' : '#059669'};
             color: white;
         }
-        th {
-            padding: 12px;
+        table.items-table th {
+            padding: 10px;
             text-align: left;
-            font-size: 12px;
+            font-size: 11px;
             text-transform: uppercase;
+            font-weight: bold;
             letter-spacing: 0.5px;
         }
-        th:last-child, td:last-child {
-            text-align: right;
-        }
-        tbody tr {
+        table.items-table td {
+            padding: 10px;
             border-bottom: 1px solid #e5e7eb;
+            font-size: 12px;
+            vertical-align: top;
         }
-        tbody tr:hover {
-            background: #f9fafb;
+        /* Column Widths */
+        .col-desc { width: auto; }
+        .col-hsn { width: 80px; }
+        .col-qty { width: 50px; text-align: center; }
+        .col-uom { width: 50px; text-align: center; }
+        .col-rate { width: 100px; text-align: right; }
+        .col-disc { width: 60px; text-align: right; }
+        .col-amt { width: 110px; text-align: right; }
+
+        /* TOTALS SECTION */
+        .totals-container {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 40px;
         }
-        td {
-            padding: 12px;
-            font-size: 13px;
-        }
-        .totals {
-            margin-left: auto;
-            width: 300px;
+        .totals-box {
+            width: 350px;
         }
         .totals-row {
             display: flex;
             justify-content: space-between;
-            padding: 8px 0;
-            font-size: 14px;
+            align-items: center;
+            padding: 6px 0;
+            font-size: 13px;
+            color: #475569;
         }
         .totals-row.subtotal {
-            border-top: 1px solid #e5e7eb;
-            padding-top: 12px;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 10px;
+            margin-top: 5px;
+            color: #0f172a;
+            font-weight: 600;
         }
-        .totals-row.total {
-            border-top: 2px solid ${type === 'QUOTATION' ? '#1e40af' : '#065f46'};
+        .totals-row.grand-total {
+            border-top: 2px solid ${type === 'QUOTATION' ? '#2563eb' : '#059669'};
             padding-top: 12px;
             margin-top: 8px;
-            font-size: 18px;
+            font-size: 16px;
             font-weight: bold;
-            color: ${type === 'QUOTATION' ? '#1e40af' : '#065f46'};
+            color: ${type === 'QUOTATION' ? '#2563eb' : '#059669'};
         }
+
+        /* UTILS */
         .notes {
             background: #f9fafb;
             padding: 20px;
             border-radius: 8px;
-            margin-top: 30px;
+            margin-top: 20px;
+            border: 1px solid #e5e7eb;
         }
         .notes h3 {
-            font-size: 14px;
-            margin-bottom: 10px;
-            color: ${type === 'QUOTATION' ? '#1e40af' : '#065f46'};
+            font-size: 12px;
+            margin-bottom: 8px;
+            color: #475569;
+            text-transform: uppercase;
+            font-weight: bold;
         }
         .notes p {
-            font-size: 12px;
-            color: #666;
+            font-size: 11px;
+            color: #64748b;
             white-space: pre-wrap;
         }
-        .signature-section {
-            margin-top: 50px;
-            padding: 30px;
-            border: 2px solid #10b981;
-            border-radius: 8px;
-            background: #f0fdf4;
-        }
         .footer {
-            display: ${data.useLetterhead ? 'none' : 'block'};
             margin-top: 50px;
             padding-top: 20px;
             border-top: 1px solid #e5e7eb;
             text-align: center;
-            font-size: 11px;
-            color: #9ca3af;
+            font-size: 10px;
+            color: #94a3b8;
         }
     </style>
 </head>
 <body>
+    <!-- HEADER (Company Info) -->
     <div class="header">
         <div class="company-info">
-            ${logoBase64 ? `<img src="${logoBase64}" class="company-logo" alt="${data.company.name}">` : `<h2>${data.company.name}</h2>`}
+            ${logoBase64 ? `<img src="${logoBase64}" class="company-logo" alt="${data.company.name}">` : `<h2 style="margin-bottom:10px;">${data.company.name}</h2>`}
             <div class="company-details">
                 ${data.company.address ? `${data.company.address}<br>` : ''}
                 ${data.company.city && data.company.state ? `${data.company.city}, ${data.company.state} - ${data.company.pincode || ''}<br>` : ''}
-                ${data.company.email ? `Email: ${data.company.email}` : ''} ${data.company.phone ? `| Phone: ${data.company.phone}` : ''}<br>
+                ${data.company.email ? `E: ${data.company.email}` : ''} ${data.company.phone ? `| P: ${data.company.phone}` : ''}<br>
                 ${data.company.gstin ? `GSTIN: ${data.company.gstin}` : ''}
-            </div>
-        </div>
-        <div class="document-info">
-            <div class="document-title">${type}</div>
-            <div class="document-meta">
-                <strong>Number:</strong> ${number}<br>
-                <strong>Date:</strong> ${mainDate ? formatDate(mainDate) : '-'}<br>
-                ${subDate ? `<strong>${subDateLabel}:</strong> ${formatDate(subDate)}<br>` : ''}
             </div>
         </div>
     </div>
 
-    ${recipient ? `
-    <div class="billed-to">
-        <h3>Billed To</h3>
-        <div class="billed-to-details">
-            <strong>${recipient.name}</strong><br>
-            ${recipient.company ? `${recipient.company}<br>` : ''}
-            ${recipient.address ? `${recipient.address}<br>` : ''}
-            ${recipient.city && recipient.state ? `${recipient.city}, ${recipient.state} - ${recipient.pincode || ''}<br>` : ''}
-            ${recipient.country ? `${recipient.country}<br>` : ''}
-            ${recipient.email ? `${recipient.email}<br>` : ''}
-            ${recipient.phone ? `Phone: ${recipient.phone}<br>` : ''}
-            ${recipient.mobile ? `Mobile: ${recipient.mobile}<br>` : ''}
-            ${recipient.gstin ? `GSTIN: ${recipient.gstin}<br>` : ''}
-            ${recipient.website ? `Website: ${recipient.website}<br>` : ''}
+    <!-- INFO ROW: Billed To (Left) | Invoice Details (Right) -->
+    <div class="info-row">
+        <!-- BILLED TO -->
+        <div class="billed-to">
+            <div class="section-title">Billed To</div>
+            ${recipient ? `
+            <div class="billed-to-details">
+                <div class="recipient-name">${recipient.name}</div>
+                ${recipient.company ? `${recipient.company}<br>` : ''}
+                ${recipient.address ? `${recipient.address}<br>` : ''}
+                ${recipient.city && recipient.state ? `${recipient.city}, ${recipient.state} - ${recipient.pincode || ''}<br>` : ''}
+                ${recipient.country ? `${recipient.country}<br>` : ''}
+                
+                <div style="margin-top: 8px;"></div>
+                ${recipient.gstin ? `<strong>GSTIN:</strong> ${recipient.gstin}<br>` : ''}
+                ${recipient.pan ? `<strong>PAN:</strong> ${recipient.pan}<br>` : ''}
+                ${recipient.tan ? `<strong>TAN:</strong> ${recipient.tan}<br>` : ''}
+                
+                <div style="margin-top: 8px;"></div>
+                ${recipient.email ? `E: ${recipient.email}<br>` : ''}
+                ${recipient.phone || recipient.mobile ? `P: ${recipient.phone || recipient.mobile}` : ''}
+            </div>
+            ` : ''}
+        </div>
+
+        <!-- DOCUMENT DETAILS -->
+        <div class="document-info">
+            <div class="document-title">${type}</div>
+            <table class="meta-table">
+                <tr>
+                    <td class="meta-label">Number:</td>
+                    <td class="meta-value">${number}</td>
+                </tr>
+                <tr>
+                    <td class="meta-label">Date:</td>
+                    <td class="meta-value">${mainDate ? formatDate(mainDate) : '-'}</td>
+                </tr>
+                ${subDate ? `
+                <tr>
+                    <td class="meta-label">${subDateLabel}:</td>
+                    <td class="meta-value">${formatDate(subDate)}</td>
+                </tr>
+                ` : ''}
+            </table>
         </div>
     </div>
-    ` : ''}
 
     ${type === 'QUOTATION' && data.title ? `
     <div style="margin-bottom: 20px; border-bottom: 1px solid #e5e7eb; padding-bottom: 15px;">
@@ -478,16 +564,16 @@ export class PDFService {
     </div>
     ` : ''}
 
-    <table>
+    <table class="items-table">
         <thead>
             <tr>
-                <th>Specification</th>
-                <th style="width: 80px;">HSN/SAC</th>
-                <th style="text-align: center; width: 40px;">Qty</th>
-                <th style="text-align: center; width: 40px;">UoM</th>
-                <th style="text-align: right; width: 100px;">Rate</th>
-                <th style="text-align: right; width: 60px;">Disc %</th>
-                <th style="text-align: right; width: 100px;">Amount</th>
+                <th class="col-desc">Specification</th>
+                <th class="col-hsn">HSN/SAC</th>
+                <th class="col-qty">Qty</th>
+                <th class="col-uom">UoM</th>
+                <th class="col-rate">Rate</th>
+                <th class="col-disc">Disc %</th>
+                <th class="col-amt">Amount</th>
             </tr>
         </thead>
         <tbody>
@@ -500,56 +586,61 @@ export class PDFService {
             return `
                 <tr>
                     <td>
-                        <div style="font-weight: bold;">${item.description}</div>
+                        <div style="font-weight: bold; color: #111;">${item.description}</div>
                     </td>
-                    <td style="font-size: 11px; color: #555;">${item.hsnSacCode || '-'}</td>
+                    <td style="color: #64748b;">${item.hsnSacCode || '-'}</td>
                     <td style="text-align: center;">${quantity}</td>
                     <td style="text-align: center;">${item.unit || '-'}</td>
                     <td style="text-align: right;">${formatCurrency(rate)}</td>
-                    <td style="text-align: right; color: #dc2626;">${discount > 0 ? `${discount}%` : '-'}</td>
-                    <td style="text-align: right;">${formatCurrency(netAmount)}</td>
+                    <td style="text-align: right; color: #ef4444;">${discount > 0 ? `${discount}%` : '-'}</td>
+                    <td style="text-align: right; font-weight: 500;">${formatCurrency(netAmount)}</td>
                 </tr>
                 `;
         }).join('')}
         </tbody>
     </table>
 
-    <div class="totals">
-        <div class="totals-row subtotal">
-            <span>Subtotal:</span>
-            <span>${formatCurrency(Number(data.subtotal))}</span>
-        </div>
-        ${(data as any).totalItemDiscount > 0 ? `
-        <div class="totals-row">
-            <span>Item Discounts:</span>
-            <span style="color: #dc2626;">-${formatCurrency((data as any).totalItemDiscount)}</span>
-        </div>
-        <div class="totals-row" style="border-top: 1px dashed #e5e7eb; margin-top: 4px; padding-top: 4px;">
-            <span style="font-weight: 900; color: #111;">Taxable Amount:</span>
-            <span style="font-weight: 900; color: #111;">${formatCurrency(Number(data.subtotal) - (data as any).totalItemDiscount)}</span>
-        </div>
-        ` : ''}
-        ${Number(data.tax) > 0 ? `
-        <div class="totals-row">
-            <span>Total Tax:</span>
-            <span>${formatCurrency(Number(data.tax))}</span>
-        </div>
-        ${data.taxBreakdown ? data.taxBreakdown.map(t => `
-        <div class="totals-row" style="padding-top: 0; padding-bottom: 4px;">
-            <span style="font-size: 12px; color: #666; padding-left: 10px;">${t.name} @${t.percentage}%:</span>
-            <span style="font-size: 12px; color: #666;">${formatCurrency(t.amount)}</span>
-        </div>
-        `).join('') : ''}
-        ` : ''}
-        ${Number(data.discount) > 0 ? `
-        <div class="totals-row">
-            <span style="color: #dc2626;">Additional Discount:</span>
-            <span style="color: #dc2626;">-${formatCurrency(Number(data.discount))}</span>
-        </div>
-        ` : ''}
-        <div class="totals-row total">
-            <span>Total:</span>
-            <span>${formatCurrency(Number(data.total))}</span>
+    <div class="totals-container">
+        <div class="totals-box">
+            <div class="totals-row subtotal">
+                <span>Subtotal</span>
+                <span>${formatCurrency(Number(data.subtotal))}</span>
+            </div>
+            ${(data as any).totalItemDiscount > 0 ? `
+            <div class="totals-row">
+                <span>Total Discount</span>
+                <span style="color: #ef4444;">-${formatCurrency((data as any).totalItemDiscount)}</span>
+            </div>
+            <div class="totals-row" style="border-top: 1px dashed #cbd5e1; padding-top: 8px;">
+                <span style="color: #1e293b; font-weight: bold;">Taxable Value</span>
+                <span style="color: #1e293b; font-weight: bold;">${formatCurrency(Number(data.subtotal) - (data as any).totalItemDiscount)}</span>
+            </div>
+            ` : ''}
+            
+            ${Number(data.tax) > 0 ? `
+            <div class="totals-row" style="margin-top: 5px;">
+                <span>Total Tax</span>
+                <span>${formatCurrency(Number(data.tax))}</span>
+            </div>
+            ${data.taxBreakdown ? data.taxBreakdown.map(t => `
+            <div class="totals-row" style="padding: 2px 0; font-size: 11px;">
+                <span style="color: #64748b; padding-left: 10px;">${t.name} (${t.percentage}%)</span>
+                <span style="color: #64748b;">${formatCurrency(t.amount)}</span>
+            </div>
+            `).join('') : ''}
+            ` : ''}
+            
+            ${Number(data.discount) > 0 ? `
+            <div class="totals-row">
+                <span style="color: #ef4444;">Extra Discount</span>
+                <span style="color: #ef4444;">-${formatCurrency(Number(data.discount))}</span>
+            </div>
+            ` : ''}
+            
+            <div class="totals-row grand-total">
+                <span>Grand Total</span>
+                <span>${formatCurrency(Number(data.total))}</span>
+            </div>
         </div>
     </div>
 
@@ -625,6 +716,33 @@ export class PDFService {
     </div>
     ` : ''}
     `}
+
+    ${(type === 'INVOICE' && data.includeBankDetails !== false && data.company.bankName && data.company.bankAccountNumber) ? `
+    <div style="margin-top: 40px; page-break-inside: avoid; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 15px;">
+        <h3 style="font-size: 11px; text-transform: uppercase; color: #475569; margin-bottom: 8px; letter-spacing: 0.5px; font-weight: bold;">Bank Details for Payment</h3>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 0;">
+            <tr>
+                <td style="padding: 4px 0; font-size: 11px; color: #64748b; width: 120px;">Bank Name:</td>
+                <td style="padding: 4px 0; font-size: 11px; font-weight: bold; color: #334155;">${data.company.bankName}</td>
+                <td style="padding: 4px 0; font-size: 11px; color: #64748b; width: 120px;">Account Holder:</td>
+                <td style="padding: 4px 0; font-size: 11px; font-weight: bold; color: #334155;">${data.company.bankAccountName || data.company.name}</td>
+            </tr>
+            <tr>
+                <td style="padding: 4px 0; font-size: 11px; color: #64748b;">Account Number:</td>
+                <td style="padding: 4px 0; font-size: 11px; font-weight: bold; color: #334155;">${data.company.bankAccountNumber}</td>
+                <td style="padding: 4px 0; font-size: 11px; color: #64748b;">IFSC / SWIFT:</td>
+                <td style="padding: 4px 0; font-size: 11px; font-weight: bold; color: #334155;">${data.company.bankIfscCode || '-'}</td>
+            </tr>
+            ${data.company.bankBranch ? `
+            <tr>
+                <td style="padding: 4px 0; font-size: 11px; color: #64748b;">Branch:</td>
+                <td colspan="3" style="padding: 4px 0; font-size: 11px; font-weight: bold; color: #334155;">${data.company.bankBranch}</td>
+            </tr>
+            ` : ''}
+        </table>
+    </div>
+    ` : ''}
+
 
     <div class="footer">
         This is a computer-generated document and does not require a physical signature.
@@ -1013,5 +1131,159 @@ ${(!hasEmbeddedCompanySig || !hasEmbeddedClientSig) ? `
             return this.overlayBackdrop(contentPdf, data.company.letterhead, data.company.continuationSheet);
         }
         return contentPdf;
+    }
+
+    /**
+     * Generate HTML template for Payslips
+     */
+    private static generatePayslipHTML(data: any, company: any): string {
+        const formatCurrency = (amount: number) => {
+            return new Intl.NumberFormat(company.currency === 'USD' ? 'en-US' : 'en-IN', {
+                style: 'currency',
+                currency: company.currency || 'INR',
+                minimumFractionDigits: 2
+            }).format(amount);
+        };
+
+        const formatDate = (date: Date) => {
+            return new Date(date).toLocaleDateString('en-IN', {
+                year: 'numeric',
+                month: 'long'
+            });
+        };
+
+        const css = this.getBackgroundCSS(company, true); // Always use letterhead for payslips if available
+
+        const earnings = Object.entries(data.earningsBreakdown || {}).map(([key, val]) => ({ name: key, amount: Number(val) }));
+        const deductions = Object.entries(data.deductionsBreakdown || {}).map(([key, val]) => ({ name: key, amount: Number(val) }));
+
+        // Pad arrays to equal length for side-by-side table
+        const maxLength = Math.max(earnings.length, deductions.length);
+        const rows = Array.from({ length: maxLength }, (_, i) => ({
+            earning: earnings[i] || { name: '', amount: '' },
+            deduction: deductions[i] || { name: '', amount: '' }
+        }));
+
+        return `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                ${css}
+                .payslip-container { font-family: 'Helvetica', sans-serif; color: #333; }
+                .header-title { text-align: center; font-size: 18px; font-weight: bold; text-transform: uppercase; margin-top: 20px; text-decoration: underline; }
+                .sub-title { text-align: center; font-size: 12px; margin-bottom: 20px; font-weight: bold; color: #555; }
+                
+                .emp-details { margin-bottom: 20px; border: 1px solid #ddd; padding: 15px; border-radius: 4px; }
+                .emp-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 11px; }
+                .label { font-weight: bold; width: 120px; color: #555; text-transform: uppercase; font-size: 9px; }
+                .value { font-weight: bold; flex: 1; }
+
+                .salary-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 11px; }
+                .salary-table th { background: #f3f4f6; padding: 8px; text-align: left; border: 1px solid #e5e7eb; text-transform: uppercase; font-size: 9px; }
+                .salary-table td { padding: 8px; border: 1px solid #e5e7eb; }
+                .amount { text-align: right; font-family: 'Courier New', monospace; font-weight: bold; }
+                
+                .net-pay-box { background: #f3f4f6; padding: 15px; border: 1px solid #e5e7eb; text-align: right; margin-bottom: 20px; }
+                .net-label { font-size: 10px; text-transform: uppercase; font-weight: bold; color: #555; }
+                .net-amount { font-size: 18px; font-weight: bold; color: #000; margin-top: 5px; }
+
+                .footer { font-size: 9px; text-align: center; color: #999; margin-top: 50px; border-top: 1px solid #eee; padding-top: 10px; }
+            </style>
+        </head>
+        <body>
+            <div class="payslip-container">
+            <div class="header-title">Payslip for ${formatDate(new Date(data.year, data.month - 1, 1))}</div>
+            <div class="sub-title">${company.name}</div>
+
+            <div class="emp-details">
+                <div class="emp-row">
+                    <div style="flex: 1; display:flex;">
+                        <span class="label">Employee Name:</span>
+                        <span class="value">${data.employee.firstName} ${data.employee.lastName}</span>
+                    </div>
+                    <div style="flex: 1; display:flex;">
+                        <span class="label">Employee ID:</span>
+                        <span class="value">${data.employee.employeeId}</span>
+                    </div>
+                </div>
+                <div class="emp-row">
+                    <div style="flex: 1; display:flex;">
+                        <span class="label">Department:</span>
+                        <span class="value">${data.employee.department?.name || '-'}</span>
+                    </div>
+                    <div style="flex: 1; display:flex;">
+                        <span class="label">Designation:</span>
+                        <span class="value">${data.employee.position?.title || '-'}</span>
+                    </div>
+                </div>
+                <div class="emp-row">
+                    <div style="flex: 1; display:flex;">
+                        <span class="label">Date of Joining:</span>
+                        <span class="value">${data.employee.dateOfJoining ? new Date(data.employee.dateOfJoining).toLocaleDateString('en-IN') : '-'}</span>
+                    </div>
+                    <div style="flex: 1; display:flex;">
+                        <span class="label">Location:</span>
+                        <span class="value">${company.city || '-'}</span>
+                    </div>
+                </div>
+                <div class="emp-row">
+                     <div style="flex: 1; display:flex;">
+                        <span class="label">Bank Account:</span>
+                        <span class="value">${data.employee.accountNumber || '-'}</span>
+                    </div>
+                    <div style="flex: 1; display:flex;">
+                        <span class="label">PAN Number:</span>
+                        <span class="value">${data.employee.panNumber || '-'}</span>
+                    </div>
+                </div>
+            </div>
+
+            <table class="salary-table">
+                <thead>
+                    <tr>
+                        <th width="35%">Earnings</th>
+                        <th width="15%" class="amount">Amount</th>
+                        <th width="35%">Deductions</th>
+                        <th width="15%" class="amount">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rows.map(row => `
+                    <tr>
+                        <td>${row.earning.name}</td>
+                        <td class="amount">${row.earning.amount ? formatCurrency(Number(row.earning.amount)) : ''}</td>
+                        <td>${row.deduction.name}</td>
+                        <td class="amount">${row.deduction.amount ? formatCurrency(Number(row.deduction.amount)) : ''}</td>
+                    </tr>
+                    `).join('')}
+                    
+                    <tr style="background: #fafafa; font-weight: bold;">
+                        <td>Total Earnings</td>
+                        <td class="amount">${formatCurrency(data.grossSalary)}</td>
+                        <td>Total Deductions</td>
+                        <td class="amount">${formatCurrency(data.deductions)}</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="net-pay-box">
+                <div class="net-label">Net Salary Payable</div>
+                <div class="net-amount">${formatCurrency(data.netSalary)}</div>
+            </div>
+
+            <div class="footer">
+                This is a system-generated payslip and does not require a signature. • ${company.name}
+            </div>
+            </div>
+        </body>
+        </html>
+        `;
+    }
+
+    public static async generatePayslip(payroll: any, company: any): Promise<Buffer> {
+        const html = this.generatePayslipHTML(payroll, company);
+        const contentPdf = await this.convertHTMLToPDF(html);
+        return this.overlayBackdrop(contentPdf, company.letterhead, company.continuationSheet);
     }
 }

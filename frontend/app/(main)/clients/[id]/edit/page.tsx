@@ -37,6 +37,8 @@ const clientSchema = z.object({
     website: z.string().optional(),
     taxName: z.string().optional(),
     gstin: z.string().regex(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/, "Invalid GSTIN format").optional().or(z.literal('')),
+    pan: z.string().regex(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, "Invalid PAN format").optional().or(z.literal('')),
+    tan: z.string().regex(/^[A-Z]{4}[0-9]{5}[A-Z]{1}$/, "Invalid TAN format").optional().or(z.literal('')),
     address: z.string().optional(),
     shippingAddress: z.string().optional(),
     city: z.string().optional(),
@@ -145,6 +147,8 @@ export default function EditClientPage() {
         website: '',
         taxName: '',
         gstin: '',
+        pan: '',
+        tan: '',
         address: '',
         shippingAddress: '',
         city: '',
@@ -191,6 +195,8 @@ export default function EditClientPage() {
                 website: data.website || '',
                 taxName: data.taxName || '',
                 gstin: data.gstin || '',
+                pan: data.pan || '',
+                tan: data.tan || '',
                 address: data.address || '',
                 shippingAddress: data.shippingAddress || '',
                 city: data.city || '',
@@ -543,6 +549,17 @@ export default function EditClientPage() {
                         <div className="ent-form-group">
                             <label className="ent-label">GST/VAT Number</label>
                             <input type="text" value={formData.gstin} onChange={e => handleChange('gstin', e.target.value.toUpperCase())} className="ent-input font-mono" placeholder="18AABCU960XXXXX" />
+                            {errors.gstin && <p className="ent-error">{errors.gstin}</p>}
+                        </div>
+                        <div className="ent-form-group">
+                            <label className="ent-label">PAN Number</label>
+                            <input type="text" value={formData.pan} onChange={e => handleChange('pan', e.target.value.toUpperCase())} className="ent-input font-mono" placeholder="ABCDE1234F" maxLength={10} />
+                            {errors.pan && <p className="ent-error">{errors.pan}</p>}
+                        </div>
+                        <div className="ent-form-group">
+                            <label className="ent-label">TAN Number</label>
+                            <input type="text" value={formData.tan} onChange={e => handleChange('tan', e.target.value.toUpperCase())} className="ent-input font-mono" placeholder="ABCD12345E" maxLength={10} />
+                            {errors.tan && <p className="ent-error">{errors.tan}</p>}
                         </div>
                         <div className="ent-form-group">
                             <label className="ent-label">Postal code</label>

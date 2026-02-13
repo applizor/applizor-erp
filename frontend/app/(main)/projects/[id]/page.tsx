@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from '@/lib/api';
 import { useProjectPermissions } from '@/hooks/useProjectPermissions';
+import { useSocket } from '@/contexts/SocketContext';
 import { MemberManagementModal } from '@/components/projects/MemberManagementModal';
 import {
     Clock, CheckCircle2, TrendingUp, AlertCircle,
@@ -19,34 +20,67 @@ export default function ProjectDashboard({ params }: { params: { id: string } })
 
     // Permission check handled by parent layout mostly, but good to have
     const { can } = useProjectPermissions(project);
+    const { socket } = useSocket();
+
+    const fetchData = useCallback(async () => {
+        try {
+            // Fetch basic project info + stats
+            const [projectRes, statsRes] = await Promise.all([
+                api.get(`/projects/${params.id}`),
+                api.get(`/projects/${params.id}/stats`).catch(() => ({ data: null })) // Soft fail on stats
+            ]);
+
+            setProject(projectRes.data);
+
+            // If backend returns stats, use them. Otherwise calculate basic ones on frontend
+            if (statsRes.data) {
+                setStats(statsRes.data);
+            } else {
+                // Fallback calculation
+                calculateFallbackStats(projectRes.data);
+            }
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setLoading(false);
+        }
+    }, [params.id]);
 
     useEffect(() => {
-        const fetchData = async () => {
-            try {
-                // Fetch basic project info + stats
-                const [projectRes, statsRes] = await Promise.all([
-                    api.get(`/projects/${params.id}`),
-                    api.get(`/projects/${params.id}/stats`).catch(() => ({ data: null })) // Soft fail on stats
-                ]);
-
-                setProject(projectRes.data);
-
-                // If backend returns stats, use them. Otherwise calculate basic ones on frontend
-                if (statsRes.data) {
-                    setStats(statsRes.data);
-                } else {
-                    // Fallback calculation
-                    calculateFallbackStats(projectRes.data);
-                }
-            } catch (error) {
-                console.error(error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
         fetchData();
-    }, [params.id]);
+    }, [fetchData]);
+
+    // WebSocket Real-time Sync
+    useEffect(() => {
+        if (!socket || !params.id) return;
+
+        const onConnect = () => socket.emit('join-project', params.id);
+        if (socket.connected) onConnect();
+
+        socket.on('connect', onConnect);
+
+        // Listen for ANY project-related update to refresh dashboard stats
+        const refresh = () => fetchData();
+
+        socket.on('TASK_CREATED', refresh);
+        socket.on('TASK_UPDATED', refresh);
+        socket.on('TASK_DELETED', refresh);
+        socket.on('MILESTONE_CREATED', refresh);
+        socket.on('MILESTONE_UPDATED', refresh);
+        socket.on('SPRINT_UPDATED', refresh);
+        socket.on('TIMER_UPDATED', refresh);
+
+        return () => {
+            socket.off('connect', onConnect);
+            socket.off('TASK_CREATED', refresh);
+            socket.off('TASK_UPDATED', refresh);
+            socket.off('TASK_DELETED', refresh);
+            socket.off('MILESTONE_CREATED', refresh);
+            socket.off('MILESTONE_UPDATED', refresh);
+            socket.off('SPRINT_UPDATED', refresh);
+            socket.off('TIMER_UPDATED', refresh);
+        };
+    }, [socket, params.id, fetchData]);
 
     const calculateFallbackStats = (proj: any) => {
         // Basic fallback logic

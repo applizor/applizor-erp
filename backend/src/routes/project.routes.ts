@@ -18,6 +18,7 @@ router.post('/', checkPermission('Project', 'create'), projectController.createP
 router.get('/:id', checkPermission('Project', 'read'), projectController.getProjectById);
 router.put('/:id', checkPermission('Project', 'update'), projectController.updateProject);
 router.delete('/:id', checkPermission('Project', 'delete'), projectController.deleteProject);
+router.get('/:id/sow', checkPermission('Project', 'read'), projectController.generateSOW);
 
 // Members
 router.post('/:id/members', checkPermission('Project', 'update'), projectController.addProjectMember);
@@ -45,6 +46,7 @@ router.delete('/sprints/:sprintId', checkPermission('Project', 'update'), projec
 // Automation
 router.get('/:projectId/automation', checkPermission('Project', 'read'), automationController.getRules);
 router.post('/:projectId/automation', checkPermission('Project', 'update'), automationController.createRule);
+router.put('/automation/:ruleId', checkPermission('Project', 'update'), automationController.updateRule);
 router.delete('/automation/:ruleId', checkPermission('Project', 'update'), automationController.deleteRule);
 
 // Tasks (handled via Task controller usually but can be here too)

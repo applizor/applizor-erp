@@ -10,7 +10,8 @@ import ProjectAutomationRuleModal from '@/components/projects/ProjectAutomationR
 export default function ProjectAutomationPage({ params }: { params: { id: string } }) {
     const [rules, setRules] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [selectedRule, setSelectedRule] = useState<any>(null);
     const toast = useToast();
 
     useEffect(() => {
@@ -85,7 +86,10 @@ export default function ProjectAutomationPage({ params }: { params: { id: string
                     </p>
                 </div>
                 <button
-                    onClick={() => setIsCreateModalOpen(true)}
+                    onClick={() => {
+                        setSelectedRule(null);
+                        setIsModalOpen(true);
+                    }}
                     className="bg-violet-600 text-white px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider hover:bg-violet-700 transition-all shadow-lg shadow-violet-200 flex items-center gap-2"
                 >
                     <Plus size={16} /> New Rule
@@ -102,7 +106,10 @@ export default function ProjectAutomationPage({ params }: { params: { id: string
                         Create your first automation rule to save time and reduce manual work.
                     </p>
                     <button
-                        onClick={() => setIsCreateModalOpen(true)}
+                        onClick={() => {
+                            setSelectedRule(null);
+                            setIsModalOpen(true);
+                        }}
                         className="text-violet-600 font-bold hover:underline font-black uppercase tracking-widest text-xs"
                     >
                         Create your first rule
@@ -152,26 +159,45 @@ export default function ProjectAutomationPage({ params }: { params: { id: string
                                 <div className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md ${rule.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
                                     {rule.isActive ? 'Active' : 'Inactive'}
                                 </div>
-                                <button
-                                    onClick={() => handleDelete(rule.id)}
-                                    className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors md:opacity-0 group-hover:opacity-100"
-                                    title="Delete Rule"
-                                >
-                                    <Trash2 size={16} />
-                                </button>
+                                <div className="flex items-center gap-1 md:opacity-0 group-hover:opacity-100 transition-all">
+                                    <button
+                                        onClick={() => {
+                                            setSelectedRule(rule);
+                                            setIsModalOpen(true);
+                                        }}
+                                        className="p-2 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all"
+                                        title="Edit Rule"
+                                    >
+                                        <Edit2 size={16} />
+                                    </button>
+                                    <button
+                                        onClick={() => handleDelete(rule.id)}
+                                        className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
+                                        title="Delete Rule"
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     ))}
                 </div>
             )}
 
-            {isCreateModalOpen && (
+            {isModalOpen && (
                 <ProjectAutomationRuleModal
                     projectId={params.id}
-                    onClose={() => setIsCreateModalOpen(false)}
+                    rule={selectedRule}
+                    onClose={() => {
+                        setIsModalOpen(false);
+                        setSelectedRule(null);
+                    }}
                     onSuccess={fetchRules}
                 />
             )}
         </div>
     );
 }
+
+// I need to add Edit/Settings icons if available, but for now I'll use standard ones
+import { Edit2 } from 'lucide-react';

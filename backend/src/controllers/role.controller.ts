@@ -7,7 +7,9 @@ export const SYSTEM_MODULES = [
     'Dashboard', 'Company', 'User', 'Role',
     'Client', 'Lead', 'LeadActivity', 'Quotation', 'QuotationTemplate', 'Invoice', 'Payment', 'Subscription',
     'Department', 'Position', 'Employee', 'Attendance', 'Leave', 'LeaveType', 'LeaveBalance', 'Shift', 'ShiftRoster', 'Payroll', 'Asset',
-    'Recruitment', 'Document',
+    'SalaryComponent', 'SalaryStructure', // New Payroll Modules
+    'Recruitment', 'RecruitmentBoard', // Enhanced Recruitment
+    'Document',
     'Project', 'ProjectTask', // Added Project modules
     'Timesheet', // Phase 9
     'Holiday', 'Contract'

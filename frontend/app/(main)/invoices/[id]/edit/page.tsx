@@ -47,10 +47,15 @@ export default function EditInvoicePage({ params }: { params: { id: string } }) 
                 })),
                 discount: Number(invoice.discount || 0),
                 clientId: invoice.clientId || '',
+                projectId: invoice.projectId || '', // Handle null projectId
                 type: invoice.type || 'invoice',
                 currency: invoice.currency || 'USD',
+                notes: invoice.notes || '',
+                terms: invoice.terms || '',
                 isRecurring: Boolean(invoice.isRecurring),
-                recurringInterval: invoice.recurringInterval || 'monthly'
+                recurringInterval: invoice.recurringInterval || 'monthly',
+                recurringStartDate: invoice.recurringStartDate ? new Date(invoice.recurringStartDate).toISOString().split('T')[0] : '',
+                recurringEndDate: invoice.recurringEndDate ? new Date(invoice.recurringEndDate).toISOString().split('T')[0] : ''
             };
 
             setInitialData(formattedData);

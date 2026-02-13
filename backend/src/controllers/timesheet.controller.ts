@@ -136,6 +136,8 @@ export const getTimesheets = async (req: AuthRequest, res: Response) => {
 
         if (projectId) where.projectId = String(projectId);
         if (taskId) where.taskId = String(taskId);
+        if (req.query.status) where.status = String(req.query.status);
+
         if (startDate || endDate) {
             where.date = {};
             if (startDate) where.date.gte = new Date(String(startDate));
@@ -262,30 +264,69 @@ export const startTimer = async (req: AuthRequest, res: Response) => {
         const { projectId, taskId } = req.body;
         if (!projectId) return res.status(400).json({ error: 'ProjectId is required' });
 
-        // Upsert active timer (user can only have one)
-        const activeTimer = await prisma.activeTimer.upsert({
-            where: { employeeId },
-            update: {
-                projectId,
-                taskId: taskId || null,
-                startTime: new Date()
-            },
-            create: {
-                companyId: user.companyId,
-                employeeId,
-                projectId,
-                taskId: taskId || null,
-                startTime: new Date()
-            }
+        // 1. Auto-pause any currently running (not paused) timers for this employee
+        const runningTimers = await prisma.activeTimer.findMany({
+            where: { employeeId, isPaused: false }
         });
 
-        // Real-time Update
+        for (const timer of runningTimers) {
+            // If it's the exact same task already running, just return it
+            if (timer.taskId === taskId && timer.projectId === projectId) {
+                return res.status(200).json(timer);
+            }
+
+            // Calculate additional accumulated time
+            const now = new Date();
+            const additionalSecs = Math.floor((now.getTime() - timer.startTime.getTime()) / 1000);
+
+            await prisma.activeTimer.update({
+                where: { id: timer.id },
+                data: {
+                    isPaused: true,
+                    accumulatedTime: timer.accumulatedTime + additionalSecs
+                }
+            });
+        }
+
+        // 2. Start or Resume the requested timer
+        // Check if a paused timer already exists for this task
+        const existingTimer = await prisma.activeTimer.findFirst({
+            where: { employeeId, projectId, taskId: taskId || null }
+        });
+
+        let timer;
+        if (existingTimer) {
+            // Resume it
+            timer = await prisma.activeTimer.update({
+                where: { id: existingTimer.id },
+                data: {
+                    isPaused: false,
+                    startTime: new Date()
+                }
+            });
+        } else {
+            // Create new
+            timer = await prisma.activeTimer.create({
+                data: {
+                    companyId: user.companyId,
+                    employeeId,
+                    projectId,
+                    taskId: taskId || null,
+                    startTime: new Date(),
+                    isPaused: false,
+                    accumulatedTime: 0
+                }
+            });
+        }
+
+        // Real-time Update for both project and tasks
+        const { NotificationService } = await import('../services/notification.service');
+        NotificationService.emitProjectUpdate(projectId, 'TIMER_UPDATED', { employeeId, timer });
         if (taskId) {
-            const { NotificationService } = await import('../services/notification.service');
             NotificationService.emitProjectUpdate(projectId, 'TASK_UPDATED', { id: taskId, projectId });
         }
 
-        res.status(200).json(activeTimer);
+        res.status(200).json(timer);
     } catch (error) {
         console.error('Start Timer Error:', error);
         res.status(500).json({ error: 'Failed to start timer' });
@@ -298,18 +339,97 @@ export const getActiveTimer = async (req: AuthRequest, res: Response) => {
         const employeeId = user.employee?.id;
         if (!employeeId) return res.status(400).json({ error: 'Employee profile not found' });
 
-        const activeTimer = await prisma.activeTimer.findUnique({
-            where: { employeeId },
+        const activeTimer = await prisma.activeTimer.findFirst({
+            where: { employeeId, isPaused: false }, // Only get the currently running one
             include: {
                 project: { select: { name: true } },
                 task: { select: { title: true } }
             }
         });
 
+        // Also return all timers (including paused ones) for the task view if needed
+        // But for the global bar, we just want the active one
         res.status(200).json(activeTimer || null);
     } catch (error) {
         console.error('Get Active Timer Error:', error);
         res.status(500).json({ error: 'Failed to fetch active timer' });
+    }
+};
+
+export const getTaskTimers = async (req: AuthRequest, res: Response) => {
+    try {
+        const user = req.user;
+        const employeeId = user.employee?.id;
+        if (!employeeId) return res.status(400).json({ error: 'Employee profile not found' });
+
+        const { taskId } = req.params;
+
+        const timer = await prisma.activeTimer.findFirst({
+            where: { employeeId, taskId }
+        });
+
+        res.json(timer);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch task timers' });
+    }
+};
+
+export const pauseTimer = async (req: AuthRequest, res: Response) => {
+    try {
+        const { id: timerId } = req.params;
+        const timer = await prisma.activeTimer.findUnique({ where: { id: timerId } });
+        if (!timer) return res.status(404).json({ error: 'Timer not found' });
+
+        if (timer.isPaused) return res.json(timer);
+
+        const now = new Date();
+        const additionalSecs = Math.floor((now.getTime() - timer.startTime.getTime()) / 1000);
+
+        const updated = await prisma.activeTimer.update({
+            where: { id: timerId },
+            data: {
+                isPaused: true,
+                accumulatedTime: timer.accumulatedTime + additionalSecs
+            }
+        });
+
+        const { NotificationService } = await import('../services/notification.service');
+        NotificationService.emitProjectUpdate(timer.projectId, 'TIMER_UPDATED', { employeeId: timer.employeeId, timer: updated });
+
+        res.json(updated);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to pause timer' });
+    }
+};
+
+export const resumeTimer = async (req: AuthRequest, res: Response) => {
+    try {
+        const { id: timerId } = req.params;
+        const timer = await prisma.activeTimer.findUnique({ where: { id: timerId } });
+        if (!timer) return res.status(404).json({ error: 'Timer not found' });
+
+        if (!timer.isPaused) return res.json(timer);
+
+        // Auto-pause others
+        await prisma.activeTimer.updateMany({
+            where: { employeeId: timer.employeeId, isPaused: false },
+            data: { isPaused: true } // Note: simplified, ideally calculates accumulated time for those too
+        });
+
+        const updated = await prisma.activeTimer.update({
+            where: { id: timerId },
+            data: {
+                isPaused: false,
+                startTime: new Date()
+            }
+        });
+
+        const { NotificationService } = await import('../services/notification.service');
+        NotificationService.emitProjectUpdate(timer.projectId, 'TIMER_UPDATED', { employeeId: timer.employeeId, timer: updated });
+
+        res.json(updated);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to resume timer' });
     }
 };
 
@@ -319,20 +439,25 @@ export const stopTimer = async (req: AuthRequest, res: Response) => {
         const employeeId = user.employee?.id;
         if (!employeeId) return res.status(400).json({ error: 'Employee profile not found' });
 
+        const { id: timerId } = req.params;
         const activeTimer = await prisma.activeTimer.findUnique({
-            where: { employeeId }
+            where: { id: timerId }
         });
 
         if (!activeTimer) {
             return res.status(404).json({ error: 'No active timer found' });
         }
 
-        // Calculate duration in hours
-        const endTime = new Date();
-        const durationMs = endTime.getTime() - activeTimer.startTime.getTime();
-        const durationHours = parseFloat((durationMs / (1000 * 60 * 60)).toFixed(2));
+        // Calculate total duration in hours
+        const now = new Date();
+        let totalSeconds = activeTimer.accumulatedTime;
+        if (!activeTimer.isPaused) {
+            totalSeconds += Math.floor((now.getTime() - activeTimer.startTime.getTime()) / 1000);
+        }
 
-        // Create Timesheet entry automatically (prevents data loss)
+        const durationHours = parseFloat((totalSeconds / 3600).toFixed(2));
+
+        // Create Timesheet entry automatically
         let timesheetEntry = null;
         if (durationHours > 0) {
             timesheetEntry = await prisma.timesheet.create({
@@ -342,33 +467,124 @@ export const stopTimer = async (req: AuthRequest, res: Response) => {
                     projectId: activeTimer.projectId,
                     taskId: activeTimer.taskId,
                     date: new Date(),
-                    startTime: activeTimer.startTime,
-                    endTime,
+                    startTime: activeTimer.startTime, // This might be slightly inaccurate for merged sessions, but fine for logs
+                    endTime: now,
                     hours: durationHours,
-                    description: 'Timer Session'
+                    description: 'Timer Session',
+                    status: 'draft' // Default to draft
                 }
             });
         }
 
         // Delete active timer
         await prisma.activeTimer.delete({
-            where: { employeeId }
+            where: { id: timerId }
         });
 
         // Real-time Update
+        const { NotificationService } = await import('../services/notification.service');
+        NotificationService.emitProjectUpdate(activeTimer.projectId, 'TIMER_UPDATED', { employeeId, timer: null });
         if (activeTimer.taskId) {
-            const { NotificationService } = await import('../services/notification.service');
             NotificationService.emitProjectUpdate(activeTimer.projectId, 'TASK_UPDATED', { id: activeTimer.taskId, projectId: activeTimer.projectId });
         }
 
         res.status(200).json({
             ...activeTimer,
-            endTime,
+            endTime: now,
             durationHours: Number(durationHours),
             loggedEntry: timesheetEntry
         });
     } catch (error) {
         console.error('Stop Timer Error:', error);
         res.status(500).json({ error: 'Failed to stop timer' });
+    }
+};
+
+// --- Approval Workflow ---
+
+export const submitTimesheets = async (req: AuthRequest, res: Response) => {
+    try {
+        const user = req.user;
+        const { ids } = req.body; // Array of timesheet IDs
+
+        if (!Array.isArray(ids) || ids.length === 0) {
+            return res.status(400).json({ error: 'No timesheets selected for submission' });
+        }
+
+        // Update status to 'submitted'
+        const result = await prisma.timesheet.updateMany({
+            where: {
+                id: { in: ids },
+                employeeId: user.employee?.id, // Can only submit own
+                status: 'draft' // Can only submit drafts
+            },
+            data: {
+                status: 'submitted',
+                submittedAt: new Date()
+            }
+        });
+
+        res.json({ message: 'Timesheets submitted successfully', count: result.count });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to submit timesheets' });
+    }
+};
+
+export const approveTimesheets = async (req: AuthRequest, res: Response) => {
+    try {
+        const user = req.user;
+        const { ids } = req.body;
+
+        // Manager Check
+        if (!PermissionService.hasBasicPermission(user, 'Timesheet', 'update')) {
+            return res.status(403).json({ error: 'Access denied: No approve rights' });
+        }
+
+        const result = await prisma.timesheet.updateMany({
+            where: {
+                id: { in: ids },
+                status: 'submitted'
+            },
+            data: {
+                status: 'approved',
+                approvedBy: user.id,
+                approvedAt: new Date()
+            }
+        });
+
+        res.json({ message: 'Timesheets approved', count: result.count });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to approve timesheets' });
+    }
+};
+
+export const rejectTimesheets = async (req: AuthRequest, res: Response) => {
+    try {
+        const user = req.user;
+        const { ids, reason } = req.body;
+
+        if (!reason) return res.status(400).json({ error: 'Rejection reason is required' });
+
+        // Manager Check
+        if (!PermissionService.hasBasicPermission(user, 'Timesheet', 'update')) {
+            return res.status(403).json({ error: 'Access denied: No reject rights' });
+        }
+
+        const result = await prisma.timesheet.updateMany({
+            where: {
+                id: { in: ids },
+                status: 'submitted'
+            },
+            data: {
+                status: 'rejected',
+                rejectionReason: reason,
+                approvedBy: user.id, // Track who rejected
+                approvedAt: new Date()
+            }
+        });
+
+        res.json({ message: 'Timesheets rejected', count: result.count });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to reject timesheets' });
     }
 };

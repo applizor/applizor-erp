@@ -4,13 +4,15 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { useToast } from '@/hooks/useToast';
 import api from '@/lib/api';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import {
     Plus, MoreVertical, Paperclip, MessageSquare, Bug, Bookmark, Layout, CheckSquare,
-    Filter, LayoutGrid, Users, Calendar, Clock
+    Filter, LayoutGrid, Users, Calendar, Clock, Copy, Edit2, Trash2, Link as LinkIcon
 } from 'lucide-react';
 import TaskDetailModal from '@/components/tasks/TaskDetailModal';
 import BulkTimeLogModal from '@/components/hrms/timesheets/BulkTimeLogModal';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import Portal from '@/components/ui/Portal';
 import { useSocket } from '@/contexts/SocketContext';
 import { useProjectPermissions } from '@/hooks/useProjectPermissions';
 import { CustomSelect } from '@/components/ui/CustomSelect';
@@ -51,6 +53,17 @@ export default function KanbanBoard() {
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
     const [isBulkLogOpen, setIsBulkLogOpen] = useState(false);
     const [quickLogTask, setQuickLogTask] = useState<any>(null);
+
+    // Dropdown & Action States
+    const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+    const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+    const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    // Deep Linking State
+    const searchParams = useSearchParams();
+    const deepLinkedTaskId = searchParams.get('taskId');
+    const [initialLoadHandled, setInitialLoadHandled] = useState(false);
 
     // Permissions
     const [project, setProject] = useState<any>(null);
@@ -110,14 +123,38 @@ export default function KanbanBoard() {
         socket.on('TASK_CREATED', refresh);
         socket.on('TASK_UPDATED', refresh);
         socket.on('TASK_DELETED', refresh);
+        socket.on('COMMENT_DELETED', refresh);
+        socket.on('TIMER_UPDATED', refresh);
 
         return () => {
             socket.off('connect', onConnect);
             socket.off('TASK_CREATED', refresh);
             socket.off('TASK_UPDATED', refresh);
             socket.off('TASK_DELETED', refresh);
+            socket.off('COMMENT_DELETED', refresh);
+            socket.off('TIMER_UPDATED', refresh);
         };
     }, [socket, projectId, fetchTasks]);
+
+    // Close menu on scroll or click outside
+    useEffect(() => {
+        const closeMenu = () => setActiveMenuId(null);
+        window.addEventListener('click', closeMenu);
+        window.addEventListener('scroll', closeMenu, true);
+        return () => {
+            window.removeEventListener('click', closeMenu);
+            window.removeEventListener('scroll', closeMenu, true);
+        };
+    }, []);
+
+    // Handle Deep Linking
+    useEffect(() => {
+        if (deepLinkedTaskId && !initialLoadHandled) {
+            setSelectedTaskId(deepLinkedTaskId);
+            setIsDetailOpen(true);
+            setInitialLoadHandled(true);
+        }
+    }, [deepLinkedTaskId, initialLoadHandled]);
 
     // Derived State: Distribute tasks into columns based on filters
     useEffect(() => {
@@ -179,6 +216,57 @@ export default function KanbanBoard() {
     const openTask = (taskId: string) => {
         setSelectedTaskId(taskId);
         setIsDetailOpen(true);
+        setActiveMenuId(null);
+    };
+
+    const handleDeleteTask = async () => {
+        if (!taskToDelete) return;
+        setIsDeleting(true);
+        try {
+            await api.delete(`/tasks/${taskToDelete.id}`);
+            toast.success('Task deleted');
+            fetchTasks();
+            setTaskToDelete(null);
+        } catch (error) {
+            toast.error('Failed to delete task');
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
+    const handleDuplicateTask = async (task: Task) => {
+        try {
+            const { id, _count, ...rest } = task as any;
+            await api.post('/tasks', {
+                ...rest,
+                title: `${rest.title} (Copy)`,
+                projectId,
+                assigneeId: rest.assignee?.id
+            });
+            toast.success('Task duplicated');
+            fetchTasks();
+            setActiveMenuId(null);
+        } catch (error) {
+            toast.error('Failed to duplicate task');
+        }
+    };
+
+    const handleCopyLink = (taskId: string) => {
+        const url = `${window.location.origin}${window.location.pathname}?taskId=${taskId}`;
+        navigator.clipboard.writeText(url);
+        toast.success('Task link copied!');
+        setActiveMenuId(null);
+    };
+
+    const handleMenuToggle = (e: React.MouseEvent, taskId: string) => {
+        e.stopPropagation();
+        if (activeMenuId === taskId) {
+            setActiveMenuId(null);
+        } else {
+            const rect = e.currentTarget.getBoundingClientRect();
+            setMenuPosition({ top: rect.bottom + 5, left: rect.right - 160 }); // Align right
+            setActiveMenuId(taskId);
+        }
     };
 
     return (
@@ -265,8 +353,8 @@ export default function KanbanBoard() {
                                                         <div className="flex justify-between items-start mb-3">
                                                             <div className="flex gap-1.5 flex-wrap">
                                                                 <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded border ${task.priority === 'urgent' ? 'bg-rose-50 text-rose-600 border-rose-100' :
-                                                                        task.priority === 'high' ? 'bg-orange-50 text-orange-600 border-orange-100' :
-                                                                            'bg-slate-50 text-slate-500 border-slate-100'
+                                                                    task.priority === 'high' ? 'bg-orange-50 text-orange-600 border-orange-100' :
+                                                                        'bg-slate-50 text-slate-500 border-slate-100'
                                                                     }`}>
                                                                     {task.priority}
                                                                 </span>
@@ -276,7 +364,12 @@ export default function KanbanBoard() {
                                                                     </span>
                                                                 )}
                                                             </div>
-                                                            <MoreVertical size={14} className="text-slate-300 opacity-0 group-hover:opacity-100 hover:text-slate-600" />
+                                                            <button
+                                                                onClick={(e) => handleMenuToggle(e, task.id)}
+                                                                className={`p-1 rounded transition-all ${activeMenuId === task.id ? 'bg-slate-100 text-slate-900' : 'text-slate-300 opacity-0 group-hover:opacity-100 hover:text-slate-600'}`}
+                                                            >
+                                                                <MoreVertical size={14} />
+                                                            </button>
                                                         </div>
 
                                                         {/* Content */}
@@ -362,6 +455,66 @@ export default function KanbanBoard() {
                     projectId: projectId as string,
                     taskId: quickLogTask?.id
                 }}
+            />
+
+            {/* Dropdown Menu Portal */}
+            {activeMenuId && (
+                <Portal>
+                    <div
+                        className="fixed z-[9999] bg-white rounded-md shadow-2xl border border-slate-100 w-40 overflow-hidden animate-in fade-in zoom-in duration-75"
+                        style={{ top: menuPosition.top, left: menuPosition.left }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="py-1">
+                            <button
+                                onClick={() => openTask(activeMenuId)}
+                                className="w-full text-left px-3 py-2 text-[10px] font-black uppercase text-slate-600 hover:bg-slate-50 flex items-center gap-2 transition-colors"
+                            >
+                                <Edit2 size={12} className="text-sky-500" /> Edit Detail
+                            </button>
+                            <button
+                                onClick={() => {
+                                    const task = tasks.find(t => t.id === activeMenuId);
+                                    if (task) handleDuplicateTask(task);
+                                }}
+                                className="w-full text-left px-3 py-2 text-[10px] font-black uppercase text-slate-600 hover:bg-slate-50 flex items-center gap-2 transition-colors"
+                            >
+                                <Copy size={12} className="text-violet-500" /> Duplicate
+                            </button>
+                            <button
+                                onClick={() => handleCopyLink(activeMenuId)}
+                                className="w-full text-left px-3 py-2 text-[10px] font-black uppercase text-slate-600 hover:bg-slate-50 flex items-center gap-2 transition-colors"
+                            >
+                                <LinkIcon size={12} className="text-emerald-500" /> Copy Link
+                            </button>
+                            <div className="h-[1px] bg-slate-50 my-1" />
+                            <button
+                                onClick={() => {
+                                    const task = tasks.find(t => t.id === activeMenuId);
+                                    if (task) {
+                                        setTaskToDelete(task);
+                                        setActiveMenuId(null);
+                                    }
+                                }}
+                                className="w-full text-left px-3 py-2 text-[10px] font-black uppercase text-rose-500 hover:bg-rose-50 flex items-center gap-2 transition-colors"
+                            >
+                                <Trash2 size={12} /> Delete Issue
+                            </button>
+                        </div>
+                    </div>
+                </Portal>
+            )}
+
+            <ConfirmDialog
+                isOpen={!!taskToDelete}
+                onClose={() => setTaskToDelete(null)}
+                onConfirm={handleDeleteTask}
+                title="Delete Issue"
+                message={`Are you sure you want to delete "${taskToDelete?.title}"? This action cannot be undone.`}
+                confirmText="Delete Issue"
+                cancelText="Cancel"
+                type="danger"
+                isLoading={isDeleting}
             />
         </div>
     );

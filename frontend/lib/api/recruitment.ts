@@ -90,6 +90,10 @@ export const candidatesApi = {
         const response = await api.put(`/recruitment/candidates/${id}/status`, data);
         return response.data;
     },
+    update: async (id: string, data: Partial<Candidate>) => {
+        const response = await api.put(`/recruitment/candidates/${id}`, data);
+        return response.data;
+    },
     delete: async (id: string) => {
         const response = await api.delete(`/recruitment/candidates/${id}`);
         return response.data;
@@ -99,6 +103,10 @@ export const candidatesApi = {
 export const interviewsApi = {
     schedule: async (data: Partial<Interview>) => {
         const response = await api.post('/recruitment/interviews', data);
+        return response.data;
+    },
+    reschedule: async (id: string, data: Partial<Interview>) => {
+        const response = await api.put(`/recruitment/interviews/${id}/reschedule`, data);
         return response.data;
     },
     getByCandidate: async (candidateId: string) => {

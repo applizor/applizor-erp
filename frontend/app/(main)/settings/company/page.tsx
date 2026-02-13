@@ -623,6 +623,69 @@ export default function CompanySettingsPage() {
                                 </div>
                             </div>
 
+                            {/* Section 3: Bank Details */}
+                            <div className="ent-card p-6">
+                                <h2 className="text-sm font-black text-gray-900 mb-6 flex items-center gap-2 uppercase tracking-tight border-b border-gray-100 pb-2">
+                                    <Building className="w-4 h-4 text-primary-600" />
+                                    Bank Account Details
+                                </h2>
+                                <p className="text-[10px] text-gray-500 mb-6 uppercase font-bold tracking-tight">
+                                    This information will be displayed on Invoices to facilitate client payments.
+                                </p>
+                                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                                    <div className="ent-form-group">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Bank Name</label>
+                                        <input
+                                            type="text"
+                                            value={company.bankName || ''}
+                                            onChange={e => setCompany({ ...company, bankName: e.target.value })}
+                                            className="ent-input w-full"
+                                            placeholder="e.g. HDFC Bank"
+                                        />
+                                    </div>
+                                    <div className="ent-form-group">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Account Holder Name</label>
+                                        <input
+                                            type="text"
+                                            value={company.bankAccountName || ''}
+                                            onChange={e => setCompany({ ...company, bankAccountName: e.target.value })}
+                                            className="ent-input w-full"
+                                            placeholder="e.g. Applizor Softech LLP"
+                                        />
+                                    </div>
+                                    <div className="ent-form-group">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Account Number</label>
+                                        <input
+                                            type="text"
+                                            value={company.bankAccountNumber || ''}
+                                            onChange={e => setCompany({ ...company, bankAccountNumber: e.target.value })}
+                                            className="ent-input w-full font-mono"
+                                            placeholder="e.g. 502000..."
+                                        />
+                                    </div>
+                                    <div className="ent-form-group">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">IFSC / SWIFT Code</label>
+                                        <input
+                                            type="text"
+                                            value={company.bankIfscCode || ''}
+                                            onChange={e => setCompany({ ...company, bankIfscCode: e.target.value })}
+                                            className="ent-input w-full font-mono uppercase"
+                                            placeholder="e.g. HDFC0001234"
+                                        />
+                                    </div>
+                                    <div className="ent-form-group sm:col-span-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Branch Name & Address</label>
+                                        <input
+                                            type="text"
+                                            value={company.bankBranch || ''}
+                                            onChange={e => setCompany({ ...company, bankBranch: e.target.value })}
+                                            className="ent-input w-full"
+                                            placeholder="e.g. Indiranagar, Bangalore"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
                             {/* Section 4: PDF Layout Settings */}
                             <div className="ent-card p-6 border-l-4 border-l-blue-500">
                                 <h2 className="text-sm font-black text-gray-900 mb-6 flex items-center gap-2 uppercase tracking-tight border-b border-gray-100 pb-2">

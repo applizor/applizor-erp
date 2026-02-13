@@ -1,15 +1,19 @@
+import express from 'express';
+import { authenticate } from '../middleware/auth';
+import { checkPermission } from '../middleware/auth';
+import * as ticketController from '../controllers/ticket.controller';
 
-import { Router } from 'express';
-import { createTicket, getTickets, updateTicket } from '../controllers/ticket.controller';
-import { authenticate, checkPermission } from '../middleware/auth';
-
-const router = Router();
+const router = express.Router();
 
 router.use(authenticate);
 
-// Everyone can create tickets (usually), typically tied to 'Ticket' module access
-router.post('/', checkPermission('Ticket', 'create'), createTicket);
-router.get('/', checkPermission('Ticket', 'read'), getTickets);
-router.put('/:id', checkPermission('Ticket', 'update'), updateTicket);
+// Lifecycle
+router.post('/', ticketController.createTicket);
+router.get('/', ticketController.getTickets);
+router.get('/:id', ticketController.getTicketById);
+router.put('/:id', ticketController.updateTicket);
+
+// Thread
+router.post('/:id/reply', ticketController.addReply);
 
 export default router;

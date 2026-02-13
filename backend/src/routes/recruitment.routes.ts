@@ -24,13 +24,18 @@ router.put('/candidates/:candidateId/stage', authenticate, kanbanController.upda
 router.post('/candidates', authenticate, candidateController.createCandidate);
 router.get('/candidates', authenticate, candidateController.getCandidates);
 router.get('/candidates/:id', authenticate, candidateController.getCandidateById);
+router.put('/candidates/:id', authenticate, candidateController.updateCandidate);
 router.put('/candidates/:id/status', authenticate, candidateController.updateCandidateStatus);
 router.delete('/candidates/:id', authenticate, candidateController.deleteCandidate);
 
 // Interview Routes
 router.post('/interviews', authenticate, interviewController.scheduleInterview);
+router.put('/interviews/:id/reschedule', authenticate, interviewController.rescheduleInterview);
+router.get('/interviews', authenticate, interviewController.getAllInterviews); // Generic endpoint
+router.get('/interviews/:id', authenticate, interviewController.getInterviewById); // Single interview
 router.get('/candidates/:candidateId/interviews', authenticate, interviewController.getCandidateInterviews);
 router.put('/interviews/:id/feedback', authenticate, interviewController.updateFeedback);
+router.post('/interviews/:id/scorecard', authenticate, interviewController.saveScorecard); // Frontend specific
 router.get('/interviews/:id/scorecard', authenticate, interviewController.getScorecard);
 router.delete('/interviews/:id', authenticate, interviewController.cancelInterview);
 
@@ -45,6 +50,7 @@ router.post('/email/send', authenticate, emailTemplateController.sendMockEmail);
 // Offer Letter Routes
 router.post('/offers', authenticate, offerController.createOffer);
 router.get('/candidates/:candidateId/offer', authenticate, offerController.getOffer);
+router.get('/candidates/:candidateId/offer/download', authenticate, offerController.downloadOfferLetter);
 router.put('/offers/:id/status', authenticate, offerController.updateOfferStatus);
 
 export default router;

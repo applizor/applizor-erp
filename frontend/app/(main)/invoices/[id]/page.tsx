@@ -159,6 +159,32 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
         }
     };
 
+    const handleDeletePayment = async (paymentId: string) => {
+        if (!confirm('Are you sure you want to delete this payment record? This will update the invoice balance.')) return;
+
+        try {
+            setActionLoading(true);
+            const token = localStorage.getItem('token');
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/payments/${paymentId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (res.ok) {
+                toast.success('Payment record deleted');
+                loadInvoice(); // Reload to update balance and status
+            } else {
+                throw new Error('Failed to delete payment');
+            }
+        } catch (error) {
+            toast.error('Could not delete payment record');
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
     if (loading) return (
         <div className="flex items-center justify-center min-h-[60vh]">
             <LoadingSpinner size="lg" />
@@ -513,17 +539,28 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
                                                         <th className="text-[10px] uppercase tracking-widest">Method</th>
                                                         <th className="text-[10px] uppercase tracking-widest">Transaction ID</th>
                                                         <th className="text-right text-[10px] uppercase tracking-widest">Amount</th>
+                                                        <th className="w-10"></th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-gray-50 border-b border-gray-50">
                                                     {invoice.payments.map((payment: any) => (
-                                                        <tr key={payment.id} className="hover:bg-gray-50/50 transition-colors">
+                                                        <tr key={payment.id} className="hover:bg-gray-50/50 transition-colors group">
                                                             <td className="py-4 font-bold text-gray-900 text-xs">
                                                                 {new Date(payment.paymentDate || payment.createdAt).toLocaleDateString()}
                                                             </td>
                                                             <td className="py-4 text-xs font-bold text-gray-600 uppercase">{payment.paymentMethod?.replace('-', ' ')}</td>
                                                             <td className="py-4 text-xs font-mono text-gray-500">{payment.transactionId || '--'}</td>
                                                             <td className="py-4 text-right font-black text-emerald-600 text-xs">{formatCurrency(payment.amount)}</td>
+                                                            <td className="py-4 text-center">
+                                                                <button
+                                                                    onClick={() => handleDeletePayment(payment.id)}
+                                                                    disabled={actionLoading}
+                                                                    className="text-gray-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all p-1"
+                                                                    title="Delete Payment Record"
+                                                                >
+                                                                    <Trash2 size={12} />
+                                                                </button>
+                                                            </td>
                                                         </tr>
                                                     ))}
                                                 </tbody>

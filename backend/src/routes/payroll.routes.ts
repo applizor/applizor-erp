@@ -7,7 +7,9 @@ import {
     getEmployeeSalaryStructure,
     upsertEmployeeSalaryStructure,
     downloadPayslip,
-    approvePayroll
+    approvePayroll,
+    getStatutoryConfig,
+    updateStatutoryConfig
 } from '../controllers/payroll.controller';
 import { authenticate } from '../middleware/auth';
 
@@ -16,7 +18,8 @@ const router = express.Router();
 router.post('/process', authenticate, processPayroll);
 router.post('/approve/:id', authenticate, approvePayroll);
 router.get('/list', authenticate, getPayrollList);
-router.get('/download/:id', authenticate, downloadPayslip);
+router.get('/statutory-config', authenticate, getStatutoryConfig);
+router.post('/statutory-config', authenticate, updateStatutoryConfig);
 
 // Salary Components
 router.get('/components', authenticate, getSalaryComponents);

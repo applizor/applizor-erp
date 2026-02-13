@@ -1,9 +1,10 @@
 import { Response } from 'express';
 import prisma from '../prisma/client';
 import { AuthRequest } from '../middleware/auth';
-import { DocumentGenerationService } from '../services/document.service';
+import { PDFService } from '../services/pdf.service';
 import { ensureAccount, createJournalEntry } from '../services/accounting.service';
 import { PermissionService } from '../services/permission.service';
+import { PayrollService } from '../services/payroll.service';
 
 // --- Salary Component Master ---
 
@@ -32,13 +33,9 @@ export const createSalaryComponent = async (req: AuthRequest, res: Response) => 
         const userId = req.userId;
         if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-        // Components are Config. Require Create on Payroll.
-        // Maybe also 'Update' or 'Delete' to imply elevated privileges?
-        // Let's stick to 'Create' but ensure it's not open to everyone having 'Payroll' access (like standard employees).
-        // Standard Employees usually have 'Read' (Owned) on Payroll. NOT Create.
-        // So 'Create' on Payroll is safe for Admins/HR.
-        if (!PermissionService.hasBasicPermission(req.user, 'Payroll', 'create')) {
-            return res.status(403).json({ error: 'Access denied: No create rights for Payroll Config' });
+        // Components are Config. Require Create on SalaryComponent.
+        if (!PermissionService.hasBasicPermission(req.user, 'SalaryComponent', 'create')) {
+            return res.status(403).json({ error: 'Access denied: No create rights for SalaryComponent' });
         }
 
         const companyId = req.user?.companyId;
@@ -59,6 +56,34 @@ export const createSalaryComponent = async (req: AuthRequest, res: Response) => 
     }
 };
 
+// --- Statutory Configuration ---
+
+export const getStatutoryConfig = async (req: AuthRequest, res: Response) => {
+    try {
+        if (!PermissionService.hasBasicPermission(req.user, 'Payroll', 'read')) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+        const companyId = req.user!.companyId;
+        const config = await PayrollService.getStatutoryConfig(companyId);
+        res.json(config);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch statutory config' });
+    }
+};
+
+export const updateStatutoryConfig = async (req: AuthRequest, res: Response) => {
+    try {
+        if (!PermissionService.hasBasicPermission(req.user, 'Payroll', 'update')) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+        const companyId = req.user!.companyId;
+        const config = await PayrollService.saveStatutoryConfig(companyId, req.body);
+        res.json(config);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to update statutory config' });
+    }
+};
+
 // --- Employee Salary Structure ---
 
 export const getEmployeeSalaryStructure = async (req: AuthRequest, res: Response) => {
@@ -73,7 +98,7 @@ export const getEmployeeSalaryStructure = async (req: AuthRequest, res: Response
         const currentUserEmployee = await prisma.employee.findUnique({ where: { userId } });
         const currentEmpId = currentUserEmployee?.id;
 
-        const scope = PermissionService.getPermissionScope(req.user, 'Payroll', 'read');
+        const scope = PermissionService.getPermissionScope(req.user, 'SalaryStructure', 'read');
         let hasAccess = false;
 
         if (scope.all) {
@@ -111,9 +136,9 @@ export const upsertEmployeeSalaryStructure = async (req: AuthRequest, res: Respo
         const userId = req.userId;
         if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-        // Updating Structure requires Update permission on Payroll
-        if (!PermissionService.hasBasicPermission(req.user, 'Payroll', 'update')) {
-            return res.status(403).json({ error: 'Access denied: No update rights for Payroll' });
+        // Updating Structure requires Update permission on SalaryStructure
+        if (!PermissionService.hasBasicPermission(req.user, 'SalaryStructure', 'update')) {
+            return res.status(403).json({ error: 'Access denied: No update rights for SalaryStructure' });
         }
 
         const { employeeId } = req.params;
@@ -208,8 +233,9 @@ export const processPayroll = async (req: AuthRequest, res: Response) => {
 
             const totalDays = new Date(year, month, 0).getDate();
 
-            // Calculate LOP
-            const absentDays = emp.attendances.filter(a => a.status === 'absent').length;
+            // Calculate LOP (Reuse pre-fetched attendances)
+            const attendanceMetrics = PayrollService.computeAttendanceStats(emp.attendances);
+            const absentDays = attendanceMetrics.lopDays;
 
             const structure = emp.salaryStructureDetails;
             let grossEarned = 0;
@@ -231,9 +257,40 @@ export const processPayroll = async (req: AuthRequest, res: Response) => {
                     grossEarned += amount;
                     earningsBreakdown[component.name] = amount;
                 } else if (component.type === 'deduction') {
-                    totalDeductions += amount;
-                    deductionsBreakdown[component.name] = amount;
+                    // Check if it's a statutory deduction that should be auto-calculated
+                    if (component.name.toUpperCase().includes('PF')) {
+                        // We will calculate later based on basic
+                    } else if (component.name.toUpperCase().includes('ESI')) {
+                        // We will calculate later based on gross
+                    } else {
+                        totalDeductions += amount;
+                        deductionsBreakdown[component.name] = amount;
+                    }
                 }
+            }
+
+            // --- Statutory Calculations ---
+            const basicAmount = earningsBreakdown['Basic'] || 0;
+            const statutory = await PayrollService.calculateStatutoryDeductions(req.user!.companyId, basicAmount, grossEarned);
+
+            // Integrate PF
+            const pfComp = structure.components.find(c => c.component.name.toUpperCase().includes('PF'));
+            if (pfComp) {
+                deductionsBreakdown[pfComp.component.name] = statutory.pf.employee;
+                totalDeductions += statutory.pf.employee;
+            }
+
+            // Integrate ESI
+            const esiComp = structure.components.find(c => c.component.name.toUpperCase().includes('ESI'));
+            if (esiComp && statutory.esi.employee > 0) {
+                deductionsBreakdown[esiComp.component.name] = statutory.esi.employee;
+                totalDeductions += statutory.esi.employee;
+            }
+
+            // Integrate PT (Professional Tax)
+            if (statutory.pt > 0) {
+                deductionsBreakdown['Professional Tax'] = statutory.pt;
+                totalDeductions += statutory.pt;
             }
 
             const netSalary = grossEarned - totalDeductions;
@@ -466,11 +523,12 @@ export const downloadPayslip = async (req: AuthRequest, res: Response) => {
             where: { id: payroll.employee.companyId }
         });
 
-        // const buffer = await DocumentGenerationService.generatePayslip(payroll, company);
-        // res.setHeader('Content-Type', 'application/pdf');
-        // res.setHeader('Content-Disposition', `attachment; filename=Payslip_${payroll.month}_${payroll.year}_${payroll.employee.firstName}.pdf`);
-        // res.send(buffer);
-        res.status(501).json({ error: 'Payslip generation not implemented yet' });
+        if (!company) return res.status(404).json({ error: 'Company not found' });
+
+        const buffer = await PDFService.generatePayslip(payroll, company);
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename=Payslip_${payroll.month}_${payroll.year}_${payroll.employee.firstName}.pdf`);
+        res.send(buffer);
 
     } catch (error) {
         console.error('Download payslip error:', error);

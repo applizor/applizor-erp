@@ -71,10 +71,11 @@ export default function Sidebar() {
         { name: 'Roles & Permissions', href: '/settings/roles', icon: ShieldCheck, category: 'Settings', module: 'Role' },
 
         // Recruitment
-        { name: 'Job Openings', href: '/hrms/recruitment/jobs', icon: Briefcase, category: 'Recruitment', module: 'Recruitment' },
-        { name: 'Kanban Board', href: '/hrms/recruitment/board', icon: LayoutDashboard, category: 'Recruitment', module: 'Recruitment' },
-        { name: 'Interviews', href: '/hrms/recruitment/interviews', icon: UserCircle, category: 'Recruitment', module: 'Recruitment' },
-        { name: 'Doc Templates', href: '/hrms/templates', icon: Copy, category: 'Recruitment', module: 'DocumentTemplate' },
+        { name: 'Job Openings', href: '/recruitment/jobs', icon: Briefcase, category: 'Recruitment', module: 'Recruitment' },
+        { name: 'Candidates', href: '/recruitment/candidates', icon: Users, category: 'Recruitment', module: 'Recruitment' },
+        { name: 'Interviews', href: '/recruitment/interviews', icon: UserCircle, category: 'Recruitment', module: 'Recruitment' },
+        { name: 'Kanban Board', href: '/recruitment/board', icon: LayoutDashboard, category: 'Recruitment', module: 'RecruitmentBoard' },
+        { name: 'Doc Templates', href: '/recruitment/templates', icon: Copy, category: 'Recruitment', module: 'DocumentTemplate' },
 
         // CRM (Sales)
         { name: 'Leads', href: '/leads', icon: LineChart, category: 'CRM', module: 'Lead' },
@@ -83,13 +84,14 @@ export default function Sidebar() {
         { name: 'Quote Templates', href: '/quotations/templates', icon: Copy, category: 'CRM', module: 'QuotationTemplate' },
         { name: 'Contracts', href: '/crm/contracts', icon: ShieldCheck, category: 'CRM', module: 'Contract' },
 
-        // Finance
-        { name: 'Invoices', href: '/invoices', icon: FileText, category: 'Finance', module: 'Invoice' },
-        { name: 'Run Payroll', href: '/hrms/payroll/run', icon: Banknote, category: 'Finance', module: 'Payroll' },
-        { name: 'My Payslips', href: '/hrms/payroll/my-payslips', icon: FileSpreadsheet, category: 'Finance', module: 'Payroll', action: 'read' },
-        { name: 'Salary Components', href: '/hrms/payroll/components', icon: Layers, category: 'Finance', module: 'Payroll' },
-        { name: 'Payslips Ledger', href: '/hrms/payroll/payslips', icon: FileSpreadsheet, category: 'Finance', module: 'Payroll' },
-        { name: 'Accounting', href: '/accounting', icon: Activity, category: 'Finance', module: 'Invoice' },
+        // Finance & Payroll
+        { name: 'Invoices', href: '/invoices', icon: FileText, category: 'Finance & Payroll', module: 'Invoice' },
+        { name: 'Payroll Cycles', href: '/payroll/run', icon: Banknote, category: 'Finance & Payroll', module: 'Payroll' },
+        { name: 'My Payslips', href: '/payroll/my-payslips', icon: FileSpreadsheet, category: 'Finance & Payroll', module: 'Payroll', action: 'read' },
+        { name: 'Salary Units', href: '/payroll/components', icon: Layers, category: 'Finance & Payroll', module: 'SalaryComponent' },
+        { name: 'Structure Admin', href: '/payroll/structure', icon: Edit, category: 'Finance & Payroll', module: 'SalaryStructure' },
+        { name: 'Payroll Ledger', href: '/payroll/payslips', icon: FileSpreadsheet, category: 'Finance & Payroll', module: 'Payroll' },
+        { name: 'Accounting', href: '/accounting', icon: Activity, category: 'Finance & Payroll', module: 'Invoice' },
 
         // Ops & Docs
         { name: 'Projects', href: '/projects', icon: LayoutDashboard, category: 'Operations', module: 'Project' },

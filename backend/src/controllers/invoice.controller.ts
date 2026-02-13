@@ -285,6 +285,7 @@ export const generateInvoicePDF = async (req: AuthRequest, res: Response) => {
         pincode: invoice.client.pincode || undefined,
         gstin: invoice.client.gstin || undefined,
         pan: invoice.client.pan || undefined,
+        tan: invoice.client.tan || undefined,
         website: invoice.client.website || undefined,
       } : undefined,
       items: invoice.items.map(item => ({
@@ -319,9 +320,15 @@ export const generateInvoicePDF = async (req: AuthRequest, res: Response) => {
         pdfMarginBottom: (invoice.company as any).pdfMarginBottom || undefined,
         pdfMarginLeft: (invoice.company as any).pdfMarginLeft || undefined,
         pdfMarginRight: (invoice.company as any).pdfMarginRight || undefined,
-        pdfContinuationTop: (invoice.company as any).pdfContinuationTop || undefined
+        pdfContinuationTop: (invoice.company as any).pdfContinuationTop || undefined,
+        bankName: (invoice.company as any).bankName || undefined,
+        bankAccountName: (invoice.company as any).bankAccountName || undefined,
+        bankAccountNumber: (invoice.company as any).bankAccountNumber || undefined,
+        bankIfscCode: (invoice.company as any).bankIfscCode || undefined,
+        bankBranch: (invoice.company as any).bankBranch || undefined
       },
-      useLetterhead: req.body.useLetterhead === true || req.query.useLetterhead === 'true'
+      useLetterhead: req.body.useLetterhead === true || req.query.useLetterhead === 'true',
+      includeBankDetails: invoice.includeBankDetails
     });
 
     // Log Activity
@@ -541,9 +548,15 @@ export const sendInvoice = async (req: AuthRequest, res: Response) => {
         pdfMarginBottom: (invoice.company as any).pdfMarginBottom || undefined,
         pdfMarginLeft: (invoice.company as any).pdfMarginLeft || undefined,
         pdfMarginRight: (invoice.company as any).pdfMarginRight || undefined,
-        pdfContinuationTop: (invoice.company as any).pdfContinuationTop || undefined
+        pdfContinuationTop: (invoice.company as any).pdfContinuationTop || undefined,
+        bankName: (invoice.company as any).bankName || undefined,
+        bankAccountName: (invoice.company as any).bankAccountName || undefined,
+        bankAccountNumber: (invoice.company as any).bankAccountNumber || undefined,
+        bankIfscCode: (invoice.company as any).bankIfscCode || undefined,
+        bankBranch: (invoice.company as any).bankBranch || undefined
       },
-      useLetterhead: req.body.useLetterhead === true
+      useLetterhead: req.body.useLetterhead === true,
+      includeBankDetails: invoice.includeBankDetails
     });
 
     const publicUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/portal/invoices/${invoice.id}`;
@@ -719,6 +732,7 @@ export const batchSendInvoices = async (req: AuthRequest, res: Response) => {
             pincode: invoice.client.pincode || undefined,
             gstin: invoice.client.gstin || undefined,
             pan: invoice.client.pan || undefined,
+            tan: invoice.client.tan || undefined,
             website: invoice.client.website || undefined,
           } : undefined,
           items: invoice.items.map(item => ({
@@ -753,9 +767,15 @@ export const batchSendInvoices = async (req: AuthRequest, res: Response) => {
             pdfMarginBottom: (invoice.company as any).pdfMarginBottom || undefined,
             pdfMarginLeft: (invoice.company as any).pdfMarginLeft || undefined,
             pdfMarginRight: (invoice.company as any).pdfMarginRight || undefined,
-            pdfContinuationTop: (invoice.company as any).pdfContinuationTop || undefined
+            pdfContinuationTop: (invoice.company as any).pdfContinuationTop || undefined,
+            bankName: (invoice.company as any).bankName || undefined,
+            bankAccountName: (invoice.company as any).bankAccountName || undefined,
+            bankAccountNumber: (invoice.company as any).bankAccountNumber || undefined,
+            bankIfscCode: (invoice.company as any).bankIfscCode || undefined,
+            bankBranch: (invoice.company as any).bankBranch || undefined
           },
-          useLetterhead: true
+          useLetterhead: true,
+          includeBankDetails: invoice.includeBankDetails
         });
         emailService.sendInvoiceEmail(invoice.client.email, invoice, pdfBuffer).catch(err => {
           console.error(`Failed to send batch email for ${invoice.invoiceNumber}`, err);

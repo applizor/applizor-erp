@@ -28,6 +28,7 @@ export interface CreateInvoiceInput {
     recurringStartDate?: Date;
     recurringEndDate?: Date;
     recurringNextRun?: Date;
+    includeBankDetails?: boolean;
 }
 
 export class InvoiceService {
@@ -118,14 +119,32 @@ export class InvoiceService {
         const prefix = invoiceData.type === 'quotation' ? 'QTN' : 'INV';
         const currentYear = new Date().getFullYear();
 
-        const count = await prisma.invoice.count({
+        // Find the last invoice number for this year to ensure uniqueness
+        const lastInvoice = await prisma.invoice.findFirst({
             where: {
                 companyId: invoiceData.companyId,
-                type: invoiceData.type || 'invoice'
+                type: invoiceData.type || 'invoice',
+                invoiceNumber: {
+                    startsWith: `${prefix}-${currentYear}-`
+                }
+            },
+            orderBy: {
+                invoiceNumber: 'desc'
             }
         });
 
-        const invoiceNumber = `${prefix}-${currentYear}-${String(count + 1).padStart(5, '0')}`;
+        let nextNumber = 1;
+        if (lastInvoice && lastInvoice.invoiceNumber) {
+            const parts = lastInvoice.invoiceNumber.split('-');
+            if (parts.length === 3) {
+                const lastSeq = parseInt(parts[2], 10);
+                if (!isNaN(lastSeq)) {
+                    nextNumber = lastSeq + 1;
+                }
+            }
+        }
+
+        const invoiceNumber = `${prefix}-${currentYear}-${String(nextNumber).padStart(5, '0')}`;
 
         try {
             return await prisma.$transaction(async (tx) => {
@@ -582,7 +601,9 @@ export class InvoiceService {
                         total: new Decimal(total),
                         isRecurring: invoiceData.isRecurring || false,
                         recurringInterval: invoiceData.recurringInterval,
-                        nextOccurrence: invoiceData.nextOccurrence,
+                        recurringStartDate: invoiceData.recurringStartDate ? new Date(invoiceData.recurringStartDate) : undefined,
+                        recurringEndDate: invoiceData.recurringEndDate ? new Date(invoiceData.recurringEndDate) : null,
+                        nextOccurrence: invoiceData.nextOccurrence ? new Date(invoiceData.nextOccurrence) : undefined,
                         items: {
                             create: processedItems.map(item => ({
                                 description: item.description,

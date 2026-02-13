@@ -577,3 +577,43 @@ export const notifyMention = async (recipient: { email: string, firstName: strin
 
     return sendEmail(recipient.email, subject, html);
 };
+
+export const sendInterviewInvite = async (
+    to: string,
+    details: {
+        candidateName: string;
+        round: number;
+        type: string;
+        scheduledAt: Date | string;
+        interviewer: string;
+        meetingLink?: string;
+    }
+) => {
+    const subject = `Interview Invitation: Round ${details.round} - ${details.type}`;
+    const dateStr = new Date(details.scheduledAt).toLocaleString();
+
+    const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="background-color: #0f172a; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+                <h2 style="color: white; margin: 0;">Interview Invitation</h2>
+            </div>
+            <div style="border: 1px solid #e2e8f0; padding: 30px; border-radius: 0 0 8px 8px; background-color: white;">
+                <p>Dear <strong>${details.candidateName}</strong>,</p>
+                <p>We are pleased to invite you to an interview for the following position.</p>
+                
+                <div style="background-color: #f8fafc; padding: 20px; border-radius: 6px; margin: 20px 0; border-left: 4px solid #0f172a;">
+                    <p style="margin: 5px 0;"><strong>Round:</strong> ${details.round} (${details.type})</p>
+                    <p style="margin: 5px 0;"><strong>Date & Time:</strong> ${dateStr}</p>
+                    <p style="margin: 5px 0;"><strong>Interviewer:</strong> ${details.interviewer}</p>
+                    ${details.meetingLink ? `<p style="margin: 5px 0;"><strong>Meeting Link:</strong> <a href="${details.meetingLink}">${details.meetingLink}</a></p>` : ''}
+                </div>
+
+                <p>Please ensure you are available 5 minutes prior to the scheduled time.</p>
+                
+                <p>Best regards,<br/>${process.env.COMPANY_NAME || 'Applizor'} Recruitment Team</p>
+            </div>
+        </div>
+    `;
+
+    return sendEmail(to, subject, html);
+};

@@ -77,8 +77,9 @@ export default function EditRolePage({ params }: { params: { id: string } }) {
             }
 
             setMatrix(initMatrix);
-        } catch (error) {
+        } catch (error: any) {
             console.error('Failed to fetch data', error);
+            toast.error('Failed to load role data. Check connection.');
         } finally {
             setFetching(false);
         }
