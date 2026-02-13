@@ -1,5 +1,6 @@
 import prisma from '../prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
+import * as accountingService from './accounting.service';
 
 export interface InvoiceItemInput {
     description: string;
@@ -207,6 +208,12 @@ export class InvoiceService {
                     }
                 });
 
+                // Auto-post if not quotation and status is sent (usually created as draft first)
+                // But if it's immediately created as 'sent' (unlikely for invoice but possible for conversion)
+                if (invoice.type !== 'quotation' && invoice.status === 'sent') {
+                    await accountingService.postInvoiceToLedger(invoice.id);
+                }
+
                 return invoice;
             });
         } catch (error) {
@@ -263,6 +270,9 @@ export class InvoiceService {
                     details: `Deleted invoice ${invoice.invoiceNumber}`
                 }
             });
+
+            // Cleanup ledger
+            await accountingService.deleteLedgerPostings(`INV-${invoice.invoiceNumber}`);
 
             return await tx.invoice.delete({
                 where: { id }
@@ -326,7 +336,7 @@ export class InvoiceService {
                 }
             });
 
-            await tx.payment.create({
+            const pay = await tx.payment.create({
                 data: {
                     invoiceId,
                     amount: new Decimal(amount),
@@ -336,6 +346,14 @@ export class InvoiceService {
                     status: 'success'
                 }
             });
+
+            // Post to Ledger
+            await accountingService.postPaymentToLedger(pay.id);
+
+            // Ensure invoice itself is posted if it transitioned out of draft
+            if (status !== 'draft') {
+                await accountingService.postInvoiceToLedger(invoice.id);
+            }
 
             return updatedInvoice;
         });
@@ -640,6 +658,9 @@ export class InvoiceService {
                         details: `Updated invoice ${invoice.invoiceNumber}`
                     }
                 });
+
+                // Sync ledger (postInvoiceToLedger handles sync/deletion logic)
+                await accountingService.postInvoiceToLedger(invoice.id);
 
                 return invoice;
             });

@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import prisma from '../prisma/client';
 import { AuthRequest } from '../middleware/auth';
 import paymentService from '../services/payment.service';
+import * as accountingService from '../services/accounting.service';
 
 export const createPaymentLink = async (req: AuthRequest, res: Response) => {
   try {
@@ -112,6 +113,13 @@ export const handlePaymentWebhook = async (req: Request, res: Response) => {
           },
         });
 
+        // Post to Ledger
+        try {
+          await accountingService.postPaymentToLedger(paymentRecord.id);
+        } catch (postError) {
+          console.error('Failed to post webhook payment to ledger:', postError);
+        }
+
         // Update invoice
         if (paymentRecord.invoice) {
           const newPaidAmount = Number(paymentRecord.invoice.paidAmount) + (payment.amount / 100);
@@ -169,6 +177,13 @@ export const verifyPayment = async (req: AuthRequest, res: Response) => {
           status: 'success',
         },
       });
+
+      // Post to Ledger
+      try {
+        await accountingService.postPaymentToLedger(payment.id);
+      } catch (postError) {
+        console.error('Failed to post verified payment to ledger:', postError);
+      }
 
       // Update invoice
       // payment.amount is Decimal, we need to convert. paymentDetails.amount is from Razorpay (paise)
@@ -299,6 +314,9 @@ export const deletePayment = async (req: AuthRequest, res: Response) => {
       await tx.payment.delete({
         where: { id }
       });
+
+      // Cleanup ledger
+      await accountingService.deleteLedgerPostings(`PAY-${id.slice(-6).toUpperCase()}`);
 
       // 3. Log Activity
       await tx.auditLog.create({

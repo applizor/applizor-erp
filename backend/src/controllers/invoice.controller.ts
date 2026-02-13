@@ -8,6 +8,7 @@ import * as emailService from '../services/email.service';
 import { PDFService } from '../services/pdf.service';
 import { v4 as uuidv4 } from 'uuid';
 import { PermissionService } from '../services/permission.service';
+import * as accountingService from '../services/accounting.service';
 
 /**
  * Create a new invoice
@@ -615,6 +616,13 @@ export const updateInvoiceStatus = async (req: AuthRequest, res: Response) => {
       console.error('Failed to log status update:', logError);
     }
 
+    // Auto-post to ledger to sync changes (postInvoiceToLedger handles draft/deletion sync)
+    try {
+      await accountingService.postInvoiceToLedger(id);
+    } catch (postError) {
+      console.error('Failed to sync invoice ledger status:', postError);
+    }
+
     res.json({ message: 'Invoice status updated', invoice });
   } catch (error: any) {
     res.status(500).json({ error: 'Failed to update status' });
@@ -635,6 +643,15 @@ export const batchUpdateStatus = async (req: AuthRequest, res: Response) => {
       where: { id: { in: ids } },
       data: { status }
     });
+
+    // Sync all invoices with ledger
+    for (const id of ids) {
+      try {
+        await accountingService.postInvoiceToLedger(id);
+      } catch (postError) {
+        console.error(`Failed to sync invoice ${id} to ledger:`, postError);
+      }
+    }
 
     res.json({ message: `Successfully updated ${ids.length} invoices` });
   } catch (error: any) {

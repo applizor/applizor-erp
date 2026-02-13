@@ -35,3 +35,93 @@ export const createManualEntry = async (req: AuthRequest, res: Response) => {
         res.status(400).json({ error: error.message || 'Failed to create entry' });
     }
 };
+
+export const getGeneralLedgerReport = async (req: AuthRequest, res: Response) => {
+    try {
+        const companyId = req.user!.companyId;
+        const { accountId } = req.params;
+        const { startDate, endDate } = req.query;
+
+        if (!startDate || !endDate) {
+            return res.status(400).json({ error: 'startDate and endDate are required' });
+        }
+
+        const entries = await accountingService.getGeneralLedger(
+            companyId,
+            accountId,
+            new Date(startDate as string),
+            new Date(endDate as string)
+        );
+        res.json(entries);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch General Ledger' });
+    }
+};
+
+export const getBalanceSheetReport = async (req: AuthRequest, res: Response) => {
+    try {
+        const companyId = req.user!.companyId;
+        const data = await accountingService.getBalanceSheet(companyId);
+        res.json(data);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch Balance Sheet' });
+    }
+};
+
+export const getProfitAndLossReport = async (req: AuthRequest, res: Response) => {
+    try {
+        const companyId = req.user!.companyId;
+        const { startDate, endDate } = req.query;
+
+        const data = await accountingService.getProfitAndLoss(
+            companyId,
+            startDate ? new Date(startDate as string) : undefined,
+            endDate ? new Date(endDate as string) : undefined
+        );
+        res.json(data);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch Profit & Loss' });
+    }
+};
+
+export const createAccount = async (req: AuthRequest, res: Response) => {
+    try {
+        const companyId = req.user!.companyId;
+        const { code, name, type } = req.body;
+
+        const account = await accountingService.ensureAccount(companyId, code, name, type);
+        res.json(account);
+    } catch (error) {
+        res.status(400).json({ error: 'Failed to create account' });
+    }
+};
+
+export const getGstSummaryReport = async (req: AuthRequest, res: Response) => {
+    try {
+        const companyId = req.user!.companyId;
+        const { startDate, endDate } = req.query;
+
+        if (!startDate || !endDate) {
+            return res.status(400).json({ error: 'startDate and endDate are required' });
+        }
+
+        const data = await accountingService.getGstSummary(
+            companyId,
+            new Date(startDate as string),
+            new Date(endDate as string)
+        );
+        res.json(data);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch GST Summary' });
+    }
+};
+
+export const getJournalEntries = async (req: AuthRequest, res: Response) => {
+    try {
+        const companyId = req.user!.companyId;
+        const entries = await accountingService.getJournalEntries(companyId);
+        res.json(entries);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch journal entries' });
+    }
+};

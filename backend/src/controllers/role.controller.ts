@@ -13,7 +13,7 @@ export const SYSTEM_MODULES = [
     'Document',
     'Project', 'ProjectTask', // Added Project modules
     'Timesheet', // Phase 9
-    'Holiday', 'Contract'
+    'Holiday', 'Contract', 'Accounting'
 ];
 
 const ACCESS_LEVELS = ['none', 'all', 'added', 'owned', 'added_owned']; // "added_owned" matches "Added & Owned"

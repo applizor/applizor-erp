@@ -31,7 +31,8 @@ import {
     ChevronLeft,
     BookOpen,
     LifeBuoy,
-    CalendarDays
+    CalendarDays,
+    Scale
 } from 'lucide-react';
 import { auth, useAuth } from '@/lib/auth';
 import { useState, useEffect, useRef } from 'react';
@@ -92,7 +93,14 @@ export default function Sidebar() {
         { name: 'Salary Units', href: '/payroll/components', icon: Layers, category: 'Finance & Payroll', module: 'SalaryComponent' },
         { name: 'Structure Admin', href: '/payroll/structure', icon: Edit, category: 'Finance & Payroll', module: 'SalaryStructure' },
         { name: 'Payroll Ledger', href: '/payroll/payslips', icon: FileSpreadsheet, category: 'Finance & Payroll', module: 'Payroll' },
-        { name: 'Accounting', href: '/accounting', icon: Activity, category: 'Finance & Payroll', module: 'Invoice' },
+
+        // Accounting
+        { name: 'Chart of Accounts', href: '/accounting/chart-of-accounts', icon: BookOpen, category: 'Finance & Payroll', module: 'Accounting' },
+        { name: 'Journal Entries', href: '/accounting/journal', icon: FileText, category: 'Finance & Payroll', module: 'Accounting' },
+        { name: 'Trial Balance', href: '/accounting/reports/trial-balance', icon: Scale, category: 'Finance & Payroll', module: 'Accounting' },
+        { name: 'Balance Sheet', href: '/accounting/reports/balance-sheet', icon: Building2, category: 'Finance & Payroll', module: 'Accounting' },
+        { name: 'Profit & Loss', href: '/accounting/reports/profit-loss', icon: LineChart, category: 'Finance & Payroll', module: 'Accounting' },
+        { name: 'GST Summary', href: '/accounting/reports/gst-summary', icon: FileText, category: 'Finance & Payroll', module: 'Accounting' },
 
         // Ops & Docs
         { name: 'Projects', href: '/projects', icon: LayoutDashboard, category: 'Operations', module: 'Project' },
