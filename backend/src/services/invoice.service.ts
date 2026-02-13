@@ -148,7 +148,7 @@ export class InvoiceService {
         const invoiceNumber = `${prefix}-${currentYear}-${String(nextNumber).padStart(5, '0')}`;
 
         try {
-            return await prisma.$transaction(async (tx) => {
+            const result = await prisma.$transaction(async (tx) => {
                 const invoice = await tx.invoice.create({
                     data: {
                         ...invoiceData,
@@ -208,14 +208,19 @@ export class InvoiceService {
                     }
                 });
 
-                // Auto-post if not quotation and status is sent (usually created as draft first)
-                // But if it's immediately created as 'sent' (unlikely for invoice but possible for conversion)
-                if (invoice.type !== 'quotation' && invoice.status === 'sent') {
-                    await accountingService.postInvoiceToLedger(invoice.id);
-                }
-
                 return invoice;
             });
+
+            // Auto-post outside transaction for visibility
+            if (result.type !== 'quotation' && result.status === 'sent') {
+                try {
+                    await accountingService.postInvoiceToLedger(result.id);
+                } catch (err) {
+                    console.error('Failed to auto-post created invoice to ledger:', err);
+                }
+            }
+
+            return result;
         } catch (error) {
             console.error('Create Invoice Transaction Failed:', error);
             throw error;
@@ -312,7 +317,7 @@ export class InvoiceService {
      * Record a payment for an invoice
      */
     static async recordPayment(invoiceId: string, amount: number, paymentMethod: string, transactionId?: string) {
-        return await prisma.$transaction(async (tx) => {
+        const result = await prisma.$transaction(async (tx) => {
             const invoice = await tx.invoice.findUnique({
                 where: { id: invoiceId }
             });
@@ -347,16 +352,22 @@ export class InvoiceService {
                 }
             });
 
-            // Post to Ledger
-            await accountingService.postPaymentToLedger(pay.id);
-
-            // Ensure invoice itself is posted if it transitioned out of draft
-            if (status !== 'draft') {
-                await accountingService.postInvoiceToLedger(invoice.id);
-            }
-
-            return updatedInvoice;
+            return { updatedInvoice, paymentRecordId: pay.id, status };
         });
+
+        // Post to Ledger outside transaction
+        try {
+            if (result.paymentRecordId) {
+                await accountingService.postPaymentToLedger(result.paymentRecordId);
+            }
+            if (result.status !== 'draft') {
+                await accountingService.postInvoiceToLedger(invoiceId);
+            }
+        } catch (err) {
+            console.error('Failed to sync ledger after payment record:', err);
+        }
+
+        return result.updatedInvoice;
     }
 
     /**
@@ -599,75 +610,76 @@ export class InvoiceService {
         const overallDiscount = Number(invoiceData.discount || 0);
         const total = subtotal + totalTax - totalItemDiscount - overallDiscount;
 
-        try {
-            return await prisma.$transaction(async (tx) => {
-                // Delete existing items
-                await tx.invoiceItem.deleteMany({
-                    where: { invoiceId: id }
-                });
-
-                // Update invoice and create new items
-                const invoice = await tx.invoice.update({
-                    where: { id },
-                    data: {
-                        ...invoiceData,
-                        invoiceDate,
-                        dueDate,
-                        subtotal: new Decimal(subtotal),
-                        tax: new Decimal(totalTax),
-                        discount: new Decimal(overallDiscount), // Only store the overall/global discount
-                        total: new Decimal(total),
-                        isRecurring: invoiceData.isRecurring || false,
-                        recurringInterval: invoiceData.recurringInterval,
-                        recurringStartDate: invoiceData.recurringStartDate ? new Date(invoiceData.recurringStartDate) : undefined,
-                        recurringEndDate: invoiceData.recurringEndDate ? new Date(invoiceData.recurringEndDate) : null,
-                        nextOccurrence: invoiceData.nextOccurrence ? new Date(invoiceData.nextOccurrence) : undefined,
-                        items: {
-                            create: processedItems.map(item => ({
-                                description: item.description,
-                                quantity: new Decimal(item.quantity),
-                                rate: new Decimal(item.rate),
-                                unit: item.unit,
-                                amount: item.amount,
-                                hsnSacCode: item.hsnSacCode,
-                                discount: item.discount,
-                                appliedTaxes: {
-                                    create: item.appliedTaxes
-                                }
-                            }))
-                        }
-                    },
-                    include: {
-                        client: true,
-                        items: {
-                            include: {
-                                appliedTaxes: true
-                            }
-                        }
-                    }
-                });
-
-                // Log activity
-                await tx.auditLog.create({
-                    data: {
-                        companyId: invoiceData.companyId,
-                        action: 'UPDATE',
-                        module: 'INVOICE',
-                        entityType: 'Invoice',
-                        entityId: invoice.id,
-                        details: `Updated invoice ${invoice.invoiceNumber}`
-                    }
-                });
-
-                // Sync ledger (postInvoiceToLedger handles sync/deletion logic)
-                await accountingService.postInvoiceToLedger(invoice.id);
-
-                return invoice;
+        const result = await prisma.$transaction(async (tx) => {
+            // Delete existing items
+            await tx.invoiceItem.deleteMany({
+                where: { invoiceId: id }
             });
-        } catch (error) {
-            console.error('Update Invoice Failed:', error);
-            throw error;
+
+            // Update invoice and create new items
+            const invoice = await tx.invoice.update({
+                where: { id },
+                data: {
+                    ...invoiceData,
+                    invoiceDate,
+                    dueDate,
+                    subtotal: new Decimal(subtotal),
+                    tax: new Decimal(totalTax),
+                    discount: new Decimal(overallDiscount), // Only store the overall/global discount
+                    total: new Decimal(total),
+                    isRecurring: invoiceData.isRecurring || false,
+                    recurringInterval: invoiceData.recurringInterval,
+                    recurringStartDate: invoiceData.recurringStartDate ? new Date(invoiceData.recurringStartDate) : undefined,
+                    recurringEndDate: invoiceData.recurringEndDate ? new Date(invoiceData.recurringEndDate) : null,
+                    nextOccurrence: invoiceData.nextOccurrence ? new Date(invoiceData.nextOccurrence) : undefined,
+                    items: {
+                        create: processedItems.map(item => ({
+                            description: item.description,
+                            quantity: new Decimal(item.quantity),
+                            rate: new Decimal(item.rate),
+                            unit: item.unit,
+                            amount: item.amount,
+                            hsnSacCode: item.hsnSacCode,
+                            discount: item.discount,
+                            appliedTaxes: {
+                                create: item.appliedTaxes
+                            }
+                        }))
+                    }
+                },
+                include: {
+                    client: true,
+                    items: {
+                        include: {
+                            appliedTaxes: true
+                        }
+                    }
+                }
+            });
+
+            // Log activity
+            await tx.auditLog.create({
+                data: {
+                    companyId: invoiceData.companyId,
+                    action: 'UPDATE',
+                    module: 'INVOICE',
+                    entityType: 'Invoice',
+                    entityId: invoice.id,
+                    details: `Updated invoice ${invoice.invoiceNumber}`
+                }
+            });
+
+            return invoice;
+        });
+
+        // Sync ledger outside transaction
+        try {
+            await accountingService.postInvoiceToLedger(id);
+        } catch (err) {
+            console.error('Failed to sync ledger after invoice update:', err);
         }
+
+        return result;
     }
 }
 
