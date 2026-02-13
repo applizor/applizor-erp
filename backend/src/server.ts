@@ -101,6 +101,10 @@ app.use('/api/employees', employeeRoutes);
 import recruitmentRoutes from './routes/recruitment.routes';
 app.use('/api/recruitment', recruitmentRoutes);
 
+// Performance & Exit Routes
+import performanceRoutes from './routes/performance.routes';
+app.use('/api/performance', performanceRoutes);
+
 // Attendance & Leave Routes
 import attendanceLeaveRoutes from './routes/attendance-leave.routes';
 import shiftRosterRoutes from './routes/shift-roster.routes';
@@ -130,12 +134,12 @@ app.use('/api/document-templates', documentTemplateRoutes);
 // Payroll Routes
 import salaryComponentRoutes from './routes/salary-component.routes';
 import salaryStructureRoutes from './routes/salary-structure.routes';
-// import payrollRoutes from './routes/payroll.routes';
+import payrollRoutes from './routes/payroll.routes';
 import accountingRoutes from './routes/accounting.routes';
 
 app.use('/api/payroll/components', salaryComponentRoutes);
 app.use('/api/payroll/structure', salaryStructureRoutes);
-// app.use('/api/payroll', payrollRoutes);
+app.use('/api/payroll', payrollRoutes);
 
 // ... other routes
 app.use('/api/accounting', accountingRoutes);

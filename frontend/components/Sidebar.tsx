@@ -87,6 +87,7 @@ export default function Sidebar() {
         // Finance & Payroll
         { name: 'Invoices', href: '/invoices', icon: FileText, category: 'Finance & Payroll', module: 'Invoice' },
         { name: 'Payroll Cycles', href: '/payroll/run', icon: Banknote, category: 'Finance & Payroll', module: 'Payroll' },
+        { name: 'Statutory Config', href: '/payroll/config', icon: ShieldCheck, category: 'Finance & Payroll', module: 'Payroll' },
         { name: 'My Payslips', href: '/payroll/my-payslips', icon: FileSpreadsheet, category: 'Finance & Payroll', module: 'Payroll', action: 'read' },
         { name: 'Salary Units', href: '/payroll/components', icon: Layers, category: 'Finance & Payroll', module: 'SalaryComponent' },
         { name: 'Structure Admin', href: '/payroll/structure', icon: Edit, category: 'Finance & Payroll', module: 'SalaryStructure' },

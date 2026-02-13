@@ -8,7 +8,7 @@ const prisma = new PrismaClient();
 // Get All Assets
 export const getAssets = async (req: AuthRequest, res: Response) => {
     try {
-        const userId = req.user?.userId;
+        const userId = req.userId;
         if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
         const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -72,7 +72,7 @@ export const getAssets = async (req: AuthRequest, res: Response) => {
 // Create Asset
 export const createAsset = async (req: AuthRequest, res: Response) => {
     try {
-        const userId = req.user?.userId;
+        const userId = req.userId;
         if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
         if (!PermissionService.hasBasicPermission(req.user, 'Asset', 'create')) {
@@ -120,7 +120,7 @@ export const createAsset = async (req: AuthRequest, res: Response) => {
 // Update Asset
 export const updateAsset = async (req: AuthRequest, res: Response) => {
     try {
-        const userId = req.user?.userId; // Verify Auth
+        const userId = req.userId; // Verify Auth
         if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
         if (!PermissionService.hasBasicPermission(req.user, 'Asset', 'update')) {
@@ -168,7 +168,7 @@ export const updateAsset = async (req: AuthRequest, res: Response) => {
 // Delete Asset
 export const deleteAsset = async (req: AuthRequest, res: Response) => {
     try {
-        const userId = req.user?.userId;
+        const userId = req.userId;
         if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
         if (!PermissionService.hasBasicPermission(req.user, 'Asset', 'delete')) {

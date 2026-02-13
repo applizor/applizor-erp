@@ -152,7 +152,7 @@ export default function SalaryComponentsPage() {
                                     </td>
                                     <td className="p-4 text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1.5 pt-6">
                                         {comp.calculationType === 'flat' ? <DollarSign size={12} className="text-primary-600" /> : <Percent size={12} className="text-primary-600" />}
-                                        {comp.calculationType === 'flat' ? 'Direct Value' : 'Percentage Override'}
+                                        {comp.calculationType === 'flat' ? 'Flat Magnitude' : 'Formula Computation'}
                                     </td>
                                     <td className="p-4 text-xs font-black text-gray-900">
                                         {comp.defaultValue}
@@ -224,8 +224,8 @@ export default function SalaryComponentsPage() {
                                     <label className="ent-label">Valuation Protocol</label>
                                     <CustomSelect
                                         options={[
-                                            { label: 'Direct Value', value: 'flat' },
-                                            { label: '% Override', value: 'percentage_basic' }
+                                            { label: 'Flat Magnitude', value: 'flat' },
+                                            { label: 'Formula Computation', value: 'percentage_basic' }
                                         ]}
                                         value={formData.calculationType || 'flat'}
                                         onChange={val => setFormData({ ...formData, calculationType: val as 'flat' | 'percentage_basic' })}

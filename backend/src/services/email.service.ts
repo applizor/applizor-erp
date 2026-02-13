@@ -617,3 +617,46 @@ export const sendInterviewInvite = async (
 
     return sendEmail(to, subject, html);
 };
+// Send Payslip Email
+export const sendPayslipEmail = async (
+    to: string,
+    details: {
+        employeeName: string;
+        monthName: string;
+        year: number;
+        netSalary: number;
+        currency: string;
+    },
+    pdfBuffer: Buffer
+) => {
+    const subject = `Payslip for ${details.monthName} ${details.year}`;
+
+    const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="background-color: #0f172a; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+                <h2 style="color: white; margin: 0;">Payslip Generated</h2>
+            </div>
+            <div style="border: 1px solid #e2e8f0; padding: 30px; border-radius: 0 0 8px 8px; background-color: white;">
+                <p>Dear <strong>${details.employeeName}</strong>,</p>
+                <p>Your payslip for the month of <strong>${details.monthName} ${details.year}</strong> is ready.</p>
+                
+                <div style="background-color: #f8fafc; padding: 20px; border-radius: 6px; margin: 20px 0; border-left: 4px solid #0f172a;">
+                    <p style="margin: 5px 0;"><strong>Net Pay:</strong> ${details.currency} ${details.netSalary.toLocaleString()}</p>
+                    <p style="margin: 5px 0;"><strong>Period:</strong> ${details.monthName} ${details.year}</p>
+                </div>
+
+                <p>Please find the payslip attached to this email.</p>
+                
+                <p>Best regards,<br/>${process.env.COMPANY_NAME || 'Applizor'} HR Team</p>
+            </div>
+        </div>
+    `;
+
+    const attachments = [{
+        filename: `Payslip_${details.monthName}_${details.year}.pdf`,
+        content: pdfBuffer,
+        contentType: 'application/pdf'
+    }];
+
+    return sendEmail(to, subject, html, attachments);
+};

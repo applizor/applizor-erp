@@ -6,12 +6,15 @@ import { Briefcase, Plus, Edit2, Trash2, Users, X, ChevronRight, Activity, Filte
 import Link from 'next/link';
 import { CardSkeleton } from '@/components/ui/Skeleton';
 import { CustomSelect } from '@/components/ui/CustomSelect';
+import { useToast } from '@/hooks/useToast';
 
 interface JobOpening {
     id: string;
     title: string;
     department: string;
     status: string;
+    isPublic?: boolean;
+    publicId?: string;
     _count?: {
         candidates: number;
     };
@@ -21,10 +24,13 @@ export default function JobsPage() {
     const [jobs, setJobs] = useState<JobOpening[]>([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingJob, setEditingJob] = useState<string | null>(null);
+    const [submitting, setSubmitting] = useState(false);
+    const toast = useToast();
 
     // Metadata for dropdowns
     const [departments, setDepartments] = useState<{ label: string, value: string }[]>([]);
-    const [positions, setPositions] = useState<{ label: string, value: string }[]>([]); // We might need to filter positions by department?
+    const [positions, setPositions] = useState<{ label: string, value: string }[]>([]);
 
     const [formData, setFormData] = useState({
         title: '',
@@ -32,7 +38,8 @@ export default function JobsPage() {
         position: '',
         description: '',
         requirements: '',
-        status: 'open'
+        status: 'open',
+        isPublic: false
     });
 
     useEffect(() => {
@@ -46,14 +53,10 @@ export default function JobsPage() {
                 api.get('/departments'),
                 api.get('/positions')
             ]);
-
-            // Map to options
-            const deptOptions = deptRes.data.map((d: any) => ({ label: d.name, value: d.name })); // Saving Name as Value
+            const deptOptions = deptRes.data.map((d: any) => ({ label: d.name, value: d.name }));
             setDepartments(deptOptions);
-
-            const posOptions = posRes.data.map((p: any) => ({ label: p.title, value: p.title })); // Saving Title as Value
+            const posOptions = posRes.data.map((p: any) => ({ label: p.title, value: p.title }));
             setPositions(posOptions);
-
         } catch (error) {
             console.error('Failed to load metadata:', error);
         }
@@ -71,15 +74,50 @@ export default function JobsPage() {
         }
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleEdit = (job: JobOpening) => {
+        setEditingJob(job.id);
+        setFormData({
+            title: job.title,
+            department: job.department,
+            position: job.title,
+            description: (job as any).description || '',
+            requirements: (job as any).requirements || '',
+            status: job.status,
+            isPublic: job.isPublic || false
+        });
+        setIsModalOpen(true);
+    };
+
+    const handleDelete = async (id: string) => {
+        if (!confirm('Are you sure you want to delete this requisition?')) return;
         try {
-            await api.post('/recruitment/jobs', formData);
-            setIsModalOpen(false);
-            setFormData({ title: '', department: '', position: '', description: '', requirements: '', status: 'open' });
+            await api.delete(`/recruitment/jobs/${id}`);
             loadJobs();
         } catch (error) {
-            console.error('Failed to create job:', error);
+            console.error('Failed to delete job:', error);
+        }
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setSubmitting(true);
+        try {
+            if (editingJob) {
+                await api.put(`/recruitment/jobs/${editingJob}`, formData);
+                toast.success('Requisition updated successfully');
+            } else {
+                await api.post('/recruitment/jobs', formData);
+                toast.success('New requisition initialized');
+            }
+            setIsModalOpen(false);
+            setEditingJob(null);
+            setFormData({ title: '', department: '', position: '', description: '', requirements: '', status: 'open', isPublic: false });
+            loadJobs();
+        } catch (error: any) {
+            console.error('Failed to save job:', error);
+            toast.error(error.response?.data?.error || 'Failed to save requisition');
+        } finally {
+            setSubmitting(false);
         }
     };
 
@@ -98,7 +136,11 @@ export default function JobsPage() {
                 </div>
 
                 <button
-                    onClick={() => setIsModalOpen(true)}
+                    onClick={() => {
+                        setEditingJob(null);
+                        setFormData({ title: '', department: '', position: '', description: '', requirements: '', status: 'open', isPublic: false });
+                        setIsModalOpen(true);
+                    }}
                     className="btn-primary py-2 px-4 shadow-lg shadow-primary-900/10 active:scale-95"
                 >
                     <Plus size={14} className="mr-2" /> Initialize Vacancy
@@ -151,9 +193,21 @@ export default function JobsPage() {
                                         {job.title}
                                     </h3>
                                 </div>
-                                <span className={`px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-widest border ${job.status === 'open' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-gray-50 text-gray-500 border-gray-100'}`}>
-                                    {job.status}
-                                </span>
+                                <div className="flex items-center gap-2">
+                                    {job.isPublic && (
+                                        <Link
+                                            href={`/careers/b81a0e3f-9301-43f7-a633-6db7e5fa54b0`} // Hardcoding for test, should be dynamic from company context
+                                            target="_blank"
+                                            className="flex items-center gap-1.5 px-2 py-1 bg-blue-50 text-blue-700 border border-blue-100 rounded-md hover:bg-blue-100 transition-colors"
+                                        >
+                                            <Activity size={10} className="animate-pulse" />
+                                            <span className="text-[8px] font-black uppercase tracking-widest">Public Site</span>
+                                        </Link>
+                                    )}
+                                    <span className={`px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-widest border ${job.status === 'open' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-gray-50 text-gray-500 border-gray-100'}`}>
+                                        {job.status}
+                                    </span>
+                                </div>
                             </div>
 
                             <div className="mb-6 space-y-3">
@@ -178,10 +232,18 @@ export default function JobsPage() {
                                 </Link>
 
                                 <div className="flex gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
-                                    <button className="p-2 hover:bg-gray-50 text-gray-400 hover:text-primary-600 rounded-md transition-colors" title="Edit Configuration">
+                                    <button
+                                        onClick={() => handleEdit(job)}
+                                        className="p-2 hover:bg-gray-50 text-gray-400 hover:text-primary-600 rounded-md transition-colors"
+                                        title="Edit Configuration"
+                                    >
                                         <Edit2 size={14} />
                                     </button>
-                                    <button className="p-2 hover:bg-rose-50 text-gray-400 hover:text-rose-600 rounded-md transition-colors" title="Purge Requisition">
+                                    <button
+                                        onClick={() => handleDelete(job.id)}
+                                        className="p-2 hover:bg-rose-50 text-gray-400 hover:text-rose-600 rounded-md transition-colors"
+                                        title="Purge Requisition"
+                                    >
                                         <Trash2 size={14} />
                                     </button>
                                 </div>
@@ -253,6 +315,27 @@ export default function JobsPage() {
                                 />
                             </div>
 
+                            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-md border border-slate-100">
+                                <div className="flex items-center gap-3">
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${formData.isPublic ? 'bg-blue-100 text-blue-600' : 'bg-slate-200 text-slate-400'}`}>
+                                        <Activity size={14} />
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-black uppercase text-gray-900 leading-tight">Syndicate to Public Careers</p>
+                                        <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Enable external application portal</p>
+                                    </div>
+                                </div>
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        className="sr-only peer"
+                                        checked={formData.isPublic}
+                                        onChange={(e) => setFormData({ ...formData, isPublic: e.target.checked })}
+                                    />
+                                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary-600"></div>
+                                </label>
+                            </div>
+
                             <div className="pt-6 flex items-center justify-end gap-3 border-t border-gray-100">
                                 <button
                                     type="button"
@@ -261,8 +344,12 @@ export default function JobsPage() {
                                 >
                                     Abort
                                 </button>
-                                <button type="submit" className="px-6 py-2.5 bg-primary-900 text-white rounded-md text-[10px] font-black uppercase tracking-widest hover:bg-primary-950 transition-all shadow-lg shadow-primary-900/10">
-                                    Execute Deployment
+                                <button
+                                    type="submit"
+                                    disabled={submitting}
+                                    className="px-6 py-2.5 bg-primary-900 text-white rounded-md text-[10px] font-black uppercase tracking-widest hover:bg-primary-950 transition-all shadow-lg shadow-primary-900/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {submitting ? 'Deploying...' : 'Execute Deployment'}
                                 </button>
                             </div>
                         </form>

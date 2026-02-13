@@ -34,10 +34,26 @@ export interface EmployeeSalaryStructure {
     breakdown: Record<string, number>;
 }
 
+export interface SalaryTemplate {
+    id: string;
+    name: string;
+    description?: string;
+}
+
 export const payrollApi = {
     // ... items ...
     getList: async (month: number, year: number) => {
         const response = await api.get<Payroll[]>(`/payroll/list?month=${month}&year=${year}`);
+        return response.data;
+    },
+
+    getTemplates: async () => {
+        const response = await api.get<SalaryTemplate[]>('/payroll/templates');
+        return response.data;
+    },
+
+    previewTemplate: async (templateId: string, ctc: number) => {
+        const response = await api.post<Record<string, number>>('/payroll/templates/preview', { templateId, ctc });
         return response.data;
     },
 
@@ -56,6 +72,11 @@ export const payrollApi = {
         return response.data;
     },
 
+    emailPayslip: async (id: string) => {
+        const response = await api.post(`/payroll/${id}/email-payslip`);
+        return response.data;
+    },
+
     // Structure
     getStructure: async (employeeId: string) => {
         const response = await api.get(`/payroll/structure/${employeeId}`);
@@ -63,7 +84,7 @@ export const payrollApi = {
     },
 
     saveStructure: async (employeeId: string, data: any) => {
-        const response = await api.put(`/payroll/structure/${employeeId}`, data);
+        const response = await api.post(`/payroll/structure/${employeeId}`, data);
         return response.data;
     },
 

@@ -23,6 +23,8 @@ export interface Candidate {
     status: 'applied' | 'screening' | 'interview' | 'offer' | 'hired' | 'rejected';
     currentStage?: string;
     notes?: string;
+    tags?: string[];
+    parsedData?: any;
     createdAt: string;
     jobOpening?: JobOpening;
 }
@@ -96,6 +98,10 @@ export const candidatesApi = {
     },
     delete: async (id: string) => {
         const response = await api.delete(`/recruitment/candidates/${id}`);
+        return response.data;
+    },
+    parseResume: async (id: string) => {
+        const response = await api.post(`/recruitment/candidates/${id}/parse`);
         return response.data;
     }
 };

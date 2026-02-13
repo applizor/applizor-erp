@@ -5,6 +5,8 @@ import { PDFService } from '../services/pdf.service';
 import { ensureAccount, createJournalEntry } from '../services/accounting.service';
 import { PermissionService } from '../services/permission.service';
 import { PayrollService } from '../services/payroll.service';
+import { ComplianceService } from '../services/compliance.service';
+import { sendPayslipEmail } from '../services/email.service';
 
 // --- Salary Component Master ---
 
@@ -80,6 +82,11 @@ export const updateStatutoryConfig = async (req: AuthRequest, res: Response) => 
         const config = await PayrollService.saveStatutoryConfig(companyId, req.body);
         res.json(config);
     } catch (error) {
+        console.error('UpdateStatConfig Controller Error:', error);
+        console.error('Context:', {
+            companyId: req.user?.companyId,
+            body: req.body
+        });
         res.status(500).json({ error: 'Failed to update statutory config' });
     }
 };
@@ -258,10 +265,12 @@ export const processPayroll = async (req: AuthRequest, res: Response) => {
                     earningsBreakdown[component.name] = amount;
                 } else if (component.type === 'deduction') {
                     // Check if it's a statutory deduction that should be auto-calculated
-                    if (component.name.toUpperCase().includes('PF')) {
-                        // We will calculate later based on basic
-                    } else if (component.name.toUpperCase().includes('ESI')) {
-                        // We will calculate later based on gross
+                    if (PayrollService.isPF(component.name)) {
+                        // Will calculate later
+                    } else if (PayrollService.isESI(component.name)) {
+                        // Will check later
+                    } else if (PayrollService.isPT(component.name)) {
+                        // Auto-calculated later
                     } else {
                         totalDeductions += amount;
                         deductionsBreakdown[component.name] = amount;
@@ -270,18 +279,18 @@ export const processPayroll = async (req: AuthRequest, res: Response) => {
             }
 
             // --- Statutory Calculations ---
-            const basicAmount = earningsBreakdown['Basic'] || 0;
-            const statutory = await PayrollService.calculateStatutoryDeductions(req.user!.companyId, basicAmount, grossEarned);
+            const basicAmount = (Object.entries(earningsBreakdown).find(([name]) => PayrollService.isBasic(name))?.[1] as number) || 0;
+            const statutory = await PayrollService.calculateStatutoryDeductions(req.user!.companyId, basicAmount, grossEarned, Number(month), Number(year));
 
             // Integrate PF
-            const pfComp = structure.components.find(c => c.component.name.toUpperCase().includes('PF'));
-            if (pfComp) {
+            const pfComp = structure.components.find(c => PayrollService.isPF(c.component.name));
+            if (pfComp && statutory.pf.employee > 0) {
                 deductionsBreakdown[pfComp.component.name] = statutory.pf.employee;
                 totalDeductions += statutory.pf.employee;
             }
 
             // Integrate ESI
-            const esiComp = structure.components.find(c => c.component.name.toUpperCase().includes('ESI'));
+            const esiComp = structure.components.find(c => PayrollService.isESI(c.component.name));
             if (esiComp && statutory.esi.employee > 0) {
                 deductionsBreakdown[esiComp.component.name] = statutory.esi.employee;
                 totalDeductions += statutory.esi.employee;
@@ -289,8 +298,17 @@ export const processPayroll = async (req: AuthRequest, res: Response) => {
 
             // Integrate PT (Professional Tax)
             if (statutory.pt > 0) {
-                deductionsBreakdown['Professional Tax'] = statutory.pt;
+                const ptLabel = structure.components.find(c => PayrollService.isPT(c.component.name))?.component.name || 'Professional Tax';
+                deductionsBreakdown[ptLabel] = statutory.pt;
                 totalDeductions += statutory.pt;
+            }
+
+            // Integrate TDS (Advanced Tax)
+            const tdsAmount = await PayrollService.calculateTDS(emp.id, req.user!.companyId, grossEarned, Number(month));
+            if (tdsAmount > 0) {
+                const tdsLabel = structure.components.find(c => PayrollService.isTDS(c.component.name))?.component.name || 'TDS';
+                deductionsBreakdown[tdsLabel] = (deductionsBreakdown[tdsLabel] || 0) + tdsAmount;
+                totalDeductions += tdsAmount;
             }
 
             const netSalary = grossEarned - totalDeductions;
@@ -533,5 +551,154 @@ export const downloadPayslip = async (req: AuthRequest, res: Response) => {
     } catch (error) {
         console.error('Download payslip error:', error);
         res.status(500).json({ error: 'Failed to generate payslip' });
+    }
+};
+
+export const emailPayslip = async (req: AuthRequest, res: Response) => {
+    try {
+        const userId = req.userId;
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+        const { id } = req.params;
+
+        // Fetch Payroll with Employee Details
+        const payroll = await prisma.payroll.findUnique({
+            where: { id },
+            include: {
+                employee: {
+                    include: {
+                        department: true,
+                        position: true
+                    }
+                }
+            }
+        });
+
+        if (!payroll) return res.status(404).json({ error: 'Payroll record not found' });
+        if (!payroll.employee.email) return res.status(400).json({ error: 'Employee email not found' });
+
+        // --- CHECK ACCESS ---
+        const currentUserEmployee = await prisma.employee.findUnique({ where: { userId: req.user.id } });
+        const currentEmpId = currentUserEmployee?.id;
+
+        const scope = PermissionService.getPermissionScope(req.user, 'Payroll', 'read');
+        let hasAccess = false;
+
+        if (scope.all) hasAccess = true;
+        else if (scope.owned && payroll.employeeId === currentEmpId) hasAccess = true;
+        else if (scope.added && payroll.employee.createdById === userId) hasAccess = true;
+
+        if (!hasAccess) {
+            return res.status(403).json({ error: 'Access denied: You cannot email this payslip.' });
+        }
+
+        const company = await prisma.company.findUnique({
+            where: { id: payroll.employee.companyId }
+        });
+
+        if (!company) return res.status(404).json({ error: 'Company not found' });
+
+        // Generate PDF
+        const buffer = await PDFService.generatePayslip(payroll, company);
+
+        // Send Email
+        const monthName = new Date(payroll.year, payroll.month - 1).toLocaleString('default', { month: 'long' });
+
+        await sendPayslipEmail(
+            payroll.employee.email,
+            {
+                employeeName: `${payroll.employee.firstName} ${payroll.employee.lastName}`,
+                monthName,
+                year: payroll.year,
+                netSalary: Number(payroll.netSalary),
+                currency: company.currency || 'INR'
+            },
+            buffer
+        );
+
+        res.json({ message: `Payslip emailed to ${payroll.employee.email}` });
+
+    } catch (error) {
+        console.error('Email payslip error:', error);
+        res.status(500).json({ error: 'Failed to email payslip' });
+    }
+};
+
+// --- Salary Template Master ---
+
+export const getSalaryTemplates = async (req: AuthRequest, res: Response) => {
+    try {
+        const companyId = req.user!.companyId;
+        const templates = await prisma.salaryTemplate.findMany({
+            where: { companyId },
+            include: {
+                components: {
+                    include: { component: true }
+                }
+            }
+        });
+        res.json(templates);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch templates' });
+    }
+};
+
+export const createSalaryTemplate = async (req: AuthRequest, res: Response) => {
+    try {
+        const companyId = req.user!.companyId;
+        const { name, description, components } = req.body;
+
+        const template = await prisma.salaryTemplate.create({
+            data: {
+                companyId,
+                name,
+                description,
+                components: {
+                    create: components.map((c: any) => ({
+                        componentId: c.componentId,
+                        calculationType: c.calculationType,
+                        value: c.value,
+                        formula: c.formula
+                    }))
+                }
+            }
+        });
+        res.json(template);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to create template' });
+    }
+};
+
+export const previewTemplateStructure = async (req: AuthRequest, res: Response) => {
+    try {
+        const companyId = req.user!.companyId;
+        const { templateId, ctc } = req.body;
+        const breakdown = await PayrollService.calculateStructureFromTemplate(companyId, templateId, Number(ctc));
+        res.json(breakdown);
+    } catch (error) {
+        res.status(500).json({ error: 'Calculation failed' });
+    }
+};
+
+export const exportCompliance = async (req: AuthRequest, res: Response) => {
+    try {
+        const { month, year, type } = req.query;
+        const companyId = req.user!.companyId;
+
+        if (type === 'epfo') {
+            const data = await ComplianceService.generateEPFO_ECR(Number(month), Number(year), companyId);
+            res.setHeader('Content-Type', 'text/plain');
+            res.setHeader('Content-Disposition', `attachment; filename=EPF_ECR_${month}_${year}.txt`);
+            return res.send(data);
+        } else if (type === 'esic') {
+            const data = await ComplianceService.generateESIC_Return(Number(month), Number(year), companyId);
+            res.setHeader('Content-Type', 'text/csv');
+            res.setHeader('Content-Disposition', `attachment; filename=ESI_Return_${month}_${year}.csv`);
+            return res.send(data);
+        }
+
+        res.status(400).json({ error: 'Invalid compliance type' });
+    } catch (error) {
+        res.status(500).json({ error: 'Export failed' });
     }
 };

@@ -22,11 +22,14 @@ router.put('/candidates/:candidateId/stage', authenticate, kanbanController.upda
 
 // Candidate Routes
 router.post('/candidates', authenticate, candidateController.createCandidate);
+router.post('/public/candidates', candidateController.createPublicCandidate);
 router.get('/candidates', authenticate, candidateController.getCandidates);
 router.get('/candidates/:id', authenticate, candidateController.getCandidateById);
 router.put('/candidates/:id', authenticate, candidateController.updateCandidate);
 router.put('/candidates/:id/status', authenticate, candidateController.updateCandidateStatus);
 router.delete('/candidates/:id', authenticate, candidateController.deleteCandidate);
+router.post('/candidates/:id/parse', authenticate, candidateController.parseCandidateResume);
+router.get('/candidates/:id/match', authenticate, candidateController.getSmartMatchScore);
 
 // Interview Routes
 router.post('/interviews', authenticate, interviewController.scheduleInterview);

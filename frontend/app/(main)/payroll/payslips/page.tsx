@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react';
 import { payrollApi, Payroll } from '@/lib/api/payroll';
 import Link from 'next/link';
 import { useCurrency } from '@/context/CurrencyContext';
-import { FileText, Activity, ChevronRight, LayoutGrid, Search, Filter, Download, CheckCircle, Plus } from 'lucide-react';
+import { FileText, Activity, ChevronRight, LayoutGrid, Search, Filter, Download, CheckCircle, Plus, Mail } from 'lucide-react';
 import { CustomSelect } from '@/components/ui/CustomSelect';
 
 export default function PayslipsPage() {
@@ -60,6 +60,16 @@ export default function PayslipsPage() {
         } catch (error) {
             console.error(error);
             toast.error('Manifest download failed');
+        }
+    };
+
+    const handleEmail = async (id: string, name: string) => {
+        try {
+            await payrollApi.emailPayslip(id);
+            toast.success(`Payslip emailed to ${name}`);
+        } catch (error) {
+            console.error(error);
+            toast.error('Email transmission failed');
         }
     };
 
@@ -200,12 +210,22 @@ export default function PayslipsPage() {
                                                             <CheckCircle size={12} /> Validate & Commit
                                                         </button>
                                                     )}
-                                                    <button
-                                                        onClick={() => handleDownload(payroll.id)}
-                                                        className="text-[9px] font-black text-primary-600 uppercase tracking-[0.15em] hover:text-primary-700 transition-all flex items-center gap-1.5"
-                                                    >
-                                                        <Download size={12} /> Download Manifest
-                                                    </button>
+                                                    {payroll.status === 'paid' && (
+                                                        <div className="flex gap-2">
+                                                            <button
+                                                                onClick={() => handleDownload(payroll.id)}
+                                                                className="text-[9px] font-black text-primary-600 uppercase tracking-[0.15em] hover:text-primary-800 transition-all flex items-center gap-1.5"
+                                                            >
+                                                                <Download size={12} /> Download
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleEmail(payroll.id, payroll.employee.firstName)}
+                                                                className="text-[9px] font-black text-slate-500 uppercase tracking-[0.15em] hover:text-primary-600 transition-all flex items-center gap-1.5 ml-2"
+                                                            >
+                                                                <Mail size={12} /> Email
+                                                            </button>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>
@@ -216,6 +236,6 @@ export default function PayslipsPage() {
                     )}
                 </div>
             </div>
-        </div>
+        </div >
     );
 }

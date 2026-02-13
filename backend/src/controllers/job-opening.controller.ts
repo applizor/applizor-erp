@@ -4,6 +4,7 @@ import { PrismaClient } from '@prisma/client';
 import { PermissionService } from '../services/permission.service';
 
 const prisma = new PrismaClient();
+import { RecruitmentService } from '../services/recruitment.service';
 
 // Create Job Opening
 export const createJobOpening = async (req: AuthRequest, res: Response) => {
@@ -28,7 +29,9 @@ export const createJobOpening = async (req: AuthRequest, res: Response) => {
                 position,
                 description,
                 requirements,
-                status: status || 'open'
+                status: status || 'open',
+                isPublic: req.body.isPublic || false,
+                publicId: req.body.isPublic ? RecruitmentService.generatePublicId(title) : null
             }
         });
 
@@ -100,7 +103,7 @@ export const getJobOpeningById = async (req: AuthRequest, res: Response) => {
 // Update Job
 export const updateJobOpening = async (req: AuthRequest, res: Response) => {
     try {
-        const userId = req.user?.userId;
+        const userId = req.userId;
         if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
         if (!PermissionService.hasBasicPermission(req.user, 'Recruitment', 'update')) {
@@ -108,12 +111,19 @@ export const updateJobOpening = async (req: AuthRequest, res: Response) => {
         }
 
         const { id } = req.params;
-        const { title, department, position, description, requirements, status } = req.body;
+        const { title, department, position, description, requirements, status, isPublic } = req.body;
 
         const job = await prisma.jobOpening.update({
             where: { id },
             data: {
-                title, department, position, description, requirements, status
+                title,
+                department,
+                position,
+                description,
+                requirements,
+                status,
+                isPublic: isPublic !== undefined ? isPublic : undefined,
+                publicId: isPublic ? RecruitmentService.generatePublicId(title) : undefined
             }
         });
 
@@ -132,17 +142,28 @@ export const getPublicJobOpenings = async (req: Request, res: Response) => {
         const jobs = await prisma.jobOpening.findMany({
             where: {
                 companyId,
-                status: 'open'
+                status: 'open',
+                isPublic: true
             },
-            orderBy: { createdAt: 'desc' }
+            orderBy: { createdAt: 'desc' },
+            select: {
+                id: true,
+                title: true,
+                department: true,
+                position: true,
+                description: true,
+                requirements: true,
+                createdAt: true,
+                publicId: true
+            }
         });
 
         const company = await prisma.company.findUnique({
             where: { id: companyId },
-            select: { name: true }
+            select: { name: true, logo: true }
         });
 
-        res.json({ company: company?.name, jobs });
+        res.json({ company: company?.name, logo: company?.logo, jobs });
     } catch (error) {
         console.error('Get public jobs error:', error);
         res.status(500).json({ error: 'Failed to fetch public jobs' });
@@ -152,7 +173,7 @@ export const getPublicJobOpenings = async (req: Request, res: Response) => {
 // Delete Job
 export const deleteJobOpening = async (req: AuthRequest, res: Response) => {
     try {
-        const userId = req.user?.userId;
+        const userId = req.userId;
         if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
         if (!PermissionService.hasBasicPermission(req.user, 'Recruitment', 'delete')) {

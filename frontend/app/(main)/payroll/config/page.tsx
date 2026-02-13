@@ -6,11 +6,25 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import api from '@/lib/api';
 import { ShieldCheck, Save, Percent, IndianRupee, Info, AlertTriangle, Activity } from 'lucide-react';
 
+import PTSlabsConfig, { PTSlab } from './PTSlabsConfig';
+
+interface StatutoryConfigState {
+    pfEmployeeRate: number;
+    pfEmployerRate: number;
+    pfBasicLimit: number;
+    esiEmployeeRate: number;
+    esiEmployerRate: number;
+    esiGrossLimit: number;
+    professionalTaxEnabled: boolean;
+    ptSlabs: PTSlab[];
+    tdsEnabled: boolean;
+}
+
 export default function StatutoryConfigPage() {
     const toast = useToast();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [config, setConfig] = useState({
+    const [config, setConfig] = useState<StatutoryConfigState>({
         pfEmployeeRate: 12,
         pfEmployerRate: 12,
         pfBasicLimit: 15000,
@@ -18,6 +32,7 @@ export default function StatutoryConfigPage() {
         esiEmployerRate: 3.25,
         esiGrossLimit: 21000,
         professionalTaxEnabled: true,
+        ptSlabs: [],
         tdsEnabled: true
     });
 
@@ -29,7 +44,13 @@ export default function StatutoryConfigPage() {
         try {
             setLoading(true);
             const res = await api.get('/payroll/statutory-config');
-            if (res.data) setConfig(res.data);
+            if (res.data) {
+                // Ensure ptSlabs is an array
+                setConfig({
+                    ...res.data,
+                    ptSlabs: res.data.ptSlabs || []
+                });
+            }
         } catch (error) {
             console.error('Failed to load config:', error);
             // If 404, we use defaults
@@ -41,7 +62,26 @@ export default function StatutoryConfigPage() {
     const handleSave = async () => {
         try {
             setSaving(true);
-            await api.post('/payroll/statutory-config', config);
+
+            // Sanitize: ensure all numeric fields are valid numbers
+            const sanitized = {
+                ...config,
+                pfEmployeeRate: Number(config.pfEmployeeRate) || 0,
+                pfEmployerRate: Number(config.pfEmployerRate) || 0,
+                pfBasicLimit: Number(config.pfBasicLimit) || 0,
+                esiEmployeeRate: Number(config.esiEmployeeRate) || 0,
+                esiEmployerRate: Number(config.esiEmployerRate) || 0,
+                esiGrossLimit: Number(config.esiGrossLimit) || 0,
+                ptSlabs: config.ptSlabs.map(s => ({
+                    min: Number(s.min) || 0,
+                    max: Number(s.max) || 0,
+                    amount: Number(s.amount) || 0,
+                    exceptionMonth: s.exceptionMonth ? Number(s.exceptionMonth) : undefined,
+                    exceptionAmount: s.exceptionAmount ? Number(s.exceptionAmount) : undefined
+                }))
+            };
+
+            await api.post('/payroll/statutory-config', sanitized);
             toast.success('Compliance Registry Updated');
         } catch (error) {
             console.error(error);
@@ -225,6 +265,13 @@ export default function StatutoryConfigPage() {
                         </p>
                     </div>
                 </div>
+
+                {/* PT Slabs Config (New) */}
+                <PTSlabsConfig
+                    slabs={config.ptSlabs}
+                    onChange={(slabs) => setConfig({ ...config, ptSlabs: slabs })}
+                    enabled={config.professionalTaxEnabled}
+                />
             </div>
         </div>
     );

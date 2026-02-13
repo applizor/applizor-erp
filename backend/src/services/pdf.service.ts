@@ -1136,7 +1136,7 @@ ${(!hasEmbeddedCompanySig || !hasEmbeddedClientSig) ? `
     /**
      * Generate HTML template for Payslips
      */
-    private static generatePayslipHTML(data: any, company: any): string {
+    private static generatePayslipHTML(data: any, company: any, useLetterhead: boolean): string {
         const formatCurrency = (amount: number) => {
             return new Intl.NumberFormat(company.currency === 'USD' ? 'en-US' : 'en-IN', {
                 style: 'currency',
@@ -1152,7 +1152,7 @@ ${(!hasEmbeddedCompanySig || !hasEmbeddedClientSig) ? `
             });
         };
 
-        const css = this.getBackgroundCSS(company, true); // Always use letterhead for payslips if available
+        const css = this.getBackgroundCSS(company, useLetterhead);
 
         const earnings = Object.entries(data.earningsBreakdown || {}).map(([key, val]) => ({ name: key, amount: Number(val) }));
         const deductions = Object.entries(data.deductionsBreakdown || {}).map(([key, val]) => ({ name: key, amount: Number(val) }));
@@ -1170,110 +1170,114 @@ ${(!hasEmbeddedCompanySig || !hasEmbeddedClientSig) ? `
         <head>
             <style>
                 ${css}
-                .payslip-container { font-family: 'Helvetica', sans-serif; color: #333; }
-                .header-title { text-align: center; font-size: 18px; font-weight: bold; text-transform: uppercase; margin-top: 20px; text-decoration: underline; }
-                .sub-title { text-align: center; font-size: 12px; margin-bottom: 20px; font-weight: bold; color: #555; }
+                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
                 
-                .emp-details { margin-bottom: 20px; border: 1px solid #ddd; padding: 15px; border-radius: 4px; }
-                .emp-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 11px; }
-                .label { font-weight: bold; width: 120px; color: #555; text-transform: uppercase; font-size: 9px; }
-                .value { font-weight: bold; flex: 1; }
-
-                .salary-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 11px; }
-                .salary-table th { background: #f3f4f6; padding: 8px; text-align: left; border: 1px solid #e5e7eb; text-transform: uppercase; font-size: 9px; }
-                .salary-table td { padding: 8px; border: 1px solid #e5e7eb; }
-                .amount { text-align: right; font-family: 'Courier New', monospace; font-weight: bold; }
+                body { font-family: 'Inter', -apple-system, sans-serif; }
+                .payslip-container { max-width: 800px; margin: 0 auto; color: #0f172a; }
                 
-                .net-pay-box { background: #f3f4f6; padding: 15px; border: 1px solid #e5e7eb; text-align: right; margin-bottom: 20px; }
-                .net-label { font-size: 10px; text-transform: uppercase; font-weight: bold; color: #555; }
-                .net-amount { font-size: 18px; font-weight: bold; color: #000; margin-top: 5px; }
+                .header-section { display: ${useLetterhead ? 'none' : 'flex'}; justify-content: space-between; align-items: flex-end; margin-bottom: 30px; border-bottom: 2px solid #0f172a; padding-bottom: 20px; }
+                .header-title { font-size: 24px; font-weight: 900; text-transform: uppercase; letter-spacing: -0.025em; line-height: 1; }
+                .sub-title { font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase; tracking: 0.1em; margin-top: 5px; }
+                
+                .emp-details-grid { display: grid; grid-template-cols: 1fr 1fr; gap: 20px; margin-bottom: 30px; background: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 8px; }
+                .emp-item { display: flex; flex-direction: column; gap: 4px; }
+                .emp-label { font-size: 9px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; }
+                .emp-value { font-size: 12px; font-weight: 700; color: #0f172a; }
 
-                .footer { font-size: 9px; text-align: center; color: #999; margin-top: 50px; border-top: 1px solid #eee; padding-top: 10px; }
+                table.salary-table { width: 100%; border-collapse: separate; border-spacing: 0; margin-bottom: 30px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
+                table.salary-table th { background: #0f172a; color: white; padding: 12px 15px; text-align: left; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; }
+                table.salary-table td { padding: 12px 15px; border-bottom: 1px solid #f1f5f9; font-size: 11px; font-weight: 600; }
+                table.salary-table tr:last-child td { border-bottom: 0; }
+                
+                .amount { text-align: right; font-variant-numeric: tabular-nums; }
+                .text-rose { color: #e11d48; }
+                .text-emerald { color: #059669; }
+
+                .summary-section { display: flex; justify-content: flex-end; gap: 40px; margin-top: 20px; }
+                .net-pay-card { background: #0f172a; color: white; padding: 25px 35px; border-radius: 12px; text-align: right; min-width: 250px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+                .net-label { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.7; }
+                .net-amount { font-size: 32px; font-weight: 900; margin-top: 5px; line-height: 1; }
+
+                .footer { font-size: 10px; text-align: center; color: #94a3b8; margin-top: 60px; border-top: 1px solid #e2e8f0; padding-top: 20px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
             </style>
         </head>
         <body>
             <div class="payslip-container">
-            <div class="header-title">Payslip for ${formatDate(new Date(data.year, data.month - 1, 1))}</div>
-            <div class="sub-title">${company.name}</div>
+            <div class="header-section">
+                <div>
+                    <div class="header-title">REMUNERATION MANIFEST</div>
+                    <div class="sub-title">PERIOD: ${formatDate(new Date(data.year, data.month - 1, 1)).toUpperCase()}</div>
+                </div>
+                <div style="text-align: right;">
+                    <div class="emp-value" style="font-size: 16px;">${company.name}</div>
+                    <div class="sub-title">${company.city || ''} | REGISTRY: ${company.gstin || '-'}</div>
+                </div>
+            </div>
 
-            <div class="emp-details">
-                <div class="emp-row">
-                    <div style="flex: 1; display:flex;">
-                        <span class="label">Employee Name:</span>
-                        <span class="value">${data.employee.firstName} ${data.employee.lastName}</span>
-                    </div>
-                    <div style="flex: 1; display:flex;">
-                        <span class="label">Employee ID:</span>
-                        <span class="value">${data.employee.employeeId}</span>
-                    </div>
+            <div class="emp-details-grid">
+                <div class="emp-item">
+                    <span class="emp-label">Personnel Name</span>
+                    <span class="emp-value">${data.employee.firstName} ${data.employee.lastName}</span>
                 </div>
-                <div class="emp-row">
-                    <div style="flex: 1; display:flex;">
-                        <span class="label">Department:</span>
-                        <span class="value">${data.employee.department?.name || '-'}</span>
-                    </div>
-                    <div style="flex: 1; display:flex;">
-                        <span class="label">Designation:</span>
-                        <span class="value">${data.employee.position?.title || '-'}</span>
-                    </div>
+                <div class="emp-item">
+                    <span class="emp-label">Resource ID</span>
+                    <span class="emp-value">${data.employee.employeeId}</span>
                 </div>
-                <div class="emp-row">
-                    <div style="flex: 1; display:flex;">
-                        <span class="label">Date of Joining:</span>
-                        <span class="value">${data.employee.dateOfJoining ? new Date(data.employee.dateOfJoining).toLocaleDateString('en-IN') : '-'}</span>
-                    </div>
-                    <div style="flex: 1; display:flex;">
-                        <span class="label">Location:</span>
-                        <span class="value">${company.city || '-'}</span>
-                    </div>
+                <div class="emp-item">
+                    <span class="emp-label">Department</span>
+                    <span class="emp-value">${data.employee.department?.name || 'GENERIC OPS'}</span>
                 </div>
-                <div class="emp-row">
-                     <div style="flex: 1; display:flex;">
-                        <span class="label">Bank Account:</span>
-                        <span class="value">${data.employee.accountNumber || '-'}</span>
-                    </div>
-                    <div style="flex: 1; display:flex;">
-                        <span class="label">PAN Number:</span>
-                        <span class="value">${data.employee.panNumber || '-'}</span>
-                    </div>
+                <div class="emp-item">
+                    <span class="emp-label">Designation</span>
+                    <span class="emp-value">${data.employee.position?.title || 'GENERAL STAFF'}</span>
+                </div>
+                <div class="emp-item">
+                    <span class="emp-label">Account Number</span>
+                    <span class="emp-value">${data.employee.accountNumber || 'NOT DISCLOSED'}</span>
+                </div>
+                <div class="emp-item">
+                    <span class="emp-label">Statutory PAN</span>
+                    <span class="emp-value">${data.employee.panNumber || 'NOT FILED'}</span>
                 </div>
             </div>
 
             <table class="salary-table">
                 <thead>
                     <tr>
-                        <th width="35%">Earnings</th>
-                        <th width="15%" class="amount">Amount</th>
-                        <th width="35%">Deductions</th>
-                        <th width="15%" class="amount">Amount</th>
+                        <th width="35%">Earnings Protocol</th>
+                        <th width="15%" class="amount">Value</th>
+                        <th width="35%">Deduction Protocol</th>
+                        <th width="15%" class="amount">Value</th>
                     </tr>
                 </thead>
                 <tbody>
                     ${rows.map(row => `
                     <tr>
-                        <td>${row.earning.name}</td>
-                        <td class="amount">${row.earning.amount ? formatCurrency(Number(row.earning.amount)) : ''}</td>
-                        <td>${row.deduction.name}</td>
-                        <td class="amount">${row.deduction.amount ? formatCurrency(Number(row.deduction.amount)) : ''}</td>
+                        <td>${row.earning.name.toUpperCase()}</td>
+                        <td class="amount text-emerald">${row.earning.amount ? formatCurrency(Number(row.earning.amount)) : ''}</td>
+                        <td style="color: #64748b;">${row.deduction.name.toUpperCase()}</td>
+                        <td class="amount text-rose">${row.deduction.amount ? `-${formatCurrency(Number(row.deduction.amount))}` : ''}</td>
                     </tr>
                     `).join('')}
                     
-                    <tr style="background: #fafafa; font-weight: bold;">
-                        <td>Total Earnings</td>
-                        <td class="amount">${formatCurrency(data.grossSalary)}</td>
-                        <td>Total Deductions</td>
-                        <td class="amount">${formatCurrency(data.deductions)}</td>
+                    <tr style="background: #f8fafc; font-weight: 800; color: #0f172a;">
+                        <td>TOTAL GROSS DISBURSEMENT</td>
+                        <td class="amount text-emerald">${formatCurrency(data.grossSalary)}</td>
+                        <td>TOTAL STATUTORY RETENTION</td>
+                        <td class="amount text-rose">-${formatCurrency(data.deductions)}</td>
                     </tr>
                 </tbody>
             </table>
 
-            <div class="net-pay-box">
-                <div class="net-label">Net Salary Payable</div>
-                <div class="net-amount">${formatCurrency(data.netSalary)}</div>
+            <div class="summary-section">
+                <div class="net-pay-card">
+                    <div class="net-label">Net Take Home</div>
+                    <div class="net-amount">${formatCurrency(data.netSalary)}</div>
+                </div>
             </div>
 
             <div class="footer">
-                This is a system-generated payslip and does not require a signature. • ${company.name}
+                THIS IS A DIGITALLY AUDITED PAYROLL MANIFEST • GENERATED BY APPLIZOR ERP CORE • [${new Date().toISOString()}]
             </div>
             </div>
         </body>
@@ -1282,8 +1286,13 @@ ${(!hasEmbeddedCompanySig || !hasEmbeddedClientSig) ? `
     }
 
     public static async generatePayslip(payroll: any, company: any): Promise<Buffer> {
-        const html = this.generatePayslipHTML(payroll, company);
+        const useLetterhead = !!company.letterhead;
+        const html = this.generatePayslipHTML(payroll, company, useLetterhead);
         const contentPdf = await this.convertHTMLToPDF(html);
-        return this.overlayBackdrop(contentPdf, company.letterhead, company.continuationSheet);
+
+        if (useLetterhead) {
+            return this.overlayBackdrop(contentPdf, company.letterhead, company.continuationSheet);
+        }
+        return contentPdf;
     }
 }

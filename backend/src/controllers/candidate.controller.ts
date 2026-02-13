@@ -1,17 +1,17 @@
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { PrismaClient } from '@prisma/client';
 import { PermissionService } from '../services/permission.service';
+import { RecruitmentService } from '../services/recruitment.service';
 
 const prisma = new PrismaClient();
 
-// Create a new candidate (Apply)
+// Create a new candidate (Internal HR action)
 export const createCandidate = async (req: AuthRequest, res: Response) => {
     try {
         const userId = req.userId;
         if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-        // Candidates are part of Recruitment module
         if (!PermissionService.hasBasicPermission(req.user, 'Recruitment', 'create')) {
             return res.status(403).json({ error: 'Access denied: No create rights for Recruitment' });
         }
@@ -21,31 +21,17 @@ export const createCandidate = async (req: AuthRequest, res: Response) => {
 
         const { firstName, lastName, email, phone, jobOpeningId, resumePath, notes } = req.body;
 
-        // Check if candidate already applied for this job
         if (jobOpeningId) {
             const existingApplication = await prisma.candidate.findFirst({
-                where: {
-                    email,
-                    jobOpeningId,
-                    companyId: user.companyId
-                }
+                where: { email, jobOpeningId, companyId: user.companyId }
             });
-
-            if (existingApplication) {
-                return res.status(400).json({ error: 'Candidate has already applied for this job' });
-            }
+            if (existingApplication) return res.status(400).json({ error: 'Candidate has already applied for this job' });
         }
 
         const candidate = await prisma.candidate.create({
             data: {
                 companyId: user.companyId,
-                firstName,
-                lastName,
-                email,
-                phone,
-                jobOpeningId,
-                resumePath,
-                notes,
+                firstName, lastName, email, phone, jobOpeningId, resumePath, notes,
                 status: 'applied',
                 currentStage: 'Applied'
             },
@@ -55,6 +41,36 @@ export const createCandidate = async (req: AuthRequest, res: Response) => {
     } catch (error) {
         console.error('Create candidate error:', error);
         res.status(500).json({ error: 'Failed to create candidate' });
+    }
+};
+
+// Public: Create a new candidate (External application)
+export const createPublicCandidate = async (req: Request, res: Response) => {
+    try {
+        const { firstName, lastName, email, phone, jobOpeningId, resumePath, notes, companyId } = req.body;
+
+        if (!companyId) return res.status(400).json({ error: 'Company ID is required' });
+
+        if (jobOpeningId) {
+            const existingApplication = await prisma.candidate.findFirst({
+                where: { email, jobOpeningId, companyId }
+            });
+            if (existingApplication) return res.status(400).json({ error: 'You have already applied for this position' });
+        }
+
+        const candidate = await prisma.candidate.create({
+            data: {
+                companyId,
+                firstName, lastName, email, phone, jobOpeningId, resumePath, notes,
+                status: 'applied',
+                currentStage: 'Applied'
+            },
+        });
+
+        res.status(201).json(candidate);
+    } catch (error) {
+        console.error('Create public candidate error:', error);
+        res.status(500).json({ error: 'Failed to process application' });
     }
 };
 
@@ -207,5 +223,33 @@ export const deleteCandidate = async (req: AuthRequest, res: Response) => {
     } catch (error) {
         console.error('Delete candidate error:', error);
         res.status(500).json({ error: 'Failed to delete candidate' });
+    }
+};
+
+// AI Parsing
+export const parseCandidateResume = async (req: AuthRequest, res: Response) => {
+    try {
+        const { id } = req.params;
+        if (!PermissionService.hasBasicPermission(req.user, 'Recruitment', 'update')) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+        const updatedCandidate = await RecruitmentService.parseResume(id);
+        res.json(updatedCandidate);
+    } catch (error: any) {
+        res.status(500).json({ error: 'Parsing failed', details: error.message });
+    }
+};
+
+// Smart Matching
+export const getSmartMatchScore = async (req: AuthRequest, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { jobOpeningId } = req.query;
+        if (!jobOpeningId) return res.status(400).json({ error: 'jobOpeningId is required' });
+
+        const match = await RecruitmentService.getMatchScore(id, jobOpeningId as string);
+        res.json(match);
+    } catch (error: any) {
+        res.status(500).json({ error: 'Matching failed', details: error.message });
     }
 };

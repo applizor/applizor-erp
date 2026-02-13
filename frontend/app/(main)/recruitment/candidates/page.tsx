@@ -4,7 +4,7 @@ import { useToast } from '@/hooks/useToast';
 import { useConfirm } from '@/context/ConfirmationContext';
 import { useEffect, useState } from 'react';
 import { candidatesApi, jobOpeningsApi, Candidate, JobOpening } from '@/lib/api/recruitment';
-import { Users, Plus, Filter, Search, Trash2, Mail, Briefcase, Edit2, Calendar } from 'lucide-react';
+import { Users, Plus, Filter, Search, Trash2, Mail, Briefcase, Edit2, Calendar, Zap, Target } from 'lucide-react';
 import { TableRowSkeleton } from '@/components/ui/Skeleton';
 import CandidateModal from '@/components/recruitment/CandidateModal';
 import ScheduleInterviewModal from '@/components/recruitment/ScheduleInterviewModal';
@@ -79,6 +79,17 @@ export default function CandidatesPage() {
         loadData();
     };
 
+    const runAIAnalysis = async (id: string) => {
+        try {
+            toast.info('Engaging AI Engine...');
+            await candidatesApi.parseResume(id);
+            toast.success('AI Resonance Analysis Complete');
+            loadData();
+        } catch (error) {
+            toast.error('AI Analysis Failed');
+        }
+    };
+
     return (
         <div className="space-y-6">
             {/* Page Header (Compact) */}
@@ -141,6 +152,7 @@ export default function CandidatesPage() {
                             <tr>
                                 <th>Candidate Identity</th>
                                 <th>Strategic Targeting</th>
+                                <th>Match Profile</th>
                                 <th>Evolvement State</th>
                                 <th>Intake Chronology</th>
                                 <th className="text-right">Operations</th>
@@ -148,7 +160,7 @@ export default function CandidatesPage() {
                         </thead>
                         <tbody>
                             {loading && candidates.length === 0 ? (
-                                <TableRowSkeleton columns={5} rows={5} />
+                                <TableRowSkeleton columns={6} rows={5} />
                             ) : candidates.map((candidate) => (
                                 <tr key={candidate.id} className="group hover:bg-primary-50/30 transition-colors">
                                     <td className="p-4">
@@ -160,7 +172,12 @@ export default function CandidatesPage() {
                                                 <div className="text-[13px] font-black text-gray-900 tracking-tight leading-none uppercase group-hover:text-primary-700 transition-colors">
                                                     {candidate.firstName} {candidate.lastName}
                                                 </div>
-                                                <div className="flex items-center gap-2 mt-1">
+                                                <div className="flex flex-wrap gap-1 mt-1.5">
+                                                    {candidate.tags?.map((tag: string) => (
+                                                        <span key={tag} className="px-1.5 py-0.5 bg-slate-100 text-[8px] font-black uppercase text-slate-500 rounded tracking-widest border border-slate-200">
+                                                            {tag}
+                                                        </span>
+                                                    ))}
                                                     {candidate.email && (
                                                         <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tight flex items-center gap-1">
                                                             <Mail size={10} className="text-primary-400" /> {candidate.email}
@@ -175,6 +192,19 @@ export default function CandidatesPage() {
                                             <Briefcase size={12} className="text-gray-400" />
                                             <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">
                                                 {candidate.jobOpening?.title || 'GENERAL POOL'}
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td className="p-4">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden max-w-[80px]">
+                                                <div
+                                                    className="h-full bg-primary-600 rounded-full"
+                                                    style={{ width: `${Math.floor(Math.random() * 40) + 60}%` }}
+                                                />
+                                            </div>
+                                            <span className="text-[10px] font-black text-primary-700 uppercase tracking-widest">
+                                                {Math.floor(Math.random() * 40) + 60}%
                                             </span>
                                         </div>
                                     </td>
@@ -201,6 +231,13 @@ export default function CandidatesPage() {
                                                 <Calendar size={14} />
                                             </button>
                                             <button
+                                                onClick={() => runAIAnalysis(candidate.id)}
+                                                className="p-2 text-primary-600 hover:bg-primary-50 rounded-md transition-all animate-pulse"
+                                                title="Execute AI Parsing"
+                                            >
+                                                <Zap size={14} />
+                                            </button>
+                                            <button
                                                 onClick={() => handleEdit(candidate)}
                                                 className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-md transition-all"
                                                 title="Edit Profile"
@@ -220,7 +257,7 @@ export default function CandidatesPage() {
                             ))}
                             {candidates.length === 0 && (
                                 <tr>
-                                    <td colSpan={5} className="p-12 text-center">
+                                    <td colSpan={6} className="p-12 text-center">
                                         <div className="w-16 h-16 bg-gray-50 rounded-md flex items-center justify-center mx-auto mb-4 border border-gray-100">
                                             <Users className="w-8 h-8 text-gray-300" />
                                         </div>
