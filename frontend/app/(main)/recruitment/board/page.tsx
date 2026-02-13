@@ -29,7 +29,7 @@ import { useSocket } from '@/contexts/SocketContext';
 const STAGES = ['Applied', 'Screening', 'Interview', 'Offer', 'Hired', 'Rejected'];
 
 // StrictMode Droppable Fix
-export const StrictModeDroppable = ({ children, ...props }: any) => {
+const StrictModeDroppable = ({ children, ...props }: any) => {
     const [enabled, setEnabled] = useState(false);
     useEffect(() => {
         const animation = requestAnimationFrame(() => setEnabled(true));

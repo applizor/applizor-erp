@@ -1,6 +1,7 @@
 import prisma from '../prisma/client';
 import { Prisma } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
+import { PDFService } from './pdf.service';
 
 export type AccountType = 'asset' | 'liability' | 'equity' | 'income' | 'expense';
 
@@ -608,6 +609,270 @@ export const reconcileCompanyLedger = async (companyId: string) => {
     });
 };
 
+
+export const generateReportPDF = async (
+    companyId: string,
+    type: 'TRIAL_BALANCE' | 'PROFIT_LOSS' | 'BALANCE_SHEET' | 'GST_SUMMARY',
+    startDate?: Date,
+    endDate?: Date
+) => {
+    // 1. Fetch Company Info
+    const company = await prisma.company.findUnique({
+        where: { id: companyId }
+    });
+
+    if (!company) throw new Error('Company not found');
+
+    // 2. Fetch Data & Build HTML Content
+    let title = '';
+    let contentHtml = '';
+    const period = startDate && endDate
+        ? `${startDate.toLocaleDateString('en-IN')} - ${endDate.toLocaleDateString('en-IN')}`
+        : `As of ${new Date().toLocaleDateString('en-IN')}`;
+
+    const formatCurrency = (amount: number) => {
+        return new Intl.NumberFormat('en-IN', {
+            style: 'currency',
+            currency: 'INR',
+            minimumFractionDigits: 2
+        }).format(amount);
+    };
+
+    if (type === 'TRIAL_BALANCE') {
+        title = 'Trial Balance';
+        const data = await getTrialBalance(companyId);
+        const totalDebit = data.reduce((sum, acc) => {
+            const val = Number(acc.balance);
+            return sum + (['asset', 'expense'].includes(acc.type) ? val : 0);
+        }, 0);
+        const totalCredit = data.reduce((sum, acc) => {
+            const val = Number(acc.balance);
+            return sum + (['liability', 'equity', 'income'].includes(acc.type) ? val : 0);
+        }, 0);
+
+        contentHtml = `
+            <table>
+                <thead>
+                    <tr>
+                        <th>Account Code</th>
+                        <th>Account Name</th>
+                        <th style="text-align:right">Debit</th>
+                        <th style="text-align:right">Credit</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${data.map(acc => {
+            const bal = Number(acc.balance);
+            const isDebit = ['asset', 'expense'].includes(acc.type);
+            return `
+                        <tr>
+                            <td>${acc.code}</td>
+                            <td>${acc.name}</td>
+                            <td class="amount">${isDebit ? formatCurrency(bal) : ''}</td>
+                            <td class="amount">${!isDebit ? formatCurrency(bal) : ''}</td>
+                        </tr>
+                        `;
+        }).join('')}
+                    <tr class="total-row">
+                        <td colspan="2">Total</td>
+                        <td class="amount">${formatCurrency(totalDebit)}</td>
+                        <td class="amount">${formatCurrency(totalCredit)}</td>
+                    </tr>
+                </tbody>
+            </table>
+        `;
+    } else if (type === 'PROFIT_LOSS') {
+        title = 'Profit & Loss Statement';
+        const data = await getProfitAndLoss(companyId, startDate, endDate);
+
+        const renderSection = (items: any[], sectionTitle: string) => {
+            if (items.length === 0) return '';
+            const total = items.reduce((sum, item) => sum + Number(item.balance), 0);
+            return `
+                <tr class="section-header"><td colspan="2">${sectionTitle}</td></tr>
+                ${items.map(item => `
+                    <tr>
+                        <td>${item.name}</td>
+                        <td class="amount">${formatCurrency(Number(item.balance))}</td>
+                    </tr>
+                `).join('')}
+                <tr class="total-row">
+                    <td>Total ${sectionTitle}</td>
+                    <td class="amount">${formatCurrency(total)}</td>
+                </tr>
+            `;
+        };
+
+        const totalRevenue = data.revenue.reduce((s, i) => s + Number(i.balance), 0);
+        const totalCOGS = data.costOfGoodsSold.reduce((s, i) => s + Number(i.balance), 0);
+        const grossProfit = totalRevenue - totalCOGS;
+        const totalOpex = data.operatingExpenses.reduce((s, i) => s + Number(i.balance), 0);
+        const totalOtherIncome = data.otherIncome.reduce((s, i) => s + Number(i.balance), 0);
+        const netProfit = grossProfit - totalOpex + totalOtherIncome;
+
+        contentHtml = `
+            <table>
+                <tbody>
+                    ${renderSection(data.revenue, 'Revenue')}
+                    ${renderSection(data.costOfGoodsSold, 'Cost of Goods Sold')}
+                    <tr class="total-row" style="background-color: #e0f2f1;">
+                        <td>Gross Profit</td>
+                        <td class="amount">${formatCurrency(grossProfit)}</td>
+                    </tr>
+                    ${renderSection(data.operatingExpenses, 'Operating Expenses')}
+                    ${renderSection(data.otherIncome, 'Other Income')}
+                    <tr class="total-row" style="background-color: #d1fae5; font-size: 14px;">
+                        <td>Net Profit</td>
+                        <td class="amount">${formatCurrency(netProfit)}</td>
+                    </tr>
+                </tbody>
+            </table>
+        `;
+
+    } else if (type === 'BALANCE_SHEET') {
+        title = 'Balance Sheet';
+        const accounts = await getBalanceSheet(companyId);
+
+        const assets = accounts.filter(a => a.type === 'asset');
+        const liabilities = accounts.filter(a => a.type === 'liability');
+        const equity = accounts.filter(a => a.type === 'equity');
+
+        const totalAssets = assets.reduce((s, a) => s + Number(a.balance), 0);
+        const totalLiabilities = liabilities.reduce((s, a) => s + Number(a.balance), 0);
+        const totalEquity = equity.reduce((s, a) => s + Number(a.balance), 0);
+
+        const renderGroup = (items: any[], name: string) => {
+            if (items.length === 0) return '';
+            return `
+                <tr class="section-header"><td colspan="2">${name}</td></tr>
+                ${items.map(item => `
+                    <tr>
+                        <td>${item.name}</td>
+                        <td class="amount">${formatCurrency(Number(item.balance))}</td>
+                    </tr>
+                `).join('')}
+            `;
+        };
+
+        contentHtml = `
+            <table>
+                <tbody>
+                    ${renderGroup(assets, 'Assets')}
+                    <tr class="total-row"><td>Total Assets</td><td class="amount">${formatCurrency(totalAssets)}</td></tr>
+                    
+                    ${renderGroup(liabilities, 'Liabilities')}
+                    <tr class="total-row"><td>Total Liabilities</td><td class="amount">${formatCurrency(totalLiabilities)}</td></tr>
+
+                    ${renderGroup(equity, 'Equity')}
+                    <tr class="total-row"><td>Total Equity</td><td class="amount">${formatCurrency(totalEquity)}</td></tr>
+
+                    <tr class="total-row" style="background-color: #eef2f5;">
+                        <td>Total Liabilities & Equity</td>
+                        <td class="amount">${formatCurrency(totalLiabilities + totalEquity)}</td>
+                    </tr>
+                </tbody>
+            </table>
+        `;
+
+    } else if (type === 'GST_SUMMARY') {
+        title = 'GST Summary Report';
+        if (!startDate || !endDate) throw new Error('Date range required for GST Report');
+        const data = await getGstSummary(companyId, startDate, endDate);
+
+        contentHtml = `
+            <h3>Output Tax (Liability)</h3>
+            <table>
+                <thead>
+                    <tr><th>Component</th><th style="text-align:right">Amount</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>CGST Output</td><td class="amount">${formatCurrency(data.summary.CGST.output)}</td></tr>
+                    <tr><td>SGST Output</td><td class="amount">${formatCurrency(data.summary.SGST.output)}</td></tr>
+                    <tr><td>IGST Output</td><td class="amount">${formatCurrency(data.summary.IGST.output)}</td></tr>
+                    <tr class="total-row"><td>Total Output</td><td class="amount">${formatCurrency(data.summary.CGST.output + data.summary.SGST.output + data.summary.IGST.output)}</td></tr>
+                </tbody>
+            </table>
+
+            <h3>Input Tax Credit</h3>
+            <table>
+                <thead>
+                    <tr><th>Component</th><th style="text-align:right">Amount</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>CGST Input</td><td class="amount">${formatCurrency(data.summary.CGST.input)}</td></tr>
+                    <tr><td>SGST Input</td><td class="amount">${formatCurrency(data.summary.SGST.input)}</td></tr>
+                    <tr><td>IGST Input</td><td class="amount">${formatCurrency(data.summary.IGST.input)}</td></tr>
+                    <tr class="total-row"><td>Total Input</td><td class="amount">${formatCurrency(data.summary.CGST.input + data.summary.SGST.input + data.summary.IGST.input)}</td></tr>
+                </tbody>
+            </table>
+
+            <h3>Transaction Breakdown</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Invoice #</th>
+                        <th>Client</th>
+                        <th>GSTIN</th>
+                        <th style="text-align:right">Taxable</th>
+                        <th style="text-align:right">Tax</th>
+                        <th style="text-align:right">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${data.transactions.map(tx => `
+                        <tr>
+                            <td>${new Date(tx.date).toLocaleDateString()}</td>
+                            <td>${tx.invoiceNumber}</td>
+                            <td>${tx.clientName}</td>
+                            <td>${tx.clientGstin}</td>
+                            <td class="amount">${formatCurrency(tx.taxableValue)}</td>
+                            <td class="amount">${formatCurrency(tx.totalTax)}</td>
+                            <td class="amount">${formatCurrency(tx.totalAmount)}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    }
+
+    // 3. Generate Wrapper HTML
+    const fullHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body { font-family: 'Helvetica', sans-serif; padding: 40px; color: #333; }
+                .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #000; padding-bottom: 20px; }
+                .company-name { font-size: 24px; font-weight: bold; margin-bottom: 5px; text-transform: uppercase; }
+                .report-title { font-size: 18px; color: #555; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px; }
+                .period { font-size: 12px; color: #888; font-weight: bold; }
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; margin-bottom: 30px; }
+                th, td { border-bottom: 1px solid #eee; padding: 10px; font-size: 11px; }
+                th { text-align: left; background-color: #f8f9fa; font-weight: bold; text-transform: uppercase; color: #555; }
+                .amount { text-align: right; font-family: 'Courier New', monospace; font-weight: bold; }
+                .total-row td { border-top: 2px solid #333; font-weight: bold; background-color: #f9fafb; }
+                .section-header td { font-weight: bold; background-color: #eef2f5; color: #1e293b; padding-top: 15px; }
+                h3 { font-size: 14px; text-transform: uppercase; margin-top: 30px; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <div class="company-name">${company.name}</div>
+                <div class="report-title">${title}</div>
+                <div class="period">${period}</div>
+            </div>
+            ${contentHtml}
+            <div style="margin-top: 50px; font-size: 10px; color: #aaa; text-align: center;">
+                Generated by Applizor ERP on ${new Date().toLocaleString()}
+            </div>
+        </body>
+        </html>
+    `;
+
+    return await PDFService.generateGenericPDF(fullHtml, {});
+};
+
 const accountingService = {
     seedAccounts,
     createJournalEntry,
@@ -624,6 +889,7 @@ const accountingService = {
     reconcileCompanyLedger,
     deleteLedgerPostings,
     deleteJournalEntry,
+    generateReportPDF,
     DEFAULT_ACCOUNTS
 };
 

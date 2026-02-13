@@ -66,6 +66,23 @@ export default function ProfitLossPage() {
         }
     };
 
+    const handleExport = async () => {
+        try {
+            toast.info('Generating PDF...');
+            const blob = await accountingApi.exportReport('PROFIT_LOSS', dateRange.startDate, dateRange.endDate);
+            const url = window.URL.createObjectURL(new Blob([blob]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `Profit_Loss_${dateRange.startDate}_${dateRange.endDate}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            toast.success('Report exported successfully');
+        } catch (error) {
+            toast.error('Failed to export report');
+        }
+    };
+
     const totalIncome = data.revenue.reduce((sum, a) => sum + Number(a.balance), 0);
     const totalCOGS = data.costOfGoodsSold.reduce((sum, a) => sum + Number(a.balance), 0);
     const grossProfit = totalIncome - totalCOGS;
@@ -116,7 +133,10 @@ export default function ProfitLossPage() {
                         <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
                         Sync Ledgers
                     </button>
-                    <button className="btn-secondary flex items-center gap-2">
+                    <button
+                        onClick={handleExport}
+                        className="btn-secondary flex items-center gap-2"
+                    >
                         <Download size={14} />
                         Export
                     </button>

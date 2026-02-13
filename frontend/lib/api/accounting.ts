@@ -70,4 +70,9 @@ export const accountingApi = {
     getJournalEntries: () => api.get('/accounting/journal').then(res => res.data),
     reconcileLedger: () => api.post('/accounting/reconcile').then(res => res.data),
     deleteJournalEntry: (id: string) => api.delete(`/accounting/journal/${id}`).then(res => res.data),
+    exportReport: (type: string, startDate?: string, endDate?: string) =>
+        api.get('/accounting/reports/export', {
+            params: { type, startDate, endDate },
+            responseType: 'blob'
+        }).then(res => res.data),
 };

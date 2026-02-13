@@ -135,6 +135,7 @@ export const reconcileLedger = async (req: AuthRequest, res: Response) => {
         res.status(500).json({ error: error.message || 'Reconciliation failed' });
     }
 };
+
 export const deleteJournalEntry = async (req: AuthRequest, res: Response) => {
     try {
         const { id } = req.params;
@@ -144,5 +145,37 @@ export const deleteJournalEntry = async (req: AuthRequest, res: Response) => {
         res.json({ success: true, entry: result });
     } catch (error: any) {
         res.status(400).json({ error: error.message || 'Failed to delete entry' });
+    }
+};
+
+export const exportReport = async (req: AuthRequest, res: Response) => {
+    try {
+        const companyId = req.user!.companyId;
+        const { type, startDate, endDate } = req.query;
+
+        if (!type) {
+            return res.status(400).json({ error: 'Report type is required' });
+        }
+
+        const dateStart = startDate ? new Date(startDate as string) : undefined;
+        const dateEnd = endDate ? new Date(endDate as string) : undefined;
+
+        const pdfBuffer = await accountingService.generateReportPDF(
+            companyId,
+            type as any,
+            dateStart,
+            dateEnd
+        );
+
+        res.set({
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': `attachment; filename="${type}_Report.pdf"`,
+            'Content-Length': pdfBuffer.length
+        });
+
+        res.end(pdfBuffer);
+    } catch (error: any) {
+        console.error('Export Error:', error);
+        res.status(500).json({ error: 'Failed to generate PDF report' });
     }
 };

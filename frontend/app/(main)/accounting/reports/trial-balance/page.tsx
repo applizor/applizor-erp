@@ -39,6 +39,23 @@ export default function TrialBalancePage() {
         }
     };
 
+    const handleExport = async () => {
+        try {
+            toast.info('Generating PDF...');
+            const blob = await accountingApi.exportReport('TRIAL_BALANCE');
+            const url = window.URL.createObjectURL(new Blob([blob]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `Trial_Balance_${new Date().toISOString().split('T')[0]}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            toast.success('Report exported successfully');
+        } catch (error) {
+            toast.error('Failed to export report');
+        }
+    };
+
     const calculateDebitCredit = (account: LedgerAccount) => {
         const balance = Number(account.balance);
         let debit = 0;
@@ -87,7 +104,10 @@ export default function TrialBalancePage() {
                         <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
                         Sync Ledgers
                     </button>
-                    <button className="btn-secondary flex items-center gap-2">
+                    <button
+                        onClick={handleExport}
+                        className="btn-secondary flex items-center gap-2"
+                    >
                         <Download size={14} />
                         Export PDF
                     </button>

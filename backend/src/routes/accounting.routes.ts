@@ -11,7 +11,8 @@ import {
     createAccount,
     getJournalEntries,
     reconcileLedger,
-    deleteJournalEntry
+    deleteJournalEntry,
+    exportReport
 } from '../controllers/accounting.controller';
 
 const router = express.Router();
@@ -28,5 +29,6 @@ router.get('/journal', authenticate, getJournalEntries);
 router.get('/reports/gst-summary', authenticate, getGstSummaryReport);
 router.post('/reconcile', authenticate, reconcileLedger);
 router.delete('/journal/:id', authenticate, deleteJournalEntry);
+router.get('/reports/export', authenticate, exportReport);
 
 export default router;

@@ -76,6 +76,23 @@ export default function GstSummaryPage() {
         }
     };
 
+    const handleExport = async () => {
+        try {
+            toast.info('Generating PDF...');
+            const blob = await accountingApi.exportReport('GST_SUMMARY', dateRange.startDate, dateRange.endDate);
+            const url = window.URL.createObjectURL(new Blob([blob]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `GST_Summary_${dateRange.startDate}_${dateRange.endDate}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            toast.success('Report exported successfully');
+        } catch (error) {
+            toast.error('Failed to export report');
+        }
+    };
+
     const totalOutput = Object.values(data.summary).reduce((sum, v) => sum + v.output, 0);
     const totalInput = Object.values(data.summary).reduce((sum, v) => sum + v.input, 0);
     const netPayable = totalOutput - totalInput;
@@ -128,7 +145,10 @@ export default function GstSummaryPage() {
                         <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
                         Sync Ledgers
                     </button>
-                    <button className="btn-secondary flex items-center gap-2">
+                    <button
+                        onClick={handleExport}
+                        className="btn-secondary flex items-center gap-2"
+                    >
                         <Download size={14} />
                         Export
                     </button>
