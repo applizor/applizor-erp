@@ -52,7 +52,8 @@ export const generatePublicLink = async (req: AuthRequest, res: Response) => {
         });
 
         // Generate public URL
-        const publicUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/public/quotations/${publicToken}`;
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+        const publicUrl = `${frontendUrl}/public/quotations/${publicToken}`;
 
         res.json({
             message: 'Public link generated successfully',

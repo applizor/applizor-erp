@@ -16,7 +16,8 @@ export const createProject = async (req: AuthRequest, res: Response) => {
         const {
             name, description, clientId, status,
             startDate, endDate, budget, isBillable,
-            tags, priority, currency
+            tags, priority, currency,
+            type, portalConfig // New fields
         } = req.body;
 
         // Check if creator has an employee record
@@ -35,6 +36,7 @@ export const createProject = async (req: AuthRequest, res: Response) => {
             isBillable: isBillable ?? true,
             tags: tags || [],
             priority: priority || 'medium',
+            settings: type === 'news_cms' ? { type: 'news_cms' } : undefined
         };
 
         // Only add as member if employee record exists
@@ -50,6 +52,47 @@ export const createProject = async (req: AuthRequest, res: Response) => {
         const project = await prisma.project.create({
             data: projectData
         });
+
+        // --- Subscription & Billing Logic for News Projects ---
+        if (type === 'news_cms' && portalConfig) {
+            if (clientId) {
+                const { InvoiceService } = await import('../services/invoice.service');
+                const planCode = portalConfig.plan || 'basic_monthly';
+
+                const subscriptionPlan = await prisma.subscriptionPlan.findFirst({
+                    where: {
+                        companyId,
+                        code: planCode
+                    }
+                });
+
+                if (subscriptionPlan && Number(subscriptionPlan.price) > 0) {
+                    await InvoiceService.createInvoice({
+                        companyId,
+                        clientId,
+                        invoiceDate: new Date(),
+                        dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+                        items: [{
+                            description: `Subscription - ${subscriptionPlan.name} Plan`,
+                            quantity: 1,
+                            rate: Number(subscriptionPlan.price),
+                            taxRateIds: [],
+                            discount: 0
+                        }],
+                        currency: currency || subscriptionPlan.currency || 'USD',
+                        type: 'invoice',
+                        isRecurring: true,
+                        recurringInterval: subscriptionPlan.interval,
+                        recurringStartDate: new Date(),
+                        notes: 'Subscription for project.',
+                        subscriptionDetails: {
+                            planId: subscriptionPlan.id,
+                            name: `Subscription - ${subscriptionPlan.name}`
+                        }
+                    });
+                }
+            }
+        }
 
         res.status(201).json(project);
     } catch (error: any) {
@@ -124,6 +167,7 @@ export const getProjectById = async (req: AuthRequest, res: Response) => {
                     orderBy: { dueDate: 'asc' }
                 },
                 tasks: { select: { status: true } },
+                invoices: { select: { id: true, invoiceNumber: true, invoiceDate: true, total: true, paidAmount: true, status: true, subtotal: true, tax: true } },
                 timesheets: { select: { hours: true } },
                 _count: { select: { tasks: true } }
             }
@@ -177,25 +221,59 @@ export const getProjectById = async (req: AuthRequest, res: Response) => {
 
         if (canViewBudget) {
             const budget = Number(p.budget) || 0;
-            const revenue = Number(p.actualRevenue) || 0;
+
+            // Calculate revenue from project-linked invoices
+            const projectInvoices = p.invoices || [];
+            const revenue = projectInvoices.reduce((acc: number, inv: any) => acc + Number(inv.total), 0);
+            const baseAmount = projectInvoices.reduce((acc: number, inv: any) => acc + Number(inv.subtotal), 0);
+            const taxAmount = projectInvoices.reduce((acc: number, inv: any) => acc + Number(inv.tax), 0);
+
+            const paidAmount = projectInvoices.reduce((acc: number, inv: any) => acc + Number(inv.paidAmount), 0);
+            const outstanding = revenue - paidAmount;
+
             const expenses = Number(p.actualExpenses) || 0;
-            const netProfit = revenue - expenses;
-            const margin = revenue > 0 ? (netProfit / revenue) * 100 : 0;
+            const netProfit = baseAmount - expenses; // Profit is usually calculated on base amount
+            const margin = baseAmount > 0 ? (netProfit / baseAmount) * 100 : 0;
+
+            // Remaining Budget = Total Budget - Invoiced Base Amount
+            const remainingBudget = budget - baseAmount;
+
+            // Get recent transactions (last 5 invoices)
+            const recentTransactions = projectInvoices
+                .sort((a: any, b: any) => new Date(b.invoiceDate).getTime() - new Date(a.invoiceDate).getTime())
+                .slice(0, 5)
+                .map((inv: any) => ({
+                    id: inv.id,
+                    type: 'invoice',
+                    number: inv.invoiceNumber,
+                    date: inv.invoiceDate,
+                    amount: Number(inv.total),
+                    status: inv.status
+                }));
 
             financials = {
                 budget,
                 revenue,
+                baseAmount,
+                taxAmount,
+                paidAmount,
+                outstanding,
                 expenses,
                 netProfit,
-                margin: Math.round(margin * 100) / 100
+                margin: Math.round(margin * 100) / 100,
+                remainingBudget,
+                recentTransactions
             };
         } else {
             financials = {
                 budget: 0,
                 revenue: 0,
+                baseAmount: 0,
+                taxAmount: 0,
                 expenses: 0,
                 netProfit: 0,
                 margin: 0,
+                remainingBudget: 0,
                 masked: true // Frontend can show "Restricted"
             };
         }
@@ -249,9 +327,29 @@ export const updateProject = async (req: AuthRequest, res: Response) => {
             return res.status(403).json({ error: 'Access denied: No update rights for Project' });
         }
         const { id } = req.params;
-        const data = req.body;
-        // Prevent companyId update
-        delete data.companyId;
+        const {
+            name, description, status,
+            startDate, endDate, budget, isBillable,
+            tags, priority, currency
+        } = req.body;
+
+        const data: any = {};
+        if (name !== undefined) data.name = name;
+        if (description !== undefined) data.description = description;
+        if (status !== undefined) data.status = status;
+        if (budget !== undefined) data.budget = Number(budget);
+        if (isBillable !== undefined) data.isBillable = isBillable;
+        if (tags !== undefined) data.tags = tags;
+        if (priority !== undefined) data.priority = priority;
+        if (currency !== undefined) data.currency = currency;
+
+        // Correctly parse dates to Avoid Prisma 'premature end of input' or validation errors
+        if (startDate !== undefined) {
+            data.startDate = (startDate && startDate.trim() !== "") ? new Date(startDate) : null;
+        }
+        if (endDate !== undefined) {
+            data.endDate = (endDate && endDate.trim() !== "") ? new Date(endDate) : null;
+        }
 
         const project = await prisma.project.update({
             where: { id },
@@ -259,6 +357,7 @@ export const updateProject = async (req: AuthRequest, res: Response) => {
         });
         res.json(project);
     } catch (error: any) {
+        console.error("Update Project Error:", error);
         res.status(500).json({ error: 'Failed to update project' });
     }
 };
@@ -414,15 +513,15 @@ export const uploadProjectDocument = async (req: AuthRequest, res: Response) => 
 
         const document = await prisma.document.create({
             data: {
-                projectId: id,
+                project: { connect: { id } },
                 name: req.file.originalname,
                 type: 'project_file', // Generic type
                 category: category || 'General',
                 filePath: req.file.path,
                 fileSize: req.file.size,
                 mimeType: req.file.mimetype,
-                companyId: req.user!.companyId,
-                employeeId: req.user!.employeeId, // Assuming linked employee
+                company: { connect: { id: req.user!.companyId } },
+                employee: { connect: { id: req.user!.employeeId! } }, // Assuming linked employee
                 tags: tags ? JSON.parse(tags) : []
             }
         });

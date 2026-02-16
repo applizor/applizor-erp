@@ -8,7 +8,7 @@ import { MemberManagementModal } from '@/components/projects/MemberManagementMod
 import {
     Clock, CheckCircle2, TrendingUp, AlertCircle,
     ArrowUpRight, ArrowDownRight, DollarSign, Wallet, Users, Settings2,
-    Calendar, Activity, FileText
+    Calendar, Activity, FileText, Globe, ExternalLink
 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
@@ -264,6 +264,52 @@ export default function ProjectDashboard({ params }: { params: { id: string } })
                                         className="h-full bg-slate-800 rounded-full"
                                         style={{ width: `${Math.min(100, (financials.expenses / (financials.budget || 1) * 100))}%` }}
                                     />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* News Portal Details Widget */}
+                {project.cmsPortal && (
+                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 overflow-hidden relative">
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-primary-50 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2 opacity-50"></div>
+                        <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest mb-6 flex items-center gap-2 relative">
+                            <Globe size={14} className="text-primary-600" /> News Portal Details
+                        </h3>
+
+                        <div className="space-y-4 relative">
+                            <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Portal Name</p>
+                                <p className="text-sm font-black text-slate-900">{project.cmsPortal.name}</p>
+                            </div>
+
+                            <div className="p-3 bg-slate-900 rounded-lg text-white shadow-lg">
+                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Public Access URL</p>
+                                <a
+                                    href={`http://${project.cmsPortal.subdomain}.localhost:3001`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-primary-400 hover:text-white transition-colors text-[11px] font-black flex items-center gap-2"
+                                >
+                                    {project.cmsPortal.subdomain}.applizor.com
+                                    <ExternalLink size={12} />
+                                </a>
+                                <p className="text-[8px] text-slate-500 font-bold mt-2 italic uppercase">
+                                    Local Development: {project.cmsPortal.subdomain}.localhost:3001
+                                </p>
+                            </div>
+
+                            <div className="flex justify-between items-center px-1">
+                                <div>
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Subdomain</p>
+                                    <p className="text-[11px] font-bold text-slate-900">{project.cmsPortal.subdomain}</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Portal Status</p>
+                                    <span className="bg-emerald-50 text-emerald-700 text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded border border-emerald-100">
+                                        {project.cmsPortal.status}
+                                    </span>
                                 </div>
                             </div>
                         </div>

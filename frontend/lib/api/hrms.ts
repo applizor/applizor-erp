@@ -72,6 +72,12 @@ export interface Employee {
     probationEndDate?: string;
     noticePeriodStartDate?: string;
     noticePeriodEndDate?: string;
+
+    // Portal Access (Management)
+    createAccount?: boolean;
+    password?: string;
+    roleId?: string;
+    portalActive?: boolean;
 }
 
 export interface Document {

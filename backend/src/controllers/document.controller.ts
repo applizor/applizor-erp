@@ -422,8 +422,8 @@ export const uploadGenericDocument = async (req: AuthRequest, res: Response) => 
 
         const document = await prisma.document.create({
             data: {
-                companyId: employee.companyId,
-                employeeId: targetEmployeeId,
+                company: { connect: { id: employee.companyId } },
+                employee: { connect: { id: targetEmployeeId } },
                 name: name || req.file.originalname,
                 type: type || 'General',
                 filePath: fileUrl,
@@ -432,7 +432,7 @@ export const uploadGenericDocument = async (req: AuthRequest, res: Response) => 
                 status: 'submitted', // Auto-submit generic uploads
                 workflowType: 'standard',
                 uploadedBy: { connect: { id: user.id } }
-            } as any
+            }
         });
 
         res.status(201).json(document);

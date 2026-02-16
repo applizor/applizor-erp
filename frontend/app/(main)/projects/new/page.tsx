@@ -26,20 +26,36 @@ export default function NewProjectPage() {
     const [status, setStatus] = useState('planning');
     const [budget, setBudget] = useState('');
 
+    // CMS Specific State
+    const [projectType, setProjectType] = useState<string>('standard');
+    const [portalName, setPortalName] = useState('');
+    const [portalSubdomain, setPortalSubdomain] = useState('');
+    const [portalPlan, setPortalPlan] = useState('basic');
+
     // Available Data
     const [clients, setClients] = useState<any[]>([]);
+    const [plans, setPlans] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
-        const fetchClients = async () => {
+        const fetchData = async () => {
             try {
-                const res = await api.get('/clients');
-                setClients(res.data.clients || []);
+                const [clientsRes, plansRes] = await Promise.all([
+                    api.get('/clients'),
+                    api.get('/subscription-plans')
+                ]);
+                setClients(clientsRes.data.clients || []);
+                setPlans(plansRes.data || []);
+
+                // Set default plan if plans exist
+                if (plansRes.data?.length > 0 && !portalPlan) {
+                    setPortalPlan(plansRes.data[0].code);
+                }
             } catch (error) {
-                console.error("Failed to load clients", error);
+                console.error("Failed to load initial data", error);
             }
         };
-        fetchClients();
+        fetchData();
     }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -60,7 +76,13 @@ export default function NewProjectPage() {
                 endDate: endDate || null,
                 priority,
                 status,
-                budget: budget ? parseFloat(budget) : null
+                budget: budget ? parseFloat(budget) : null,
+                type: projectType,
+                portalConfig: projectType === 'news_cms' ? {
+                    name: portalName || name,
+                    subdomain: portalSubdomain,
+                    plan: portalPlan
+                } : undefined
             };
 
             await api.post('/projects', payload);
@@ -103,13 +125,79 @@ export default function NewProjectPage() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="ent-form-group md:col-span-2">
+                            <CustomSelect
+                                label="Project Type"
+                                value={projectType}
+                                onChange={setProjectType}
+                                options={[
+                                    { label: 'Standard Project', value: 'standard' },
+                                    { label: 'News CMS Portal', value: 'news_cms', icon: <Globe size={14} className="text-primary-600" /> }
+                                ]}
+                                placeholder="Select Type"
+                            />
+                        </div>
+
+                        {projectType === 'news_cms' && (
+                            <div className="col-span-2 border border-blue-100 bg-blue-50/50 rounded-lg p-5 space-y-4">
+                                <h4 className="text-xs font-black text-blue-900 uppercase tracking-widest flex items-center gap-2">
+                                    <Globe size={14} /> Portal Configuration
+                                </h4>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="ent-form-group">
+                                        <label className="ent-label">Portal Name</label>
+                                        <input
+                                            type="text"
+                                            className="ent-input"
+                                            value={portalName}
+                                            onChange={e => setPortalName(e.target.value)}
+                                            placeholder={name || "My News Portal"}
+                                        />
+                                    </div>
+                                    <div className="ent-form-group">
+                                        <label className="ent-label">Subdomain</label>
+                                        <div className="flex">
+                                            <input
+                                                type="text"
+                                                className="ent-input rounded-r-none border-r-0"
+                                                value={portalSubdomain}
+                                                onChange={e => setPortalSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                                                placeholder="news-portal"
+                                            />
+                                            <div className="bg-gray-100 border border-gray-200 border-l-0 rounded-r-md px-3 flex items-center text-xs text-gray-500 font-medium">
+                                                .news-app.com
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="ent-form-group md:col-span-2">
+                                        <CustomSelect
+                                            label="Subscription Plan"
+                                            value={portalPlan}
+                                            onChange={setPortalPlan}
+                                            options={plans.map(p => ({
+                                                label: `${p.name} (${p.currency === 'INR' ? '₹' : '$'}${p.price}/${p.interval})`,
+                                                value: p.code,
+                                                description: p.features?.join(', ') || ''
+                                            }))}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="ent-form-group md:col-span-2">
                             <label className="ent-label">Project Title <span className="text-red-500">*</span></label>
                             <input
                                 type="text"
                                 className="ent-input text-lg font-bold"
                                 placeholder="e.g. Q4 Marketing Campaign"
                                 value={name}
-                                onChange={e => setName(e.target.value)}
+                                onChange={e => {
+                                    setName(e.target.value);
+                                    if (projectType === 'news_cms' && !portalName) {
+                                        setPortalName(e.target.value);
+                                    }
+                                }}
                             />
                         </div>
 
@@ -150,6 +238,7 @@ export default function NewProjectPage() {
                                     placeholder="0.00"
                                     value={budget}
                                     onChange={e => setBudget(e.target.value)}
+                                    disabled={projectType === 'news_cms'} // Budget is handled by subscription
                                 />
                             </div>
                         </div>

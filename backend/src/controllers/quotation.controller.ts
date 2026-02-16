@@ -1046,7 +1046,8 @@ export const sendQuotationEmail = async (req: AuthRequest, res: Response) => {
             });
         }
 
-        publicUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/public/quotations/${publicToken}`;
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+        publicUrl = `${frontendUrl}/public/quotations/${publicToken}`;
 
         // Send email
         const { sendQuotationToClient } = await import('../services/email.service');

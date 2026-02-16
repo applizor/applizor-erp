@@ -153,3 +153,62 @@ export const authorize = (roles: string[] = []) => {
     next();
   };
 };
+
+export const combinedAuth = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ error: 'Authentication required' });
+
+    const token = authHeader.startsWith('Bearer ') ? authHeader.replace('Bearer ', '') : authHeader;
+    if (!token) return res.status(401).json({ error: 'Token not provided' });
+
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) throw new Error('JWT_SECRET not configured');
+
+    const decoded = jwt.verify(token, jwtSecret) as { userId: string };
+    if (!decoded || !decoded.userId) return res.status(401).json({ error: 'Invalid token' });
+
+    // 1. Try User (Staff)
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      include: {
+        employee: { select: { id: true, companyId: true } },
+        roles: { include: { role: { include: { permissions: true } } } }
+      }
+    });
+
+    if (user) {
+      (req as any).userId = decoded.userId;
+      (req as any).user = user;
+      (req as any).userType = 'employee';
+      return next();
+    }
+
+    // 2. Try Client
+    const client = await prisma.client.findUnique({
+      where: { id: decoded.userId, status: 'active', portalAccess: true },
+      include: { company: true }
+    });
+
+    if (client) {
+      (req as any).userId = decoded.userId;
+      (req as any).user = {
+        id: client.id,
+        email: client.email,
+        name: client.name,
+        type: 'client',
+        clientId: client.id,
+        companyId: client.companyId,
+        company: client.company,
+        roles: [] // Add empty roles array for permission checks
+      };
+      (req as any).userType = 'client';
+      return next();
+    }
+
+    return res.status(401).json({ error: 'User or Client not found' });
+  } catch (error) {
+    console.error('Combined auth error:', error);
+    return res.status(401).json({ error: 'Authentication failed' });
+  }
+};

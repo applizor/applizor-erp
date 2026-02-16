@@ -560,7 +560,8 @@ export const sendInvoice = async (req: AuthRequest, res: Response) => {
       includeBankDetails: invoice.includeBankDetails
     });
 
-    const publicUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/portal/invoices/${invoice.id}`;
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const publicUrl = `${frontendUrl}/portal/invoices/${invoice.id}`;
 
     // Send in background and update status
     emailService.sendInvoiceEmail(invoice.client.email, invoice, pdfBuffer, false, publicUrl)
@@ -1151,7 +1152,8 @@ export const generatePublicLink = async (req: AuthRequest, res: Response) => {
     });
 
     // Generate public URL
-    const publicUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/public/invoices/${publicToken}`;
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const publicUrl = `${frontendUrl}/public/invoices/${publicToken}`;
 
     // Log Activity
     try {

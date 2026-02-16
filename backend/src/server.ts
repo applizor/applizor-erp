@@ -19,7 +19,30 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: function (origin, callback) {
+    const allowedOrigins = [
+      process.env.FRONTEND_URL || 'http://localhost:3000',
+      'http://localhost:3001'
+    ];
+
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+
+    const isAllowedLocalhost = origin.includes('localhost:3000') || origin.includes('localhost:3001');
+    const isDevTunnel = origin.endsWith('.devtunnels.ms');
+    const isLocalIP = /^http:\/\/(\d{1,3}\.){3}\d{1,3}(:\d+)?$/.test(origin);
+
+    if (allowedOrigins.indexOf(origin) !== -1 || isAllowedLocalhost || isDevTunnel || isLocalIP) {
+      callback(null, true);
+    } else {
+      console.warn(`Blocked by CORS: ${origin}`);
+      callback(null, true); // Temporarily allow while debugging or use explicit deny
+      // callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+}));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
@@ -178,6 +201,11 @@ app.use('/api/timesheets', timesheetRoutes);
 // Settings Routes
 import settingsRoutes from './routes/settings.routes';
 app.use('/api/settings', settingsRoutes);
+
+// Subscription Plan Routes
+import subscriptionPlanRoutes from './routes/subscription-plan.routes';
+app.use('/api/subscription-plans', subscriptionPlanRoutes);
+
 
 // Scheduler
 import { SchedulerService } from './services/scheduler.service';

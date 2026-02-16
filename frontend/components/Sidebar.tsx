@@ -32,7 +32,8 @@ import {
     BookOpen,
     LifeBuoy,
     CalendarDays,
-    Scale
+    Scale,
+    Newspaper
 } from 'lucide-react';
 import { auth, useAuth } from '@/lib/auth';
 import { useState, useEffect, useRef } from 'react';
@@ -111,6 +112,7 @@ export default function Sidebar() {
 
         // Settings
         { name: 'Company Settings', href: '/settings/company', icon: Briefcase, category: 'Settings', module: 'Company' },
+        { name: 'Subscription Plans', href: '/settings/subscription-plans', icon: CreditCard, category: 'Settings', module: 'Company' },
     ];
 
     const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);

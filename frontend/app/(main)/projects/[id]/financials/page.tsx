@@ -79,7 +79,10 @@ export default function ProjectFinancials({ params }: { params: { id: string } }
                         <TrendingUp size={12} className="text-emerald-500" /> Revenue
                     </h3>
                     <p className="text-2xl font-black text-gray-900">{format(Number(stats.revenue))}</p>
-                    <p className="text-[10px] text-gray-400 mt-1">Invoiced Amount</p>
+                    <div className="flex justify-between items-center mt-1">
+                        <p className="text-[9px] text-gray-400 font-bold uppercase">Base: {format(Number(stats.baseAmount || 0))}</p>
+                        <p className="text-[9px] text-amber-600 font-black uppercase">GST: {format(Number(stats.taxAmount || 0))}</p>
+                    </div>
                 </div>
                 <div className="ent-card p-6 border-t-4 border-t-rose-500">
                     <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-2">
@@ -92,8 +95,8 @@ export default function ProjectFinancials({ params }: { params: { id: string } }
                     <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-2">
                         <Wallet size={12} className="text-blue-500" /> Remaining
                     </h3>
-                    <p className="text-2xl font-black text-gray-900">{format(Number(remainingBudget))}</p>
-                    <p className="text-[10px] text-gray-400 mt-1">Available Funds</p>
+                    <p className="text-2xl font-black text-gray-900">{format(Number(stats.remainingBudget !== undefined ? stats.remainingBudget : (stats.budget - stats.revenue)))}</p>
+                    <p className="text-[10px] text-gray-400 mt-1">Budget vs Invoiced Base</p>
                 </div>
             </div>
 
@@ -115,14 +118,29 @@ export default function ProjectFinancials({ params }: { params: { id: string } }
                         Recent Transactions
                     </h3>
                     <div className="space-y-3">
-                        <div className="p-3 bg-gray-50 rounded border border-gray-100 flex justify-between items-center opacity-50">
-                            <div>
-                                <p className="text-xs font-bold text-gray-900">Initial Deposit</p>
-                                <p className="text-[10px] text-gray-400">Invoice #INV-001</p>
+                        {stats.recentTransactions && stats.recentTransactions.length > 0 ? (
+                            stats.recentTransactions.map((tx: any) => (
+                                <div key={tx.id} className="p-3 bg-gray-50 rounded border border-gray-100 flex justify-between items-center hover:bg-white transition-colors">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`p-1.5 rounded-full ${tx.status === 'paid' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>
+                                            <TrendingUp size={10} />
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-bold text-gray-900">Payment {tx.status === 'paid' ? 'Received' : 'Pending'}</p>
+                                            <p className="text-[10px] text-gray-400">Invoice #{tx.number} • {new Date(tx.date).toLocaleDateString()}</p>
+                                        </div>
+                                    </div>
+                                    <span className={`text-xs font-black ${tx.status === 'paid' ? 'text-emerald-600' : 'text-amber-600'}`}>
+                                        +{format(tx.amount)}
+                                    </span>
+                                </div>
+                            ))
+                        ) : (
+                            <div className="flex flex-col items-center justify-center h-48 text-center text-gray-400">
+                                <p className="text-xs font-bold uppercase">No Transactions Found</p>
+                                <p className="text-[9px]">Invoices and payments will appear here.</p>
                             </div>
-                            <span className="text-xs font-black text-emerald-600">+{format(0)}</span>
-                        </div>
-                        <p className="text-center text-[10px] text-gray-400 italic mt-4">No recent transactions recorded.</p>
+                        )}
                     </div>
                 </div>
             </div>

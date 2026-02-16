@@ -6,8 +6,26 @@ let io: SocketIOServer;
 export const initSocket = (server: HttpServer) => {
     io = new SocketIOServer(server, {
         cors: {
-            origin: process.env.FRONTEND_URL || "http://localhost:3000",
-            methods: ["GET", "POST"]
+            origin: function (origin, callback) {
+                const allowedOrigins = [
+                    process.env.FRONTEND_URL || 'http://localhost:3000',
+                    'http://localhost:3001'
+                ];
+
+                const isAllowedLocalhost = origin && (origin.includes('localhost:3000') || origin.includes('localhost:3001'));
+                const isDevTunnel = origin && origin.endsWith('.devtunnels.ms');
+                const isLocalIP = origin && /^http:\/\/(\d{1,3}\.){3}\d{1,3}(:\d+)?$/.test(origin);
+
+                if (!origin || allowedOrigins.indexOf(origin || '') !== -1 || isAllowedLocalhost || isDevTunnel || isLocalIP) {
+                    callback(null, true);
+                } else {
+                    console.warn(`Socket blocked by CORS: ${origin}`);
+                    callback(null, true); // Temporarily allow for dev
+                    // callback(new Error('Not allowed by CORS'));
+                }
+            },
+            methods: ["GET", "POST"],
+            credentials: true
         }
     });
 

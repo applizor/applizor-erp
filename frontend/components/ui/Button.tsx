@@ -7,13 +7,21 @@ import { LucideIcon } from 'lucide-react';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
     variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'outline';
+    size?: 'default' | 'sm' | 'lg' | 'icon';
     isLoading?: boolean;
     icon?: LucideIcon;
 }
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-    ({ className = '', variant = 'primary', isLoading, icon: Icon, children, disabled, ...props }, ref) => {
-        const baseStyles = "inline-flex items-center justify-center font-black text-[10px] uppercase tracking-widest px-4 py-2.5 rounded-lg transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed";
+    ({ className = '', variant = 'primary', size = 'default', isLoading, icon: Icon, children, disabled, ...props }, ref) => {
+        const baseStyles = "inline-flex items-center justify-center font-black uppercase tracking-widest rounded-lg transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed";
+
+        const sizes = {
+            default: 'text-[10px] px-4 py-2.5',
+            sm: 'text-[9px] px-3 py-2',
+            lg: 'text-xs px-6 py-3',
+            icon: 'h-9 w-9 p-0'
+        };
 
         const variants = {
             primary: 'ent-button-primary', // defined in globals.css
@@ -23,20 +31,14 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
             ghost: 'bg-transparent text-slate-600 hover:bg-slate-100'
         };
 
-        // Note: ent-button-* classes include the base styles mostly, but let's rely on them.
-        // If variant is primary/secondary/danger, we rely on the global class.
-        // If outline/ghost, we use the classes above + baseStyles manually if needed? 
-        // Actually ent-button primary/secondary/danger are fully self contained in globals.css now.
-
         const variantClass = variants[variant];
-
-        // Spinner color logic
+        const sizeClass = sizes[size];
         const spinnerColor = variant === 'primary' ? 'border-white/30 border-t-white' : 'border-slate-300 border-t-primary-600';
 
         return (
             <button
                 ref={ref}
-                className={`${variantClass} ${className} ${isLoading ? 'cursor-wait opacity-80' : ''}`}
+                className={`${baseStyles} ${variantClass} ${sizeClass} ${className} ${isLoading ? 'cursor-wait opacity-80' : ''}`}
                 disabled={disabled || isLoading}
                 {...props}
             >

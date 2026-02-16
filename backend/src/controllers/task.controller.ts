@@ -59,15 +59,15 @@ export const createTask = async (req: AuthRequest, res: Response) => {
             await Promise.all(files.map(file =>
                 prisma.document.create({
                     data: {
-                        projectId,
-                        taskId: task.id,
+                        project: { connect: { id: projectId } },
+                        task: { connect: { id: task.id } },
                         name: file.originalname,
                         type: 'task_attachment',
                         filePath: file.path,
                         fileSize: file.size,
                         mimeType: file.mimetype,
-                        companyId: req.user!.companyId,
-                        employeeId: req.user!.employeeId
+                        company: { connect: { id: req.user!.companyId } },
+                        employee: { connect: { id: req.user!.employeeId! } }
                     }
                 })
             ));

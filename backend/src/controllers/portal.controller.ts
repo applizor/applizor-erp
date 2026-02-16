@@ -147,10 +147,36 @@ export const getMyProjects = async (req: ClientAuthRequest, res: Response) => {
         const projects = await prisma.project.findMany({
             where: { clientId },
             orderBy: { updatedAt: 'desc' },
-            include: { tasks: false }
+            include: {
+                invoices: {
+                    select: {
+                        id: true,
+                        invoiceNumber: true,
+                        invoiceDate: true,
+                        total: true,
+                        paidAmount: true,
+                        status: true,
+                        subtotal: true,
+                        tax: true
+                    }
+                },
+                members: {
+                    include: {
+                        employee: {
+                            select: {
+                                firstName: true,
+                                lastName: true,
+                                email: true,
+                                position: { select: { title: true } }
+                            }
+                        }
+                    }
+                }
+            }
         });
         res.json(projects);
     } catch (error) {
+        console.error('Get portal projects error:', error);
         res.status(500).json({ error: 'Failed to fetch projects' });
     }
 };
@@ -963,8 +989,7 @@ export const getContractPdf = async (req: ClientAuthRequest, res: Response) => {
         const contract = await prisma.contract.findUnique({
             where: { id },
             include: {
-                client: true,
-                company: true
+                client: true
             }
         });
 
@@ -1086,8 +1111,8 @@ export const uploadDocument = async (req: ClientAuthRequest, res: Response) => {
 
         const document = await prisma.document.create({
             data: {
-                companyId: client.companyId,
-                clientId: client.id,
+                company: { connect: { id: client.companyId } },
+                client: { connect: { id: client.id } },
                 name: name || req.file.originalname,
                 type: type || 'Client Upload',
                 filePath: fileUrl,

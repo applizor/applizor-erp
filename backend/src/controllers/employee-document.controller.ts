@@ -19,9 +19,9 @@ export const uploadDocument = async (req: AuthRequest, res: Response) => {
                 filePath: file.path,
                 fileSize: file.size,
                 mimeType: file.mimetype,
-                companyId: req.user!.companyId,
-                employeeId: req.user!.employeeId, // Important: Link to employee
-                uploadedById: (req.user as any).id
+                company: { connect: { id: req.user!.companyId } },
+                employee: { connect: { id: req.user!.employeeId! } }, // Important: Link to employee
+                uploadedBy: { connect: { id: (req.user as any).id } }
             }
         });
 

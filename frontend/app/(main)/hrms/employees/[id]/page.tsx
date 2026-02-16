@@ -47,6 +47,7 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
     const [employee, setEmployee] = useState<Employee | null>(null);
     const [departments, setDepartments] = useState<Department[]>([]);
     const [positions, setPositions] = useState<Position[]>([]);
+    const [roles, setRoles] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
@@ -89,8 +90,18 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
 
     const canManageDocs = can('Document', 'update') || can('Document', 'create');
 
+    const fetchRoles = async () => {
+        try {
+            const res = await api.get('/roles');
+            setRoles(res.data);
+        } catch (error) {
+            console.error('Failed to load roles:', error);
+        }
+    };
+
     useEffect(() => {
         loadData();
+        fetchRoles();
     }, []);
 
     useEffect(() => {
@@ -140,7 +151,12 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
                 slackMemberId: emp.slackMemberId || '',
                 probationEndDate: emp.probationEndDate ? new Date(emp.probationEndDate).toISOString().split('T')[0] : '',
                 noticePeriodStartDate: emp.noticePeriodStartDate ? new Date(emp.noticePeriodStartDate).toISOString().split('T')[0] : '',
-                noticePeriodEndDate: emp.noticePeriodEndDate ? new Date(emp.noticePeriodEndDate).toISOString().split('T')[0] : ''
+                noticePeriodEndDate: emp.noticePeriodEndDate ? new Date(emp.noticePeriodEndDate).toISOString().split('T')[0] : '',
+                // Portal Access Fields
+                createAccount: !!emp.userId,
+                portalActive: emp.user?.isActive ?? true,
+                roleId: emp.user?.roles?.[0]?.roleId || '',
+                password: '' // Always empty on load for security
             });
 
             if (emp.departmentId) {
@@ -786,6 +802,99 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
                                                             <label className="ent-label">Date of Birth</label>
                                                             <input type="date" disabled={!isEditing} value={formData.dateOfBirth} onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })} className="ent-input disabled:bg-slate-50/50" />
                                                         </div>
+                                                    </div>
+
+                                                    <div className="bg-gray-50/50 p-6 rounded-lg border border-gray-100 mt-8">
+                                                        <div className="flex items-center gap-3 mb-6">
+                                                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center border transition-all ${formData.createAccount || employee.userId ? 'bg-primary-900 border-primary-800 text-white' : 'bg-white border-gray-200 text-gray-400'}`}>
+                                                                <Shield size={18} />
+                                                            </div>
+                                                            <div className="flex-1">
+                                                                <div className="flex items-center justify-between">
+                                                                    <div className="flex items-center gap-3">
+                                                                        <h4 className="text-[11px] font-black uppercase tracking-[0.2em] text-gray-900">System Observer Portal Access</h4>
+                                                                        {employee.userId && (
+                                                                            <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${employee.user?.isActive ? 'bg-green-100 border-green-200 text-green-700' : 'bg-rose-100 border-rose-200 text-rose-700'}`}>
+                                                                                {employee.user?.isActive ? 'Account Active' : 'Account Disabled'}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                    {isEditing && !employee.userId && (
+                                                                        <label className="relative inline-flex items-center cursor-pointer">
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                checked={formData.createAccount}
+                                                                                onChange={(e) => setFormData({ ...formData, createAccount: e.target.checked })}
+                                                                                className="sr-only peer"
+                                                                            />
+                                                                            <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary-600"></div>
+                                                                        </label>
+                                                                    )}
+                                                                </div>
+                                                                <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-1">
+                                                                    {employee.userId ? 'MANAGE CLOUD ECOSYSTEM PERMISSIONS AND STATUS' : 'ENABLE CLOUD ECOSYSTEM INTERACTION FOR THIS RESOURCE'}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+
+                                                        {(formData.createAccount || employee.userId) && (
+                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-top-2 duration-300">
+                                                                <div className="ent-form-group">
+                                                                    <label className="text-[10px] font-black text-gray-500 mb-1.5 uppercase tracking-widest flex items-center gap-1.5">
+                                                                        {employee.userId ? 'Reset Credential (Password)' : 'Access Credentials (Password)'}
+                                                                        {isEditing && !employee.userId && <span className="text-rose-500">*</span>}
+                                                                    </label>
+                                                                    <input
+                                                                        type="text"
+                                                                        disabled={!isEditing}
+                                                                        value={formData.password}
+                                                                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                                                        className="ent-input w-full p-2.5 text-[11px] font-bold disabled:bg-slate-50/50"
+                                                                        placeholder={employee.userId ? "LEAVE BLANK TO KEEP CURRENT" : "SET INITIAL KEY"}
+                                                                    />
+                                                                </div>
+                                                                <div className="ent-form-group">
+                                                                    <label className="text-[10px] font-black text-gray-500 mb-1.5 uppercase tracking-widest flex items-center gap-1.5">
+                                                                        Authorization Role
+                                                                        {isEditing && (formData.createAccount || employee.userId) && <span className="text-rose-500">*</span>}
+                                                                    </label>
+                                                                    <CustomSelect
+                                                                        disabled={!isEditing}
+                                                                        value={formData.roleId}
+                                                                        onChange={(val) => setFormData({ ...formData, roleId: val })}
+                                                                        options={[
+                                                                            { label: 'SELECT ROLE SCHEMA', value: '' },
+                                                                            ...roles.map(role => ({ label: role.name.toUpperCase(), value: role.id }))
+                                                                        ]}
+                                                                        placeholder="SELECT ROLE SCHEMA"
+                                                                        className="w-full p-2.5 text-[11px] font-bold"
+                                                                    />
+                                                                </div>
+
+                                                                {employee.userId && isEditing && (
+                                                                    <div className="ent-form-group">
+                                                                        <label className="text-[10px] font-black text-gray-500 mb-1.5 uppercase tracking-widest flex items-center gap-1.5">Portal Activity Status</label>
+                                                                        <CustomSelect
+                                                                            disabled={!isEditing}
+                                                                            value={formData.portalActive ? 'true' : 'false'}
+                                                                            onChange={(val) => setFormData({ ...formData, portalActive: val === 'true' })}
+                                                                            options={[
+                                                                                { label: 'ENABLED / ACTIVE', value: 'true' },
+                                                                                { label: 'DISABLED / LOCKED', value: 'false' }
+                                                                            ]}
+                                                                            className="w-full p-2.5 text-[11px] font-bold"
+                                                                        />
+                                                                    </div>
+                                                                )}
+
+                                                                <div className="md:col-span-2 p-3 bg-primary-50 rounded border border-primary-100 flex items-center gap-3">
+                                                                    <div className={`w-1.5 h-1.5 rounded-full ${employee.user?.isActive !== false ? 'bg-primary-500 animate-pulse' : 'bg-rose-400'}`} />
+                                                                    <span className="text-[9px] font-black text-primary-700 uppercase tracking-widest">
+                                                                        AUTHENTICATION IDENTIFIER: <span className="underline">{employee.email || 'PENDING_INPUT'}</span>
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>

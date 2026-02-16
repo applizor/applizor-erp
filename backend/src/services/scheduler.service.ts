@@ -33,6 +33,12 @@ export class SchedulerService {
             console.log('⏰ Running daily recurring invoice generation...');
             await this.processRecurringInvoices();
         });
+
+        // Portal Suspension: Run daily at 02:00
+        cron.schedule('0 2 * * *', async () => {
+            console.log('⏰ Running daily portal suspension check...');
+            await this.suspendOverduePortals();
+        });
     }
 
     static async processRecurringInvoices() {
@@ -117,6 +123,46 @@ export class SchedulerService {
             }
         } catch (error) {
             console.error('Error processing quotation reminders:', error);
+        }
+    }
+
+    static async suspendOverduePortals() {
+        try {
+            console.log('[Scheduler] Checking for overdue portals...');
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+            // 1. Find active portals
+            const activePortals = await prisma.cMSPortal.findMany({
+                where: { status: 'active' },
+                include: { client: true }
+            });
+
+            for (const portal of activePortals) {
+                // 2. Check for overdue recurring invoices for this client
+                const overdueInvoices = await prisma.invoice.findMany({
+                    where: {
+                        clientId: portal.clientId,
+                        isRecurring: true,
+                        status: { not: 'paid' },
+                        dueDate: { lt: sevenDaysAgo }
+                    }
+                });
+
+                if (overdueInvoices.length > 0) {
+                    console.log(`[Scheduler] Suspending portal ${portal.name} (Client: ${portal.client.name}) due to ${overdueInvoices.length} overdue invoices.`);
+
+                    // 3. Suspend Portal
+                    await prisma.cMSPortal.update({
+                        where: { id: portal.id },
+                        data: { status: 'suspended' }
+                    });
+
+                    // TODO: Send notification email to client
+                }
+            }
+        } catch (error) {
+            console.error('[Scheduler] Error suspending overdue portals:', error);
         }
     }
 }

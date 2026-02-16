@@ -69,7 +69,8 @@ export const sendContractToClient = async (req: Request, res: Response) => {
         }
 
         // This URL should point to your frontend client portal
-        const publicUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/portal/contracts/${contractId}`;
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+        const publicUrl = `${frontendUrl}/portal/contracts/${contractId}`;
 
         // Send notification
         try {

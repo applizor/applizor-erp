@@ -1,0 +1,8 @@
+-- DropForeignKey
+ALTER TABLE "CMSPost" DROP CONSTRAINT "CMSPost_authorId_fkey";
+
+-- AlterTable
+ALTER TABLE "CMSPost" ALTER COLUMN "authorId" DROP NOT NULL;
+
+-- AddForeignKey
+ALTER TABLE "CMSPost" ADD CONSTRAINT "CMSPost_authorId_fkey" FOREIGN KEY ("authorId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;

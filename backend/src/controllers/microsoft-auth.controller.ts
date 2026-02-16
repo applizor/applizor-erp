@@ -12,7 +12,8 @@ const SCOPES = 'https://graph.microsoft.com/Mail.Send offline_access User.Read';
 
 export const getAuthUrl = (req: Request, res: Response) => {
     const clientId = process.env.MICROSOFT_CLIENT_ID;
-    const redirectUri = process.env.MICROSOFT_REDIRECT_URI || 'http://localhost:5000/api/automation/microsoft/callback';
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:5000';
+    const redirectUri = process.env.MICROSOFT_REDIRECT_URI || `${backendUrl}/api/automation/microsoft/callback`;
 
     if (!clientId) {
         return res.status(500).send('Error: MICROSOFT_CLIENT_ID is not defined in .env');
@@ -31,7 +32,8 @@ export const handleCallback = async (req: Request, res: Response) => {
     const { code } = req.query;
     const clientId = process.env.MICROSOFT_CLIENT_ID;
     const clientSecret = process.env.MICROSOFT_CLIENT_SECRET;
-    const redirectUri = process.env.MICROSOFT_REDIRECT_URI || 'http://localhost:5000/api/automation/microsoft/callback';
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:5000';
+    const redirectUri = process.env.MICROSOFT_REDIRECT_URI || `${backendUrl}/api/automation/microsoft/callback`;
 
     if (!code) {
         return res.status(400).send('Error: No code provided');

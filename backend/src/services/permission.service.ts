@@ -13,10 +13,17 @@ export class PermissionService {
      * Returns true if they have any level > 'none'.
      */
     static hasBasicPermission(user: any, module: string, action: PermissionAction): boolean {
-        if (!user || !user.roles) return false;
+        if (!user) return false;
+
+        // Client Portal Bypass for NewsCMS (check FIRST before roles)
+        if (user.type === 'client' && module === 'NewsCMS') {
+            return true;
+        }
+
+        if (!user.roles) return false;
 
         // Super Admin Bypass
-        const isSuperAdmin = user.roles.some((r: any) =>
+        const isSuperAdmin = user.roles?.some((r: any) =>
             r.role.name === 'Super Admin' || r.role.name === 'Admin' || r.role.isSystem
         );
         if (isSuperAdmin) return true;

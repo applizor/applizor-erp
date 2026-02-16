@@ -30,6 +30,10 @@ export interface CreateInvoiceInput {
     recurringEndDate?: Date;
     recurringNextRun?: Date;
     includeBankDetails?: boolean;
+    subscriptionDetails?: {
+        planId: string;
+        name: string;
+    };
 }
 
 export class InvoiceService {
@@ -37,8 +41,8 @@ export class InvoiceService {
      * Create a new invoice with its items
      */
     static async createInvoice(data: CreateInvoiceInput) {
-        // Explicitly remove createdBy if present in the input (even if not in interface)
-        const { items: rawItems, createdBy, ...invoiceData } = data as any;
+        // Explicitly remove createdBy and subscriptionDetails if present in the input
+        const { items: rawItems, createdBy, subscriptionDetails, ...invoiceData } = data as any;
         const items = rawItems as (InvoiceItemInput & { unit?: string; taxRateId?: string })[];
 
         // Ensure dates are valid Date objects
@@ -207,6 +211,25 @@ export class InvoiceService {
                         details: `Created invoice ${invoiceNumber}`
                     }
                 });
+
+                // Create Subscription Record if this is a new subscription
+                if (subscriptionDetails) {
+                    const subDetails = subscriptionDetails;
+                    await tx.subscription.create({
+                        data: {
+                            companyId: invoiceData.companyId,
+                            clientId: invoiceData.clientId,
+                            name: subDetails.name,
+                            plan: subDetails.name, // Legacy fallback
+                            planId: subDetails.planId,
+                            amount: new Decimal(total), // Use invoice total as subscription amount
+                            billingCycle: invoiceData.recurringInterval || 'monthly',
+                            startDate: invoiceData.recurringStartDate || new Date(),
+                            status: 'active',
+                            nextBillingDate: invoiceData.recurringNextRun
+                        }
+                    });
+                }
 
                 return invoice;
             });

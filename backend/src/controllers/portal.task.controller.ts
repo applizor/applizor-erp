@@ -54,15 +54,15 @@ export const createPortalTask = async (req: ClientAuthRequest, res: Response) =>
             await Promise.all(files.map(file =>
                 prisma.document.create({
                     data: {
-                        projectId,
-                        taskId: task.id,
+                        project: { connect: { id: projectId } },
+                        task: { connect: { id: task.id } },
                         name: file.originalname,
                         type: 'task_attachment',
                         filePath: file.path,
                         fileSize: file.size,
                         mimeType: file.mimetype,
-                        companyId: req.client.companyId,
-                        clientId: clientId
+                        company: { connect: { id: req.client.companyId } },
+                        client: { connect: { id: clientId } }
                     }
                 })
             ));

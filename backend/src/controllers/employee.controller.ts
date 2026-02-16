@@ -282,9 +282,9 @@ export const updateEmployee = async (req: AuthRequest, res: Response) => {
             currentAddress, permanentAddress,
             emergencyContact,
             bankName, accountNumber, ifscCode, panNumber, aadhaarNumber,
-            // New Fields
             hourlyRate, employmentType, skills, slackMemberId,
-            probationEndDate, noticePeriodStartDate, noticePeriodEndDate
+            probationEndDate, noticePeriodStartDate, noticePeriodEndDate,
+            password, roleId, createAccount, portalActive
         } = req.body;
 
         const employee = await prisma.employee.update({
@@ -312,11 +312,81 @@ export const updateEmployee = async (req: AuthRequest, res: Response) => {
                 noticePeriodStartDate: noticePeriodStartDate ? new Date(noticePeriodStartDate) : null,
                 noticePeriodEndDate: noticePeriodEndDate ? new Date(noticePeriodEndDate) : null,
             },
-            include: {
-                department: true,
-                position: true
-            }
         });
+
+        // --- PORTAL ACCESS MANAGEMENT ---
+        if (createAccount !== undefined || password || roleId || portalActive !== undefined) {
+            await prisma.$transaction(async (tx) => {
+                const currentEmployee = await tx.employee.findUnique({
+                    where: { id },
+                    include: { user: true }
+                });
+
+                if (!currentEmployee) throw new Error('Employee not found');
+
+                let targetUserId = currentEmployee.userId;
+
+                // 1. Create Account if it doesn't exist but requested
+                if (!targetUserId && createAccount && password) {
+                    const existingUser = await tx.user.findUnique({ where: { email: currentEmployee.email } });
+                    if (existingUser) throw new Error('A user account with this email already exists.');
+
+                    const { hashPassword } = await import('../utils/password');
+                    const hashedPassword = await hashPassword(password);
+
+                    const newUser = await tx.user.create({
+                        data: {
+                            email: currentEmployee.email,
+                            password: hashedPassword,
+                            firstName: currentEmployee.firstName,
+                            lastName: currentEmployee.lastName,
+                            phone: currentEmployee.phone,
+                            companyId: currentEmployee.companyId,
+                            isActive: true
+                        }
+                    });
+                    targetUserId = newUser.id;
+
+                    // Link to Employee
+                    await tx.employee.update({
+                        where: { id },
+                        data: { userId: targetUserId }
+                    });
+                }
+
+                // 2. Update existing User
+                if (targetUserId) {
+                    const userData: any = {};
+                    if (password) {
+                        const { hashPassword } = await import('../utils/password');
+                        userData.password = await hashPassword(password);
+                    }
+                    if (portalActive !== undefined) {
+                        userData.isActive = portalActive;
+                    }
+
+                    if (Object.keys(userData).length > 0) {
+                        await tx.user.update({
+                            where: { id: targetUserId },
+                            data: userData
+                        });
+                    }
+
+                    // 3. Update Role
+                    if (roleId) {
+                        // Delete previous roles
+                        await tx.userRole.deleteMany({ where: { userId: targetUserId } });
+                        // Assign new
+                        await tx.userRole.create({
+                            data: {
+                                userId: targetUserId,
+                                roleId: roleId
+                            }
+                        });
+                    }
+                }
+            });
+        }
 
         // Audit Log
         const { logAction } = await import('../services/audit.service');
@@ -501,7 +571,16 @@ export const getEmployeeById = async (req: AuthRequest, res: Response) => {
                 department: true,
                 position: true,
                 company: true,
-                documents: true
+                documents: true,
+                user: {
+                    include: {
+                        roles: {
+                            include: {
+                                role: true
+                            }
+                        }
+                    }
+                }
             },
         });
 
@@ -536,8 +615,8 @@ export const uploadEmployeeDocument = async (req: AuthRequest, res: Response) =>
 
         const document = await prisma.document.create({
             data: {
-                companyId: employee.companyId,
-                employeeId: id,
+                company: { connect: { id: employee.companyId } },
+                employee: { connect: { id } },
                 name: name || req.file.originalname,
                 type: type || 'other',
                 filePath: fileUrl,

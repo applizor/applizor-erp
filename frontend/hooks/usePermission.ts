@@ -31,7 +31,9 @@ export type PermissionModule =
     | 'Recruitment'
     | 'Timesheet' // Phase 9
     | 'Document'
-    | 'Accounting';
+    | 'Accounting'
+    | 'NewsCMS'
+    | 'Policy';
 
 export const usePermission = () => {
     const { user } = useAuth();
