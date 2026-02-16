@@ -2,6 +2,7 @@ import { Response } from 'express';
 import prisma from '../prisma/client';
 import { AuthRequest } from '../middleware/auth';
 import { PermissionService } from '../services/permission.service';
+import { notifyLeadAssigned } from '../services/email.service';
 
 export const createLead = async (req: AuthRequest, res: Response) => {
   try {
@@ -83,6 +84,20 @@ export const createLead = async (req: AuthRequest, res: Response) => {
     });
 
     console.log('[CreateLead] Success:', lead.id);
+
+    // Notify assigned user if different from creator
+    if (lead.assignedTo && lead.assignedTo !== userId) {
+      try {
+        const assignee = await prisma.user.findUnique({
+          where: { id: lead.assignedTo }
+        });
+        if (assignee?.email) {
+          await notifyLeadAssigned(lead, assignee);
+        }
+      } catch (emailError) {
+        console.error('Failed to send lead assignment email:', emailError);
+      }
+    }
 
     res.status(201).json({
       message: 'Lead created successfully',
@@ -294,6 +309,22 @@ export const updateLead = async (req: AuthRequest, res: Response) => {
         assignedUser: true
       }
     });
+
+    // Notify if assignee changed
+    // We need to check if assignedTo was actually in the body and different
+    if (assignedTo && lead.assignedTo === assignedTo && lead.assignedTo !== userId) {
+      // Logic simplification: Just notify if assignedUser exists and is being updated
+      try {
+        const assignee = await prisma.user.findUnique({
+          where: { id: lead.assignedTo }
+        });
+        if (assignee?.email) {
+          await notifyLeadAssigned(lead, assignee);
+        }
+      } catch (emailError) {
+        console.error('Failed to send lead assignment email:', emailError);
+      }
+    }
 
     res.json({
       message: 'Lead updated successfully',

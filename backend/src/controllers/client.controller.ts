@@ -3,6 +3,7 @@ import prisma from '../prisma/client';
 import { AuthRequest } from '../middleware/auth';
 import { PermissionService } from '../services/permission.service';
 import bcrypt from 'bcryptjs';
+import { notifyDocumentStatus } from '../services/email.service';
 
 export const createClient = async (req: AuthRequest, res: Response) => {
   try {
@@ -377,7 +378,20 @@ export const approveDocument = async (req: AuthRequest, res: Response) => {
       }
     });
 
-    // TODO: Notify client via email
+
+
+    // Notify client via email
+    try {
+      const client = await prisma.client.findUnique({
+        where: { id },
+        select: { email: true, name: true }
+      });
+      if (client?.email) {
+        await notifyDocumentStatus(document, client.email, 'approved');
+      }
+    } catch (emailError) {
+      console.error('Failed to send document approval email:', emailError);
+    }
 
     res.json({ message: 'Document approved', document });
   } catch (error) {
@@ -408,7 +422,20 @@ export const rejectDocument = async (req: AuthRequest, res: Response) => {
       }
     });
 
-    // TODO: Notify client via email
+
+
+    // Notify client via email
+    try {
+      const client = await prisma.client.findUnique({
+        where: { id },
+        select: { email: true, name: true }
+      });
+      if (client?.email) {
+        await notifyDocumentStatus(document, client.email, 'rejected', reason);
+      }
+    } catch (emailError) {
+      console.error('Failed to send document rejection email:', emailError);
+    }
 
     res.json({ message: 'Document rejected', document });
   } catch (error) {

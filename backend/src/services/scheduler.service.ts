@@ -61,7 +61,8 @@ export class SchedulerService {
                 },
                 include: {
                     lead: true,
-                    company: true
+                    company: true,
+                    client: true
                 }
             });
 

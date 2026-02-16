@@ -294,7 +294,8 @@ export const acceptQuotation = async (req: Request, res: Response) => {
             },
             include: {
                 lead: true,
-                company: true
+                company: true,
+                client: true
             }
         });
 

@@ -4,6 +4,8 @@ import prisma from '../prisma/client';
 import { ClientAuthRequest } from '../middleware/client.auth';
 import { PDFService } from '../services/pdf.service';
 import { NotificationService } from '../services/notification.service';
+import fs from 'fs';
+import path from 'path';
 
 export const getDashboardStats = async (req: ClientAuthRequest, res: Response) => {
     try {
@@ -651,7 +653,8 @@ export const acceptQuotation = async (req: ClientAuthRequest, res: Response) => 
             },
             include: {
                 lead: true,
-                company: true
+                company: true,
+                client: true
             }
         });
 
@@ -1057,49 +1060,57 @@ export const uploadDocument = async (req: ClientAuthRequest, res: Response) => {
     try {
         const clientId = req.clientId;
         const { name, type } = req.body;
-        // The file upload middleware should populate req.file
-        // Assuming we use multer and it places file info in req.file
-        const file = (req as any).file;
 
-        if (!file) {
+        if (!req.file) {
             return res.status(400).json({ error: 'No file uploaded' });
         }
 
-        if (!name || !type) {
-            return res.status(400).json({ error: 'Document name and type are required' });
-        }
-
-        // Get Client to link CompanyId
         const client = await prisma.client.findUnique({
             where: { id: clientId },
-            select: { companyId: true }
+            include: { creator: true } // Fetch Account Manager
         });
 
-        if (!client) {
-            return res.status(404).json({ error: 'Client not found' });
-        }
+        if (!client) return res.status(404).json({ error: 'Client not found' });
+
+        const safeName = (name || req.file.originalname).replace(/[^a-zA-Z0-9-_]/g, '_');
+        const ext = req.file.originalname.split('.').pop() || 'pdf';
+        const finalFileName = `${client.name.replace(/\s+/g, '_')}_${safeName}_${Date.now()}.${ext}`;
+
+        const uploadDir = path.join(process.cwd(), 'uploads', 'documents');
+        if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
+        const filePath = path.join(uploadDir, finalFileName);
+        fs.writeFileSync(filePath, req.file.buffer);
+
+        const fileUrl = `/uploads/documents/${finalFileName}`;
 
         const document = await prisma.document.create({
             data: {
-                clientId,
                 companyId: client.companyId,
-                name,
-                type,
-                filePath: file.path || file.location,
-                fileSize: file.size,
-                mimeType: file.mimetype,
-                status: 'pending', // Default status for review
-                category: 'Onboarding'
+                clientId: client.id,
+                name: name || req.file.originalname,
+                type: type || 'Client Upload',
+                filePath: fileUrl,
+                fileSize: req.file.size,
+                mimeType: req.file.mimetype,
+                status: 'submitted',
+                workflowType: 'standard',
             }
         });
 
-        res.status(201).json({
-            message: 'Document uploaded successfully',
-            document
-        });
+        // Notify Account Manager
+        if (client.creator?.email) {
+            try {
+                const { notifyDocumentUploaded } = await import('../services/email.service');
+                await notifyDocumentUploaded(document, client.name, client.creator.email);
+            } catch (emailError) {
+                console.error('Failed to send document upload notification:', emailError);
+            }
+        }
 
+        res.status(201).json(document);
     } catch (error) {
-        console.error('Upload Document Error:', error);
+        console.error('Portal upload document error:', error);
         res.status(500).json({ error: 'Failed to upload document' });
     }
 };
@@ -1262,3 +1273,5 @@ export const downloadPortalDocument = async (req: ClientAuthRequest, res: Respon
         res.status(500).json({ error: 'Failed to download document' });
     }
 };
+
+

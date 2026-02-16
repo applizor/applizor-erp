@@ -3,6 +3,7 @@ import { AuthRequest } from '../middleware/auth';
 import prisma from '../prisma/client';
 import { logAction } from '../services/audit.service';
 import { PermissionService } from '../services/permission.service';
+import { notifyLeaveRequested, notifyLeaveStatusUpdate } from '../services/email.service';
 
 // Get all Leave Types
 export const getLeaveTypes = async (req: AuthRequest, res: Response) => {
@@ -263,9 +264,6 @@ export const updateLeaveType = async (req: AuthRequest, res: Response) => {
             action: 'UPDATE',
             module: 'LEAVE',
             entityType: 'LeaveType',
-            entityId: leaveType.id,
-            details: `Updated Leave Type: ${leaveType.name}`,
-            changes: req.body
         });
 
         res.json(leaveType);
@@ -294,7 +292,7 @@ export const deleteLeaveType = async (req: AuthRequest, res: Response) => {
 
         if (existingUsage > 0) {
             return res.status(400).json({
-                error: `Cannot delete this Leave Type because it is used in ${existingUsage} leave requests. Please delete the requests or archive the type instead.`
+                error: `Cannot delete this Leave Type because it is used in ${existingUsage} leave requests.Please delete the requests or archive the type instead.`
             });
         }
 
@@ -305,7 +303,7 @@ export const deleteLeaveType = async (req: AuthRequest, res: Response) => {
             module: 'LEAVE',
             entityType: 'LeaveType',
             entityId: id,
-            details: `Deleted Leave Type (ID: ${id})`
+            details: `Deleted Leave Type(ID: ${id})`
         });
 
         res.json({ message: 'Leave type deleted successfully' });
@@ -419,7 +417,7 @@ export const createLeaveRequest = async (req: AuthRequest, res: Response) => {
         if (leaveType.minServiceDays > 0) {
             if (serviceDays < leaveType.minServiceDays) {
                 return res.status(400).json({
-                    error: `You are in probation/active service period (Served: ${serviceDays} days). Minimum ${leaveType.minServiceDays} days required for this leave type.`
+                    error: `You are in probation / active service period(Served: ${serviceDays} days).Minimum ${leaveType.minServiceDays} days required for this leave type.`
                 });
             }
         }
@@ -488,7 +486,7 @@ export const createLeaveRequest = async (req: AuthRequest, res: Response) => {
             const totalUsedInProbation = existingRequestsInProbation.reduce((acc, req) => acc + req.days, 0);
             if (totalUsedInProbation + calculatedDays > leaveType.probationQuota) {
                 return res.status(400).json({
-                    error: `Probation quota exceeded for ${leaveType.name}. Max allowed during probation: ${leaveType.probationQuota}, Used: ${totalUsedInProbation}, Requesting: ${calculatedDays}.`
+                    error: `Probation quota exceeded for ${leaveType.name}.Max allowed during probation: ${leaveType.probationQuota}, Used: ${totalUsedInProbation}, Requesting: ${calculatedDays}.`
                 });
             }
         }
@@ -509,7 +507,7 @@ export const createLeaveRequest = async (req: AuthRequest, res: Response) => {
                 // If start date is BEFORE minStartDate
                 if (start < minStartDate) {
                     return res.status(400).json({
-                        error: `Advance notice required. For leaves > ${minDaysForNotice} days, you must apply ${noticePeriod} days in advance.`
+                        error: `Advance notice required.For leaves > ${minDaysForNotice} days, you must apply ${noticePeriod} days in advance.`
                     });
                 }
             }
@@ -520,7 +518,7 @@ export const createLeaveRequest = async (req: AuthRequest, res: Response) => {
         if (leaveType.proofRequired && calculatedDays > minDaysForProof) {
             if (!attachmentPath) {
                 return res.status(400).json({
-                    error: `Proof (Medical/Other) is required for leaves exceeding ${minDaysForProof} days.`
+                    error: `Proof(Medical / Other) is required for leaves exceeding ${minDaysForProof} days.`
                 });
             }
         }
@@ -528,7 +526,7 @@ export const createLeaveRequest = async (req: AuthRequest, res: Response) => {
         // 3. Check Max Consecutive Days
         if (leaveType.maxConsecutiveDays > 0 && calculatedDays > leaveType.maxConsecutiveDays) {
             return res.status(400).json({
-                error: `Request exceeds maximum consecutive days limit (${leaveType.maxConsecutiveDays} days).`
+                error: `Request exceeds maximum consecutive days limit(${leaveType.maxConsecutiveDays} days).`
             });
         }
 
@@ -551,7 +549,7 @@ export const createLeaveRequest = async (req: AuthRequest, res: Response) => {
             const totalDaysInMonth = existingRequestsInMonth.reduce((acc, req) => acc + req.days, 0);
             if (totalDaysInMonth + calculatedDays > leaveType.monthlyLimit) {
                 return res.status(400).json({
-                    error: `Monthly limit exceeded for ${leaveType.name}. Max allowed: ${leaveType.monthlyLimit}/month, Used: ${totalDaysInMonth}, Requesting: ${calculatedDays}.`
+                    error: `Monthly limit exceeded for ${leaveType.name}.Max allowed: ${leaveType.monthlyLimit}/month, Used: ${totalDaysInMonth}, Requesting: ${calculatedDays}.`
                 });
             }
         }
@@ -675,6 +673,10 @@ export const createLeaveRequest = async (req: AuthRequest, res: Response) => {
                 }
             }
         }
+
+
+
+
 
         res.status(201).json(leaveRequest);
     } catch (error) {
@@ -833,6 +835,21 @@ export const updateLeaveStatus = async (req: AuthRequest, res: Response) => {
                 approvedAt: new Date()
             }
         });
+
+        // Notify Employee if Status Changed
+        if (leaveRequest.status !== existing.status) {
+            try {
+                const employee = await prisma.employee.findUnique({
+                    where: { id: leaveRequest.employeeId },
+                    select: { email: true, firstName: true }
+                });
+                if (employee?.email) {
+                    await notifyLeaveStatusUpdate(leaveRequest, employee);
+                }
+            } catch (emailError) {
+                console.error('Failed to send leave status update email:', emailError);
+            }
+        }
 
         // Update Leave Balance when approved
         if (status === 'approved') {

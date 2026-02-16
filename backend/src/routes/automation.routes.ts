@@ -12,4 +12,9 @@ router.get('/monthly-accrual', triggerMonthlyAccrual);
 router.get('/probation-confirmation', triggerProbationConfirmation);
 router.get('/quotation-reminders', triggerQuotationReminders);
 
+// Microsoft Auth
+import { getAuthUrl, handleCallback } from '../controllers/microsoft-auth.controller';
+router.get('/microsoft/auth-url', getAuthUrl);
+router.get('/microsoft/callback', handleCallback);
+
 export default router;

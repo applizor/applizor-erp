@@ -76,7 +76,7 @@ export default function Sidebar() {
         { name: 'Candidates', href: '/recruitment/candidates', icon: Users, category: 'Recruitment', module: 'Recruitment' },
         { name: 'Interviews', href: '/recruitment/interviews', icon: UserCircle, category: 'Recruitment', module: 'Recruitment' },
         { name: 'Kanban Board', href: '/recruitment/board', icon: LayoutDashboard, category: 'Recruitment', module: 'RecruitmentBoard' },
-        { name: 'Doc Templates', href: '/recruitment/templates', icon: Copy, category: 'Recruitment', module: 'DocumentTemplate' },
+        { name: 'Email Templates', href: '/recruitment/templates', icon: FileText, category: 'Recruitment', module: 'Recruitment', permissions: [{ module: 'Recruitment', action: 'read' }] },
 
         // CRM (Sales)
         { name: 'Leads', href: '/leads', icon: LineChart, category: 'CRM', module: 'Lead' },

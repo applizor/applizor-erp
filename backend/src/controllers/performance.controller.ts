@@ -3,6 +3,7 @@ import { AuthRequest } from '../middleware/auth';
 import prisma from '../prisma/client';
 import { PermissionService } from '../services/permission.service';
 import { PerformanceService } from '../services/performance.service';
+import { notifyPerformanceReview, notifyExitInitiated } from '../services/email.service';
 
 export const createOKR = async (req: AuthRequest, res: Response) => {
     try {
@@ -88,6 +89,19 @@ export const createPerformanceReview = async (req: AuthRequest, res: Response) =
         });
 
         res.json(review);
+
+        // Notify Employee
+        try {
+            const employee = await prisma.employee.findUnique({
+                where: { id: employeeId },
+                select: { email: true, firstName: true }
+            });
+            if (employee?.email) {
+                await notifyPerformanceReview(review, employee);
+            }
+        } catch (emailError) {
+            console.error('Failed to send performance review email:', emailError);
+        }
     } catch (error) {
         res.status(500).json({ error: 'Failed to create review' });
     }
@@ -116,6 +130,19 @@ export const initiateExit = async (req: AuthRequest, res: Response) => {
             where: { id: employeeId },
             data: { status: 'resigned' }
         });
+
+        // Notify Employee
+        try {
+            const employee = await prisma.employee.findUnique({
+                where: { id: employeeId },
+                select: { email: true, firstName: true }
+            });
+            if (employee?.email) {
+                await notifyExitInitiated(employee, new Date(lastWorkingDay));
+            }
+        } catch (emailError) {
+            console.error('Failed to send exit initiation email:', emailError);
+        }
 
         res.json(exit);
     } catch (error) {

@@ -3,6 +3,7 @@ import prisma from '../prisma/client';
 import { AuthRequest } from '../middleware/auth';
 import { PermissionService } from '../services/permission.service';
 import { NotificationService } from '../services/notification.service';
+import { notifyNewTicket, notifyTicketReply } from '../services/email.service';
 
 /**
  * Helpdesk Ticket Controller (Enhanced)
@@ -31,6 +32,16 @@ export const createTicket = async (req: AuthRequest, res: Response) => {
                 createdById: user.id
             }
         });
+
+        // Notify Support
+        try {
+            const supportEmail = process.env.SUPPORT_EMAIL || process.env.EMAIL_FROM || '';
+            if (supportEmail) {
+                await notifyNewTicket(ticket, `${user.firstName} ${user.lastName}`, supportEmail);
+            }
+        } catch (emailError) {
+            console.error('Failed to send new ticket email:', emailError);
+        }
 
         res.status(201).json(ticket);
     } catch (error) {
@@ -176,6 +187,34 @@ export const addReply = async (req: AuthRequest, res: Response) => {
             where: { id },
             data: { updatedAt: new Date() }
         });
+
+        // Notify relevant party
+        try {
+            const ticket = await prisma.ticket.findUnique({
+                where: { id },
+                include: {
+                    creator: { select: { email: true, firstName: true } },
+                    assignee: { select: { email: true, firstName: true } }
+                }
+            });
+
+            if (ticket) {
+                let recipientEmail = '';
+                // If sender is creator, notify assignee (or support)
+                if (user.id === ticket.createdById) {
+                    recipientEmail = ticket.assignee?.email || process.env.SUPPORT_EMAIL || '';
+                } else {
+                    // Sender is agent/admin, notify creator
+                    recipientEmail = ticket.creator.email;
+                }
+
+                if (recipientEmail) {
+                    await notifyTicketReply(ticket, message, recipientEmail);
+                }
+            }
+        } catch (emailError) {
+            console.error('Failed to send ticket reply email:', emailError);
+        }
 
         res.json(message);
     } catch (error) {

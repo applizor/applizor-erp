@@ -1,6 +1,6 @@
 import { Response } from 'express';
-import prisma from '../../prisma/client';
-import { AuthRequest } from '../../middleware/auth';
+import prisma from '../prisma/client';
+import { AuthRequest } from '../middleware/auth';
 
 export const createSalesTarget = async (req: AuthRequest, res: Response) => {
     try {

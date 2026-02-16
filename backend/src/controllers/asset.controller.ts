@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { PrismaClient } from '@prisma/client';
 import { PermissionService } from '../services/permission.service';
+import { notifyAssetAssigned } from '../services/email.service';
 
 const prisma = new PrismaClient();
 
@@ -110,6 +111,21 @@ export const createAsset = async (req: AuthRequest, res: Response) => {
             }
         });
 
+        // Notify employee if assigned
+        if (employeeId) {
+            try {
+                const employee = await prisma.employee.findUnique({
+                    where: { id: employeeId },
+                    select: { email: true, firstName: true }
+                });
+                if (employee?.email) {
+                    await notifyAssetAssigned(asset, employee);
+                }
+            } catch (emailError) {
+                console.error('Failed to send asset assignment email:', emailError);
+            }
+        }
+
         res.status(201).json(asset);
     } catch (error) {
         console.error('Create asset error:', error);
@@ -159,6 +175,21 @@ export const updateAsset = async (req: AuthRequest, res: Response) => {
         });
 
         res.json(asset);
+
+        // Notify employee if assigned
+        if (employeeId && updateData.employeeId) {
+            try {
+                const employee = await prisma.employee.findUnique({
+                    where: { id: employeeId },
+                    select: { email: true, firstName: true }
+                });
+                if (employee?.email) {
+                    await notifyAssetAssigned(asset, employee);
+                }
+            } catch (emailError) {
+                console.error('Failed to send asset assignment email:', emailError);
+            }
+        }
     } catch (error) {
         console.error('Update asset error:', error);
         res.status(500).json({ error: 'Failed to update asset' });

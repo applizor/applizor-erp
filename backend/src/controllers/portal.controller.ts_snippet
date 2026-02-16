@@ -1,0 +1,68 @@
+
+// ==========================================
+// Documents
+// ==========================================
+
+export const uploadDocument = async (req: ClientAuthRequest, res: Response) => {
+    try {
+        const clientId = req.clientId;
+        const { name, type } = req.body;
+
+        if (!req.file) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+
+        const client = await prisma.client.findUnique({
+            where: { id: clientId },
+            include: { creator: true } // Fetch Account Manager
+        });
+
+        if (!client) return res.status(404).json({ error: 'Client not found' });
+
+        const safeName = (name || req.file.originalname).replace(/[^a-zA-Z0-9-_]/g, '_');
+        const fileName = `${client.name.replace(/\s+/g, '_')}_${safeName}_${Date.now()}.pdf`; // Assuming PDF or check extension
+        // Better preserve extension
+        const ext = req.file.originalname.split('.').pop() || 'pdf';
+        const finalFileName = `${client.name.replace(/\s+/g, '_')}_${safeName}_${Date.now()}.${ext}`;
+
+        const uploadDir = path.join(process.cwd(), 'uploads', 'documents');
+        if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
+        const filePath = path.join(uploadDir, finalFileName);
+        fs.writeFileSync(filePath, req.file.buffer);
+
+        const fileUrl = `/uploads/documents/${finalFileName}`;
+
+        const document = await prisma.document.create({
+            data: {
+                companyId: client.companyId,
+                clientId: client.id,
+                name: name || req.file.originalname,
+                type: type || 'Client Upload',
+                filePath: fileUrl,
+                fileSize: req.file.size,
+                mimeType: req.file.mimetype,
+                status: 'submitted',
+                workflowType: 'standard',
+                uploadedById: null // Uploaded by Client (no user ID or maybe special system user?) 
+                                   // Schema says uploadedById is String? pointing to User. 
+                                   // Clients are not Users in this schema. So null is correct.
+            }
+        });
+
+        // Notify Account Manager
+        if (client.creator?.email) {
+            try {
+                const { notifyDocumentUploaded } = await import('../services/email.service');
+                await notifyDocumentUploaded(document, client.name, client.creator.email);
+            } catch (emailError) {
+                console.error('Failed to send document upload notification:', emailError);
+            }
+        }
+
+        res.status(201).json(document);
+    } catch (error: any) {
+        console.error('Portal upload document error:', error);
+        res.status(500).json({ error: 'Failed to upload document' });
+    }
+};

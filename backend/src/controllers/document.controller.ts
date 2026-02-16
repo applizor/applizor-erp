@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { DocumentGenerationService } from '../services/document.service';
 import { PDFService } from '../services/pdf.service';
+import { notifyDocumentStatus } from '../services/email.service';
 import fs from 'fs';
 import path from 'path';
 import prisma from '../prisma/client';
@@ -250,8 +251,20 @@ export const reviewDocument = async (req: AuthRequest, res: Response) => {
             data: {
                 status,
                 rejectionReason: status === 'rejected' ? remarks : null
-            }
+            },
+            include: { employee: true, client: true }
         });
+
+        // Notify Owner
+        try {
+            if (updated.employeeId && updated.employee?.email) {
+                await notifyDocumentStatus(updated, updated.employee.email, status, remarks);
+            } else if (updated.clientId && updated.client?.email) {
+                await notifyDocumentStatus(updated, updated.client.email, status, remarks);
+            }
+        } catch (emailError) {
+            console.error('Failed to send document review email:', emailError);
+        }
 
         res.json(updated);
     } catch (error: any) {

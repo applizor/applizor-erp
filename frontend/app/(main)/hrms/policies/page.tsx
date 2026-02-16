@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
-import { BookOpen, Plus, FileText, Download, Trash2, ShieldCheck, ChevronRight, Search } from 'lucide-react';
+import { BookOpen, Plus, FileText, Download, Trash2, ShieldCheck, ChevronRight, Search, Upload } from 'lucide-react';
 import { PermissionGuard } from '@/components/PermissionGuard';
 import { usePermission } from '@/hooks/usePermission';
 import { Dialog } from '@/components/ui/Dialog';
@@ -11,29 +11,87 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Textarea } from '@/components/ui/Textarea';
-
-// Mock API for now - replace with actual API call later
-const mockPolicies = [
-    { id: '1', title: 'Employee Handbook 2026', description: 'General guidelines and code of conduct.', date: '2026-01-15', category: 'General' },
-    { id: '2', title: 'Leave Policy', description: 'Rules regarding casual, sick, and privilege leaves.', date: '2026-01-10', category: 'HR' },
-    { id: '3', title: 'IT Security Policy', description: 'Protocols for device usage and data protection.', date: '2025-12-01', category: 'IT' },
-];
+import { Policy } from '@/types'; // Ensure you have a Policy type or define inline
+import { apiClient } from '@/lib/api'; // Assuming you have a configured axios instance
 
 export default function PoliciesPage() {
     const { can } = usePermission();
-    const [policies, setPolicies] = useState<any[]>(mockPolicies);
-    const [loading, setLoading] = useState(false);
+    const { toast } = useToast();
+    const [policies, setPolicies] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
 
     // Form State
     const [newPolicy, setNewPolicy] = useState({ title: '', description: '', category: '' });
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [submitting, setSubmitting] = useState(false);
+
+    const fetchPolicies = async () => {
+        try {
+            setLoading(true);
+            const { data } = await apiClient.get('/policies');
+            setPolicies(data);
+        } catch (error) {
+            console.error('Failed to fetch policies:', error);
+            toast({ title: 'Error', description: 'Failed to load policies', variant: 'destructive' });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchPolicies();
+    }, []);
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
-        setPolicies([...policies, { ...newPolicy, id: Date.now().toString(), date: new Date().toISOString().split('T')[0] }]);
-        setIsCreateOpen(false);
-        setNewPolicy({ title: '', description: '', category: '' });
+        try {
+            setSubmitting(true);
+            const formData = new FormData();
+            formData.append('title', newPolicy.title);
+            formData.append('description', newPolicy.description);
+            formData.append('category', newPolicy.category);
+            if (selectedFile) {
+                formData.append('file', selectedFile);
+            }
+
+            await apiClient.post('/policies', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+
+            toast({ title: 'Success', description: 'Policy published successfully' });
+            setIsCreateOpen(false);
+            setNewPolicy({ title: '', description: '', category: '' });
+            setSelectedFile(null);
+            fetchPolicies();
+        } catch (error) {
+            console.error('Create policy error:', error);
+            toast({ title: 'Error', description: 'Failed to publish policy', variant: 'destructive' });
+        } finally {
+            setSubmitting(false);
+        }
     };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            setSelectedFile(e.target.files[0]);
+        }
+    };
+
+    const openPolicy = (url?: string) => {
+        if (!url) return;
+        // Check if URL is absolute or relative
+        const fullUrl = url.startsWith('http') ? url : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}${url}`;
+        window.open(fullUrl, '_blank');
+    };
+
+    const filteredPolicies = policies.filter(p =>
+        p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.category?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    if (loading) return <LoadingSpinner />;
 
     return (
         <div className="space-y-6">
@@ -57,6 +115,8 @@ export default function PoliciesPage() {
                         <input
                             type="text"
                             placeholder="SEARCH PROTOCOLS..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
                             className="pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-md text-[10px] font-black uppercase tracking-widest w-64 focus:outline-none focus:border-primary-500 transition-all"
                         />
                     </div>
@@ -73,38 +133,47 @@ export default function PoliciesPage() {
 
             {/* Content Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {policies.map((policy) => (
-                    <div key={policy.id} className="ent-card group hover:border-primary-200 transition-all duration-300">
-                        <div className="p-5 space-y-4">
-                            <div className="flex justify-between items-start">
-                                <div className="p-2 bg-blue-50 text-blue-600 rounded-md">
-                                    <ShieldCheck size={20} />
+                {filteredPolicies.length === 0 ? (
+                    <div className="col-span-full text-center py-10 text-gray-400 text-xs">No policies found.</div>
+                ) : (
+                    filteredPolicies.map((policy) => (
+                        <div key={policy.id} className="ent-card group hover:border-primary-200 transition-all duration-300">
+                            <div className="p-5 space-y-4">
+                                <div className="flex justify-between items-start">
+                                    <div className="p-2 bg-blue-50 text-blue-600 rounded-md">
+                                        <ShieldCheck size={20} />
+                                    </div>
+                                    <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 bg-gray-50 px-2 py-1 rounded border border-gray-100">
+                                        {policy.category || 'General'}
+                                    </span>
                                 </div>
-                                <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 bg-gray-50 px-2 py-1 rounded border border-gray-100">
-                                    {policy.category || 'General'}
-                                </span>
-                            </div>
 
-                            <div>
-                                <h3 className="text-sm font-black text-gray-900 uppercase tracking-tight mb-1 group-hover:text-primary-600 transition-colors">
-                                    {policy.title}
-                                </h3>
-                                <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed">
-                                    {policy.description}
-                                </p>
-                            </div>
+                                <div>
+                                    <h3 className="text-sm font-black text-gray-900 uppercase tracking-tight mb-1 group-hover:text-primary-600 transition-colors">
+                                        {policy.title}
+                                    </h3>
+                                    <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed">
+                                        {policy.description}
+                                    </p>
+                                </div>
 
-                            <div className="pt-4 border-t border-gray-100 flex items-center justify-between">
-                                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
-                                    Updated: {policy.date}
-                                </span>
-                                <button className="text-[9px] font-black uppercase tracking-widest text-primary-600 hover:text-primary-700 flex items-center gap-1">
-                                    Read Protocol <ChevronRight size={10} />
-                                </button>
+                                <div className="pt-4 border-t border-gray-100 flex items-center justify-between">
+                                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
+                                        Updated: {new Date(policy.updatedAt).toLocaleDateString()}
+                                    </span>
+                                    {policy.fileUrl && (
+                                        <button
+                                            onClick={() => openPolicy(policy.fileUrl)}
+                                            className="text-[9px] font-black uppercase tracking-widest text-primary-600 hover:text-primary-700 flex items-center gap-1"
+                                        >
+                                            <Download size={12} /> Read Protocol
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         </div>
-                    </div>
-                ))}
+                    ))
+                )}
             </div>
 
             {/* Create Modal */}
@@ -138,9 +207,29 @@ export default function PoliciesPage() {
                         />
                     </div>
 
+                    <div className="space-y-1.5">
+                        <Label>Policy Document (PDF)</Label>
+                        <div className="border-2 border-dashed border-gray-200 rounded-md p-4 text-center hover:bg-gray-50 transition-colors relative">
+                            <input
+                                type="file"
+                                accept="application/pdf"
+                                onChange={handleFileChange}
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                            />
+                            <div className="flex flex-col items-center gap-2 text-gray-500">
+                                <Upload size={20} />
+                                <span className="text-xs font-bold uppercase tracking-wide">
+                                    {selectedFile ? selectedFile.name : 'Click to Upload PDF'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
                     <div className="pt-2 flex justify-end gap-2">
                         <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
-                        <Button type="submit">Publish</Button>
+                        <Button type="submit" disabled={submitting}>
+                            {submitting ? 'Publishing...' : 'Publish'}
+                        </Button>
                     </div>
                 </form>
             </Dialog>

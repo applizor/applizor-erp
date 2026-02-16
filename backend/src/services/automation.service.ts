@@ -89,7 +89,11 @@ export class AutomationService {
         if (config.recipient === 'assignee' && payload.assigneeEmail) {
             recipientEmails = [payload.assigneeEmail];
         } else if (config.recipient === 'client' && project.client?.email) {
-            recipientEmails = [project.client.email];
+            if (project.client.receiveNotifications !== false) {
+                recipientEmails = [project.client.email];
+            } else {
+                console.log(`ℹ️ Client ${project.client.name} has notifications disabled. Skipping automation email.`);
+            }
         } else if (config.recipient === 'custom' && config.customEmail) {
             recipientEmails = [config.customEmail];
         } else if (config.recipient === 'mentions' && payload.mentions) {

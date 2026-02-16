@@ -63,7 +63,7 @@ export class ContractService {
                 ...filters
             },
             include: {
-                client: { select: { name: true, company: true, email: true } },
+                client: { select: { name: true, company: true, email: true, receiveNotifications: true } },
                 project: { select: { name: true } },
                 creator: { select: { firstName: true, lastName: true } }
             },

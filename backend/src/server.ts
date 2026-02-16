@@ -141,6 +141,10 @@ app.use('/api/payroll/components', salaryComponentRoutes);
 app.use('/api/payroll/structure', salaryStructureRoutes);
 app.use('/api/payroll', payrollRoutes);
 
+// Sales Routes
+import salesRoutes from './routes/sales.routes';
+app.use('/api/sales', salesRoutes);
+
 // ... other routes
 app.use('/api/accounting', accountingRoutes);
 

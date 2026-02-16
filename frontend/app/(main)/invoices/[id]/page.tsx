@@ -6,7 +6,7 @@ import {
     ArrowLeft, Download, Mail, DollarSign,
     Clock, CheckCircle, AlertCircle, FileText,
     Share2, Trash2, Printer, Receipt, Info, ShieldCheck, Link as LinkIcon,
-    Globe, Activity, Copy, RefreshCw, XCircle, CreditCard
+    Globe, Activity, Copy, RefreshCw, XCircle, CreditCard, Edit
 } from 'lucide-react';
 import { invoicesApi } from '@/lib/api/invoices';
 import { useToast } from '@/hooks/useToast';
@@ -291,6 +291,14 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
                     <button onClick={handleSendEmail} disabled={actionLoading} className="flex-1 lg:flex-none px-3 py-1.5 bg-white border border-gray-200 rounded text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 flex items-center justify-center gap-2 transition-all">
                         <Mail size={14} /> {actionLoading ? 'Sending...' : 'Transmit'}
                     </button>
+                    {!isPaid && (
+                        <Link
+                            href={`/invoices/${params.id}/edit`}
+                            className="flex-1 lg:flex-none px-3 py-1.5 bg-white border border-gray-200 rounded text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 flex items-center justify-center gap-2 transition-all"
+                        >
+                            <Edit size={14} /> Edit
+                        </Link>
+                    )}
                     {isQuotation && invoice.status !== 'accepted' && (
                         <button onClick={handleConvertToInvoice} disabled={actionLoading} className="flex-1 lg:flex-none px-4 py-1.5 bg-primary-600 text-white rounded text-[10px] font-black uppercase tracking-widest hover:bg-primary-700 flex items-center justify-center gap-2 transition-all shadow-lg shadow-primary-500/10">
                             <Receipt size={14} /> {actionLoading ? 'Processing...' : 'Generate Invoice'}
