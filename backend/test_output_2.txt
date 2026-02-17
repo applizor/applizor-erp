@@ -1,0 +1,22 @@
+FAIL tests/unit/services/accounting.service.test.ts
+  ● Test suite failed to run
+
+    [96mtests/unit/services/accounting.service.test.ts[0m:[93m35[0m:[93m2[0m - [91merror[0m[90m TS1005: [0m')' expected.
+
+    [7m35[0m };
+    [7m  [0m [91m ~[0m
+    [96mtests/unit/services/accounting.service.test.ts[0m:[93m36[0m:[93m1[0m - [91merror[0m[90m TS1128: [0mDeclaration or statement expected.
+
+    [7m36[0m });
+    [7m  [0m [91m~[0m
+    [96mtests/unit/services/accounting.service.test.ts[0m:[93m36[0m:[93m2[0m - [91merror[0m[90m TS1128: [0mDeclaration or statement expected.
+
+    [7m36[0m });
+    [7m  [0m [91m ~[0m
+
+Test Suites: 1 failed, 1 total
+Tests:       0 total
+Snapshots:   0 total
+Time:        4.082 s
+Ran all test suites matching tests/unit/services/accounting.service.test.ts.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

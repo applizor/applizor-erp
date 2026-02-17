@@ -3,7 +3,7 @@ import path from 'path';
 import fs from 'fs';
 
 // Ensure uploads directory exists
-const uploadDir = path.join(__dirname, '../../uploads/logos');
+const uploadDir = path.join(process.cwd(), 'uploads/logos');
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
 }
@@ -40,7 +40,7 @@ export const uploadLogo = multer({
 // Document Upload Configuration
 const docStorage = multer.diskStorage({
     destination: (req, file, cb) => {
-        const docDir = path.join(__dirname, '../../uploads/documents');
+        const docDir = path.join(process.cwd(), 'uploads/documents');
         if (!fs.existsSync(docDir)) {
             fs.mkdirSync(docDir, { recursive: true });
         }
@@ -73,7 +73,7 @@ export const uploadDocument = multer({
 // Leave Attachment Upload Configuration
 const leaveStorage = multer.diskStorage({
     destination: (req, file, cb) => {
-        const leaveDir = path.join(__dirname, '../../uploads/leaves');
+        const leaveDir = path.join(process.cwd(), 'uploads/leaves');
         if (!fs.existsSync(leaveDir)) {
             fs.mkdirSync(leaveDir, { recursive: true });
         }
@@ -92,7 +92,7 @@ export const uploadLeaveAttachment = multer({
 });
 
 // Signature Upload Configuration
-const signatureDir = path.join(__dirname, '../../uploads/signatures');
+const signatureDir = path.join(process.cwd(), 'uploads/signatures');
 if (!fs.existsSync(signatureDir)) {
     fs.mkdirSync(signatureDir, { recursive: true });
 }
@@ -114,7 +114,7 @@ export const uploadSignature = multer({
 });
 
 // Letterhead Upload Configuration
-const letterheadDir = path.join(__dirname, '../../uploads/letterheads');
+const letterheadDir = path.join(process.cwd(), 'uploads/letterheads');
 if (!fs.existsSync(letterheadDir)) {
     fs.mkdirSync(letterheadDir, { recursive: true });
 }
@@ -148,7 +148,7 @@ export const uploadLetterheadAsset = multer({
 });
 
 // Profile Upload Configuration
-const profileDir = path.join(__dirname, '../../uploads/profiles');
+const profileDir = path.join(process.cwd(), 'uploads/profiles');
 if (!fs.existsSync(profileDir)) {
     fs.mkdirSync(profileDir, { recursive: true });
 }

@@ -1,0 +1,37 @@
+  console.log
+    DEBUG: ensure createJournalEntry called. autoPost: false
+
+      at createJournalEntry (src/services/accounting.service.ts:68:13)
+
+  console.log
+    DEBUG: ensure createJournalEntry called. autoPost: true
+
+      at createJournalEntry (src/services/accounting.service.ts:68:13)
+
+  console.log
+    DEBUG: Inside autoPost block. Lines length: 2
+
+      at src/services/accounting.service.ts:100:21
+
+  console.log
+    DEBUG: Processing line for account: acc-asset
+
+      at src/services/accounting.service.ts:102:25
+
+  console.log
+    DEBUG: Processing line for account: acc-liability
+
+      at src/services/accounting.service.ts:102:25
+
+PASS tests/unit/services/accounting.service.test.ts
+  AccountingService
+    createJournalEntry
+      ✓ should throw error if debits do not equal credits (58 ms)
+      ✓ should create journal entry successfully when balanced (9 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       2 passed, 2 total
+Snapshots:   0 total
+Time:        4.686 s
+Ran all test suites matching tests/unit/services/accounting.service.test.ts.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

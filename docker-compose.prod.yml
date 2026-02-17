@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  backend:
+    # Use the production stage from Dockerfile
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: runner
+    # Override development command
+    command: node dist/src/server.js
+    # Ensure uploads volume is preserved
+    volumes:
+      - ./backend/uploads:/app/uploads
+    environment:
+      NODE_ENV: production
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: runner
+    environment:
+      NODE_ENV: production
+    # Override development command to use the built server
+    command: node server.js
+    # Remove volume mounts
+    volumes: []

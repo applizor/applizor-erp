@@ -371,7 +371,7 @@ export default function PoliciesPage() {
                 isOpen={isViewDialogOpen}
                 onClose={() => setIsViewDialogOpen(false)}
                 title={viewingPolicy?.title || "Policy Details"}
-                maxWidth="4xl"
+                maxWidth="6xl"
             >
                 <div className="space-y-6 py-2">
                     <div className="flex items-center justify-between pb-4 border-b border-gray-100">

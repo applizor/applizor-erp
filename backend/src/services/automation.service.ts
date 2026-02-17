@@ -109,9 +109,9 @@ export class AutomationService {
                         await notifyMention({ email: mention.email, firstName: mention.firstName }, payload.commenterName || 'Someone', { title: payload.taskTitle, id: payload.taskId }, project, payload.commentContent || '');
                     }
                 } else if (config.useTemplate === 'assigned') {
-                    await notifyTaskAssigned({ title: payload.taskTitle, description: '', priority: 'medium', status: payload.newStatus || 'todo', type: 'task' }, { email: payload.assigneeEmail, firstName: payload.assigneeName }, project);
+                    await notifyTaskAssigned(payload.assigneeEmail!, { title: payload.taskTitle, description: '', priority: 'medium', status: payload.newStatus || 'todo', type: 'task' }, project);
                 } else if (config.useTemplate === 'created') {
-                    await notifyNewTask({ title: payload.taskTitle, description: '', priority: 'medium', type: 'task' }, project, email);
+                    await notifyNewTask(email, { title: payload.taskTitle, description: '', priority: 'medium', type: 'task' }, project);
                 } else {
                     await sendEmail(email, config.subject || `Update: ${payload.taskTitle}`, config.body || `Task ${payload.taskTitle} has been updated.`);
                 }

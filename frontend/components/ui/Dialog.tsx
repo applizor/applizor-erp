@@ -52,37 +52,39 @@ export const Dialog: React.FC<DialogProps> = ({
     };
 
     return (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center overflow-y-auto overflow-x-hidden bg-gray-900/60 backdrop-blur-sm p-4 md:p-6 transition-all duration-200">
-            {/* Overlay click to close */}
-            <div
-                className="fixed inset-0"
-                onClick={onClose}
-                aria-hidden="true"
-            />
+        <div className="fixed inset-0 z-[1000] overflow-y-auto bg-gray-900/60 backdrop-blur-sm transition-all duration-200">
+            <div className="flex min-h-full items-center justify-center p-4 md:p-6">
+                {/* Overlay click to close */}
+                <div
+                    className="fixed inset-0"
+                    onClick={onClose}
+                    aria-hidden="true"
+                />
 
-            {/* Modal Content */}
-            <div
-                className={`relative w-full ${maxWidthClasses[maxWidth]} bg-white rounded-md shadow-2xl ring-1 ring-gray-200 transform transition-all scale-100 opacity-100`}
-                role="dialog"
-                aria-modal="true"
-            >
-                {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-                    <h3 className="text-lg font-semibold text-gray-900 tracking-tight">
-                        {title}
-                    </h3>
-                    <button
-                        onClick={onClose}
-                        className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-full transition-colors"
-                        aria-label="Close"
-                    >
-                        <X size={20} />
-                    </button>
-                </div>
+                {/* Modal Content */}
+                <div
+                    className={`relative w-full ${maxWidthClasses[maxWidth]} bg-white rounded-md shadow-2xl ring-1 ring-gray-200 transform transition-all scale-100 opacity-100`}
+                    role="dialog"
+                    aria-modal="true"
+                >
+                    {/* Header */}
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                        <h3 className="text-lg font-semibold text-gray-900 tracking-tight">
+                            {title}
+                        </h3>
+                        <button
+                            onClick={onClose}
+                            className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-full transition-colors"
+                            aria-label="Close"
+                        >
+                            <X size={20} />
+                        </button>
+                    </div>
 
-                {/* Body */}
-                <div className="p-6">
-                    {children}
+                    {/* Body */}
+                    <div className="p-6">
+                        {children}
+                    </div>
                 </div>
             </div>
         </div>

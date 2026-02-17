@@ -36,8 +36,8 @@ export class SchedulerService {
 
         // Portal Suspension: Run daily at 02:00
         cron.schedule('0 2 * * *', async () => {
-            console.log('⏰ Running daily portal suspension check...');
-            await this.suspendOverduePortals();
+            // console.log('⏰ Running daily portal suspension check...');
+            // await this.suspendOverduePortals();
         });
     }
 
@@ -126,6 +126,7 @@ export class SchedulerService {
         }
     }
 
+    /*
     static async suspendOverduePortals() {
         try {
             console.log('[Scheduler] Checking for overdue portals...');
@@ -165,4 +166,5 @@ export class SchedulerService {
             console.error('[Scheduler] Error suspending overdue portals:', error);
         }
     }
+    */
 }

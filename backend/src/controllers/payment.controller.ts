@@ -159,7 +159,7 @@ export const verifyPayment = async (req: AuthRequest, res: Response) => {
     }
 
     // Get payment details from Razorpay
-    const paymentDetails = await paymentService.getPaymentDetails(paymentId);
+    const paymentDetails = await paymentService.getPaymentDetails('razorpay', paymentId);
 
     // Find payment record
     const payment = await prisma.payment.findFirst({

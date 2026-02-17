@@ -130,7 +130,10 @@ export class PDFService {
             }
 
             // Path.join(__dirname, '../../') takes us to the project root (backend/)
+            // In Docker, cwd is /app. In local dev, it might be backend/
             const absolutePath = path.resolve(process.cwd(), relativeFilePath);
+
+            console.log(`[PDFService] Resolving image path: ${filePath} -> ${absolutePath}`);
 
             if (fs.existsSync(absolutePath)) {
                 const fileBuffer = fs.readFileSync(absolutePath);
@@ -138,10 +141,10 @@ export class PDFService {
                 const mimeType = extension === 'png' ? 'image/png' : 'image/jpeg';
                 return `data:${mimeType};base64,${fileBuffer.toString('base64')}`;
             } else {
-                console.error(`File not found at absolute path: ${absolutePath}`);
+                console.error(`[PDFService] File not found at absolute path: ${absolutePath}`);
             }
         } catch (error) {
-            console.error('Error converting image to base64:', error);
+            console.error('[PDFService] Error converting image to base64:', error);
         }
         return filePath; // Fallback to original
     }
@@ -785,11 +788,20 @@ export class PDFService {
             const overlayPages = mainPdfDoc.getPages();
 
             const getBackdropDoc = async (p: string) => {
-                const relativePath = p.startsWith('/') ? p.substring(1) : p;
-                const absolutePath = path.join(__dirname, '../../', relativePath);
+                let relativePath = p.startsWith('/') ? p.substring(1) : p;
+
+                // Ensure it points to uploads directory
+                if (!relativePath.startsWith('uploads/') && !relativePath.startsWith('backend/uploads/')) {
+                    relativePath = path.join('uploads', relativePath);
+                }
+
+                const absolutePath = path.resolve(process.cwd(), relativePath);
+                console.log(`[PDFService] Resolving overlay path: ${p} -> ${absolutePath}`);
+
                 if (fs.existsSync(absolutePath)) {
                     return await PDFDocument.load(fs.readFileSync(absolutePath));
                 }
+                console.error(`[PDFService] Overlay file not found: ${absolutePath}`);
                 return null;
             };
 

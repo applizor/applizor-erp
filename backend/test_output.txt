@@ -1,0 +1,87 @@
+  console.log
+    DEBUG: ensure createJournalEntry called. autoPost: false
+
+      at createJournalEntry (src/services/accounting.service.ts:68:13)
+
+  console.log
+    DEBUG: ensure createJournalEntry called. autoPost: true
+
+      at createJournalEntry (src/services/accounting.service.ts:68:13)
+
+  console.log
+    DEBUG: ensure createJournalEntry called. autoPost: true
+
+      at createJournalEntry (src/services/accounting.service.ts:68:13)
+
+  console.log
+    DEBUG: ensure createJournalEntry called. autoPost: true
+
+      at createJournalEntry (src/services/accounting.service.ts:68:13)
+
+FAIL tests/unit/services/accounting.service.test.ts
+  AccountingService
+    createJournalEntry
+      ✓ should throw error if debits do not equal credits (103 ms)
+      ✕ should create journal entry successfully when balanced (6 ms)
+      ✕ should update asset balance correctly (Debit increases) (4 ms)
+      ✕ should update liability balance correctly (Credit increases) (2 ms)
+
+  ● AccountingService › createJournalEntry › should create journal entry successfully when balanced
+
+    expect(jest.fn()).toHaveBeenCalled()
+
+    Expected number of calls: >= 1
+    Received number of calls:    0
+
+      65 |             await createJournalEntry(companyId, date, description, reference, lines, true);
+      66 |
+    > 67 |             expect(prisma.journalEntry.create).toHaveBeenCalled();
+         |                                                ^
+      68 |             // Should update balances for 2 accounts
+      69 |             expect(prisma.ledgerAccount.update).toHaveBeenCalledTimes(2);
+      70 |         });
+
+      at Object.<anonymous> (tests/unit/services/accounting.service.test.ts:67:48)
+
+  ● AccountingService › createJournalEntry › should update asset balance correctly (Debit increases)
+
+    expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+    Expected: ObjectContaining {"data": {"balance": {"increment": 100}}, "where": {"id": "acc-asset"}}
+
+    Number of calls: 0
+
+      89 |
+      90 |             // Asset: Debit - Credit = 100 - 0 = +100
+    > 91 |             expect(prisma.ledgerAccount.update).toHaveBeenCalledWith(expect.objectContaining({
+         |                                                 ^
+      92 |                 where: { id: 'acc-asset' },
+      93 |                 data: { balance: { increment: 100 } }
+      94 |             }));
+
+      at Object.<anonymous> (tests/unit/services/accounting.service.test.ts:91:49)
+
+  ● AccountingService › createJournalEntry › should update liability balance correctly (Credit increases)
+
+    expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+    Expected: ObjectContaining {"data": {"balance": {"increment": 100}}, "where": {"id": "acc-liability"}}
+
+    Number of calls: 0
+
+      114 |
+      115 |             // Liability: Credit - Debit = 100 - 0 = +100
+    > 116 |             expect(prisma.ledgerAccount.update).toHaveBeenCalledWith(expect.objectContaining({
+          |                                                 ^
+      117 |                 where: { id: 'acc-liability' },
+      118 |                 data: { balance: { increment: 100 } }
+      119 |             }));
+
+      at Object.<anonymous> (tests/unit/services/accounting.service.test.ts:116:49)
+
+Test Suites: 1 failed, 1 total
+Tests:       3 failed, 1 passed, 4 total
+Snapshots:   0 total
+Time:        3.789 s, estimated 5 s
+Ran all test suites matching tests/unit/services/accounting.service.test.ts.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

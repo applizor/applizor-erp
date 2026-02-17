@@ -1,26 +1,0 @@
-GLOBAL MULTI-PORTAL NEWS CMS (ENTERPRISE DOCUMENT)
-Integrated with Existing ERP (Node.js Monolith Backend)
-Separate Frontend: Next.js Application
-This document contains FULL technical specifications for direct development.
-------------------------------------------------------------
-1. SYSTEM ARCHITECTURE
- ERP (Existing): - Node.js Monolith Backend - PostgreSQL - Central Auth - Recurring Billing System  NEW CMS: - CMS Module inside ERP Backend - Separate Next.js Frontend Application - Multi-tenant (portal-based architecture) 
-2. BILLING & PROVISIONING FLOW
- 1. Client created in ERP 2. Project created with project_type = 'news_portal' 3. Recurring invoice activated 4. Portal auto-provisioned 5. Domain mapped 6. Portal becomes active  Daily cron: If invoice unpaid -> suspend portal If paid -> reactivate 
-3. COMPLETE DATABASE SCHEMA (PostgreSQL)
- cms_portals: - id UUID PK - client_id UUID INDEX - project_id UUID INDEX - domain VARCHAR(255) UNIQUE INDEX - subdomain VARCHAR(255) - plan_type VARCHAR(50) - status VARCHAR(20) INDEX - created_at TIMESTAMP  cms_posts: - id UUID PK - portal_id UUID INDEX - author_id UUID INDEX - title TEXT - slug VARCHAR(255) INDEX - content TEXT - featured_image TEXT - status VARCHAR(20) INDEX - published_at TIMESTAMP INDEX - created_at TIMESTAMP  cms_categories: - id UUID PK - portal_id UUID INDEX - name VARCHAR(255) - slug VARCHAR(255) INDEX  cms_tags: - id UUID PK - portal_id UUID INDEX - name VARCHAR(255)  cms_post_tags: - post_id UUID INDEX - tag_id UUID INDEX  cms_seo: - post_id UUID PK - meta_title VARCHAR(160) - meta_description VARCHAR(255) - focus_keywords TEXT - schema_json JSONB  cms_ad_settings: - portal_id UUID PK - header_ad TEXT - in_article_ad TEXT - sidebar_ad TEXT - revenue_share_percentage INT  cms_roles: - id UUID PK - name VARCHAR(100)  cms_user_portal_roles: - user_id UUID INDEX - portal_id UUID INDEX - role_id UUID INDEX 
-4. ROLE PERMISSION MATRIX
- client_admin: - Full access - Manage domain - Manage ads - Manage users - Publish posts  manager: - Manage editors - View analytics - Publish posts  news_editor: - Edit & publish posts - Manage categories - Override SEO  news_reporter: - Create posts - Upload images - Cannot publish 
-5. API ENDPOINT DOCUMENTATION
- AUTH REQUIRED (JWT)  POST /api/cms/portal/create POST /api/cms/portal/suspend POST /api/cms/portal/reactivate  POST /api/cms/post/create PUT  /api/cms/post/update/:id GET  /api/cms/post/list DELETE /api/cms/post/delete/:id  POST /api/cms/category/create GET  /api/cms/category/list  POST /api/cms/seo/generate  GET /api/public/:domain/home GET /api/public/:domain/category/:slug GET /api/public/:domain/post/:slug 
-6. FRONTEND STRUCTURE (Next.js App Router)
- /app    /(public)       /[domain]/          page.tsx          category/[slug]/page.tsx          post/[slug]/page.tsx    /(dashboard)       /portal          /posts          /categories          /users          /ads /middleware.ts /lib/api.ts /components /styles  Rendering: Homepage → ISR (60 sec) Category → ISR Article → SSR Breaking → SSR 
-7. AI SEO PROMPT TEMPLATE
- SYSTEM PROMPT:  You are an expert SEO specialist for news websites. Generate optimized SEO metadata.  INPUT: Title: {title} Content: {content}  OUTPUT (JSON): {   "meta_title": "",   "meta_description": "",   "focus_keywords": [],   "slug": "",   "schema_json": {} }  Rules: - Meta title under 60 chars - Meta description under 155 chars - 5 focus keywords - Valid NewsArticle schema 
-8. DEVOPS PRODUCTION INFRASTRUCTURE
- Production Stack: - Ubuntu 22.04 - Nginx Reverse Proxy - Node.js (PM2) - PostgreSQL - Redis - Cloudflare CDN - SSL (Let's Encrypt)  Deployment: - ERP Backend - CMS Frontend (separate Next.js build)  Backups: - Daily DB backup - Weekly snapshot  Monitoring: - PM2 monitor - Error logs 
-9. PERFORMANCE TARGETS
- - Page load under 1.5 sec - LCP under 2 sec - Mobile first - WebP images - Redis caching - Edge caching 
-10. DEVELOPMENT TIMELINE (40 DAYS)
- Phase 1: Core CMS + DB (10 Days) Phase 2: Roles + SEO + AI (10 Days) Phase 3: Frontend Rendering (10 Days) Phase 4: Testing + Deployment (10 Days) 
- FINAL RESULT: Enterprise-grade AI-powered Multi-Portal News SaaS Platform.

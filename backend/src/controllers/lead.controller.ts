@@ -316,7 +316,7 @@ export const updateLead = async (req: AuthRequest, res: Response) => {
       // Logic simplification: Just notify if assignedUser exists and is being updated
       try {
         const assignee = await prisma.user.findUnique({
-          where: { id: lead.assignedTo }
+          where: { id: lead.assignedTo! }
         });
         if (assignee?.email) {
           await notifyLeadAssigned(lead, assignee);

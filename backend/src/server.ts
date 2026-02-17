@@ -49,7 +49,7 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // Serve static files
 // Server Entry Point - Updated
 import path from 'path';
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 // Health check
 app.get('/health', (req, res) => {
