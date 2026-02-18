@@ -656,6 +656,37 @@ export const getJournalEntries = async (companyId: string, limit = 50) => {
 };
 
 export const reconcileCompanyLedger = async (companyId: string) => {
+    // 0. BACKFILL: Find sent/paid invoices missing from ledger and create entries
+    const invoices = await prisma.invoice.findMany({
+        where: {
+            companyId,
+            status: { in: ['sent', 'paid', 'partial'] }
+        }
+    });
+
+    let backfilledCount = 0;
+    for (const inv of invoices) {
+        // Check if journal entry exists (Reference matches Invoice Number)
+        const exists = await prisma.journalEntry.count({
+            where: {
+                companyId,
+                reference: inv.invoiceNumber
+            }
+        });
+
+        if (exists === 0) {
+            try {
+                // Determine user ID if possible (system action)
+                // We use a try-catch to avoid breaking the whole sync process for one bad invoice
+                await postInvoiceToLedger(inv.id);
+                backfilledCount++;
+                console.log(`[Reconcile] Backfilled ledger for invoice: ${inv.invoiceNumber}`);
+            } catch (err) {
+                console.error(`[Reconcile] Failed to backfill invoice ${inv.invoiceNumber}:`, err);
+            }
+        }
+    }
+
     return await prisma.$transaction(async (tx) => {
         // 1. Reset all balances to 0
         await tx.ledgerAccount.updateMany({
@@ -697,7 +728,11 @@ export const reconcileCompanyLedger = async (companyId: string) => {
             });
         }
 
-        return { success: true, accountsReconciled: Object.keys(accountTotals).length };
+        return {
+            success: true,
+            accountsReconciled: Object.keys(accountTotals).length,
+            backfilledInvoices: backfilledCount
+        };
     });
 };
 
