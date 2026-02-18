@@ -436,7 +436,8 @@ export const getAllAttendance = async (req: AuthRequest, res: Response) => {
                                 empData.attendance[day] = {
                                     status: 'leave',
                                     leaveType: leave.leaveType.name,
-                                    isLeave: true
+                                    isLeave: true,
+                                    isPaid: leave.leaveType.isPaid
                                 };
                             } else {
                                 // Conflict: Checked In AND On Leave. 
@@ -466,8 +467,18 @@ export const getAllAttendance = async (req: AuthRequest, res: Response) => {
                 });
             });
 
+            const company = await prisma.company.findUnique({
+                where: { id: req.user.companyId },
+                select: { offDays: true }
+            });
+
             return res.json({
-                meta: { month, year, daysInMonth: endDate.getDate() },
+                meta: {
+                    month,
+                    year,
+                    daysInMonth: endDate.getDate(),
+                    offDays: company?.offDays || ""
+                },
                 matrix: Object.values(musterRoll),
                 holidays: holidays
             });
@@ -595,6 +606,18 @@ export const manualMarkAttendance = async (req: AuthRequest, res: Response) => {
             return res.status(403).json({ error: 'Access denied: No permission to mark attendance' });
         }
 
+        const employeeIds = assignments.map(ass => ass.employeeId);
+        const validCount = await prisma.employee.count({
+            where: {
+                id: { in: employeeIds },
+                companyId: req.user.companyId
+            }
+        });
+
+        if (validCount !== Array.from(new Set(employeeIds)).length) {
+            return res.status(403).json({ error: 'Access denied: Unauthorized employee access' });
+        }
+
         const operations = assignments.map(ass => {
             const date = new Date(ass.date);
             date.setHours(0, 0, 0, 0);
@@ -631,5 +654,48 @@ export const manualMarkAttendance = async (req: AuthRequest, res: Response) => {
     } catch (error: any) {
         console.error('Manual mark attendance error:', error);
         res.status(500).json({ error: 'Failed to mark attendance', details: error.message });
+    }
+};
+
+export const deleteAttendance = async (req: AuthRequest, res: Response) => {
+    try {
+        const { employeeId, date } = req.query;
+
+        if (!employeeId || !date) {
+            return res.status(400).json({ error: 'Missing employeeId or date' });
+        }
+
+        if (!PermissionService.hasBasicPermission(req.user, 'Attendance', 'update')) {
+            return res.status(403).json({ error: 'Access denied: No permission to delete attendance' });
+        }
+
+        const targetDate = new Date(date as string);
+        targetDate.setHours(0, 0, 0, 0);
+
+        // Multitenancy check
+        const employee = await prisma.employee.findFirst({
+            where: {
+                id: employeeId as string,
+                companyId: req.user.companyId
+            }
+        });
+
+        if (!employee) {
+            return res.status(403).json({ error: 'Access denied: Unauthorized employee access' });
+        }
+
+        await prisma.attendance.delete({
+            where: {
+                employeeId_date: {
+                    employeeId: employeeId as string,
+                    date: targetDate
+                }
+            }
+        });
+
+        res.json({ message: 'Attendance record deleted' });
+    } catch (error: any) {
+        console.error('Delete attendance error:', error);
+        res.status(500).json({ error: 'Failed to delete attendance' });
     }
 };

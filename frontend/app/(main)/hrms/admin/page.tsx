@@ -41,7 +41,8 @@ export default function AdminAttendancePage() {
         employeeId: '',
         dateRange: { start: new Date().toISOString().split('T')[0], end: new Date().toISOString().split('T')[0] },
         status: 'present',
-        notes: ''
+        notes: '',
+        skipOffDays: true
     });
 
     const formatDate = (date: Date | string) => {
@@ -101,7 +102,10 @@ export default function AdminAttendancePage() {
                 const dateKey = formatDate(entry.date);
                 const existing = map[empId][dateKey];
 
-                if (existing && existing.status && existing.status !== 'absent' && existing.status !== 'unknown') {
+                const dateObj = new Date(entry.date);
+                const isOff = offDays.includes(dateObj.toLocaleDateString('en-US', { weekday: 'long' }));
+
+                if (existing && existing.status && existing.status !== 'absent' && existing.status !== 'unknown' && existing.status !== '') {
                     map[empId][dateKey] = {
                         ...existing,
                         shiftName: entry.shift?.name,
@@ -110,7 +114,7 @@ export default function AdminAttendancePage() {
                     return;
                 }
 
-                let status = existing?.status || 'absent';
+                let status = existing?.status || '';
                 if (entry.isLeave) {
                     status = 'on-leave';
                 } else {
@@ -123,15 +127,13 @@ export default function AdminAttendancePage() {
                         const isHoliday = holidaysData.find(h => formatDate(h.date) === dateKey);
                         if (isHoliday) {
                             status = 'holiday';
+                        } else if (isOff) {
+                            status = 'weekend';
                         } else {
                             const todayKey = formatDate(new Date());
                             status = dateKey > todayKey ? '' : 'absent';
                         }
                     }
-                }
-
-                if (holidaysData.find(h => formatDate(h.date) === dateKey) && !entry.isLeave && (!existing || !existing.checkIn)) {
-                    status = 'holiday';
                 }
 
                 map[empId][dateKey] = {
@@ -166,7 +168,8 @@ export default function AdminAttendancePage() {
             employeeId,
             dateRange: { start: dateKey, end: dateKey },
             status: currentStatus || 'present',
-            notes: ''
+            notes: '',
+            skipOffDays: true
         });
         setShowMarkModal(true);
     };
@@ -183,6 +186,7 @@ export default function AdminAttendancePage() {
             case 'late': return <div onClick={onClick} className={`${iconClass} bg-orange-100 text-orange-700`} title="Late">L</div>;
             case 'on-leave': return <div onClick={onClick} className={`${iconClass} bg-blue-100 text-blue-700`} title="On Leave">OL</div>;
             case 'holiday': return <div onClick={onClick} className={`${iconClass} bg-purple-100 text-purple-700`} title="Holiday">H</div>;
+            case 'weekend': return <div onClick={onClick} className={`${iconClass} bg-gray-50 text-gray-400 text-[10px] font-black`} title="Weekend Off">OFF</div>;
             default: return <div onClick={onClick} className="w-6 h-6 rounded-md flex items-center justify-center text-gray-300 text-xs font-bold cursor-pointer hover:bg-gray-50" title="Click to mark">-</div>;
         }
     };
@@ -222,7 +226,10 @@ export default function AdminAttendancePage() {
                 });
             }
 
-            await api.post('/attendance-leave/attendance/manual', { assignments });
+            await api.post('/attendance-leave/attendance/manual', {
+                assignments,
+                skipOffDays: manualData.skipOffDays
+            });
             toast.success('Attendance records updated');
             setShowMarkModal(false);
             loadData();
@@ -323,13 +330,27 @@ export default function AdminAttendancePage() {
                             ))
                         ) : employees.map(emp => {
                             const empRecord = attendanceMap[emp.id] || {};
-                            const presentCount = Object.entries(empRecord).filter(([dateKey, r]) =>
-                                r.status === 'present' || r.status === 'late' || r.status === 'holiday'
-                            ).length;
+                            const today = new Date();
+                            today.setHours(23, 59, 59, 999);
 
-                            // Also count offDays as present if no record exists
-                            const offDaysCount = days.filter(d => isOffDay(d) && !empRecord[formatDate(d)]).length;
-                            const totalPaidDays = presentCount + offDaysCount;
+                            const stats = Object.entries(empRecord).reduce((acc, [dateKey, r]) => {
+                                const date = new Date(dateKey);
+                                if (date > today) return acc; // Don't count future days
+
+                                if (r.status === 'present' || r.status === 'late') acc.present++;
+                                if (r.status === 'absent') acc.absent++;
+                                if (r.status === 'on-leave') {
+                                    if ((r as any).isPaid) acc.leave++;
+                                    else acc.unpaidLeave++;
+                                }
+                                if (r.status === 'holiday') acc.holiday++;
+                                if (r.status === 'weekend') acc.weekend++;
+                                if (r.status === 'half-day') acc.halfDay++;
+                                return acc;
+                            }, { present: 0, absent: 0, leave: 0, holiday: 0, weekend: 0, halfDay: 0, unpaidLeave: 0 });
+
+                            // Net Paid Days Calculation
+                            const totalPaidDays = stats.present + stats.holiday + stats.weekend + stats.leave + (stats.halfDay * 0.5);
 
                             return (
                                 <tr key={emp.id} className="hover:bg-gray-50">
@@ -433,6 +454,19 @@ export default function AdminAttendancePage() {
                             value={manualData.notes}
                             onChange={(e) => setManualData({ ...manualData, notes: e.target.value })}
                         />
+                    </div>
+
+                    <div className="flex items-center gap-2 px-1">
+                        <input
+                            type="checkbox"
+                            id="skipOffDaysAdmin"
+                            checked={manualData.skipOffDays}
+                            onChange={(e) => setManualData({ ...manualData, skipOffDays: e.target.checked })}
+                            className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                        />
+                        <label htmlFor="skipOffDaysAdmin" className="text-xs font-bold text-gray-700 cursor-pointer">
+                            Skip Company Off-Days (Weekends)
+                        </label>
                     </div>
 
                     <div className="flex justify-end gap-3 mt-6">

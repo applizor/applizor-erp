@@ -108,6 +108,14 @@ export const attendanceApi = {
             params: { month, year, departmentId }
         });
         return response.data;
+    },
+    manualMark: async (assignments: any[]) => {
+        const response = await api.post('/attendance-leave/attendance/manual', { assignments });
+        return response.data;
+    },
+    deleteRecord: async (employeeId: string, date: string) => {
+        const response = await api.delete('/attendance-leave/attendance', { params: { employeeId, date } });
+        return response.data;
     }
 };
 

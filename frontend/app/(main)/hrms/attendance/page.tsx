@@ -314,6 +314,14 @@ export default function AttendancePage() {
                             <LayoutGrid size={14} /> System Audit
                         </button>
                     )}
+                    {isAdmin && (
+                        <button
+                            onClick={() => window.location.href = '/hrms/attendance/register'}
+                            className="flex items-center gap-2 py-2 px-4 rounded-md font-black text-[10px] uppercase tracking-widest text-gray-500 hover:text-gray-900"
+                        >
+                            <Calendar size={14} /> Muster Roll
+                        </button>
+                    )}
                 </div>
             </div>
 

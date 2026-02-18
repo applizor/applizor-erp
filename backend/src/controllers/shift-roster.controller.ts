@@ -12,11 +12,12 @@ export const getRoster = async (req: AuthRequest, res: Response) => {
         const end = new Date(endDate as string);
 
         const where: any = {
-            date: { gte: start, lte: end }
+            date: { gte: start, lte: end },
+            employee: { companyId: req.user.companyId }
         };
 
         if (departmentId && departmentId !== 'all') {
-            where.employee = { departmentId: departmentId as string };
+            where.employee = { ...where.employee, departmentId: departmentId as string };
         }
 
         // 1. Fetch Assigned Shifts
@@ -113,8 +114,20 @@ export const updateRoster = async (req: AuthRequest, res: Response) => {
 
         console.log('Received assignments:', JSON.stringify(assignments, null, 2));
 
-        // 1. Validate Conflicts with Approved Leaves
+        const companyId = req.user.companyId;
+
+        // 1. Multitenancy Check: Verify all employees belong to this company
         const employeesToCheck = assignments.map(a => a.employeeId);
+        const validEmployees = await prisma.employee.count({
+            where: {
+                id: { in: employeesToCheck },
+                companyId: companyId
+            }
+        });
+
+        if (validEmployees !== Array.from(new Set(employeesToCheck)).length) {
+            return res.status(403).json({ error: 'Access denied: One or more employees do not belong to your organization.' });
+        }
         const datesToCheck = assignments.map(a => new Date(a.date));
 
         // Find min and max date to reduce query scope
@@ -190,10 +203,11 @@ export const syncPreviousWeek = async (req: AuthRequest, res: Response) => {
         const prevEnd = new Date(currentEnd);
         prevEnd.setDate(prevEnd.getDate() - 7);
 
-        // 1. Fetch Previous Week Assignments
+        // 1. Fetch Previous Week Assignments (Scoped to company)
         const prevAssignments = await prisma.shiftRoster.findMany({
             where: {
-                date: { gte: prevStart, lte: prevEnd }
+                date: { gte: prevStart, lte: prevEnd },
+                employee: { companyId: req.user.companyId }
             }
         });
 
@@ -201,12 +215,13 @@ export const syncPreviousWeek = async (req: AuthRequest, res: Response) => {
             return res.json({ message: 'No assignments found in previous week to sync.' });
         }
 
-        // 2. Fetch Approved Leaves for CURRENT week to prevent conflicts
+        // 2. Fetch Approved Leaves for CURRENT week to prevent conflicts (Scoped to company)
         const employeesToCheck = Array.from(new Set(prevAssignments.map(a => a.employeeId)));
         const approvedLeaves = await prisma.leaveRequest.findMany({
             where: {
                 employeeId: { in: employeesToCheck },
                 status: 'approved',
+                employee: { companyId: req.user.companyId },
                 OR: [
                     { startDate: { gte: currentStart, lte: currentEnd } },
                     { endDate: { gte: currentStart, lte: currentEnd } },
