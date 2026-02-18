@@ -70,6 +70,8 @@ export const getAssets = async (req: AuthRequest, res: Response) => {
     }
 };
 
+import * as accountingService from '../services/accounting.service';
+
 // Create Asset
 export const createAsset = async (req: AuthRequest, res: Response) => {
     try {
@@ -82,6 +84,7 @@ export const createAsset = async (req: AuthRequest, res: Response) => {
 
         const user = await prisma.user.findUnique({ where: { id: userId } });
         if (!user?.companyId) return res.status(400).json({ error: 'User/Company not found' });
+        const companyId = user.companyId;
 
         const { name, type, serialNumber, status, purchaseDate, price, currency, employeeId, assignedDate } = req.body;
 
@@ -89,7 +92,7 @@ export const createAsset = async (req: AuthRequest, res: Response) => {
         if (serialNumber) {
             const existing = await prisma.asset.findFirst({
                 where: {
-                    companyId: user.companyId,
+                    companyId,
                     serialNumber
                 }
             });
@@ -98,7 +101,7 @@ export const createAsset = async (req: AuthRequest, res: Response) => {
 
         const asset = await prisma.asset.create({
             data: {
-                companyId: user.companyId,
+                companyId,
                 name,
                 type,
                 serialNumber,
@@ -110,6 +113,32 @@ export const createAsset = async (req: AuthRequest, res: Response) => {
                 assignedDate: employeeId ? (assignedDate ? new Date(assignedDate) : new Date()) : null
             }
         });
+
+        // 1. Accounting Entry if Price > 0
+        if (price && parseFloat(price) > 0) {
+            try {
+                // Debit: Fixed Assets (1500)
+                // Credit: Bank (1001) - Assming bank purchase by default
+                const assetAcc = await accountingService.ensureAccount(companyId, '1500', 'Fixed Assets', 'asset');
+                const bankAcc = await accountingService.ensureAccount(companyId, '1001', 'Bank Account', 'asset');
+
+                await accountingService.createJournalEntry(
+                    companyId,
+                    purchaseDate ? new Date(purchaseDate) : new Date(),
+                    `Asset Purchase: ${name} (${serialNumber || 'No SN'})`,
+                    `ASSET-${asset.id.slice(-6).toUpperCase()}`,
+                    [
+                        { accountId: assetAcc.id, debit: parseFloat(price) },
+                        { accountId: bankAcc.id, credit: parseFloat(price) }
+                    ],
+                    true, // Auto-post
+                    userId
+                );
+            } catch (accError) {
+                console.error('Failed to create asset accounting entry:', accError);
+                // Don't fail the request, just log
+            }
+        }
 
         // Notify employee if assigned
         if (employeeId) {

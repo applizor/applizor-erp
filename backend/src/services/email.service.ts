@@ -215,8 +215,8 @@ export const sendInvoiceEmail = async (to: string, invoiceData: any, pdfBuffer?:
     const typeLabel = invoiceData.type === 'quotation' ? 'Quotation' : 'Invoice';
     const title = isReminder ? `Payment Reminder: ${typeLabel} #${invoiceData.invoiceNumber}` : `New ${typeLabel} Received`;
     const subject = isReminder
-        ? `Reminder: ${typeLabel} #${invoiceData.invoiceNumber} is due`
-        : `${typeLabel} #${invoiceData.invoiceNumber} from ${companyName}`;
+        ? `Reminder: ${typeLabel} #${invoiceData.invoiceNumber} is due - ${companyName}`
+        : `${typeLabel} #${invoiceData.invoiceNumber} - ${companyName}`;
 
     const content = `
         <p>Dear ${invoiceData.client?.name || 'Valued Client'},</p>
@@ -249,7 +249,7 @@ export const sendQuotationToClient = async (quotationData: any, publicUrl: strin
     }
 
     const companyName = await getCompanyName(quotationData.companyId);
-    const subject = `Quotation #${quotationData.quotationNumber} from ${companyName}`;
+    const subject = `Quotation #${quotationData.quotationNumber} - ${companyName}`;
     const content = `
         <p>Dear ${quotationData.lead?.name || quotationData.client?.name || 'Valued Client'},</p>
         <p>We are pleased to present our formal quotation for your consideration. Our team has carefully mapped out the requirements to ensure the highest quality of service.</p>
@@ -274,7 +274,7 @@ export const sendContractNotification = async (contract: any, publicUrl: string)
     }
 
     const companyName = await getCompanyName(contract.companyId);
-    const subject = `New Contract: ${contract.title} from ${companyName}`;
+    const subject = `New Contract: ${contract.title} - ${companyName}`;
     const content = `
         <p>Hello ${contract.client.name},</p>
         <p>A new service agreement or contract titled <strong>${contract.title}</strong> is ready for your review and digital signature.</p>
@@ -291,8 +291,8 @@ export const sendContractNotification = async (contract: any, publicUrl: string)
 
 // Send Notification to Company when Client signs
 export const sendContractSignedNotificationToCompany = async (contract: any) => {
-    const subject = `Contract Signed: ${contract.title} by ${contract.signerName || contract.client.name}`;
     const companyName = await getCompanyName(contract.companyId);
+    const subject = `Contract Signed: ${contract.title} - ${companyName}`;
 
     const content = `
         <p>Excellent news! The contract <strong>${contract.title}</strong> has been digitally signed.</p>
@@ -320,7 +320,7 @@ export const sendQuotationAcceptanceToClient = async (quotationData: any) => {
     }
 
     const companyName = await getCompanyName(quotationData.companyId);
-    const subject = `Quotation #${quotationData.quotationNumber} - Accepted`;
+    const subject = `Quotation #${quotationData.quotationNumber} Accepted - ${companyName}`;
     const content = `
         <p>Dear ${quotationData.clientName},</p>
         <p>Thank you for accepting our quotation. We have received your digital confirmation and our team is now ready to proceed with the next steps.</p>
@@ -338,8 +338,8 @@ export const sendQuotationAcceptanceToClient = async (quotationData: any) => {
 
 // Send Acceptance Notification to Company
 export const sendQuotationAcceptanceToCompany = async (quotationData: any) => {
-    const subject = `✓ Quotation #${quotationData.quotationNumber} Accepted by ${quotationData.clientName}`;
     const companyName = await getCompanyName(quotationData.companyId);
+    const subject = `Quotation Accepted: #${quotationData.quotationNumber} - ${companyName}`;
 
     const content = `
         <p>Excellent progress! <strong>${quotationData.clientName}</strong> has officially accepted quotation <strong>#${quotationData.quotationNumber}</strong>.</p>
@@ -361,8 +361,8 @@ export const sendQuotationAcceptanceToCompany = async (quotationData: any) => {
 
 // Send Rejection Notification to Company
 export const sendQuotationRejectionToCompany = async (quotationData: any) => {
-    const subject = `✗ Quotation #${quotationData.quotationNumber} Declined by ${quotationData.clientName}`;
     const companyName = await getCompanyName(quotationData.companyId);
+    const subject = `Quotation Declined: #${quotationData.quotationNumber} - ${companyName}`;
 
     const content = `
         <p>Quotation <strong>#${quotationData.quotationNumber}</strong> has been declined by the client.</p>
@@ -390,7 +390,7 @@ export const sendQuotationReminder = async (quotationData: any, publicUrl: strin
     }
 
     const companyName = await getCompanyName(quotationData.companyId);
-    const subject = `Reminder: Quotation #${quotationData.quotationNumber} from ${companyName}`;
+    const subject = `Reminder: Quotation #${quotationData.quotationNumber} - ${companyName}`;
     const content = `
         <p>Dear ${quotationData.lead?.name || 'Valued Client'},</p>
         <p>This is a gentle reminder regarding the proposal we sent to you on ${new Date(quotationData.quotationDate).toLocaleDateString()}.</p>
@@ -408,10 +408,10 @@ export const sendQuotationReminder = async (quotationData: any, publicUrl: strin
 // --- Task Notifications ---
 
 export const notifyTaskAssigned = async (to: string, task: any, project: any) => {
-    const subject = `Task Assigned: ${task.title}`;
+    const companyName = await getCompanyName(project.companyId);
+    const subject = `Task Assigned: ${task.title} - ${companyName}`;
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const taskUrl = `${frontendUrl}/projects/${project.id}/tasks?taskId=${task.id}`;
-    const companyName = await getCompanyName(project.companyId);
 
     const content = `
         <p>You have been assigned to a new task in the project <strong>${project.name}</strong>.</p>
@@ -429,10 +429,10 @@ export const notifyTaskAssigned = async (to: string, task: any, project: any) =>
 };
 
 export const notifyTaskUpdated = async (assignee: any, task: any, project: any, changes: string[]) => {
-    const subject = `[${project.name}] Update on: ${task.title}`;
+    const companyName = await getCompanyName(project.companyId);
+    const subject = `Task Updated: ${task.title} - ${companyName}`;
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const taskUrl = `${frontendUrl}/projects/${project.id}/tasks?taskId=${task.id}`;
-    const companyName = await getCompanyName(project.companyId);
 
     const content = `
         <p>Hello <strong>${assignee.firstName}</strong>,</p>
@@ -449,10 +449,10 @@ export const notifyTaskUpdated = async (assignee: any, task: any, project: any, 
 };
 
 export const notifyNewTask = async (to: string, task: any, project: any) => {
-    const subject = `New Task Created: ${task.title}`;
+    const companyName = await getCompanyName(project.companyId);
+    const subject = `New Task Created: ${task.title} - ${companyName}`;
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const taskUrl = `${frontendUrl}/projects/${project.id}/tasks?taskId=${task.id}`;
-    const companyName = await getCompanyName(project.companyId);
 
     const content = `
         <p>A new task has been added to the project <strong>${project.name}</strong>.</p>
@@ -469,10 +469,10 @@ export const notifyNewTask = async (to: string, task: any, project: any) => {
 };
 
 export const notifyMention = async (recipient: { email: string, firstName: string }, author: string, task: any, project: any, commentContent: string) => {
-    const subject = `${author} mentioned you in ${project.name}`;
+    const companyName = await getCompanyName(project.companyId);
+    const subject = `New Mention in ${project.name} - ${companyName}`;
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const commentUrl = `${frontendUrl}/projects/${project.id}/tasks?taskId=${task.id}`;
-    const companyName = await getCompanyName(project.companyId);
 
     const content = `
         <p>Hello <strong>${recipient.firstName}</strong>,</p>
@@ -498,9 +498,9 @@ export const sendInterviewInvite = async (
         companyId?: string; // Add optional companyId
     }
 ) => {
-    const subject = `Interview Invitation: Round ${details.round} - ${details.type}`;
-    const dateStr = new Date(details.scheduledAt).toLocaleString();
     const companyName = await getCompanyName(details.companyId);
+    const subject = `Interview Invitation: Round ${details.round} (${details.type}) - ${companyName}`;
+    const dateStr = new Date(details.scheduledAt).toLocaleString();
 
     const content = `
         <p>Dear <strong>${details.candidateName}</strong>,</p>
@@ -531,8 +531,8 @@ export const sendPayslipEmail = async (
     },
     pdfBuffer: Buffer
 ) => {
-    const subject = `Payslip for ${details.monthName} ${details.year}`;
     const companyName = await getCompanyName(details.companyId);
+    const subject = `Payslip for ${details.monthName} ${details.year} - ${companyName}`;
 
     const content = `
         <p>Dear <strong>${details.employeeName}</strong>,</p>
@@ -557,8 +557,8 @@ export const sendPayslipEmail = async (
 // --- Leave Notifications ---
 
 export const notifyLeaveRequested = async (leave: any, employee: any, managerEmail: string) => {
-    const subject = `Leave Request: ${employee.firstName} ${employee.lastName}`;
     const companyName = await getCompanyName(employee.companyId);
+    const subject = `Leave Request: ${employee.firstName} ${employee.lastName} - ${companyName}`;
 
     const content = `
         <p><strong>${employee.firstName} ${employee.lastName}</strong> has submitted a new leave request.</p>
@@ -575,9 +575,9 @@ export const notifyLeaveRequested = async (leave: any, employee: any, managerEma
 };
 
 export const notifyLeaveStatusUpdate = async (leave: any, employee: any) => {
-    const subject = `Leave Request ${leave.status.charAt(0).toUpperCase() + leave.status.slice(1)}`;
-    const statusColor = leave.status === 'approved' ? '#10b981' : '#ef4444';
     const companyName = await getCompanyName(employee.companyId);
+    const subject = `Leave Request ${leave.status.charAt(0).toUpperCase() + leave.status.slice(1)} - ${companyName}`;
+    const statusColor = leave.status === 'approved' ? '#10b981' : '#ef4444';
 
     const content = `
         <p>Dear ${employee.firstName},</p>
@@ -595,8 +595,8 @@ export const notifyLeaveStatusUpdate = async (leave: any, employee: any) => {
 // --- Support Notifications ---
 
 export const notifyNewTicket = async (ticket: any, creatorName: string, supportEmail: string) => {
-    const subject = `[Ticket #${ticket.id.slice(0, 8)}] New Ticket: ${ticket.subject}`;
     const companyName = await getCompanyName(ticket.companyId);
+    const subject = `New Ticket #${ticket.id.slice(0, 8)}: ${ticket.subject} - ${companyName}`;
 
     const content = `
         <p>A new support ticket has been created by <strong>${creatorName}</strong>.</p>
@@ -613,9 +613,9 @@ export const notifyNewTicket = async (ticket: any, creatorName: string, supportE
 };
 
 export const notifyTicketReply = async (ticket: any, reply: any, recipientEmail: string) => {
-    const subject = `[Ticket #${ticket.id.slice(0, 8)}] Update: ${ticket.subject}`;
-    const userName = reply.user?.firstName || 'Support';
     const companyName = await getCompanyName(ticket.companyId);
+    const subject = `Ticket Reply #${ticket.id.slice(0, 8)}: ${ticket.subject} - ${companyName}`;
+    const userName = reply.user?.firstName || 'Support';
 
     const content = `
         <p>There is a new reply on your ticket <strong>#${ticket.id.slice(0, 8)}</strong> from <strong>${userName}</strong>.</p>
@@ -631,8 +631,8 @@ export const notifyTicketReply = async (ticket: any, reply: any, recipientEmail:
 // --- CRM & Asset Notifications ---
 
 export const notifyLeadAssigned = async (lead: any, assignee: any) => {
-    const subject = `New Lead Assigned: ${lead.name}`;
     const companyName = await getCompanyName(lead.companyId);
+    const subject = `New Lead Assigned: ${lead.name} - ${companyName}`;
 
     const content = `
         <p>Hello ${assignee.firstName},</p>
@@ -649,8 +649,8 @@ export const notifyLeadAssigned = async (lead: any, assignee: any) => {
 };
 
 export const notifyAssetAssigned = async (asset: any, employee: any) => {
-    const subject = `Asset Assigned: ${asset.name}`;
     const companyName = await getCompanyName(asset.companyId);
+    const subject = `Asset Assigned: ${asset.name} - ${companyName}`;
 
     const content = `
         <p>Dear ${employee.firstName},</p>
@@ -669,8 +669,8 @@ export const notifyAssetAssigned = async (asset: any, employee: any) => {
 // --- Performance & HR Notifications ---
 
 export const notifyPerformanceReview = async (review: any, employee: any) => {
-    const subject = `Performance Review Completed`;
     const companyName = await getCompanyName(review.companyId || employee.companyId);
+    const subject = `Performance Review Completed - ${companyName}`;
 
     const content = `
         <p>Dear ${employee.firstName},</p>
@@ -687,8 +687,8 @@ export const notifyPerformanceReview = async (review: any, employee: any) => {
 };
 
 export const notifyExitInitiated = async (employee: any, exitDate: Date) => {
-    const subject = `Exit Process Initiated`;
     const companyName = await getCompanyName(employee.companyId);
+    const subject = `Exit Process Initiated - ${companyName}`;
 
     const content = `
         <p>Dear ${employee.firstName},</p>
@@ -712,8 +712,8 @@ export const notifyDocumentStatus = async (document: any, recipientEmail: string
         return { messageId: 'skipped-pref' };
     }
 
-    const subject = `Document ${status === 'approved' ? 'Approved' : 'Rejected'}: ${document.name}`;
     const companyName = await getCompanyName(document.companyId);
+    const subject = `Document ${status === 'approved' ? 'Approved' : 'Rejected'}: ${document.name} - ${companyName}`;
     const statusColor = status === 'approved' ? '#10b981' : '#ef4444';
 
     const content = `
@@ -729,8 +729,8 @@ export const notifyDocumentStatus = async (document: any, recipientEmail: string
 };
 
 export const notifyDocumentUploaded = async (document: any, uploaderName: string, recipientEmail: string) => {
-    const subject = `New Document Uploaded by ${uploaderName}`;
     const companyName = await getCompanyName(document.companyId);
+    const subject = `New Document Uploaded - ${companyName}`;
 
     const content = `
         <p><strong>${uploaderName}</strong> has uploaded a new document for your review.</p>

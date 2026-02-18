@@ -50,9 +50,16 @@ export default function GstSummaryPage() {
         try {
             setIsLoading(true);
             const results = await accountingApi.getGstSummary(dateRange.startDate, dateRange.endDate);
+
+            // Fix: Backend returns split B2B/B2C, frontend expects single list
+            const allTransactions = [
+                ...(results.b2bTransactions || []),
+                ...(results.b2cTransactions || [])
+            ];
+
             // Handle backward compatibility if API returns old format
             if (results.summary) {
-                setData(results);
+                setData({ ...results, transactions: allTransactions });
             } else {
                 setData({ summary: results, transactions: [] });
             }

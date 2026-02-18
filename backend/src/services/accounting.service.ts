@@ -58,7 +58,7 @@ interface JournalLineInput {
 }
 
 const checkLedgerLock = async (companyId: string, date: Date) => {
-    // @ts-ignore: accountingLockDate exists after migration
+    // Check for lock date
     const company = await prisma.company.findUnique({
         where: { id: companyId },
         select: { accountingLockDate: true }
@@ -190,6 +190,13 @@ export const getGeneralLedger = async (companyId: string, accountId: string, sta
 };
 
 export const getGstSummary = async (companyId: string, startDate: Date, endDate: Date) => {
+    // Normalize dates to cover full day range
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+
     // 1. Fetch all journal lines for GST accounts in the period
     const gstAccounts = await prisma.ledgerAccount.findMany({
         where: {
@@ -205,7 +212,7 @@ export const getGstSummary = async (companyId: string, startDate: Date, endDate:
             accountId: { in: accountIds },
             journalEntry: {
                 companyId,
-                date: { gte: startDate, lte: endDate },
+                date: { gte: start, lte: end },
                 status: 'posted'
             }
         },
@@ -230,8 +237,7 @@ export const getGstSummary = async (companyId: string, startDate: Date, endDate:
         else summary[type].input += amount;
     });
 
-    // 3. Prepare Detailed Transaction List (Sales / Output Focus)
-    // We filter for lines that reference an Invoice (usually starts with INV-)
+    // 3. Prepare Detailed Transaction List (Sales / Output Focus) with B2B/B2C Split
     const invoiceRefs = [...new Set(
         lines
             .filter(l => l.journalEntry.reference && l.journalEntry.reference.startsWith('INV-'))
@@ -246,17 +252,17 @@ export const getGstSummary = async (companyId: string, startDate: Date, endDate:
         include: { client: true }
     });
 
-    const transactions = invoices.map(inv => {
+    const b2bTransactions: any[] = [];
+    const b2cTransactions: any[] = [];
+
+    invoices.forEach(inv => {
         // Find all GST lines associated with this invoice's journal entry
-        // Note: Manual journals might match ref but be separate. 
-        // Best reliance is on the fact that auto-posting uses ref=invoiceNumber
         const invLines = lines.filter(l => l.journalEntry.reference === inv.invoiceNumber);
 
         let cgst = 0, sgst = 0, igst = 0;
 
         // Sum up tax components from the ledger lines
         invLines.forEach(l => {
-            // Check if it's an Output tax line
             const isOutput = ['2200', '2201', '2202'].includes(l.account.code); // Liability codes
             if (isOutput) {
                 const val = Number(l.credit) - Number(l.debit);
@@ -266,10 +272,11 @@ export const getGstSummary = async (companyId: string, startDate: Date, endDate:
             }
         });
 
-        // Use invoice subtotal for taxable value to be precise
-        const taxableValue = Number(inv.subtotal);
+        // Skip if no tax output (might be exempt or input only)
+        if (cgst + sgst + igst <= 0) return;
 
-        return {
+        const taxableValue = Number(inv.subtotal);
+        const txData = {
             date: inv.invoiceDate,
             invoiceNumber: inv.invoiceNumber,
             clientName: inv.client.name,
@@ -281,12 +288,20 @@ export const getGstSummary = async (companyId: string, startDate: Date, endDate:
             totalTax: cgst + sgst + igst,
             totalAmount: Number(inv.total)
         };
+
+        if (inv.client.gstin && inv.client.gstin.length > 5) {
+            b2bTransactions.push(txData);
+        } else {
+            b2cTransactions.push(txData);
+        }
     });
 
     // Sort by date desc
-    transactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const sortFn = (a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime();
+    b2bTransactions.sort(sortFn);
+    b2cTransactions.sort(sortFn);
 
-    return { summary, transactions };
+    return { summary, b2bTransactions, b2cTransactions };
 };
 
 export const getBalanceSheet = async (companyId: string) => {
@@ -363,13 +378,18 @@ export const getProfitAndLoss = async (companyId: string, startDate?: Date, endD
 /**
  * Deletes all journal entries and lines for a specific reference
  */
-export const deleteLedgerPostings = async (reference: string) => {
-    return await prisma.$transaction(async (tx) => {
+export const deleteLedgerPostings = async (reference: string, prismaTx?: any) => {
+    const execute = async (tx: any) => {
         // 1. Find all entries for this reference
         const entries = await tx.journalEntry.findMany({
             where: { reference },
             include: { lines: { include: { account: true } } }
         });
+
+        // 1.5 Check Ledger Lock for all entries to be deleted
+        for (const entry of entries) {
+            await checkLedgerLock(entry.companyId, entry.date);
+        }
 
         // 2. Revert balances for all lines
         for (const entry of entries) {
@@ -395,16 +415,36 @@ export const deleteLedgerPostings = async (reference: string) => {
             }
         }
 
-        // 3. Delete headers (lines will cascade if setup, or we delete explicitly)
+        if (entries.length === 0) {
+            return { count: 0 };
+        }
+
+        // 3. Audit Log (Bulk Deletion)
+        await tx.auditLog.create({
+            data: {
+                companyId: entries[0].companyId,
+                action: 'DELETE',
+                module: 'ACCOUNTING',
+                entityType: 'JournalEntry', // Representing multiple
+                entityId: reference, // Using reference as ID
+                details: `Deleted ${entries.length} ledger postings for reference ${reference}`,
+                changes: { count: entries.length, reference } as any
+            }
+        });
+
+        // 4. Delete headers (lines will cascade if setup, or we delete explicitly)
         return await tx.journalEntry.deleteMany({
             where: { reference }
         });
-    });
+    };
+
+    if (prismaTx) {
+        return execute(prismaTx);
+    } else {
+        return await prisma.$transaction(execute);
+    }
 };
 
-/**
- * Deletes a single journal entry and reverts balances
- */
 /**
  * Deletes a single journal entry and reverts balances
  */
@@ -829,41 +869,34 @@ export const generateReportPDF = async (
     } else if (type === 'GST_SUMMARY') {
         title = 'GST Summary Report';
         if (!startDate || !endDate) throw new Error('Date range required for GST Report');
-        const data = await getGstSummary(companyId, startDate, endDate);
+        const gstData = await getGstSummary(companyId, startDate, endDate);
 
         contentHtml = `
-            <h3>Output Tax (Liability)</h3>
+            <h3>Input vs Output Tax</h3>
             <table>
                 <thead>
                     <tr><th>Component</th><th style="text-align:right">Amount</th></tr>
                 </thead>
                 <tbody>
-                    <tr><td>CGST Output</td><td class="amount">${formatCurrency(data.summary.CGST.output)}</td></tr>
-                    <tr><td>SGST Output</td><td class="amount">${formatCurrency(data.summary.SGST.output)}</td></tr>
-                    <tr><td>IGST Output</td><td class="amount">${formatCurrency(data.summary.IGST.output)}</td></tr>
-                    <tr class="total-row"><td>Total Output</td><td class="amount">${formatCurrency(data.summary.CGST.output + data.summary.SGST.output + data.summary.IGST.output)}</td></tr>
+                    <tr><td>CGST Input</td><td class="amount">${formatCurrency(gstData.summary.CGST.input)}</td></tr>
+                    <tr><td>SGST Input</td><td class="amount">${formatCurrency(gstData.summary.SGST.input)}</td></tr>
+                    <tr><td>IGST Input</td><td class="amount">${formatCurrency(gstData.summary.IGST.input)}</td></tr>
+                    <tr class="total-row"><td>Total Input</td><td class="amount">${formatCurrency(gstData.summary.CGST.input + gstData.summary.SGST.input + gstData.summary.IGST.input)}</td></tr>
+                    <tr><td colspan="2" style="height: 10px;"></td></tr>
+                    <tr><td>CGST Output</td><td class="amount">${formatCurrency(gstData.summary.CGST.output)}</td></tr>
+                    <tr><td>SGST Output</td><td class="amount">${formatCurrency(gstData.summary.SGST.output)}</td></tr>
+                    <tr><td>IGST Output</td><td class="amount">${formatCurrency(gstData.summary.IGST.output)}</td></tr>
+                    <tr class="total-row"><td>Total Output</td><td class="amount">${formatCurrency(gstData.summary.CGST.output + gstData.summary.SGST.output + gstData.summary.IGST.output)}</td></tr>
+                    <tr class="total-row" style="background-color: #e0f2fe;"><td>Net Payable</td><td class="amount">${formatCurrency((gstData.summary.CGST.output + gstData.summary.SGST.output + gstData.summary.IGST.output) - (gstData.summary.CGST.input + gstData.summary.SGST.input + gstData.summary.IGST.input))}</td></tr>
                 </tbody>
             </table>
 
-            <h3>Input Tax Credit</h3>
-            <table>
-                <thead>
-                    <tr><th>Component</th><th style="text-align:right">Amount</th></tr>
-                </thead>
-                <tbody>
-                    <tr><td>CGST Input</td><td class="amount">${formatCurrency(data.summary.CGST.input)}</td></tr>
-                    <tr><td>SGST Input</td><td class="amount">${formatCurrency(data.summary.SGST.input)}</td></tr>
-                    <tr><td>IGST Input</td><td class="amount">${formatCurrency(data.summary.IGST.input)}</td></tr>
-                    <tr class="total-row"><td>Total Input</td><td class="amount">${formatCurrency(data.summary.CGST.input + data.summary.SGST.input + data.summary.IGST.input)}</td></tr>
-                </tbody>
-            </table>
-
-            <h3>Transaction Breakdown</h3>
+            <h3>B2B Transactions (Registered Clients)</h3>
             <table>
                 <thead>
                     <tr>
                         <th>Date</th>
-                        <th>Invoice #</th>
+                        <th>Inv #</th>
                         <th>Client</th>
                         <th>GSTIN</th>
                         <th style="text-align:right">Taxable</th>
@@ -872,7 +905,7 @@ export const generateReportPDF = async (
                     </tr>
                 </thead>
                 <tbody>
-                    ${data.transactions.map(tx => `
+                    ${gstData.b2bTransactions.length > 0 ? gstData.b2bTransactions.map((tx: any) => `
                         <tr>
                             <td>${new Date(tx.date).toLocaleDateString()}</td>
                             <td>${tx.invoiceNumber}</td>
@@ -882,13 +915,38 @@ export const generateReportPDF = async (
                             <td class="amount">${formatCurrency(tx.totalTax)}</td>
                             <td class="amount">${formatCurrency(tx.totalAmount)}</td>
                         </tr>
-                    `).join('')}
+                    `).join('') : '<tr><td colspan="7" style="text-align:center">No B2B Transactions</td></tr>'}
+                </tbody>
+            </table>
+
+            <h3>B2C Transactions (Unregistered)</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Inv #</th>
+                        <th>Client</th>
+                        <th style="text-align:right">Taxable</th>
+                        <th style="text-align:right">Tax</th>
+                        <th style="text-align:right">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${gstData.b2cTransactions.length > 0 ? gstData.b2cTransactions.map((tx: any) => `
+                        <tr>
+                            <td>${new Date(tx.date).toLocaleDateString()}</td>
+                            <td>${tx.invoiceNumber}</td>
+                            <td>${tx.clientName}</td>
+                            <td class="amount">${formatCurrency(tx.taxableValue)}</td>
+                            <td class="amount">${formatCurrency(tx.totalTax)}</td>
+                            <td class="amount">${formatCurrency(tx.totalAmount)}</td>
+                        </tr>
+                    `).join('') : '<tr><td colspan="6" style="text-align:center">No B2C Transactions</td></tr>'}
                 </tbody>
             </table>
         `;
     }
 
-    // 3. Generate Wrapper HTML
     const fullHtml = `
         <!DOCTYPE html>
         <html>
@@ -912,10 +970,10 @@ export const generateReportPDF = async (
             <div class="header">
                 <div class="company-name">${company.name}</div>
                 <div class="report-title">${title}</div>
-                <div class="period">${period}</div>
+                <div class="period">${startDate ? startDate.toLocaleDateString() : ''} - ${endDate ? endDate.toLocaleDateString() : ''}</div>
             </div>
             ${contentHtml}
-            <div style="margin-top: 50px; font-size: 10px; color: #aaa; text-align: center;">
+            <div style="margin-top: 50px; text-align: center; font-size: 10px; color: #888;">
                 Generated by Applizor ERP on ${new Date().toLocaleString()}
             </div>
         </body>

@@ -267,10 +267,10 @@ export class InvoiceService {
             throw new Error('Unauthorized access to this invoice');
         }
 
-        // Prevent deletion of invoices with payments unless status is draft
-        if (Number(invoice.paidAmount) > 0 && invoice.status !== 'draft') {
-            throw new Error('Cannot delete an invoice with recorded payments. Please void or refund payments first.');
-        }
+        // ALLOW FORCE DELETE: User requested ability to delete sent/paid invoices
+        // if (Number(invoice.paidAmount) > 0 && invoice.status !== 'draft') {
+        //     throw new Error('Cannot delete an invoice with recorded payments. Please void or refund payments first.');
+        // }
 
         return await prisma.$transaction(async (tx) => {
             // Delete associated taxes first (cascading handled by Prisma if configured, but let's be safe)
@@ -295,12 +295,12 @@ export class InvoiceService {
                     module: 'INVOICE',
                     entityType: 'Invoice',
                     entityId: id,
-                    details: `Deleted invoice ${invoice.invoiceNumber}`
+                    details: `Deleted invoice ${invoice.invoiceNumber} (Force Delete)`
                 }
             });
 
-            // Cleanup ledger
-            await accountingService.deleteLedgerPostings(`INV-${invoice.invoiceNumber}`);
+            // Cleanup ledger: Use invoiceNumber directly (it matches what postInvoiceToLedger uses)
+            await accountingService.deleteLedgerPostings(invoice.invoiceNumber, tx);
 
             return await tx.invoice.delete({
                 where: { id }
