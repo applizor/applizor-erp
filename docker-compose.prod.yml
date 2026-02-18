@@ -4,7 +4,7 @@ services:
   # PostgreSQL Database
   postgres:
     image: postgres:15-alpine
-    container_name: applizor-postgres-prod
+    container_name: applizor-postgres
     restart: always
     environment:
       POSTGRES_USER: applizor
@@ -13,14 +13,14 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data_prod:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U applizor" ]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
-      - applizor-network-prod
+      - applizor-network
 
   # Backend API
   backend:
@@ -48,12 +48,12 @@ services:
   # Gotenberg
   gotenberg:
     image: gotenberg/gotenberg:8
-    container_name: applizor-gotenberg-prod
+    container_name: applizor-gotenberg
     restart: always
     ports:
       - "8000:3000"
     networks:
-      - applizor-network-prod
+      - applizor-network
 
   # Frontend
   frontend:
@@ -70,12 +70,12 @@ services:
     depends_on:
       - backend
     networks:
-      - applizor-network-prod
+      - applizor-network
 
 volumes:
-  postgres_data_prod:
+  postgres_data:
 
 
 networks:
-  applizor-network-prod:
+  applizor-network:
     driver: bridge

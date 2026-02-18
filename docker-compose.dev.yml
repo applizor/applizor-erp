@@ -4,7 +4,7 @@ services:
   # PostgreSQL Database
   postgres:
     image: postgres:15-alpine
-    container_name: applizor-postgres-dev
+    container_name: applizor-postgres
     environment:
       POSTGRES_USER: applizor
       POSTGRES_PASSWORD: applizor123
@@ -12,20 +12,21 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data_dev:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U applizor" ]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
-      - applizor-network-dev
+      - applizor-network
 
   # Backend API (Node.js)
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
+      target: development
     container_name: applizor-backend-dev
     env_file:
       - ./backend/.env
@@ -45,22 +46,23 @@ services:
       postgres:
         condition: service_healthy
     networks:
-      - applizor-network-dev
+      - applizor-network
 
   # Gotenberg for PDF generation
   gotenberg:
     image: gotenberg/gotenberg:8
-    container_name: applizor-gotenberg-dev
+    container_name: applizor-gotenberg
     ports:
       - "8000:3000"
     networks:
-      - applizor-network-dev
+      - applizor-network
 
   # Frontend (Next.js)
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      target: development
     container_name: applizor-frontend-dev
     environment:
       NODE_ENV: development
@@ -77,12 +79,12 @@ services:
     depends_on:
       - backend
     networks:
-      - applizor-network-dev
+      - applizor-network
 
 volumes:
-  postgres_data_dev:
+  postgres_data:
 
 
 networks:
-  applizor-network-dev:
+  applizor-network:
     driver: bridge

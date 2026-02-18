@@ -10,8 +10,16 @@ RUN apk add --no-cache openssl openssl-dev
 COPY package*.json ./
 RUN npm ci
 
-# Copy source and build
+# Copy source
 COPY . .
+
+# Development stage (stops here for fast builds)
+FROM builder AS development
+RUN npx prisma generate
+# No build here, will run via volume + npm run dev
+
+# Production Build
+FROM builder AS build-prod
 RUN npx prisma generate
 RUN npm run build
 
@@ -27,10 +35,10 @@ WORKDIR /app
 RUN apk add --no-cache openssl
 
 # Copy artifacts from builder
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/prisma ./prisma
+COPY --from=build-prod /app/package*.json ./
+COPY --from=build-prod /app/node_modules ./node_modules
+COPY --from=build-prod /app/dist ./dist
+COPY --from=build-prod /app/prisma ./prisma
 
 # Set environment
 ENV NODE_ENV=production
