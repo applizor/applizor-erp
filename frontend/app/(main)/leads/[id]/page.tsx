@@ -161,11 +161,27 @@ export default function LeadDetailPage() {
         }
     };
 
-    const handleCompleteActivity = async (activityId: string) => {
-        const outcome = prompt('Enter outcome (optional):');
+    const [outcomeModal, setOutcomeModal] = useState({
+        isOpen: false,
+        activityId: '',
+        outcome: ''
+    });
+
+    const handleCompleteActivity = (activityId: string) => {
+        setOutcomeModal({
+            isOpen: true,
+            activityId,
+            outcome: ''
+        });
+    };
+
+    const submitOutcome = async () => {
         try {
-            await api.post(`/leads/${lead.id}/activities/${activityId}/complete`, { outcome });
+            await api.post(`/leads/${lead.id}/activities/${outcomeModal.activityId}/complete`, {
+                outcome: outcomeModal.outcome
+            });
             toast.success('Activity synchronized');
+            setOutcomeModal({ ...outcomeModal, isOpen: false });
             loadActivities(lead.id);
             loadLead(lead.id);
         } catch (error: any) {
@@ -536,6 +552,40 @@ export default function LeadDetailPage() {
                 type="danger"
                 isLoading={deleting}
             />
+
+            {/* Outcome Modal */}
+            {outcomeModal.isOpen && (
+                <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-md shadow-2xl max-w-md w-full p-6 animate-in zoom-in-95 duration-200">
+                        <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight mb-4">Activity Outcome</h3>
+                        <div className="ent-form-group mb-6">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Outcome Details (Optional)</label>
+                            <textarea
+                                value={outcomeModal.outcome}
+                                onChange={(e) => setOutcomeModal({ ...outcomeModal, outcome: e.target.value })}
+                                rows={3}
+                                className="ent-input w-full resize-none"
+                                placeholder="Record the result of this activity..."
+                                autoFocus
+                            />
+                        </div>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={() => setOutcomeModal({ ...outcomeModal, isOpen: false })}
+                                className="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-600"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={submitOutcome}
+                                className="px-4 py-2 bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest rounded-md shadow-lg shadow-emerald-900/20 hover:bg-emerald-700"
+                            >
+                                Complete Activity
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

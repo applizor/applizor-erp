@@ -121,17 +121,37 @@ export default function CandidateDetailsPage({ params }: { params: { id: string 
         loadData();
     };
 
-    const updateInterviewFeedback = async (id: string) => {
-        const feedback = prompt('Enter feedback:');
-        if (feedback === null) return;
-        const rating = Number(prompt('Enter rating (1-5):', '3'));
+    const [feedbackModal, setFeedbackModal] = useState({
+        isOpen: false,
+        interviewId: '',
+        feedback: '',
+        rating: 3
+    });
 
-        await interviewsApi.updateFeedback(id, {
-            feedback,
-            rating,
-            status: 'completed'
+    const openFeedbackModal = (id: string) => {
+        setFeedbackModal({
+            isOpen: true,
+            interviewId: id,
+            feedback: '',
+            rating: 3
         });
-        loadData();
+    };
+
+    const submitFeedback = async () => {
+        if (!feedbackModal.feedback) return toast.error('Please enter feedback');
+
+        try {
+            await interviewsApi.updateFeedback(feedbackModal.interviewId, {
+                feedback: feedbackModal.feedback,
+                rating: feedbackModal.rating,
+                status: 'completed'
+            });
+            toast.success('Feedback recorded');
+            setFeedbackModal({ ...feedbackModal, isOpen: false });
+            loadData();
+        } catch (error) {
+            toast.error('Failed to submit feedback');
+        }
     };
 
     const acceptOffer = async (id: string) => {
@@ -310,7 +330,7 @@ export default function CandidateDetailsPage({ params }: { params: { id: string 
                                             {interview.status === 'scheduled' && (
                                                 <div className="mt-3 ml-11">
                                                     <button
-                                                        onClick={() => updateInterviewFeedback(interview.id)}
+                                                        onClick={() => openFeedbackModal(interview.id)}
                                                         className="text-[9px] font-black text-primary-600 uppercase tracking-widest hover:underline flex items-center gap-1"
                                                     >
                                                         <CheckCircle size={10} /> Record Feedback & Close
@@ -484,6 +504,52 @@ export default function CandidateDetailsPage({ params }: { params: { id: string 
                 candidate={candidate}
                 offer={offer}
             />
+
+            {/* Feedback Modal */}
+            {feedbackModal.isOpen && (
+                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+                        <h3 className="text-lg font-bold mb-4">Record Interview Feedback</h3>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Rating (1-5)</label>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    max="5"
+                                    value={feedbackModal.rating}
+                                    onChange={(e) => setFeedbackModal({ ...feedbackModal, rating: parseInt(e.target.value) })}
+                                    className="w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Feedback</label>
+                                <textarea
+                                    rows={4}
+                                    value={feedbackModal.feedback}
+                                    onChange={(e) => setFeedbackModal({ ...feedbackModal, feedback: e.target.value })}
+                                    className="w-full border-gray-300 rounded-md shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                                    placeholder="Enter detailed feedback..."
+                                />
+                            </div>
+                            <div className="flex justify-end gap-3 mt-4">
+                                <button
+                                    onClick={() => setFeedbackModal({ ...feedbackModal, isOpen: false })}
+                                    className="px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-md"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={submitFeedback}
+                                    className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
+                                >
+                                    Submit
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
         </div>
     );

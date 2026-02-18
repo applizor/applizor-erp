@@ -3,6 +3,7 @@
 import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useEffect, useState } from 'react';
+import { shiftsApi, Shift } from '@/lib/api/hrms';
 import api from '@/lib/api';
 import { usePermission } from '@/hooks/usePermission';
 import { useConfirm } from '@/context/ConfirmationContext';
@@ -25,6 +26,7 @@ interface Shift {
 
 export default function ShiftsPage() {
     const toast = useToast();
+    const { confirm } = useConfirm();
     const { can, user } = usePermission();
     const [shifts, setShifts] = useState<Shift[]>([]);
     const [loading, setLoading] = useState(true);

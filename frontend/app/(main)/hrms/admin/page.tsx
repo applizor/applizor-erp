@@ -3,11 +3,12 @@
 import { useEffect, useState } from 'react';
 import { attendanceApi, holidaysApi, rostersApi } from '@/lib/api/attendance';
 import api from '@/lib/api'; // For employees
-import { Calendar, ChevronLeft, ChevronRight, Download, Filter, Users, X, Loader2 } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, Download, Filter, Users, X, Loader2, Trash2 } from 'lucide-react';
 import PageHeader from '@/components/ui/PageHeader';
 import { useToast } from '@/hooks/useToast';
 import { Dialog } from '@/components/ui/Dialog';
 import { CustomSelect } from '@/components/ui/CustomSelect';
+import { useConfirm } from '@/context/ConfirmationContext';
 
 interface Employee {
     id: string;
@@ -28,6 +29,7 @@ interface AttendanceRecord {
 
 export default function AdminAttendancePage() {
     const toast = useToast();
+    const { confirm } = useConfirm();
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [attendanceMap, setAttendanceMap] = useState<Record<string, Record<string, AttendanceRecord>>>({});
     const [holidays, setHolidays] = useState<any[]>([]);
@@ -397,7 +399,7 @@ export default function AdminAttendancePage() {
             <Dialog
                 isOpen={showMarkModal}
                 onClose={() => setShowMarkModal(false)}
-                title="Manual Attendance Entry"
+                title="Manage Attendance Entry"
                 maxWidth="md"
             >
                 <div className="space-y-4">
@@ -469,21 +471,61 @@ export default function AdminAttendancePage() {
                         </label>
                     </div>
 
-                    <div className="flex justify-end gap-3 mt-6">
+                    <div className="flex justify-between mt-6">
+                        {/* Delete Button (Left Aligned) */}
                         <button
-                            onClick={() => setShowMarkModal(false)}
-                            className="px-4 py-2 text-xs font-bold text-gray-500 hover:text-gray-700 uppercase tracking-widest"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={handleManualMark}
+                            onClick={async () => {
+                                if (!manualData.employeeId) return toast.error('Please select an employee');
+                                if (!await confirm({ message: 'Are you sure you want to delete these attendance records? This action cannot be undone.', type: 'danger' })) return;
+
+                                setMarking(true);
+                                try {
+                                    const start = new Date(manualData.dateRange.start);
+                                    const end = new Date(manualData.dateRange.end);
+                                    const promises = [];
+
+                                    // Helper to clone date to avoid loop issues
+                                    const current = new Date(start);
+                                    while (current <= end) {
+                                        const dateStr = formatDate(new Date(current));
+                                        promises.push(attendanceApi.deleteRecord(manualData.employeeId, dateStr));
+                                        current.setDate(current.getDate() + 1);
+                                    }
+
+                                    await Promise.all(promises);
+                                    toast.success('Attendance records deleted');
+                                    setShowMarkModal(false);
+                                    loadData();
+                                } catch (error: any) {
+                                    toast.error(error.response?.data?.error || 'Failed to delete records');
+                                } finally {
+                                    setMarking(false);
+                                }
+                            }}
                             disabled={marking}
-                            className="btn-primary flex items-center gap-2 px-6 py-2"
+                            className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-md hover:bg-red-100 text-xs font-bold uppercase tracking-widest transition-colors"
                         >
-                            {marking ? <Loader2 size={14} className="animate-spin" /> : null}
-                            {marking ? 'Processing...' : 'Save Entry'}
+                            <Trash2 size={14} />
+                            {marking ? 'Processing...' : 'Delete'}
                         </button>
+
+                        {/* Save Actions (Right Aligned) */}
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowMarkModal(false)}
+                                className="px-4 py-2 text-xs font-bold text-gray-500 hover:text-gray-700 uppercase tracking-widest"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleManualMark}
+                                disabled={marking}
+                                className="btn-primary flex items-center gap-2 px-6 py-2"
+                            >
+                                {marking ? <Loader2 size={14} className="animate-spin" /> : null}
+                                {marking ? 'Processing...' : 'Save Entry'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             </Dialog>

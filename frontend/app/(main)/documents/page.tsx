@@ -19,8 +19,11 @@ const VARIABLE_GROUPS = {
     'Company Info': ['COMPANY_NAME', 'COMPANY_ADDRESS', 'COMPANY_PHONE', 'DATE', 'HR_MANAGER']
 };
 
+import { useConfirm } from '@/context/ConfirmationContext';
+
 export default function DocumentsPage() {
     const toast = useToast();
+    const { confirm } = useConfirm();
     const [activeTab, setActiveTab] = useState<'instant' | 'templates'>('instant');
 
     // --- TEMPLATE STATE ---
@@ -84,10 +87,10 @@ export default function DocumentsPage() {
         }
     };
 
-    const handleDeleteTemplate = async (id: string) => {
-        if (!confirm('Delete this template?')) return;
+    const handleDelete = async (id: string) => {
+        if (!await confirm({ message: 'Delete this template?', type: 'danger' })) return;
         try {
-            await api.delete(`/document-templates/${id}`);
+            await api.delete(`/documents/${id}`);
             toast.success('Template deleted');
             loadTemplates();
         } catch (error) {

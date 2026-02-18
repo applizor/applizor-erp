@@ -10,10 +10,11 @@ import { Plus, Edit2, Trash2, DollarSign, Percent, Archive, CheckCircle, Setting
 import { payrollApi, SalaryComponent } from '@/lib/api/payroll';
 import { CustomSelect } from '@/components/ui/CustomSelect';
 
-export default function SalaryComponentsPage() {
+export default function PayrollComponentsPage() {
     const toast = useToast();
+    const { confirm } = useConfirm();
     const router = useRouter();
-    const [components, setComponents] = useState<SalaryComponent[]>([]);
+    const [components, setComponents] = useState<PayrollComponent[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingComponent, setEditingComponent] = useState<SalaryComponent | null>(null);
