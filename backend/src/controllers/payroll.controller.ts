@@ -211,6 +211,23 @@ export const processPayroll = async (req: AuthRequest, res: Response) => {
             where.departmentId = departmentId;
         }
 
+        const company = await prisma.company.findUnique({
+            where: { id: req.user!.companyId },
+            select: { offDays: true } as any
+        }) as any;
+        const offDaysArr = company?.offDays ? (company.offDays as string).split(',').map((s: string) => s.trim()) : ['Saturday', 'Sunday'];
+
+        const holidays = await prisma.holiday.findMany({
+            where: {
+                date: {
+                    gte: new Date(year, month - 1, 1),
+                    lte: new Date(year, month, 0)
+                }
+            },
+            select: { date: true }
+        });
+        const holidayDates = holidays.map(h => new Date(h.date).toISOString().split('T')[0]);
+
         const employees = await prisma.employee.findMany({
             where,
             include: {
@@ -239,9 +256,10 @@ export const processPayroll = async (req: AuthRequest, res: Response) => {
             if (!emp.salaryStructureDetails) continue;
 
             const totalDays = new Date(year, month, 0).getDate();
+            const startDate = new Date(year, month - 1, 1);
 
             // Calculate LOP (Reuse pre-fetched attendances)
-            const attendanceMetrics = PayrollService.computeAttendanceStats(emp.attendances);
+            const attendanceMetrics = PayrollService.computeAttendanceStats(emp.attendances, totalDays, startDate, offDaysArr, holidayDates);
             const absentDays = attendanceMetrics.lopDays;
 
             const structure = emp.salaryStructureDetails;
@@ -367,7 +385,7 @@ export const processPayroll = async (req: AuthRequest, res: Response) => {
                     }
                 });
             }
-            payrolls.push(payroll);
+            payrolls.push({ ...payroll, absentDays });
         }
 
         res.json({ message: `Processed payroll for ${payrolls.length} employees`, payrolls });

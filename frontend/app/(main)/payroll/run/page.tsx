@@ -143,6 +143,7 @@ export default function RunPayrollPage() {
                                 <thead>
                                     <tr>
                                         <th>Resource Entity</th>
+                                        <th className="text-center">LOP Days</th>
                                         <th>Gross Asset Value</th>
                                         <th>Statutory Deductions</th>
                                         <th>Net Remuneration</th>
@@ -160,6 +161,11 @@ export default function RunPayrollPage() {
                                                         EMP-{payroll.employeeId.slice(0, 8).toUpperCase()}
                                                     </div>
                                                     <div className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter">System ID: {payroll.id.slice(-6).toUpperCase()}</div>
+                                                </div>
+                                            </td>
+                                            <td className="text-center">
+                                                <div className={`text-[11px] font-black ${payroll.absentDays > 0 ? 'text-rose-600 bg-rose-50' : 'text-gray-400 bg-gray-50'} px-2 py-0.5 rounded-md inline-block border border-transparent`}>
+                                                    {payroll.absentDays || 0}
                                                 </div>
                                             </td>
                                             <td>

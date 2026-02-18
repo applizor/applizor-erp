@@ -177,3 +177,92 @@ export const updateRoster = async (req: AuthRequest, res: Response) => {
         });
     }
 };
+// Sync Previous Week Roster
+export const syncPreviousWeek = async (req: AuthRequest, res: Response) => {
+    try {
+        const { currentStartDate, currentEndDate } = req.body;
+        const currentStart = new Date(currentStartDate);
+        const currentEnd = new Date(currentEndDate);
+
+        // Previous week dates
+        const prevStart = new Date(currentStart);
+        prevStart.setDate(prevStart.getDate() - 7);
+        const prevEnd = new Date(currentEnd);
+        prevEnd.setDate(prevEnd.getDate() - 7);
+
+        // 1. Fetch Previous Week Assignments
+        const prevAssignments = await prisma.shiftRoster.findMany({
+            where: {
+                date: { gte: prevStart, lte: prevEnd }
+            }
+        });
+
+        if (prevAssignments.length === 0) {
+            return res.json({ message: 'No assignments found in previous week to sync.' });
+        }
+
+        // 2. Fetch Approved Leaves for CURRENT week to prevent conflicts
+        const employeesToCheck = Array.from(new Set(prevAssignments.map(a => a.employeeId)));
+        const approvedLeaves = await prisma.leaveRequest.findMany({
+            where: {
+                employeeId: { in: employeesToCheck },
+                status: 'approved',
+                OR: [
+                    { startDate: { gte: currentStart, lte: currentEnd } },
+                    { endDate: { gte: currentStart, lte: currentEnd } },
+                    { startDate: { lte: currentStart }, endDate: { gte: currentEnd } }
+                ]
+            }
+        });
+
+        // 3. Prepare Upsert Operations
+        const operations: any[] = [];
+        const conflicts: string[] = [];
+
+        for (const ass of prevAssignments) {
+            const newDate = new Date(ass.date);
+            newDate.setDate(newDate.getDate() + 7);
+
+            // Check conflict
+            const conflict = approvedLeaves.find(leave =>
+                leave.employeeId === ass.employeeId &&
+                newDate >= leave.startDate && newDate <= leave.endDate
+            );
+
+            if (conflict) {
+                conflicts.push(`Employee ${ass.employeeId} on ${newDate.toDateString()}`);
+                continue;
+            }
+
+            operations.push(
+                prisma.shiftRoster.upsert({
+                    where: {
+                        employeeId_date: {
+                            employeeId: ass.employeeId,
+                            date: newDate
+                        }
+                    },
+                    update: { shiftId: ass.shiftId },
+                    create: {
+                        employeeId: ass.employeeId,
+                        shiftId: ass.shiftId,
+                        date: newDate
+                    }
+                })
+            );
+        }
+
+        if (operations.length > 0) {
+            await prisma.$transaction(operations);
+        }
+
+        res.json({
+            success: true,
+            syncedCount: operations.length,
+            conflicts
+        });
+    } catch (error: any) {
+        console.error('Sync roster error:', error);
+        res.status(500).json({ error: 'Failed to sync roster', details: error.message });
+    }
+};

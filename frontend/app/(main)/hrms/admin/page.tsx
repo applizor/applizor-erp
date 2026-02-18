@@ -3,8 +3,11 @@
 import { useEffect, useState } from 'react';
 import { attendanceApi, holidaysApi, rostersApi } from '@/lib/api/attendance';
 import api from '@/lib/api'; // For employees
-import { Calendar, ChevronLeft, ChevronRight, Download, Filter, Users } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, Download, Filter, Users, X, Loader2 } from 'lucide-react';
 import PageHeader from '@/components/ui/PageHeader';
+import { useToast } from '@/hooks/useToast';
+import { Dialog } from '@/components/ui/Dialog';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 interface Employee {
     id: string;
@@ -24,17 +27,22 @@ interface AttendanceRecord {
 }
 
 export default function AdminAttendancePage() {
+    const toast = useToast();
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [attendanceMap, setAttendanceMap] = useState<Record<string, Record<string, AttendanceRecord>>>({});
     const [holidays, setHolidays] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-
-    useEffect(() => {
-        loadData();
-    }, [selectedMonth, selectedYear]);
+    const [offDays, setOffDays] = useState<string[]>([]);
+    const [showMarkModal, setShowMarkModal] = useState(false);
+    const [marking, setMarking] = useState(false);
+    const [manualData, setManualData] = useState<any>({
+        employeeId: '',
+        dateRange: { start: new Date().toISOString().split('T')[0], end: new Date().toISOString().split('T')[0] },
+        status: 'present',
+        notes: ''
+    });
 
     const formatDate = (date: Date | string) => {
         if (typeof date === 'string') {
@@ -46,37 +54,40 @@ export default function AdminAttendancePage() {
         return `${year}-${month}-${day}`;
     };
 
+    useEffect(() => {
+        loadData();
+    }, [selectedMonth, selectedYear]);
+
     const loadData = async () => {
         try {
             setLoading(true);
 
-            // 1. Calculate Date Range
             const startDate = new Date(selectedYear, selectedMonth, 1);
             const endDate = new Date(selectedYear, selectedMonth + 1, 0);
 
-            // 2. Fetch Data in Parallel
-            const [empRes, attRes, rosterRes, holidayRes] = await Promise.all([
+            const [empRes, attRes, rosterRes, holidayRes, companyRes] = await Promise.all([
                 api.get('/employees'),
                 attendanceApi.getMusterRoll(selectedMonth + 1, selectedYear),
                 rostersApi.getRoster(formatDate(startDate), formatDate(endDate)),
-                holidaysApi.getAll(selectedYear)
+                holidaysApi.getAll(selectedYear),
+                api.get('/company')
             ]);
 
             setEmployees(empRes.data);
             setHolidays(holidayRes as any[]);
 
-            // 3. Process Attendance Map
+            if (companyRes.data?.company?.offDays) {
+                setOffDays(companyRes.data.company.offDays.split(',').map((s: string) => s.trim()));
+            }
+
             const map: Record<string, Record<string, any>> = {};
             const holidaysData = holidayRes as any[];
             const roster = rosterRes as any[];
             const matrix = (attRes as any).matrix || [];
 
-            // Parse Matrix Response (Grouped by Employee)
             matrix.forEach((entry: any) => {
                 const empId = entry.employee.id;
                 if (!map[empId]) map[empId] = {};
-
-                // entry.attendance is { "1": {}, "18": {}, ... }
                 Object.entries(entry.attendance).forEach(([dayStr, data]: [string, any]) => {
                     const day = parseInt(dayStr);
                     const dateKey = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
@@ -84,19 +95,13 @@ export default function AdminAttendancePage() {
                 });
             });
 
-            // Merge Roster (Leaves & Shifts) & Holidays to fill gaps
             roster.forEach((entry: any) => {
                 const empId = entry.employeeId;
                 if (!map[empId]) map[empId] = {};
                 const dateKey = formatDate(entry.date);
-
-                // Existing Data from Matrix
                 const existing = map[empId][dateKey];
 
-                // If Matrix already has data (Present, Late, Leave, Holiday), trust it.
-                // We only perform calculations if Matrix has no status or 'absent'.
                 if (existing && existing.status && existing.status !== 'absent' && existing.status !== 'unknown') {
-                    // Just attach shift info for display if needed
                     map[empId][dateKey] = {
                         ...existing,
                         shiftName: entry.shift?.name,
@@ -106,47 +111,26 @@ export default function AdminAttendancePage() {
                 }
 
                 let status = existing?.status || 'absent';
-
                 if (entry.isLeave) {
-                    // Approved Leave (if not already appearing in Matrix for some reason)
                     status = 'on-leave';
                 } else {
-                    // Shift assigned
                     if (existing?.checkIn) {
-                        // This path implies Matrix had check-in but no Status.
-                        // Calculate Late manually if Matrix didn't
                         const shiftStart = new Date(`${dateKey}T${entry.shift.startTime}`);
                         const checkIn = new Date(existing.checkIn);
                         shiftStart.setMinutes(shiftStart.getMinutes() + 15);
-
-                        if (checkIn > shiftStart) {
-                            status = 'late';
-                        } else {
-                            status = 'present';
-                        }
+                        status = checkIn > shiftStart ? 'late' : 'present';
                     } else {
-                        // No check-in in Matrix.
-                        // Check if it's a holiday?
                         const isHoliday = holidaysData.find(h => formatDate(h.date) === dateKey);
                         if (isHoliday) {
                             status = 'holiday';
                         } else {
-                            // If today or past, it's Absent. If future, it's just Shift (display -)
-                            // For simplicity, we assume Absent for now, loop render will handle future dashes if needed?
-                            // Actually 'absent' color is Red. We might want to avoid Red for future dates.
                             const todayKey = formatDate(new Date());
-                            if (dateKey > todayKey) {
-                                status = ''; // Future
-                            } else {
-                                status = 'absent';
-                            }
+                            status = dateKey > todayKey ? '' : 'absent';
                         }
                     }
                 }
 
-                // Double check Holiday
-                const isHoliday = holidaysData.find(h => formatDate(h.date) === dateKey);
-                if (isHoliday && !entry.isLeave && (!existing || !existing.checkIn)) {
+                if (holidaysData.find(h => formatDate(h.date) === dateKey) && !entry.isLeave && (!existing || !existing.checkIn)) {
                     status = 'holiday';
                 }
 
@@ -158,7 +142,6 @@ export default function AdminAttendancePage() {
                 };
             });
             setAttendanceMap(map);
-
         } catch (error) {
             console.error('Failed to load muster roll:', error);
         } finally {
@@ -178,15 +161,29 @@ export default function AdminAttendancePage() {
 
     const days = getDaysInMonth();
 
-    const getStatusIcon = (status?: string) => {
+    const handleCellClick = (employeeId: string, dateKey: string, currentStatus?: string) => {
+        setManualData({
+            employeeId,
+            dateRange: { start: dateKey, end: dateKey },
+            status: currentStatus || 'present',
+            notes: ''
+        });
+        setShowMarkModal(true);
+    };
+
+    const getStatusIcon = (status?: string, date?: Date, onClick?: () => void) => {
+        const iconClass = "w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold cursor-pointer hover:scale-110 transition-transform shadow-sm";
+        if (!status && date && isOffDay(date)) {
+            return <div onClick={onClick} className={`${iconClass} bg-gray-50 text-gray-400 text-[10px] font-black`} title="Weekend Off">OFF</div>;
+        }
         switch (status) {
-            case 'present': return <div className="w-6 h-6 rounded-md flex items-center justify-center bg-green-100 text-green-700 text-xs font-bold" title="Present">P</div>;
-            case 'absent': return <div className="w-6 h-6 rounded-md flex items-center justify-center bg-red-100 text-red-700 text-xs font-bold" title="Absent">A</div>;
-            case 'half-day': return <div className="w-6 h-6 rounded-md flex items-center justify-center bg-yellow-100 text-yellow-700 text-xs font-bold" title="Half Day">HD</div>;
-            case 'late': return <div className="w-6 h-6 rounded-md flex items-center justify-center bg-orange-100 text-orange-700 text-xs font-bold" title="Late">L</div>;
-            case 'on-leave': return <div className="w-6 h-6 rounded-md flex items-center justify-center bg-blue-100 text-blue-700 text-xs font-bold" title="On Leave">OL</div>;
-            case 'holiday': return <div className="w-6 h-6 rounded-md flex items-center justify-center bg-purple-100 text-purple-700 text-xs font-bold" title="Holiday">H</div>;
-            default: return <div className="w-6 h-6 rounded-md flex items-center justify-center text-gray-300 text-xs font-bold">-</div>;
+            case 'present': return <div onClick={onClick} className={`${iconClass} bg-green-100 text-green-700`} title="Present">P</div>;
+            case 'absent': return <div onClick={onClick} className={`${iconClass} bg-red-100 text-red-700`} title="Absent">A</div>;
+            case 'half-day': return <div onClick={onClick} className={`${iconClass} bg-yellow-100 text-yellow-700`} title="Half Day">HD</div>;
+            case 'late': return <div onClick={onClick} className={`${iconClass} bg-orange-100 text-orange-700`} title="Late">L</div>;
+            case 'on-leave': return <div onClick={onClick} className={`${iconClass} bg-blue-100 text-blue-700`} title="On Leave">OL</div>;
+            case 'holiday': return <div onClick={onClick} className={`${iconClass} bg-purple-100 text-purple-700`} title="Holiday">H</div>;
+            default: return <div onClick={onClick} className="w-6 h-6 rounded-md flex items-center justify-center text-gray-300 text-xs font-bold cursor-pointer hover:bg-gray-50" title="Click to mark">-</div>;
         }
     };
 
@@ -208,16 +205,55 @@ export default function AdminAttendancePage() {
         }
     };
 
+    const handleManualMark = async () => {
+        if (!manualData.employeeId) return toast.error('Please select an employee');
+        setMarking(true);
+        try {
+            const start = new Date(manualData.dateRange.start);
+            const end = new Date(manualData.dateRange.end);
+            const assignments = [];
+
+            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                assignments.push({
+                    employeeId: manualData.employeeId,
+                    date: formatDate(new Date(d)),
+                    status: manualData.status,
+                    notes: manualData.notes
+                });
+            }
+
+            await api.post('/attendance-leave/attendance/manual', { assignments });
+            toast.success('Attendance records updated');
+            setShowMarkModal(false);
+            loadData();
+        } catch (error: any) {
+            toast.error(error.response?.data?.error || 'Failed to mark attendance');
+        } finally {
+            setMarking(false);
+        }
+    };
+
+    const isOffDay = (date: Date) => {
+        const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
+        return offDays.includes(dayName);
+    };
+
     return (
         <div className="p-6 h-[calc(100vh-64px)] overflow-hidden flex flex-col">
-            {/* Standardized Header */}
-            {/* Standardized Header */}
             <PageHeader
                 title="Attendance Register"
                 subtitle="Monthly Muster Roll"
                 icon={Users}
                 actions={
                     <div className="flex items-center gap-4">
+                        <button
+                            onClick={() => setShowMarkModal(true)}
+                            className="btn-primary flex items-center gap-2 px-4 py-2 text-[10px] font-black uppercase tracking-widest"
+                        >
+                            <Calendar size={14} />
+                            Mark Attendance
+                        </button>
+
                         <div className="flex items-center bg-white rounded-md shadow-sm border border-gray-300">
                             <button onClick={handlePreviousMonth} className="p-2 hover:bg-gray-50 border-r">
                                 <ChevronLeft size={20} />
@@ -244,7 +280,6 @@ export default function AdminAttendancePage() {
                 }
             />
 
-            {/* Legend */}
             <div className="flex flex-wrap gap-4 mb-4 px-1">
                 <div className="flex items-center text-xs text-gray-600"><span className="w-5 h-5 rounded-md bg-green-100 text-green-700 flex items-center justify-center font-bold mr-2">P</span> Present</div>
                 <div className="flex items-center text-xs text-gray-600"><span className="w-5 h-5 rounded-md bg-orange-100 text-orange-700 flex items-center justify-center font-bold mr-2">L</span> Late</div>
@@ -252,9 +287,9 @@ export default function AdminAttendancePage() {
                 <div className="flex items-center text-xs text-gray-600"><span className="w-5 h-5 rounded-md bg-blue-100 text-blue-700 flex items-center justify-center font-bold mr-2">OL</span> On Leave</div>
                 <div className="flex items-center text-xs text-gray-600"><span className="w-5 h-5 rounded-md bg-purple-100 text-purple-700 flex items-center justify-center font-bold mr-2">H</span> Holiday</div>
                 <div className="flex items-center text-xs text-gray-600"><span className="w-5 h-5 rounded-md bg-yellow-100 text-yellow-700 flex items-center justify-center font-bold mr-2">HD</span> Half Day</div>
+                <div className="flex items-center text-xs text-gray-600"><span className="w-5 h-5 rounded-md bg-gray-50 text-gray-400 flex items-center justify-center font-bold mr-2 text-[8px]">OFF</span> Weekend</div>
             </div>
 
-            {/* Grid Container */}
             <div className="bg-white shadow rounded-md border flex-grow overflow-auto relative">
                 <table className="min-w-full divide-y divide-gray-200 border-separate border-spacing-0">
                     <thead className="bg-gray-50 sticky top-0 z-20 shadow-sm">
@@ -264,7 +299,7 @@ export default function AdminAttendancePage() {
                             </th>
                             {days.map(day => (
                                 <th key={day.toISOString()} className="px-1 py-2 text-center text-xs font-semibold text-gray-500 uppercase min-w-[40px] border-b">
-                                    <div className={`flex flex-col items-center ${[0, 6].includes(day.getDay()) ? 'text-red-500' : ''}`}>
+                                    <div className={`flex flex-col items-center ${isOffDay(day) ? 'text-red-500' : ''}`}>
                                         <span>{day.getDate()}</span>
                                         <span className="text-[10px] opacity-75">{day.toLocaleDateString('en-US', { weekday: 'narrow' })}</span>
                                     </div>
@@ -288,7 +323,13 @@ export default function AdminAttendancePage() {
                             ))
                         ) : employees.map(emp => {
                             const empRecord = attendanceMap[emp.id] || {};
-                            const presentCount = Object.values(empRecord).filter(r => r.status === 'present' || r.status === 'late').length;
+                            const presentCount = Object.entries(empRecord).filter(([dateKey, r]) =>
+                                r.status === 'present' || r.status === 'late' || r.status === 'holiday'
+                            ).length;
+
+                            // Also count offDays as present if no record exists
+                            const offDaysCount = days.filter(d => isOffDay(d) && !empRecord[formatDate(d)]).length;
+                            const totalPaidDays = presentCount + offDaysCount;
 
                             return (
                                 <tr key={emp.id} className="hover:bg-gray-50">
@@ -316,13 +357,13 @@ export default function AdminAttendancePage() {
                                         return (
                                             <td key={dateKey} className="px-1 py-2 text-center border-b border-gray-50">
                                                 <div className="flex justify-center">
-                                                    {getStatusIcon(status)}
+                                                    {getStatusIcon(status, day, () => handleCellClick(emp.id, dateKey, status))}
                                                 </div>
                                             </td>
                                         );
                                     })}
                                     <td className="px-4 py-3 whitespace-nowrap sticky right-0 bg-white z-10 border-l text-center">
-                                        <span className="text-xs font-bold text-gray-700 bg-gray-100 px-2 py-1 rounded-md">{presentCount} Days</span>
+                                        <span className="text-xs font-bold text-gray-700 bg-gray-100 px-2 py-1 rounded-md">{totalPaidDays} Days</span>
                                     </td>
                                 </tr>
                             );
@@ -330,6 +371,88 @@ export default function AdminAttendancePage() {
                     </tbody>
                 </table>
             </div>
+
+            {/* Manual Mark Modal */}
+            <Dialog
+                isOpen={showMarkModal}
+                onClose={() => setShowMarkModal(false)}
+                title="Manual Attendance Entry"
+                maxWidth="md"
+            >
+                <div className="space-y-4">
+                    <div className="ent-form-group">
+                        <label className="ent-label">Select Employee</label>
+                        <CustomSelect
+                            options={employees.map(e => ({ label: `${e.firstName} ${e.lastName} (${e.employeeId})`, value: e.id }))}
+                            value={manualData.employeeId}
+                            onChange={(val) => setManualData({ ...manualData, employeeId: val })}
+                            placeholder="Choose employee..."
+                        />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="ent-form-group">
+                            <label className="ent-label">Start Date</label>
+                            <input
+                                type="date"
+                                className="ent-input w-full"
+                                value={manualData.dateRange.start}
+                                onChange={(e) => setManualData({ ...manualData, dateRange: { ...manualData.dateRange, start: e.target.value } })}
+                            />
+                        </div>
+                        <div className="ent-form-group">
+                            <label className="ent-label">End Date</label>
+                            <input
+                                type="date"
+                                className="ent-input w-full"
+                                value={manualData.dateRange.end}
+                                onChange={(e) => setManualData({ ...manualData, dateRange: { ...manualData.dateRange, end: e.target.value } })}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="ent-form-group">
+                        <label className="ent-label">Status</label>
+                        <CustomSelect
+                            options={[
+                                { label: 'Present', value: 'present' },
+                                { label: 'Absent', value: 'absent' },
+                                { label: 'Half Day', value: 'half-day' },
+                                { label: 'Late', value: 'late' }
+                            ]}
+                            value={manualData.status}
+                            onChange={(val) => setManualData({ ...manualData, status: val })}
+                        />
+                    </div>
+
+                    <div className="ent-form-group">
+                        <label className="ent-label">Notes (Optional)</label>
+                        <textarea
+                            className="ent-input w-full h-20 resize-none"
+                            placeholder="Reason for manual entry..."
+                            value={manualData.notes}
+                            onChange={(e) => setManualData({ ...manualData, notes: e.target.value })}
+                        />
+                    </div>
+
+                    <div className="flex justify-end gap-3 mt-6">
+                        <button
+                            onClick={() => setShowMarkModal(false)}
+                            className="px-4 py-2 text-xs font-bold text-gray-500 hover:text-gray-700 uppercase tracking-widest"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={handleManualMark}
+                            disabled={marking}
+                            className="btn-primary flex items-center gap-2 px-6 py-2"
+                        >
+                            {marking ? <Loader2 size={14} className="animate-spin" /> : null}
+                            {marking ? 'Processing...' : 'Save Entry'}
+                        </button>
+                    </div>
+                </div>
+            </Dialog>
         </div>
     );
 }

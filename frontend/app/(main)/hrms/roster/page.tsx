@@ -63,6 +63,7 @@ export default function RosterPage() {
     const [saving, setSaving] = useState(false);
     const [currentWeek, setCurrentWeek] = useState(new Date());
     const [searchTerm, setSearchTerm] = useState('');
+    const [offDays, setOffDays] = useState<string[]>([]);
 
     useEffect(() => {
         loadInitialData();
@@ -75,12 +76,16 @@ export default function RosterPage() {
     const loadInitialData = async () => {
         try {
             setLoading(true);
-            const [empRes, shiftRes] = await Promise.all([
+            const [empRes, shiftRes, companyRes] = await Promise.all([
                 api.get('/employees'),
-                api.get('/shifts')
+                api.get('/shifts'),
+                api.get('/company')
             ]);
             setEmployees(empRes.data);
             setShifts(shiftRes.data);
+            if (companyRes.data?.company?.offDays) {
+                setOffDays(companyRes.data.company.offDays.split(',').map((s: string) => s.trim()));
+            }
         } catch (error) {
             console.error('Failed to load initial data:', error);
             toast.error('Failed to load employee/shift data');
@@ -181,12 +186,43 @@ export default function RosterPage() {
 
     const handleCopyPreviousWeek = async () => {
         if (!await confirm({ message: 'Override current selections with previous week configuration?', type: 'warning' })) return;
-        toast.info('Template synchronization pending backend update');
+
+        try {
+            setSaving(true);
+            const startOfWeek = getStartOfWeek(currentWeek);
+            const endOfWeek = new Date(startOfWeek);
+            endOfWeek.setDate(endOfWeek.getDate() + 6);
+
+            const res = await api.post('/shift-rosters/sync-prev', {
+                currentStartDate: startOfWeek.toISOString().split('T')[0],
+                currentEndDate: endOfWeek.toISOString().split('T')[0]
+            });
+
+            if (res.data.success) {
+                toast.success(`Successfully synced ${res.data.syncedCount} assignments.`);
+                if (res.data.conflicts?.length > 0) {
+                    toast.warning(`${res.data.conflicts.length} conflicts skipped due to leaves.`);
+                }
+                loadRoster();
+            } else {
+                toast.info(res.data.message || 'No data to sync');
+            }
+        } catch (error: any) {
+            console.error('Sync error:', error);
+            toast.error(error.response?.data?.error || 'Failed to sync with previous week');
+        } finally {
+            setSaving(false);
+        }
     };
 
     if (user && !can('ShiftRoster', 'read')) {
         return <AccessDenied />;
     }
+
+    const isOffDay = (date: Date) => {
+        const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
+        return offDays.includes(dayName);
+    };
 
     const weekDays = getWeekDays();
     const filteredEmployees = employees.filter(e =>
@@ -286,7 +322,7 @@ export default function RosterPage() {
                                     Member Lifecycle
                                 </th>
                                 {weekDays.map(day => {
-                                    const isWeekend = [0, 6].includes(day.getDay());
+                                    const isWeekend = isOffDay(day);
                                     const holiday = holidays.find(h => new Date(h.date).toDateString() === day.toDateString());
                                     return (
                                         <th key={day.toISOString()} className={`p-2 border-b border-r last:border-r-0 min-w-[120px] ${isWeekend ? 'bg-slate-50' : ''}`}>
@@ -373,7 +409,7 @@ export default function RosterPage() {
                                                         />
                                                     ) : (
                                                         <div className={`w-full py-2.5 rounded border text-[10px] text-center select-none uppercase tracking-tighter ${cellStyle}`}>
-                                                            {displayContent || (day.getDay() === 0 || day.getDay() === 6 ? 'W/OFF' : 'OFF')}
+                                                            {displayContent || (isOffDay(day) ? 'W/OFF' : 'OFF')}
                                                         </div>
                                                     )}
                                                 </div>

@@ -130,6 +130,7 @@ model Company {
   bankIfscCode       String?
   bankBranch         String?
   accountingLockDate DateTime?
+  offDays            String?             @default("Saturday, Sunday")
   assets             Asset[]
   auditLogs          AuditLog[]
   branches           Branch[]
@@ -903,6 +904,7 @@ model Attendance {
   updatedAt  DateTime  @updatedAt
   employee   Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
+  @@unique([employeeId, date])
   @@index([employeeId, date])
   @@index([employeeId])
   @@index([date])

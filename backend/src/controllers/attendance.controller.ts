@@ -582,3 +582,54 @@ export const getTodayStatus = async (req: AuthRequest, res: Response) => {
         res.status(500).json({ error: 'Failed to fetch status' });
     }
 };
+// Manual Attendance Marking (Single or Bulk)
+export const manualMarkAttendance = async (req: AuthRequest, res: Response) => {
+    try {
+        const { assignments } = req.body; // Array of { employeeId, date, status, checkIn, checkOut, notes }
+
+        if (!Array.isArray(assignments)) {
+            return res.status(400).json({ error: 'Assignments must be an array' });
+        }
+
+        if (!PermissionService.hasBasicPermission(req.user, 'Attendance', 'update')) {
+            return res.status(403).json({ error: 'Access denied: No permission to mark attendance' });
+        }
+
+        const operations = assignments.map(ass => {
+            const date = new Date(ass.date);
+            date.setHours(0, 0, 0, 0);
+
+            // If checkIn/checkOut are provided as strings (times), we might need to combine them with the date.
+            // For now, assuming they are either null or valid Date objects/strings from frontend.
+
+            return prisma.attendance.upsert({
+                where: {
+                    employeeId_date: {
+                        employeeId: ass.employeeId,
+                        date: date
+                    }
+                },
+                update: {
+                    status: ass.status || 'present',
+                    checkIn: ass.checkIn ? new Date(ass.checkIn) : null,
+                    checkOut: ass.checkOut ? new Date(ass.checkOut) : null,
+                    notes: ass.notes || undefined,
+                },
+                create: {
+                    employeeId: ass.employeeId,
+                    date: date,
+                    status: ass.status || 'present',
+                    checkIn: ass.checkIn ? new Date(ass.checkIn) : null,
+                    checkOut: ass.checkOut ? new Date(ass.checkOut) : null,
+                    notes: ass.notes || undefined,
+                }
+            });
+        });
+
+        const results = await prisma.$transaction(operations);
+        res.json(results);
+    } catch (error: any) {
+        console.error('Manual mark attendance error:', error);
+        res.status(500).json({ error: 'Failed to mark attendance', details: error.message });
+    }
+};

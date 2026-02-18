@@ -165,22 +165,44 @@ export class PayrollService {
 
     /**
      * Compute stats from existing attendance records (Pure Function)
+     * Now considers offDays and holidays if provided
      */
-    static computeAttendanceStats(attendances: any[]) {
+    static computeAttendanceStats(attendances: any[], totalDays: number, startDate: Date, offDays: string[] = [], holidayDates: string[] = []) {
         let lopDays = 0;
         let presentDays = 0;
 
+        const attMap = new Map();
         attendances.forEach(att => {
-            if (att.status === 'absent') lopDays += 1;
-            else if (att.status === 'half-day') {
-                lopDays += 0.5;
-                presentDays += 0.5;
-            }
-            else if (att.status === 'present') presentDays += 1;
-            else if (att.status === 'leave') {
-                presentDays += 1;
-            }
+            const dateStr = new Date(att.date).toISOString().split('T')[0];
+            attMap.set(dateStr, att);
         });
+
+        for (let i = 0; i < totalDays; i++) {
+            const date = new Date(startDate);
+            date.setDate(date.getDate() + i);
+            const dateStr = date.toISOString().split('T')[0];
+            const att = attMap.get(dateStr);
+
+            if (att) {
+                if (att.status === 'absent') lopDays += 1;
+                else if (att.status === 'half-day') {
+                    lopDays += 0.5;
+                    presentDays += 0.5;
+                } else {
+                    // present, late, leave, holiday, etc.
+                    presentDays += 1;
+                }
+            } else {
+                // No record
+                const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
+                if (offDays.includes(dayName) || holidayDates.includes(dateStr)) {
+                    presentDays += 1; // Off day or Holiday is paid
+                } else {
+                    // Missing record on working day = LOP
+                    lopDays += 1;
+                }
+            }
+        }
 
         return { presentDays, lopDays, attendanceRecords: attendances.length };
     }
@@ -188,22 +210,34 @@ export class PayrollService {
     /**
      * Calculate Attendance Metrics for Payroll (Fetches Data)
      */
-    static async calculateAttendanceMetrics(employeeId: string, month: number, year: number) {
+    static async calculateAttendanceMetrics(employeeId: string, companyId: string, month: number, year: number) {
         const startDate = new Date(year, month - 1, 1);
         const endDate = new Date(year, month, 0);
         const totalDays = endDate.getDate();
 
-        const attendances = await prisma.attendance.findMany({
-            where: {
-                employeeId,
-                date: {
-                    gte: startDate,
-                    lte: endDate
+        const [attendances, company, holidays] = await Promise.all([
+            prisma.attendance.findMany({
+                where: {
+                    employeeId,
+                    date: { gte: startDate, lte: endDate }
                 }
-            }
-        });
+            }),
+            prisma.company.findUnique({
+                where: { id: companyId },
+                select: { offDays: true } as any
+            }) as any,
+            prisma.holiday.findMany({
+                where: {
+                    date: { gte: startDate, lte: endDate }
+                },
+                select: { date: true }
+            })
+        ]);
 
-        const stats = this.computeAttendanceStats(attendances);
+        const offDays = company?.offDays ? (company.offDays as string).split(',').map((s: string) => s.trim()) : ['Saturday', 'Sunday'];
+        const holidayDates = (holidays as any[]).map(h => new Date(h.date).toISOString().split('T')[0]);
+
+        const stats = this.computeAttendanceStats(attendances, totalDays, startDate, offDays, holidayDates);
 
         return {
             totalDays,

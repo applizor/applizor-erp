@@ -8,6 +8,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import { CustomSelect } from '@/components/ui/CustomSelect';
 import TaxConfiguration from '@/components/settings/TaxConfiguration';
 import UnitConfiguration from '@/components/settings/UnitConfiguration';
+import { MultiSelect } from '@/components/ui/MultiSelect';
 
 export default function CompanySettingsPage() {
     const toast = useToast();
@@ -617,6 +618,23 @@ export default function CompanySettingsPage() {
                                                 value={company.currency || 'INR'}
                                                 onChange={val => setCompany({ ...company, currency: val })}
                                                 className="w-full"
+                                            />
+                                        </div>
+                                        <div className="ent-form-group">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">Weekly Off Days</label>
+                                            <MultiSelect
+                                                options={[
+                                                    { label: 'Monday', value: 'Monday' },
+                                                    { label: 'Tuesday', value: 'Tuesday' },
+                                                    { label: 'Wednesday', value: 'Wednesday' },
+                                                    { label: 'Thursday', value: 'Thursday' },
+                                                    { label: 'Friday', value: 'Friday' },
+                                                    { label: 'Saturday', value: 'Saturday' },
+                                                    { label: 'Sunday', value: 'Sunday' }
+                                                ]}
+                                                value={company.offDays ? company.offDays.split(',').map((s: string) => s.trim()) : []}
+                                                onChange={vals => setCompany({ ...company, offDays: vals.join(', ') })}
+                                                placeholder="Select off days"
                                             />
                                         </div>
                                     </div>

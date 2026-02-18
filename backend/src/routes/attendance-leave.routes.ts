@@ -14,6 +14,7 @@ router.post('/check-out', authenticate, attendanceController.checkOut);
 router.get('/my-attendance', authenticate, attendanceController.getMyAttendance);
 router.get('/all-attendance', authenticate, attendanceController.getAllAttendance);
 router.get('/today-status', authenticate, attendanceController.getTodayStatus);
+router.post('/attendance/manual', authenticate, attendanceController.manualMarkAttendance); // Added route
 
 // Leave Routes
 router.get('/leave-types', authenticate, leaveController.getLeaveTypes);
