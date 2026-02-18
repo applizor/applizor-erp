@@ -55,6 +55,13 @@ export const createInvoice = async (req: AuthRequest, res: Response) => {
       console.error('Failed to log invoice creation:', logError);
     }
 
+    // Auto-post to ledger if created with non-draft status
+    try {
+      await accountingService.postInvoiceToLedger(invoice.id);
+    } catch (postError) {
+      console.error('Failed to sync new invoice to ledger:', postError);
+    }
+
     res.status(201).json({
       message: 'Invoice created successfully',
       invoice,
@@ -65,6 +72,9 @@ export const createInvoice = async (req: AuthRequest, res: Response) => {
   }
 };
 
+/**
+ * Get list of invoices with pagination and filters
+ */
 /**
  * Get list of invoices with pagination and filters
  */
@@ -571,6 +581,13 @@ export const sendInvoice = async (req: AuthRequest, res: Response) => {
             where: { id },
             data: { status: 'sent' }
           });
+
+          // Sync with ledger automatically
+          try {
+            await accountingService.postInvoiceToLedger(id);
+          } catch (postError) {
+            console.error('Failed to sync sent invoice to ledger:', postError);
+          }
         }
       })
       .catch(err => console.error(`Failed to send invoice ${invoice.invoiceNumber}:`, err));
@@ -804,6 +821,13 @@ export const batchSendInvoices = async (req: AuthRequest, res: Response) => {
             where: { id: invoice.id },
             data: { status: 'sent' }
           });
+
+          // Sync with ledger automatically
+          try {
+            await accountingService.postInvoiceToLedger(invoice.id);
+          } catch (postError) {
+            console.error(`Failed to sync batch sent invoice ${invoice.id} to ledger:`, postError);
+          }
         }
       }
     }

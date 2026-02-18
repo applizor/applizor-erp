@@ -57,14 +57,30 @@ interface JournalLineInput {
     credit?: number;
 }
 
+const checkLedgerLock = async (companyId: string, date: Date) => {
+    // @ts-ignore: accountingLockDate exists after migration
+    const company = await prisma.company.findUnique({
+        where: { id: companyId },
+        select: { accountingLockDate: true }
+    });
+
+    if (company?.accountingLockDate && date <= company.accountingLockDate) {
+        throw new Error(`Ledger is locked until ${company.accountingLockDate.toDateString()}. Cannot post entries before this date.`);
+    }
+};
+
 export const createJournalEntry = async (
     companyId: string,
     date: Date,
     description: string,
     reference: string,
     lines: JournalLineInput[],
-    autoPost: boolean = false
+    autoPost: boolean = false,
+    userId?: string // Added for Audit Trail
 ) => {
+    // 0. Check Ledger Lock
+    await checkLedgerLock(companyId, date);
+
     // Validate Total Debit == Total Credit
     const totalDebit = lines.reduce((sum, line) => sum + (line.debit || 0), 0);
     const totalCredit = lines.reduce((sum, line) => sum + (line.credit || 0), 0);
@@ -118,6 +134,20 @@ export const createJournalEntry = async (
                 });
             }
         }
+
+        // 3. Audit Log
+        await tx.auditLog.create({
+            data: {
+                companyId,
+                userId,
+                action: 'CREATE',
+                module: 'ACCOUNTING',
+                entityType: 'JournalEntry',
+                entityId: entry.id,
+                details: `Created Journal Entry ${reference}: ${description}`,
+                changes: { lines: lines, total: totalDebit } as any
+            }
+        });
 
         return entry;
     });
@@ -375,7 +405,10 @@ export const deleteLedgerPostings = async (reference: string) => {
 /**
  * Deletes a single journal entry and reverts balances
  */
-export const deleteJournalEntry = async (id: string) => {
+/**
+ * Deletes a single journal entry and reverts balances
+ */
+export const deleteJournalEntry = async (id: string, userId?: string) => {
     return await prisma.$transaction(async (tx) => {
         // 1. Find the entry
         const entry = await tx.journalEntry.findUnique({
@@ -384,6 +417,9 @@ export const deleteJournalEntry = async (id: string) => {
         });
 
         if (!entry) throw new Error('Journal Entry not found');
+
+        // 0. Check Ledger Lock (using entry date)
+        await checkLedgerLock(entry.companyId, new Date(entry.date));
 
         // 2. Revert balances if it was posted
         if (entry.status === 'posted') {
@@ -409,9 +445,25 @@ export const deleteJournalEntry = async (id: string) => {
         }
 
         // 3. Delete the entry
-        return await tx.journalEntry.delete({
+        await tx.journalEntry.delete({
             where: { id }
         });
+
+        // 4. Audit Log
+        await tx.auditLog.create({
+            data: {
+                companyId: entry.companyId,
+                userId,
+                action: 'DELETE',
+                module: 'ACCOUNTING',
+                entityType: 'JournalEntry',
+                entityId: id,
+                details: `Deleted Journal Entry ${entry.reference}`,
+                changes: { originalEntry: entry }
+            }
+        });
+
+        return entry;
     });
 };
 

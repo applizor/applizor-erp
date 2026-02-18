@@ -3,6 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import { PDFService } from './pdf.service';
 import axios from 'axios';
+import prisma from '../prisma/client';
 
 // --- Microsoft Graph API Helpers ---
 
@@ -102,8 +103,25 @@ const createTransporter = () => {
 
 const transporter = createTransporter();
 
-const getBaseTemplate = (title: string, content: string, actionLabel?: string, actionUrl?: string) => {
-    const companyName = process.env.COMPANY_NAME || 'Applizor ERP';
+// Helper to get company name
+const getCompanyName = async (companyId?: string) => {
+    if (companyId) {
+        const company = await prisma.company.findUnique({
+            where: { id: companyId },
+            select: { name: true }
+        });
+        if (company?.name) return company.name;
+    }
+
+    // Fallback to finding first company (System Default)
+    const defaultCompany = await prisma.company.findFirst({
+        select: { name: true }
+    });
+
+    return defaultCompany?.name || process.env.COMPANY_NAME || 'Applizor Softech LLP';
+};
+
+const getBaseTemplate = (title: string, content: string, companyName: string, actionLabel?: string, actionUrl?: string) => {
     const primaryColor = '#001C30'; // Petrol Blue
     const accentColor = '#4F46E5'; // Indigo
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
@@ -193,11 +211,12 @@ export const sendInvoiceEmail = async (to: string, invoiceData: any, pdfBuffer?:
         return { messageId: 'skipped-pref' };
     }
 
+    const companyName = await getCompanyName(invoiceData.companyId);
     const typeLabel = invoiceData.type === 'quotation' ? 'Quotation' : 'Invoice';
     const title = isReminder ? `Payment Reminder: ${typeLabel} #${invoiceData.invoiceNumber}` : `New ${typeLabel} Received`;
     const subject = isReminder
         ? `Reminder: ${typeLabel} #${invoiceData.invoiceNumber} is due`
-        : `${typeLabel} #${invoiceData.invoiceNumber} from ${process.env.COMPANY_NAME || 'Applizor'}`;
+        : `${typeLabel} #${invoiceData.invoiceNumber} from ${companyName}`;
 
     const content = `
         <p>Dear ${invoiceData.client?.name || 'Valued Client'},</p>
@@ -207,10 +226,10 @@ export const sendInvoiceEmail = async (to: string, invoiceData: any, pdfBuffer?:
             <div class="meta-item"><span class="meta-label">Total Amount:</span> <span class="meta-value">${invoiceData.currency} ${invoiceData.total.toLocaleString()}</span></div>
             <div class="meta-item"><span class="meta-label">Due Date:</span> <span class="meta-value">${new Date(invoiceData.dueDate).toLocaleDateString()}</span></div>
         </div>
-        <p>Thank you for choosing ${process.env.COMPANY_NAME || 'Applizor'} for your business needs.</p>
+        <p>Thank you for choosing ${companyName} for your business needs.</p>
     `;
 
-    const html = getBaseTemplate(title, content, publicUrl ? `View & Pay ${typeLabel}` : undefined, publicUrl);
+    const html = getBaseTemplate(title, content, companyName, publicUrl ? `View & Pay ${typeLabel}` : undefined, publicUrl);
 
     const attachments = pdfBuffer ? [{
         filename: `${invoiceData.invoiceNumber}.pdf`,
@@ -229,7 +248,8 @@ export const sendQuotationToClient = async (quotationData: any, publicUrl: strin
         return { messageId: 'skipped-pref' };
     }
 
-    const subject = `Quotation #${quotationData.quotationNumber} from ${process.env.COMPANY_NAME || 'Applizor'}`;
+    const companyName = await getCompanyName(quotationData.companyId);
+    const subject = `Quotation #${quotationData.quotationNumber} from ${companyName}`;
     const content = `
         <p>Dear ${quotationData.lead?.name || quotationData.client?.name || 'Valued Client'},</p>
         <p>We are pleased to present our formal quotation for your consideration. Our team has carefully mapped out the requirements to ensure the highest quality of service.</p>
@@ -241,7 +261,7 @@ export const sendQuotationToClient = async (quotationData: any, publicUrl: strin
         <p>You can review the full breakdown, download the document, and accept this quotation digitally by clicking the button below.</p>
     `;
 
-    const html = getBaseTemplate("Formal Quotation", content, "View Quotation", publicUrl);
+    const html = getBaseTemplate("Formal Quotation", content, companyName, "View Quotation", publicUrl);
     return sendEmail(quotationData.lead?.email || quotationData.client?.email, subject, html);
 };
 
@@ -253,7 +273,8 @@ export const sendContractNotification = async (contract: any, publicUrl: string)
         return { messageId: 'skipped-pref' };
     }
 
-    const subject = `New Contract: ${contract.title} from ${process.env.COMPANY_NAME || 'Applizor'}`;
+    const companyName = await getCompanyName(contract.companyId);
+    const subject = `New Contract: ${contract.title} from ${companyName}`;
     const content = `
         <p>Hello ${contract.client.name},</p>
         <p>A new service agreement or contract titled <strong>${contract.title}</strong> is ready for your review and digital signature.</p>
@@ -264,13 +285,15 @@ export const sendContractNotification = async (contract: any, publicUrl: string)
         <p>Please review the terms and provide your digital signature using the secure link below.</p>
     `;
 
-    const html = getBaseTemplate("Contract for Review", content, "View & Sign Contract", publicUrl);
+    const html = getBaseTemplate("Contract for Review", content, companyName, "View & Sign Contract", publicUrl);
     return sendEmail(contract.client.email, subject, html);
 };
 
 // Send Notification to Company when Client signs
 export const sendContractSignedNotificationToCompany = async (contract: any) => {
     const subject = `Contract Signed: ${contract.title} by ${contract.signerName || contract.client.name}`;
+    const companyName = await getCompanyName(contract.companyId);
+
     const content = `
         <p>Excellent news! The contract <strong>${contract.title}</strong> has been digitally signed.</p>
         <div class="highlight-box">
@@ -281,7 +304,7 @@ export const sendContractSignedNotificationToCompany = async (contract: any) => 
         <p>You can now view the signed contract and download the final PDF from your dashboard.</p>
     `;
 
-    const html = getBaseTemplate("Contract Signed", content, "View Signed Contract", `${process.env.FRONTEND_URL}/dashboard/contracts/${contract.id}`);
+    const html = getBaseTemplate("Contract Signed", content, companyName, "View Signed Contract", `${process.env.FRONTEND_URL}/dashboard/contracts/${contract.id}`);
     const companyEmail = contract.company?.email || process.env.SMTP_USER;
     if (!companyEmail) return;
 
@@ -296,6 +319,7 @@ export const sendQuotationAcceptanceToClient = async (quotationData: any) => {
         return { messageId: 'skipped-pref' };
     }
 
+    const companyName = await getCompanyName(quotationData.companyId);
     const subject = `Quotation #${quotationData.quotationNumber} - Accepted`;
     const content = `
         <p>Dear ${quotationData.clientName},</p>
@@ -308,13 +332,15 @@ export const sendQuotationAcceptanceToClient = async (quotationData: any) => {
         <p>It is a pleasure doing business with you.</p>
     `;
 
-    const html = getBaseTemplate("Quotation Accepted", content);
+    const html = getBaseTemplate("Quotation Accepted", content, companyName);
     return sendEmail(quotationData.clientEmail, subject, html);
 };
 
 // Send Acceptance Notification to Company
 export const sendQuotationAcceptanceToCompany = async (quotationData: any) => {
     const subject = `✓ Quotation #${quotationData.quotationNumber} Accepted by ${quotationData.clientName}`;
+    const companyName = await getCompanyName(quotationData.companyId);
+
     const content = `
         <p>Excellent progress! <strong>${quotationData.clientName}</strong> has officially accepted quotation <strong>#${quotationData.quotationNumber}</strong>.</p>
         <div class="highlight-box">
@@ -326,7 +352,7 @@ export const sendQuotationAcceptanceToCompany = async (quotationData: any) => {
         <p>The signed quotation is now available in your CRM system for final processing.</p>
     `;
 
-    const html = getBaseTemplate("Quotation Accepted!", content, "Process Quotation", `${process.env.FRONTEND_URL}/dashboard/quotations/${quotationData.id}`);
+    const html = getBaseTemplate("Quotation Accepted!", content, companyName, "Process Quotation", `${process.env.FRONTEND_URL}/dashboard/quotations/${quotationData.id}`);
     const companyEmail = quotationData.company?.email || process.env.SMTP_USER;
     if (!companyEmail) return;
 
@@ -336,6 +362,8 @@ export const sendQuotationAcceptanceToCompany = async (quotationData: any) => {
 // Send Rejection Notification to Company
 export const sendQuotationRejectionToCompany = async (quotationData: any) => {
     const subject = `✗ Quotation #${quotationData.quotationNumber} Declined by ${quotationData.clientName}`;
+    const companyName = await getCompanyName(quotationData.companyId);
+
     const content = `
         <p>Quotation <strong>#${quotationData.quotationNumber}</strong> has been declined by the client.</p>
         <div class="highlight-box">
@@ -346,7 +374,7 @@ export const sendQuotationRejectionToCompany = async (quotationData: any) => {
         <p>We recommend following up with the client to address any concerns or provide a revised estimate.</p>
     `;
 
-    const html = getBaseTemplate("Quotation Declined", content, "View Quotation Details", `${process.env.FRONTEND_URL}/dashboard/quotations/${quotationData.id}`);
+    const html = getBaseTemplate("Quotation Declined", content, companyName, "View Quotation Details", `${process.env.FRONTEND_URL}/dashboard/quotations/${quotationData.id}`);
     const companyEmail = quotationData.company?.email || process.env.SMTP_USER;
     if (!companyEmail) return;
 
@@ -361,7 +389,8 @@ export const sendQuotationReminder = async (quotationData: any, publicUrl: strin
         return { messageId: 'skipped-pref' };
     }
 
-    const subject = `Reminder: Quotation #${quotationData.quotationNumber} from ${process.env.COMPANY_NAME || 'Applizor'}`;
+    const companyName = await getCompanyName(quotationData.companyId);
+    const subject = `Reminder: Quotation #${quotationData.quotationNumber} from ${companyName}`;
     const content = `
         <p>Dear ${quotationData.lead?.name || 'Valued Client'},</p>
         <p>This is a gentle reminder regarding the proposal we sent to you on ${new Date(quotationData.quotationDate).toLocaleDateString()}.</p>
@@ -373,7 +402,7 @@ export const sendQuotationReminder = async (quotationData: any, publicUrl: strin
         <p>We are keen to partner with you. You can review the proposal details and accept digitally by clicking the button below.</p>
     `;
 
-    const html = getBaseTemplate("Proposal Reminder", content, "View Proposal", publicUrl);
+    const html = getBaseTemplate("Proposal Reminder", content, companyName, "View Proposal", publicUrl);
     return sendEmail(quotationData.lead?.email || quotationData.clientEmail, subject, html);
 };
 // --- Task Notifications ---
@@ -382,6 +411,7 @@ export const notifyTaskAssigned = async (to: string, task: any, project: any) =>
     const subject = `Task Assigned: ${task.title}`;
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const taskUrl = `${frontendUrl}/projects/${project.id}/tasks?taskId=${task.id}`;
+    const companyName = await getCompanyName(project.companyId);
 
     const content = `
         <p>You have been assigned to a new task in the project <strong>${project.name}</strong>.</p>
@@ -394,7 +424,7 @@ export const notifyTaskAssigned = async (to: string, task: any, project: any) =>
         ${task.description ? `<p style="font-size: 14px; color: #64748b;">Description: ${task.description.replace(/<[^>]*>?/g, '')}</p>` : ''}
     `;
 
-    const html = getBaseTemplate("New Task Assignment", content, "View Task", taskUrl);
+    const html = getBaseTemplate("New Task Assignment", content, companyName, "View Task", taskUrl);
     return sendEmail(to, subject, html);
 };
 
@@ -402,6 +432,7 @@ export const notifyTaskUpdated = async (assignee: any, task: any, project: any, 
     const subject = `[${project.name}] Update on: ${task.title}`;
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const taskUrl = `${frontendUrl}/projects/${project.id}/tasks?taskId=${task.id}`;
+    const companyName = await getCompanyName(project.companyId);
 
     const content = `
         <p>Hello <strong>${assignee.firstName}</strong>,</p>
@@ -413,7 +444,7 @@ export const notifyTaskUpdated = async (assignee: any, task: any, project: any, 
         </div>
     `;
 
-    const html = getBaseTemplate("Task Updated", content, "View Task", taskUrl);
+    const html = getBaseTemplate("Task Updated", content, companyName, "View Task", taskUrl);
     return sendEmail(assignee.email, subject, html);
 };
 
@@ -421,6 +452,7 @@ export const notifyNewTask = async (to: string, task: any, project: any) => {
     const subject = `New Task Created: ${task.title}`;
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const taskUrl = `${frontendUrl}/projects/${project.id}/tasks?taskId=${task.id}`;
+    const companyName = await getCompanyName(project.companyId);
 
     const content = `
         <p>A new task has been added to the project <strong>${project.name}</strong>.</p>
@@ -432,7 +464,7 @@ export const notifyNewTask = async (to: string, task: any, project: any) => {
         <p>Stay updated with the latest project developments on your dashboard.</p>
     `;
 
-    const html = getBaseTemplate("Task Created", content, "View Dashboard", taskUrl);
+    const html = getBaseTemplate("Task Created", content, companyName, "View Dashboard", taskUrl);
     return sendEmail(to, subject, html);
 };
 
@@ -440,6 +472,7 @@ export const notifyMention = async (recipient: { email: string, firstName: strin
     const subject = `${author} mentioned you in ${project.name}`;
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const commentUrl = `${frontendUrl}/projects/${project.id}/tasks?taskId=${task.id}`;
+    const companyName = await getCompanyName(project.companyId);
 
     const content = `
         <p>Hello <strong>${recipient.firstName}</strong>,</p>
@@ -449,7 +482,7 @@ export const notifyMention = async (recipient: { email: string, firstName: strin
         </div>
     `;
 
-    const html = getBaseTemplate("New Mention", content, "View Comment", commentUrl);
+    const html = getBaseTemplate("New Mention", content, companyName, "View Comment", commentUrl);
     return sendEmail(recipient.email, subject, html);
 };
 
@@ -462,10 +495,12 @@ export const sendInterviewInvite = async (
         scheduledAt: Date | string;
         interviewer: string;
         meetingLink?: string;
+        companyId?: string; // Add optional companyId
     }
 ) => {
     const subject = `Interview Invitation: Round ${details.round} - ${details.type}`;
     const dateStr = new Date(details.scheduledAt).toLocaleString();
+    const companyName = await getCompanyName(details.companyId);
 
     const content = `
         <p>Dear <strong>${details.candidateName}</strong>,</p>
@@ -479,7 +514,7 @@ export const sendInterviewInvite = async (
         <p>Please ensure you are available 5 minutes prior to the scheduled time.</p>
     `;
 
-    const html = getBaseTemplate("Interview Invitation", content);
+    const html = getBaseTemplate("Interview Invitation", content, companyName);
     return sendEmail(to, subject, html);
 };
 
@@ -492,10 +527,12 @@ export const sendPayslipEmail = async (
         year: number;
         netSalary: number;
         currency: string;
+        companyId?: string; // Added optional companyId
     },
     pdfBuffer: Buffer
 ) => {
     const subject = `Payslip for ${details.monthName} ${details.year}`;
+    const companyName = await getCompanyName(details.companyId);
 
     const content = `
         <p>Dear <strong>${details.employeeName}</strong>,</p>
@@ -507,7 +544,7 @@ export const sendPayslipEmail = async (
         <p>Please review the attachment for a detailed breakdown of your earnings and deductions.</p>
     `;
 
-    const html = getBaseTemplate("Payslip Generated", content);
+    const html = getBaseTemplate("Payslip Generated", content, companyName);
     const attachments = [{
         filename: `Payslip_${details.monthName}_${details.year}.pdf`,
         content: pdfBuffer,
@@ -521,6 +558,8 @@ export const sendPayslipEmail = async (
 
 export const notifyLeaveRequested = async (leave: any, employee: any, managerEmail: string) => {
     const subject = `Leave Request: ${employee.firstName} ${employee.lastName}`;
+    const companyName = await getCompanyName(employee.companyId);
+
     const content = `
         <p><strong>${employee.firstName} ${employee.lastName}</strong> has submitted a new leave request.</p>
         <div class="highlight-box">
@@ -531,13 +570,14 @@ export const notifyLeaveRequested = async (leave: any, employee: any, managerEma
         </div>
     `;
 
-    const html = getBaseTemplate("Leave Request", content, "View Request", `${process.env.FRONTEND_URL}/dashboard/leave`);
+    const html = getBaseTemplate("Leave Request", content, companyName, "View Request", `${process.env.FRONTEND_URL}/dashboard/leave`);
     return sendEmail(managerEmail, subject, html);
 };
 
 export const notifyLeaveStatusUpdate = async (leave: any, employee: any) => {
     const subject = `Leave Request ${leave.status.charAt(0).toUpperCase() + leave.status.slice(1)}`;
     const statusColor = leave.status === 'approved' ? '#10b981' : '#ef4444';
+    const companyName = await getCompanyName(employee.companyId);
 
     const content = `
         <p>Dear ${employee.firstName},</p>
@@ -548,7 +588,7 @@ export const notifyLeaveStatusUpdate = async (leave: any, employee: any) => {
         </div>
     `;
 
-    const html = getBaseTemplate("Leave Update", content);
+    const html = getBaseTemplate("Leave Update", content, companyName);
     return sendEmail(employee.email, subject, html);
 };
 
@@ -556,6 +596,8 @@ export const notifyLeaveStatusUpdate = async (leave: any, employee: any) => {
 
 export const notifyNewTicket = async (ticket: any, creatorName: string, supportEmail: string) => {
     const subject = `[Ticket #${ticket.id.slice(0, 8)}] New Ticket: ${ticket.subject}`;
+    const companyName = await getCompanyName(ticket.companyId);
+
     const content = `
         <p>A new support ticket has been created by <strong>${creatorName}</strong>.</p>
         <div class="highlight-box">
@@ -566,13 +608,14 @@ export const notifyNewTicket = async (ticket: any, creatorName: string, supportE
         </div>
     `;
 
-    const html = getBaseTemplate("New Support Ticket", content, "View Ticket", `${process.env.FRONTEND_URL}/dashboard/helpdesk/${ticket.id}`);
+    const html = getBaseTemplate("New Support Ticket", content, companyName, "View Ticket", `${process.env.FRONTEND_URL}/dashboard/helpdesk/${ticket.id}`);
     return sendEmail(supportEmail, subject, html);
 };
 
 export const notifyTicketReply = async (ticket: any, reply: any, recipientEmail: string) => {
     const subject = `[Ticket #${ticket.id.slice(0, 8)}] Update: ${ticket.subject}`;
     const userName = reply.user?.firstName || 'Support';
+    const companyName = await getCompanyName(ticket.companyId);
 
     const content = `
         <p>There is a new reply on your ticket <strong>#${ticket.id.slice(0, 8)}</strong> from <strong>${userName}</strong>.</p>
@@ -581,7 +624,7 @@ export const notifyTicketReply = async (ticket: any, reply: any, recipientEmail:
         </div>
     `;
 
-    const html = getBaseTemplate("Ticket Reply", content, "View Ticket", `${process.env.FRONTEND_URL}/dashboard/helpdesk/${ticket.id}`);
+    const html = getBaseTemplate("Ticket Reply", content, companyName, "View Ticket", `${process.env.FRONTEND_URL}/dashboard/helpdesk/${ticket.id}`);
     return sendEmail(recipientEmail, subject, html);
 };
 
@@ -589,6 +632,8 @@ export const notifyTicketReply = async (ticket: any, reply: any, recipientEmail:
 
 export const notifyLeadAssigned = async (lead: any, assignee: any) => {
     const subject = `New Lead Assigned: ${lead.name}`;
+    const companyName = await getCompanyName(lead.companyId);
+
     const content = `
         <p>Hello ${assignee.firstName},</p>
         <p>A new lead has been assigned to you for follow-up.</p>
@@ -599,12 +644,14 @@ export const notifyLeadAssigned = async (lead: any, assignee: any) => {
         </div>
     `;
 
-    const html = getBaseTemplate("New Lead Assignment", content, "View Lead", `${process.env.FRONTEND_URL}/dashboard/crm/leads/${lead.id}`);
+    const html = getBaseTemplate("New Lead Assignment", content, companyName, "View Lead", `${process.env.FRONTEND_URL}/dashboard/crm/leads/${lead.id}`);
     return sendEmail(assignee.email, subject, html);
 };
 
 export const notifyAssetAssigned = async (asset: any, employee: any) => {
     const subject = `Asset Assigned: ${asset.name}`;
+    const companyName = await getCompanyName(asset.companyId);
+
     const content = `
         <p>Dear ${employee.firstName},</p>
         <p>The following corporate asset has been assigned to your profile. Please ensure proper care and adherence to company asset policies.</p>
@@ -615,7 +662,7 @@ export const notifyAssetAssigned = async (asset: any, employee: any) => {
         </div>
     `;
 
-    const html = getBaseTemplate("Asset Assignment", content);
+    const html = getBaseTemplate("Asset Assignment", content, companyName);
     return sendEmail(employee.email, subject, html);
 };
 
@@ -623,6 +670,8 @@ export const notifyAssetAssigned = async (asset: any, employee: any) => {
 
 export const notifyPerformanceReview = async (review: any, employee: any) => {
     const subject = `Performance Review Completed`;
+    const companyName = await getCompanyName(review.companyId || employee.companyId);
+
     const content = `
         <p>Dear ${employee.firstName},</p>
         <p>Your latest performance review has been finalized and published.</p>
@@ -633,12 +682,14 @@ export const notifyPerformanceReview = async (review: any, employee: any) => {
         <p>You can view the detailed feedback and manager's notes on your performance dashboard.</p>
     `;
 
-    const html = getBaseTemplate("Performance Review", content, "View Review", `${process.env.FRONTEND_URL}/dashboard/performance`);
+    const html = getBaseTemplate("Performance Review", content, companyName, "View Review", `${process.env.FRONTEND_URL}/dashboard/performance`);
     return sendEmail(employee.email, subject, html);
 };
 
 export const notifyExitInitiated = async (employee: any, exitDate: Date) => {
     const subject = `Exit Process Initiated`;
+    const companyName = await getCompanyName(employee.companyId);
+
     const content = `
         <p>Dear ${employee.firstName},</p>
         <p>The formal exit process has been initiated for your profile in the system.</p>
@@ -648,7 +699,7 @@ export const notifyExitInitiated = async (employee: any, exitDate: Date) => {
         <p>Please contact HR for clearance procedures and handover documentation.</p>
     `;
 
-    const html = getBaseTemplate("Exit Process Update", content);
+    const html = getBaseTemplate("Exit Process Update", content, companyName);
     return sendEmail(employee.email, subject, html);
 };
 
@@ -662,6 +713,7 @@ export const notifyDocumentStatus = async (document: any, recipientEmail: string
     }
 
     const subject = `Document ${status === 'approved' ? 'Approved' : 'Rejected'}: ${document.name}`;
+    const companyName = await getCompanyName(document.companyId);
     const statusColor = status === 'approved' ? '#10b981' : '#ef4444';
 
     const content = `
@@ -672,12 +724,14 @@ export const notifyDocumentStatus = async (document: any, recipientEmail: string
         </div>
     `;
 
-    const html = getBaseTemplate("Document Status Update", content, "View Documents", `${process.env.FRONTEND_URL}/dashboard/documents`);
+    const html = getBaseTemplate("Document Status Update", content, companyName, "View Documents", `${process.env.FRONTEND_URL}/dashboard/documents`);
     return sendEmail(recipientEmail, subject, html);
 };
 
 export const notifyDocumentUploaded = async (document: any, uploaderName: string, recipientEmail: string) => {
     const subject = `New Document Uploaded by ${uploaderName}`;
+    const companyName = await getCompanyName(document.companyId);
+
     const content = `
         <p><strong>${uploaderName}</strong> has uploaded a new document for your review.</p>
         <div class="highlight-box">
@@ -687,6 +741,6 @@ export const notifyDocumentUploaded = async (document: any, uploaderName: string
         </div>
     `;
 
-    const html = getBaseTemplate("New Document Upload", content, "View Documents", `${process.env.FRONTEND_URL}/dashboard/documents`);
+    const html = getBaseTemplate("New Document Upload", content, companyName, "View Documents", `${process.env.FRONTEND_URL}/dashboard/documents`);
     return sendEmail(recipientEmail, subject, html);
 };

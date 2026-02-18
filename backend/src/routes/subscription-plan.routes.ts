@@ -9,9 +9,10 @@ const router = express.Router();
 router.get('/', authenticate, getPlans);
 
 // Admin routes (only admin can manage plans)
-// TODO: Add stricter role check middleware here if needed
-router.post('/', authenticate, createPlan);
-router.put('/:id', authenticate, updatePlan);
-router.delete('/:id', authenticate, deletePlan);
+import { authorize } from '../middleware/auth';
+
+router.post('/', authenticate, authorize(['Admin', 'Super Admin']), createPlan);
+router.put('/:id', authenticate, authorize(['Admin', 'Super Admin']), updatePlan);
+router.delete('/:id', authenticate, authorize(['Admin', 'Super Admin']), deletePlan);
 
 export default router;

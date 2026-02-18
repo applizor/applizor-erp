@@ -27,16 +27,13 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: applizor-backend
+    env_file:
+      - ./backend/.env
     environment:
+      # Overrides
       NODE_ENV: development
       DATABASE_URL: postgresql://applizor:applizor123@postgres:5432/applizor_erp?schema=public
-      JWT_SECRET: your-super-secret-jwt-key-change-in-production
       PORT: 5000
-      SMTP_HOST: smtp.gmail.com
-      SMTP_PORT: 587
-      SMTP_USER: applizor@gmail.com
-      SMTP_PASS: onjh xzfr kmys vkcz
-      COMPANY_NAME: Applizor
       FRONTEND_URL: http://localhost:3000
       GOTENBERG_URL: http://gotenberg:3000
     ports:

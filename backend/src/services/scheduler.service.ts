@@ -1,6 +1,6 @@
 import cron from 'node-cron';
 import prisma from '../prisma/client';
-import { sendQuotationReminder } from './email.service';
+import { sendQuotationReminder, sendInvoiceEmail } from './email.service';
 import { leaveAccrualService } from './leave-accrual.service';
 import { InvoiceService } from './invoice.service';
 import { generatePublicLink } from '../controllers/quotation-public.controller'; // Careful: this might be a controller function
@@ -34,10 +34,10 @@ export class SchedulerService {
             await this.processRecurringInvoices();
         });
 
-        // Portal Suspension: Run daily at 02:00
-        cron.schedule('0 2 * * *', async () => {
-            // console.log('⏰ Running daily portal suspension check...');
-            // await this.suspendOverduePortals();
+        // Invoice Reminders: Run daily at 09:00 AM (better time for emails)
+        cron.schedule('0 9 * * *', async () => {
+            console.log('⏰ Running daily invoice reminder check...');
+            await this.sendInvoiceReminders();
         });
     }
 
@@ -126,45 +126,46 @@ export class SchedulerService {
         }
     }
 
-    /*
-    static async suspendOverduePortals() {
+    static async sendInvoiceReminders() {
         try {
-            console.log('[Scheduler] Checking for overdue portals...');
-            const sevenDaysAgo = new Date();
-            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+            console.log('[Scheduler] Checking for upcoming and overdue invoices...');
+            const today = new Date();
+            const sevenDaysFromNow = new Date();
+            sevenDaysFromNow.setDate(today.getDate() + 7);
 
-            // 1. Find active portals
-            const activePortals = await prisma.cMSPortal.findMany({
-                where: { status: 'active' },
+            // Find invoices due within the next 7 days OR overdue
+            // And are NOT paid
+            const targetInvoices = await prisma.invoice.findMany({
+                where: {
+                    status: { in: ['sent', 'partial', 'overdue'] },
+                    dueDate: {
+                        lte: sevenDaysFromNow // Due date is today or in the next 7 days (or in the past)
+                    }
+                },
                 include: { client: true }
             });
 
-            for (const portal of activePortals) {
-                // 2. Check for overdue recurring invoices for this client
-                const overdueInvoices = await prisma.invoice.findMany({
-                    where: {
-                        clientId: portal.clientId,
-                        isRecurring: true,
-                        status: { not: 'paid' },
-                        dueDate: { lt: sevenDaysAgo }
-                    }
-                });
+            console.log(`[Scheduler] Found ${targetInvoices.length} invoices for reminders.`);
 
-                if (overdueInvoices.length > 0) {
-                    console.log(`[Scheduler] Suspending portal ${portal.name} (Client: ${portal.client.name}) due to ${overdueInvoices.length} overdue invoices.`);
+            for (const invoice of targetInvoices) {
+                if (!invoice.client || !invoice.client.email) continue;
 
-                    // 3. Suspend Portal
-                    await prisma.cMSPortal.update({
-                        where: { id: portal.id },
-                        data: { status: 'suspended' }
-                    });
+                // Basic Logic: Send reminder
+                // Optimization: In a real app, we should check if we already sent a reminder TODAY to avoid spamming if this script runs multiple times.
+                // For this implementation, we assume the scheduler runs exactly once daily.
 
-                    // TODO: Send notification email to client
-                }
+                await sendInvoiceEmail(
+                    invoice.client.email,
+                    invoice,
+                    undefined, // No PDF attachment for reminder logic simple version, or could generate
+                    true, // isReminder
+                    `${process.env.FRONTEND_URL}/portal/invoices/${invoice.id}`
+                );
+
+                console.log(`[Scheduler] Reminder sent for Invoice #${invoice.invoiceNumber} to ${invoice.client.email}`);
             }
         } catch (error) {
-            console.error('[Scheduler] Error suspending overdue portals:', error);
+            console.error('[Scheduler] Error sending invoice reminders:', error);
         }
     }
-    */
 }

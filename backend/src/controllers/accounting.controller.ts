@@ -27,7 +27,8 @@ export const createManualEntry = async (req: AuthRequest, res: Response) => {
             description,
             reference,
             lines,
-            true // Auto-post manual entries for now
+            true, // Auto-post manual entries for now
+            req.user!.id // Pass userId for audit
         );
 
         res.json(entry);
@@ -141,7 +142,7 @@ export const deleteJournalEntry = async (req: AuthRequest, res: Response) => {
         const { id } = req.params;
         // Basic ownership check could be added here if needed, 
         // but accountingService.deleteJournalEntry will handle correctly.
-        const result = await accountingService.deleteJournalEntry(id);
+        const result = await accountingService.deleteJournalEntry(id, req.user!.id);
         res.json({ success: true, entry: result });
     } catch (error: any) {
         res.status(400).json({ error: error.message || 'Failed to delete entry' });

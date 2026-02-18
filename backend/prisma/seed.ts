@@ -101,6 +101,36 @@ async function main() {
     }
     console.log(`✅ ${plans.length} Subscription Plans created`);
 
+    // 5. Create Default Ledger Accounts
+    const accountTypes = [
+        { name: 'Cash', type: 'asset', code: '1001' },
+        { name: 'Accounts Receivable', type: 'asset', code: '1200' },
+        { name: 'Accounts Payable', type: 'liability', code: '2000' },
+        { name: 'Sales Revenue', type: 'fincome', code: '4000' },
+        { name: 'Office Expenses', type: 'expense', code: '5000' },
+        { name: 'Bank Account', type: 'asset', code: '1002' }
+    ];
+
+    for (const acc of accountTypes) {
+        await prisma.ledgerAccount.upsert({
+            where: {
+                companyId_code: {
+                    companyId: company.id,
+                    code: acc.code
+                }
+            },
+            update: {},
+            create: {
+                companyId: company.id,
+                name: acc.name,
+                code: acc.code,
+                type: acc.type,
+                balance: 0
+            }
+        });
+    }
+    console.log('✅ Default Ledger Accounts created');
+
     console.log('🚀 Seeding completed successfully!');
 }
 

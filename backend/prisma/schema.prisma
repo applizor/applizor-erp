@@ -164,6 +164,7 @@ model Company {
   unitTypes          UnitType[]
   users              User[]
   quotationTemplates QuotationTemplate[]
+  accountingLockDate DateTime?           @db.Date
 
   @@index([name])
 }

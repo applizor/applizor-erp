@@ -39,12 +39,15 @@ export const createPlan = async (req: AuthRequest, res: Response) => {
 
         const { name, code, price, currency, interval, features } = req.body;
 
+        // Generate code if not provided
+        const planCode = code || name.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+
         const plan = await prisma.subscriptionPlan.create({
             data: {
                 companyId,
                 name,
-                code,
-                price,
+                code: planCode,
+                price: parseFloat(price),
                 currency: currency || 'INR', // Default to INR based on user request
                 interval: interval || 'monthly',
                 features: features || []

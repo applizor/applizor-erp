@@ -66,7 +66,8 @@ export const updateCompany = async (req: AuthRequest, res: Response) => {
       pdfMarginBottom,
       pdfMarginLeft,
       pdfMarginRight,
-      pdfContinuationTop
+      pdfContinuationTop,
+      accountingLockDate // Added for Ledger Lock
     } = req.body;
 
     const company = await prisma.company.update({
@@ -85,7 +86,8 @@ export const updateCompany = async (req: AuthRequest, res: Response) => {
         pdfMarginBottom: pdfMarginBottom ? parseInt(pdfMarginBottom) : undefined,
         pdfMarginLeft: pdfMarginLeft ? parseInt(pdfMarginLeft) : undefined,
         pdfMarginRight: pdfMarginRight ? parseInt(pdfMarginRight) : undefined,
-        pdfContinuationTop: pdfContinuationTop ? parseInt(pdfContinuationTop) : undefined
+        pdfContinuationTop: pdfContinuationTop ? parseInt(pdfContinuationTop) : undefined,
+        accountingLockDate: accountingLockDate ? new Date(accountingLockDate) : undefined
       }
     });
 
