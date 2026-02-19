@@ -306,8 +306,86 @@ export const getProjectById = async (req: AuthRequest, res: Response) => {
             };
         }
 
-        // 4. Efficiency Metrics (Visible to all project members usually)
+        // 4. Advanced Analytics (Task Distribution)
         const totalTasks = p.tasks.length;
+        const statusDistribution = p.tasks.reduce((acc: any, t: any) => {
+            acc[t.status] = (acc[t.status] || 0) + 1;
+            return acc;
+        }, {});
+
+        // Fetch tasks with more detail for priority/assignee distribution
+        const detailedTasks = await prisma.task.findMany({
+            where: { projectId: id },
+            include: {
+                assignee: { select: { firstName: true, lastName: true } },
+                _count: { select: { comments: true } }
+            }
+        });
+
+        const priorityDistribution = detailedTasks.reduce((acc: any, t: any) => {
+            acc[t.priority] = (acc[t.priority] || 0) + 1;
+            return acc;
+        }, {});
+
+        const assigneeDistribution = detailedTasks.reduce((acc: any, t: any) => {
+            const name = t.assignee ? `${t.assignee.firstName} ${t.assignee.lastName}` : 'Unassigned';
+            acc[name] = (acc[name] || 0) + 1;
+            return acc;
+        }, {});
+
+        // 5. Recent Activity Feed (Compiled from History, Comments, Milestones)
+        const [history, comments, recentMilestones] = await Promise.all([
+            prisma.taskHistory.findMany({
+                where: { task: { projectId: id } },
+                orderBy: { createdAt: 'desc' },
+                take: 10,
+                include: { user: { select: { firstName: true, lastName: true } }, task: { select: { title: true } } }
+            }),
+            prisma.taskComment.findMany({
+                where: { task: { projectId: id } },
+                orderBy: { createdAt: 'desc' },
+                take: 10,
+                include: { user: { select: { firstName: true, lastName: true } }, task: { select: { title: true } } }
+            }),
+            prisma.milestone.findMany({
+                where: { projectId: id },
+                orderBy: { updatedAt: 'desc' },
+                take: 5
+            })
+        ]);
+
+        const activityFeed = [
+            ...history.map(h => ({
+                id: h.id,
+                type: 'history',
+                user: h.user ? `${h.user.firstName} ${h.user.lastName}` : 'System',
+                action: `updated ${h.field}`,
+                taskTitle: h.task.title,
+                taskId: h.taskId,
+                oldValue: h.oldValue,
+                newValue: h.newValue,
+                createdAt: h.createdAt
+            })),
+            ...comments.map(c => ({
+                id: c.id,
+                type: 'comment',
+                user: c.user ? `${c.user.firstName} ${c.user.lastName}` : 'External',
+                action: 'commented on',
+                taskTitle: c.task.title,
+                taskId: c.taskId,
+                createdAt: c.createdAt
+            })),
+            ...recentMilestones.map(m => ({
+                id: m.id,
+                type: 'milestone',
+                user: 'System',
+                action: `milestone ${m.status}`,
+                milestoneTitle: m.title,
+                createdAt: m.updatedAt
+            }))
+        ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 15);
+
+        // 6. Efficiency Metrics & Health
         const completedTasks = p.tasks.filter((t: any) => t.status === 'done' || t.status === 'completed').length;
         const taskCompletionRate = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
         const totalLoggedHours = p.timesheets.reduce((acc: number, t: any) => acc + Number(t.hours), 0);
@@ -316,17 +394,15 @@ export const getProjectById = async (req: AuthRequest, res: Response) => {
         const safeBudget = Number(p.budget) || 10000;
         if (taskCompletionRate < 50 && totalLoggedHours > (safeBudget / 100)) efficiencyStatus = 'at-risk';
 
-        // 5. Critical Path
+        // 7. Critical Path
         const futureMilestones = p.milestones.filter((m: any) => m.status !== 'completed' && m.dueDate && new Date(m.dueDate) >= new Date());
         const nextMilestone = futureMilestones.length > 0 ? futureMilestones[0] : null;
 
         res.json({
             ...p,
-            // Mask budget fields on the root object too if necessary, or rely on stats.financials
             budget: canViewBudget ? p.budget : 0,
             actualRevenue: canViewBudget ? p.actualRevenue : 0,
             actualExpenses: canViewBudget ? p.actualExpenses : 0,
-
             stats: {
                 financials,
                 efficiency: {
@@ -334,12 +410,16 @@ export const getProjectById = async (req: AuthRequest, res: Response) => {
                     completedTasks,
                     completionRate: Math.round(taskCompletionRate),
                     totalLoggedHours: Math.round(totalLoggedHours * 100) / 100,
-                    status: efficiencyStatus
+                    status: efficiencyStatus,
+                    statusDistribution,
+                    priorityDistribution,
+                    assigneeDistribution
                 },
                 criticalPath: {
                     nextMilestone
                 }
             },
+            activityFeed,
             permissions: { canViewBudget, canManageTasks, canManageTeam }
         });
 
