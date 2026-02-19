@@ -143,7 +143,9 @@ export default function ProjectDashboard({ params }: { params: { id: string } })
                         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between group hover:border-primary-200 transition-all">
                             <div>
                                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Pending Tasks</p>
-                                <p className="text-xl font-black text-slate-900 mt-0.5">{project.tasks?.length || 0}</p>
+                                <p className="text-xl font-black text-slate-900 mt-0.5">
+                                    {project.tasks?.filter((t: any) => t.status !== 'done' && t.status !== 'completed').length || 0}
+                                </p>
                             </div>
                             <div className="w-10 h-10 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center">
                                 <Activity size={18} />

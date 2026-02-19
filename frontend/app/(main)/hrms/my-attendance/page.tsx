@@ -156,20 +156,30 @@ export default function MyAttendancePage() {
                         <div className="bg-gray-50 p-3 rounded-md border border-gray-100">
                             <div className="text-[9px] font-black text-gray-400 uppercase tracking-tighter mb-1">Check-In</div>
                             <div className="text-xl font-black text-gray-900 tracking-tighter">
-                                {todayStatus?.checkInTime ? new Date(todayStatus.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                                {todayStatus?.checkInTime ? new Date(todayStatus.checkInTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : '--:--'}
                             </div>
                         </div>
                         <div className="bg-gray-50 p-3 rounded-md border border-gray-100">
                             <div className="text-[9px] font-black text-gray-400 uppercase tracking-tighter mb-1">Check-Out</div>
                             <div className="text-xl font-black text-gray-900 tracking-tighter">
-                                {todayStatus?.checkOutTime ? new Date(todayStatus.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                                {todayStatus?.checkOutTime ? new Date(todayStatus.checkOutTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : '--:--'}
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <div className="ent-card flex flex-col items-center justify-center p-8 bg-gray-50/50 border-dashed">
-                    {!todayStatus?.checkedIn ? (
+                    {todayStatus?.checkOutTime ? (
+                        <div className="flex flex-col items-center justify-center p-6 bg-emerald-50 rounded-md border border-emerald-100 animate-in fade-in zoom-in duration-500">
+                            <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mb-4 text-emerald-600">
+                                <CheckCircle size={32} />
+                            </div>
+                            <h3 className="text-sm font-black text-emerald-800 uppercase tracking-widest mb-1">Shift Complete</h3>
+                            <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wide">
+                                {new Date(todayStatus.checkInTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })} - {new Date(todayStatus.checkOutTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                            </p>
+                        </div>
+                    ) : !todayStatus?.checkInTime ? (
                         <button
                             onClick={handleCheckIn}
                             disabled={actionLoading}
@@ -233,12 +243,12 @@ export default function MyAttendancePage() {
                                         </td>
                                         <td className="px-4 py-3">
                                             <div className="text-xs font-black text-gray-900 tracking-tighter">
-                                                {record.checkIn ? new Date(record.checkIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                                                {record.checkIn ? new Date(record.checkIn).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : '--:--'}
                                             </div>
                                         </td>
                                         <td className="px-4 py-3">
                                             <div className="text-xs font-black text-gray-900 tracking-tighter">
-                                                {record.checkOut ? new Date(record.checkOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                                                {record.checkOut ? new Date(record.checkOut).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : '--:--'}
                                             </div>
                                         </td>
                                         <td className="px-4 py-3">

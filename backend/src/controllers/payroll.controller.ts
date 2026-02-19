@@ -300,21 +300,24 @@ export const processPayroll = async (req: AuthRequest, res: Response) => {
             const basicAmount = (Object.entries(earningsBreakdown).find(([name]) => PayrollService.isBasic(name))?.[1] as number) || 0;
             const statutory = await PayrollService.calculateStatutoryDeductions(req.user!.companyId, basicAmount, grossEarned, Number(month), Number(year));
 
-            // Integrate PF
-            const pfComp = structure.components.find(c => PayrollService.isPF(c.component.name));
-            if (pfComp && statutory.pf.employee > 0) {
-                deductionsBreakdown[pfComp.component.name] = statutory.pf.employee;
+            // Integrate PF (FORCE if Configured)
+            // Even if no component exists, statutory config dictates the rule.
+            if (statutory.pf.employee > 0) {
+                const pfLabel = structure.components.find(c => PayrollService.isPF(c.component.name))?.component.name || 'Provident Fund';
+                deductionsBreakdown[pfLabel] = statutory.pf.employee;
+                // If it was already added via loop (unlikely if we separate logic), ensure we don't double count? 
+                // The loop skips 'isPF' components now. So we are safe to add here.
                 totalDeductions += statutory.pf.employee;
             }
 
-            // Integrate ESI
-            const esiComp = structure.components.find(c => PayrollService.isESI(c.component.name));
-            if (esiComp && statutory.esi.employee > 0) {
-                deductionsBreakdown[esiComp.component.name] = statutory.esi.employee;
+            // Integrate ESI (FORCE if Configured)
+            if (statutory.esi.employee > 0) {
+                const esiLabel = structure.components.find(c => PayrollService.isESI(c.component.name))?.component.name || 'ESI';
+                deductionsBreakdown[esiLabel] = statutory.esi.employee;
                 totalDeductions += statutory.esi.employee;
             }
 
-            // Integrate PT (Professional Tax)
+            // Integrate PT (Professional Tax) (FORCE if Configured)
             if (statutory.pt > 0) {
                 const ptLabel = structure.components.find(c => PayrollService.isPT(c.component.name))?.component.name || 'Professional Tax';
                 deductionsBreakdown[ptLabel] = statutory.pt;
@@ -325,7 +328,11 @@ export const processPayroll = async (req: AuthRequest, res: Response) => {
             const tdsAmount = await PayrollService.calculateTDS(emp.id, req.user!.companyId, grossEarned, Number(month));
             if (tdsAmount > 0) {
                 const tdsLabel = structure.components.find(c => PayrollService.isTDS(c.component.name))?.component.name || 'TDS';
-                deductionsBreakdown[tdsLabel] = (deductionsBreakdown[tdsLabel] || 0) + tdsAmount;
+                // TDS might have been manually added as a 'Deduction' component in some systems.
+                // If found in loop, we should probably take greater of calculated vs manual?
+                // For now, auto-calculated takes precedence or adds to it? 
+                // Let's assume TDS is strictly auto-calculated here.
+                deductionsBreakdown[tdsLabel] = tdsAmount;
                 totalDeductions += tdsAmount;
             }
 

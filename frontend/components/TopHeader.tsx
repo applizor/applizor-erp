@@ -1,15 +1,25 @@
-'use client';
-
-import { Bell, LogOut, Search, User, Settings, HelpCircle, ChevronDown } from 'lucide-react';
+import { Bell, LogOut, Search, User, Settings, HelpCircle, ChevronDown, Clock } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { auth } from '@/lib/auth';
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
+import api from '@/lib/api';
+import { useToast } from '@/hooks/useToast';
+import NotificationCenter from './NotificationCenter';
 
 export default function TopHeader() {
     const { user } = useAuth();
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const toast = useToast();
+
+    // Attendance State
+    const [attendanceLoading, setAttendanceLoading] = useState(false);
+    const [checkedIn, setCheckedIn] = useState(false);
+    const [checkedOut, setCheckedOut] = useState(false);
+    const [checkInTime, setCheckInTime] = useState<string | null>(null);
+    const [checkOutTime, setCheckOutTime] = useState<string | null>(null);
+    const [statusFetched, setStatusFetched] = useState(false);
 
     const handleLogout = () => {
         auth.logout();
@@ -28,6 +38,58 @@ export default function TopHeader() {
             document.removeEventListener("mousedown", handleClickOutside);
         };
     }, []);
+
+    // Fetch Attendance Status on Mount
+    useEffect(() => {
+        if (user) {
+            fetchStatus();
+        }
+    }, [user]);
+
+    const fetchStatus = async () => {
+        try {
+            const res = await api.get('/attendance-leave/today-status');
+            setCheckedIn(res.data.checkedIn);
+            setCheckedOut(res.data.checkedOut);
+            setCheckInTime(res.data.checkInTime);
+            setCheckOutTime(res.data.checkOutTime);
+        } catch (error) {
+            console.error('Failed to fetch attendance status', error);
+        } finally {
+            setStatusFetched(true);
+        }
+    };
+
+    const isAdmin = user?.roles?.some((r: any) => r.role?.name === 'Admin' || r.role?.name === 'Super Admin' || r === 'Admin' || r === 'Super Admin');
+
+    const handleCheckIn = async () => {
+        setAttendanceLoading(true);
+        try {
+            await api.post('/attendance-leave/check-in', {
+                latitude: null, // Optional: Add geo logic later if needed
+                longitude: null
+            });
+            toast.success('Checked in successfully!');
+            await fetchStatus();
+        } catch (error: any) {
+            toast.error(error?.response?.data?.error || 'Failed to check in');
+        } finally {
+            setAttendanceLoading(false);
+        }
+    };
+
+    const handleCheckOut = async () => {
+        setAttendanceLoading(true);
+        try {
+            await api.post('/attendance-leave/check-out');
+            toast.success('Checked out successfully!');
+            await fetchStatus();
+        } catch (error: any) {
+            toast.error(error?.response?.data?.error || 'Failed to check out');
+        } finally {
+            setAttendanceLoading(false);
+        }
+    };
 
     return (
         <header className="h-14 bg-white border-b border-gray-200 sticky top-0 z-20 px-4 md:px-6 flex items-center justify-between shadow-sm">
@@ -49,11 +111,53 @@ export default function TopHeader() {
 
             {/* Right Side Actions */}
             <div className="flex items-center gap-2 md:gap-4">
+
+                {/* Attendance Button */}
+                {statusFetched && !checkedOut && !isAdmin && (
+                    <div className="flex items-center gap-2">
+                        {checkInTime && (
+                            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-tight hidden md:inline-block">
+                                In: {new Date(checkInTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                            </span>
+                        )}
+                        <button
+                            onClick={checkedIn ? handleCheckOut : handleCheckIn}
+                            disabled={attendanceLoading}
+                            className={`
+                                flex items-center gap-2 px-3 py-1.5 rounded-md text-[10px] font-black uppercase tracking-wider transition-all shadow-sm
+                                ${checkedIn
+                                    ? 'bg-amber-100 text-amber-700 hover:bg-amber-200 border border-amber-200'
+                                    : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-200'
+                                }
+                                ${attendanceLoading ? 'opacity-70 cursor-wait' : ''}
+                            `}
+                        >
+                            <Clock size={14} />
+                            {attendanceLoading ? 'Processing...' : (checkedIn ? 'Check Out' : 'Check In')}
+                        </button>
+                    </div>
+                )}
+                {statusFetched && checkedOut && !isAdmin && (
+                    <div className="hidden md:flex items-center gap-3 px-3 py-1.5 rounded-md bg-gray-50 border border-gray-200 text-gray-400 cursor-default">
+                        <div className="flex flex-col items-end leading-none gap-0.5">
+                            <span className="text-[9px] font-bold">
+                                IN: {checkInTime ? new Date(checkInTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : '--'}
+                            </span>
+                            <span className="text-[9px] font-bold">
+                                OUT: {checkOutTime ? new Date(checkOutTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : '--'}
+                            </span>
+                        </div>
+                        <div className="h-6 w-px bg-gray-200"></div>
+                        <div className="flex items-center gap-2">
+                            <Clock size={14} />
+                            <span className="text-[10px] font-black uppercase tracking-wider">Completed</span>
+                        </div>
+                    </div>
+                )}
+
                 {/* Notifications */}
-                <button className="p-2 text-gray-500 hover:bg-gray-50 hover:text-primary-600 rounded-md transition-all relative">
-                    <Bell size={18} />
-                    <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-rose-500 rounded-full border border-white"></span>
-                </button>
+                {/* Notifications */}
+                <NotificationCenter />
 
                 {/* Help/Support */}
                 <button className="hidden md:flex p-2 text-gray-500 hover:bg-gray-50 hover:text-primary-600 rounded-md transition-all">

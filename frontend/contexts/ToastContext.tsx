@@ -5,7 +5,7 @@ import { ToastContainer } from '@/components/ui/ToastContainer';
 
 interface Toast {
     id: string;
-    type: 'success' | 'error' | 'warning' | 'info';
+    type: 'success' | 'error' | 'warning' | 'info' | 'notification';
     message: string;
 }
 

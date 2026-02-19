@@ -68,7 +68,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
         newSocket.on('notification', (notification: any) => {
             console.log('New notification received:', notification);
             playPing();
-            toast.success(`${notification.title}: ${notification.message}`);
+            toast.notification(`${notification.title}: ${notification.message}`);
         });
 
         setSocket(newSocket);

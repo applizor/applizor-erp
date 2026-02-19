@@ -132,6 +132,20 @@ export const checkIn = async (req: AuthRequest, res: Response) => {
             }
         }
 
+        // Check if already checked in today
+        const existingAttendance = await prisma.attendance.findUnique({
+            where: {
+                employeeId_date: {
+                    employeeId: employee.id,
+                    date: today
+                }
+            }
+        });
+
+        if (existingAttendance) {
+            return res.status(200).json(existingAttendance);
+        }
+
         const attendance = await prisma.attendance.create({
             data: {
                 employeeId: employee.id,
@@ -571,23 +585,19 @@ export const getTodayStatus = async (req: AuthRequest, res: Response) => {
             orderBy: { createdAt: 'desc' }
         });
 
+        // Check status
+        const hasRecord = !!attendance;
         const isCheckedIn = !!attendance && !attendance.checkOut;
         const isCheckedOut = !!attendance && !!attendance.checkOut;
 
         res.json({
+            hasRecord,
             checkedIn: isCheckedIn,
-            checkedOut: isCheckedOut, // If no record, both are false. If checked in, Out is false. If checked out, In is false (conceptually for the "Active Session"). 
-            // Wait, if Checked Out, we want "checkedIn: false" so button shows "Check In" again.
-            // If checkedIn is false, UI shows Check In.
-            // If checkedIn is true, UI shows Check Out.
-            // So: 
-            // No record: checkedIn=false.
-            // Record with CheckIn only: checkedIn=true.
-            // Record with CheckIn + CheckOut: checkedIn=false (session closed).
-
-            checkInTime: attendance?.checkIn,
-            checkOutTime: attendance?.checkOut
+            checkedOut: isCheckedOut,
+            checkInTime: attendance?.checkIn || null,
+            checkOutTime: attendance?.checkOut || null
         });
+
     } catch (error) {
         console.error('Get today status error:', error);
         res.status(500).json({ error: 'Failed to fetch status' });

@@ -109,16 +109,44 @@ export const getProjects = async (req: AuthRequest, res: Response) => {
             return res.status(403).json({ error: 'Access denied: No read rights for Project' });
         }
 
-        const { status, clientId } = req.query;
+        const { status, clientId, q } = req.query;
 
-        // Scope filter not fully implemented in PermissionService for 'Project' yet, 
-        // usually needs 'createdBy' or 'members' logic. 
-        // For now, let's assume 'all' or company-wide.
-        // const scopeFilter = await PermissionService.getScopedWhereClause(...)
+        // 1. Determine Scope
+        const scope = PermissionService.getPermissionScope(req.user, 'Project', 'read');
 
         const where: any = { companyId };
-        if (status) where.status = status;
+
+        // 2. Apply Scope Filter
+        if (!scope.all) {
+            // "Owned" and "Added" in Project context means "Is a Member"
+            // We need the Employee ID for this check
+            const employee = await prisma.employee.findUnique({
+                where: { userId: req.user!.id }
+            });
+
+            if (employee) {
+                // If user is an employee, show projects where they are a member
+                where.members = {
+                    some: {
+                        employeeId: employee.id
+                    }
+                };
+            } else {
+                // If user is NOT an employee (and doesn't have 'all' access), they see nothing
+                return res.json([]);
+            }
+        }
+
+        if (status && status !== 'null' && status !== 'undefined') where.status = status;
         if (clientId) where.clientId = clientId;
+
+        // Search Filter (if 'q' is provided)
+        if (q) {
+            where.OR = [
+                { name: { contains: String(q), mode: 'insensitive' } },
+                { description: { contains: String(q), mode: 'insensitive' } }
+            ];
+        }
 
         const projects = await prisma.project.findMany({
             where,

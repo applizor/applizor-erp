@@ -4,7 +4,7 @@ import { Toast } from './Toast';
 
 interface ToastData {
     id: string;
-    type: 'success' | 'error' | 'warning' | 'info';
+    type: 'success' | 'error' | 'warning' | 'info' | 'notification';
     message: string;
 }
 

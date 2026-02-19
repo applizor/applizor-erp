@@ -202,6 +202,10 @@ app.use('/api/timesheets', timesheetRoutes);
 import settingsRoutes from './routes/settings.routes';
 app.use('/api/settings', settingsRoutes);
 
+// Notification Routes
+import notificationRoutes from './routes/notification.routes';
+app.use('/api/notifications', notificationRoutes);
+
 // Subscription Plan Routes
 import subscriptionPlanRoutes from './routes/subscription-plan.routes';
 app.use('/api/subscription-plans', subscriptionPlanRoutes);

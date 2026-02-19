@@ -76,7 +76,7 @@ export default function PayrollComponentsPage() {
         }
     };
 
-    const { confirm } = useConfirm();
+
 
     const handleDelete = async (id: string) => {
         if (!await confirm({ message: 'Are you sure you want to delete this component?', type: 'danger' })) return;

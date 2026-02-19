@@ -11,5 +11,6 @@ export function useToast() {
         error: (message: string) => showToast('error', message),
         warning: (message: string) => showToast('warning', message),
         info: (message: string) => showToast('info', message),
+        notification: (message: string) => showToast('notification', message),
     }), [showToast]);
 }

@@ -1,10 +1,16 @@
 
+
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import accountingService from '../services/accounting.service';
+import { PermissionService } from '../services/permission.service';
 
 export const getChartOfAccounts = async (req: AuthRequest, res: Response) => {
     try {
+        if (!PermissionService.hasBasicPermission(req.user, 'Accounting', 'read')) {
+            return res.status(403).json({ error: 'Access denied: Requires Accounting.read permission' });
+        }
+
         const companyId = req.user!.companyId;
         // Lazy seed
         await accountingService.seedAccounts(companyId);
@@ -18,6 +24,10 @@ export const getChartOfAccounts = async (req: AuthRequest, res: Response) => {
 
 export const createManualEntry = async (req: AuthRequest, res: Response) => {
     try {
+        if (!PermissionService.hasBasicPermission(req.user, 'Accounting', 'create')) {
+            return res.status(403).json({ error: 'Access denied: Requires Accounting.create permission' });
+        }
+
         const companyId = req.user!.companyId;
         const { date, description, reference, lines } = req.body;
 
@@ -39,6 +49,10 @@ export const createManualEntry = async (req: AuthRequest, res: Response) => {
 
 export const getGeneralLedgerReport = async (req: AuthRequest, res: Response) => {
     try {
+        if (!PermissionService.hasBasicPermission(req.user, 'Accounting', 'read')) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
         const companyId = req.user!.companyId;
         const { accountId } = req.params;
         const { startDate, endDate } = req.query;
@@ -61,6 +75,10 @@ export const getGeneralLedgerReport = async (req: AuthRequest, res: Response) =>
 
 export const getBalanceSheetReport = async (req: AuthRequest, res: Response) => {
     try {
+        if (!PermissionService.hasBasicPermission(req.user, 'Accounting', 'read')) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
         const companyId = req.user!.companyId;
         const data = await accountingService.getBalanceSheet(companyId);
         res.json(data);
@@ -71,6 +89,10 @@ export const getBalanceSheetReport = async (req: AuthRequest, res: Response) => 
 
 export const getProfitAndLossReport = async (req: AuthRequest, res: Response) => {
     try {
+        if (!PermissionService.hasBasicPermission(req.user, 'Accounting', 'read')) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
         const companyId = req.user!.companyId;
         const { startDate, endDate } = req.query;
 
@@ -87,6 +109,10 @@ export const getProfitAndLossReport = async (req: AuthRequest, res: Response) =>
 
 export const createAccount = async (req: AuthRequest, res: Response) => {
     try {
+        if (!PermissionService.hasBasicPermission(req.user, 'Accounting', 'create')) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
         const companyId = req.user!.companyId;
         const { code, name, type } = req.body;
 
@@ -99,6 +125,10 @@ export const createAccount = async (req: AuthRequest, res: Response) => {
 
 export const getGstSummaryReport = async (req: AuthRequest, res: Response) => {
     try {
+        if (!PermissionService.hasBasicPermission(req.user, 'Accounting', 'read')) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
         const companyId = req.user!.companyId;
         const { startDate, endDate } = req.query;
 
@@ -119,6 +149,10 @@ export const getGstSummaryReport = async (req: AuthRequest, res: Response) => {
 
 export const getJournalEntries = async (req: AuthRequest, res: Response) => {
     try {
+        if (!PermissionService.hasBasicPermission(req.user, 'Accounting', 'read')) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
         const companyId = req.user!.companyId;
         const entries = await accountingService.getJournalEntries(companyId);
         res.json(entries);
@@ -129,6 +163,11 @@ export const getJournalEntries = async (req: AuthRequest, res: Response) => {
 
 export const reconcileLedger = async (req: AuthRequest, res: Response) => {
     try {
+        // Reconciliation usually requires update/manage permissions
+        if (!PermissionService.hasBasicPermission(req.user, 'Accounting', 'update')) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
         const companyId = req.user!.companyId;
         const result = await accountingService.reconcileCompanyLedger(companyId);
         res.json(result);
@@ -139,6 +178,10 @@ export const reconcileLedger = async (req: AuthRequest, res: Response) => {
 
 export const deleteJournalEntry = async (req: AuthRequest, res: Response) => {
     try {
+        if (!PermissionService.hasBasicPermission(req.user, 'Accounting', 'delete')) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
         const { id } = req.params;
         // Basic ownership check could be added here if needed, 
         // but accountingService.deleteJournalEntry will handle correctly.
@@ -151,6 +194,10 @@ export const deleteJournalEntry = async (req: AuthRequest, res: Response) => {
 
 export const exportReport = async (req: AuthRequest, res: Response) => {
     try {
+        if (!PermissionService.hasBasicPermission(req.user, 'Accounting', 'read')) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
         const companyId = req.user!.companyId;
         const { type, startDate, endDate } = req.query;
 
