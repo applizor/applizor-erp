@@ -278,7 +278,9 @@ export const getTasks = async (req: AuthRequest, res: Response) => {
             include: {
                 assignee: { select: { id: true, firstName: true, lastName: true, email: true } },
                 creator: { select: { firstName: true, lastName: true } },
-                _count: { select: { comments: true, documents: true } }
+                epic: true,
+                parent: { select: { title: true } },
+                _count: { select: { comments: true, documents: true, subtasks: true } }
             },
             orderBy: { createdAt: 'desc' }
         });
@@ -298,6 +300,14 @@ export const getTaskById = async (req: AuthRequest, res: Response) => {
             where: { id },
             include: {
                 assignee: { select: { id: true, firstName: true, lastName: true } },
+                epic: true,
+                subtasks: {
+                    include: {
+                        assignee: { select: { id: true, firstName: true, lastName: true } }
+                    },
+                    orderBy: { position: 'asc' }
+                },
+                parent: { select: { id: true, title: true } },
                 documents: true,
                 activeTimers: {
                     include: {

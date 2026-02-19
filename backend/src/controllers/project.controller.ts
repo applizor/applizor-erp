@@ -754,6 +754,90 @@ export const deleteSprint = async (req: AuthRequest, res: Response) => {
     }
 };
 
+// --- Epics ---
+
+export const getEpics = async (req: AuthRequest, res: Response) => {
+    try {
+        const { id } = req.params;
+        const epics = await prisma.epic.findMany({
+            where: { projectId: id },
+            orderBy: { createdAt: 'desc' },
+            include: {
+                _count: { select: { tasks: true } }
+            }
+        });
+        res.json(epics);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch epics' });
+    }
+};
+
+export const createEpic = async (req: AuthRequest, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { title, description, color } = req.body;
+        const epic = await prisma.epic.create({
+            data: {
+                projectId: id,
+                title,
+                description,
+                color: color || '#64748b'
+            }
+        });
+
+        // Real-time Update
+        const { NotificationService } = await import('../services/notification.service');
+        NotificationService.emitProjectUpdate(id, 'EPIC_CREATED', epic);
+
+        res.status(201).json(epic);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to create epic' });
+    }
+};
+
+export const updateEpic = async (req: AuthRequest, res: Response) => {
+    try {
+        const { epicId } = req.params;
+        const { title, description, color, status } = req.body;
+        const epic = await prisma.epic.update({
+            where: { id: epicId },
+            data: { title, description, color, status }
+        });
+
+        // Real-time Update
+        const { NotificationService } = await import('../services/notification.service');
+        NotificationService.emitProjectUpdate(epic.projectId, 'EPIC_UPDATED', epic);
+
+        res.json(epic);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to update epic' });
+    }
+};
+
+export const deleteEpic = async (req: AuthRequest, res: Response) => {
+    try {
+        const { epicId } = req.params;
+        const epic = await prisma.epic.findUnique({ where: { id: epicId } });
+        if (!epic) return res.status(404).json({ error: 'Epic not found' });
+
+        // Unassign all tasks from this epic
+        await prisma.task.updateMany({
+            where: { epicId },
+            data: { epicId: null }
+        });
+
+        await prisma.epic.delete({ where: { id: epicId } });
+
+        // Real-time Update
+        const { NotificationService } = await import('../services/notification.service');
+        NotificationService.emitProjectUpdate(epic.projectId, 'EPIC_DELETED', { id: epicId, projectId: epic.projectId });
+
+        res.json({ message: 'Epic deleted' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to delete epic' });
+    }
+};
+
 // --- SOW Generation (Global Letterhead Standard) ---
 
 export const generateSOW = async (req: AuthRequest, res: Response) => {

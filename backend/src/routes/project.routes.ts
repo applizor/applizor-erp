@@ -43,6 +43,12 @@ router.post('/:id/sprints', checkPermission('Project', 'update'), projectControl
 router.put('/sprints/:sprintId', checkPermission('Project', 'update'), projectController.updateSprint);
 router.delete('/sprints/:sprintId', checkPermission('Project', 'update'), projectController.deleteSprint);
 
+// Epics
+router.get('/:id/epics', checkPermission('Project', 'read'), projectController.getEpics);
+router.post('/:id/epics', checkPermission('Project', 'update'), projectController.createEpic);
+router.put('/epics/:epicId', checkPermission('Project', 'update'), projectController.updateEpic);
+router.delete('/epics/:epicId', checkPermission('Project', 'update'), projectController.deleteEpic);
+
 // Automation
 router.get('/:projectId/automation', checkPermission('Project', 'read'), automationController.getRules);
 router.post('/:projectId/automation', checkPermission('Project', 'update'), automationController.createRule);

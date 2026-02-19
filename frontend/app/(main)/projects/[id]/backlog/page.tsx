@@ -7,10 +7,11 @@ import { useToast } from '@/hooks/useToast';
 import {
     Plus, ChevronDown, ChevronRight, MoreVertical,
     Calendar, Target, Play, CheckCircle2,
-    Bug, Bookmark, Layout, CheckSquare, Layers, Trash2
+    Bug, Bookmark, Layout, CheckSquare, Layers, Trash2, ListTree, Settings
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import TaskDetailModal from '@/components/tasks/TaskDetailModal';
+import SprintEditModal from '@/components/projects/SprintEditModal';
 import { useSocket } from '@/contexts/SocketContext';
 
 interface Task {
@@ -23,6 +24,7 @@ interface Task {
     sprintId: string | null;
     epic?: { title: string };
     assignee?: { firstName: string, lastName: string };
+    _count?: { subtasks: number, comments: number, documents: number };
 }
 
 interface Sprint {
@@ -44,6 +46,8 @@ export default function BacklogPage() {
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
     const [creatingIn, setCreatingIn] = useState<string | null>(null);
     const [newTaskTitle, setNewTaskTitle] = useState('');
+    const [isSprintModalOpen, setIsSprintModalOpen] = useState(false);
+    const [selectedSprint, setSelectedSprint] = useState<Sprint | null>(null);
     const toast = useToast();
     const { socket } = useSocket();
 
@@ -240,6 +244,16 @@ export default function BacklogPage() {
                                         {sprint.status === 'active' ? 'Complete' : 'Start'}
                                     </button>
                                     <button
+                                        onClick={() => {
+                                            setSelectedSprint(sprint);
+                                            setIsSprintModalOpen(true);
+                                        }}
+                                        className="text-gray-400 hover:text-indigo-600 p-1"
+                                        title="Edit Sprint Settings"
+                                    >
+                                        <Settings size={16} />
+                                    </button>
+                                    <button
                                         onClick={() => deleteSprint(sprint.id)}
                                         className="text-gray-400 hover:text-rose-600 p-1"
                                         title="Delete Sprint"
@@ -248,6 +262,23 @@ export default function BacklogPage() {
                                     </button>
                                 </div>
                             </div>
+
+                            {/* Sprint Meta Info (Optional) */}
+                            {(sprint.goal || sprint.startDate) && (
+                                <div className="px-4 py-2 bg-gray-50/50 border-b border-gray-100 flex gap-4 text-[10px] text-gray-500 font-bold uppercase tracking-wide">
+                                    {sprint.startDate && sprint.endDate && (
+                                        <span className="flex items-center gap-1">
+                                            <Calendar size={10} />
+                                            {new Date(sprint.startDate).toLocaleDateString()} - {new Date(sprint.endDate).toLocaleDateString()}
+                                        </span>
+                                    )}
+                                    {sprint.goal && (
+                                        <span className="flex items-center gap-1 truncate max-w-md" title={sprint.goal}>
+                                            <Target size={10} /> {sprint.goal}
+                                        </span>
+                                    )}
+                                </div>
+                            )}
 
                             <Droppable droppableId={sprint.id}>
                                 {(provided) => (
@@ -351,6 +382,18 @@ export default function BacklogPage() {
                     }}
                 />
             )}
+
+            {isSprintModalOpen && selectedSprint && (
+                <SprintEditModal
+                    isOpen={isSprintModalOpen}
+                    onClose={() => setIsSprintModalOpen(false)}
+                    sprint={selectedSprint}
+                    onUpdate={() => {
+                        fetchData();
+                        setIsSprintModalOpen(false);
+                    }}
+                />
+            )}
         </div>
     );
 }
@@ -411,6 +454,13 @@ function TaskItem({ task, index, onClick }: { task: Task, index: number, onClick
                         <div className="w-6 h-6 rounded bg-gray-900 text-white flex items-center justify-center text-[9px] font-black uppercase border-2 border-white shadow-sm">
                             {task.assignee?.firstName?.[0] || '?'}
                         </div>
+
+                        {/* Subtasks */}
+                        {(task._count?.subtasks || 0) > 0 && (
+                            <div className="flex items-center gap-1 text-[9px] font-bold text-gray-400" title="Subtasks">
+                                <ListTree size={12} /> {task._count?.subtasks}
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

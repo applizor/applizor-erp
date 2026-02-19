@@ -133,29 +133,42 @@ const getBaseTemplate = (title: string, content: string, companyName: string, ac
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <style>
-            body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #334155; margin: 0; padding: 0; background-color: #f1f5f9; }
-            .wrapper { width: 100%; table-layout: fixed; background-color: #f1f5f9; padding: 40px 0; }
-            .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
-            .header { background-color: ${primaryColor}; padding: 40px 20px; text-align: center; color: #ffffff; }
-            .header h1 { margin: 0; font-size: 24px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; }
-            .content { padding: 40px; }
-            .content h2 { color: ${primaryColor}; font-size: 20px; font-weight: 700; margin-top: 0; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 0.05em; }
-            .content p { font-size: 16px; margin-bottom: 20px; color: #475569; }
-            .button-container { text-align: center; margin: 30px 0; }
-            .button { background-color: ${accentColor}; color: #ffffff !important; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 700; font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-block; }
-            .footer { padding: 30px; text-align: center; color: #94a3b8; font-size: 12px; background-color: #f8fafc; border-top: 1px solid #e2e8f0; }
-            .footer p { margin: 5px 0; }
-            .highlight-box { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 20px; }
-            .meta-item { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; border-bottom: 1px dashed #e2e8f0; padding-bottom: 8px; }
-            .meta-label { font-weight: 600; color: #64748b; text-transform: uppercase; font-size: 11px; }
-            .meta-value { font-weight: 700; color: #0f172a; }
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+            body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.5; color: #1e293b; margin: 0; padding: 0; background-color: #f8fafc; }
+            .wrapper { width: 100%; table-layout: fixed; background-color: #f8fafc; padding: 24px 0; }
+            .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+            .header { padding: 20px 32px; border-bottom: 1px solid #f1f5f9; }
+            .header img { height: 24px; vertical-align: middle; }
+            .header span { font-weight: 800; font-size: 14px; color: #64748b; text-transform: uppercase; letter-spacing: 0.1em; margin-left: 8px; }
+            .content { padding: 32px; }
+            .content h2 { color: #0f172a; font-size: 18px; font-weight: 700; margin-top: 0; margin-bottom: 16px; }
+            .content p { font-size: 14px; margin-bottom: 16px; color: #475569; }
+            .button-container { margin: 24px 0; }
+            .button { background-color: ${accentColor}; color: #ffffff !important; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-block; }
+            .footer { padding: 24px 32px; text-align: left; color: #94a3b8; font-size: 11px; background-color: #f8fafc; border-top: 1px solid #f1f5f9; }
+            .footer p { margin: 4px 0; }
+            .highlight-box { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 16px; margin: 20px 0; }
+            .meta-grid { display: block; margin-bottom: 16px; }
+            .meta-item { margin-bottom: 8px; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; }
+            .meta-label { font-weight: 700; color: #64748b; text-transform: uppercase; font-size: 10px; letter-spacing: 0.05em; display: inline-block; width: 100px; }
+            .meta-value { font-weight: 600; color: #334155; font-size: 12px; }
+            .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; }
+            .badge-todo { background-color: #f1f5f9; color: #475569; }
+            .badge-in-progress { background-color: #e0f2fe; color: #0369a1; }
+            .badge-done { background-color: #dcfce7; color: #15803d; }
+            .badge-high { background-color: #fee2e2; color: #b91c1c; }
+            .badge-medium { background-color: #fef3c7; color: #92400e; }
+            .badge-low { background-color: #f1f5f9; color: #475569; }
+            .badge-review { background-color: #f5f3ff; color: #7c3aed; }
+            .badge-doing { background-color: #f0f9ff; color: #0284c7; }
+            .badge-in-progress { background-color: #f0f9ff; color: #0284c7; }
         </style>
     </head>
     <body>
         <div class="wrapper">
             <div class="container">
                 <div class="header">
-                    <h1>${companyName}</h1>
+                    <span>${companyName}</span>
                 </div>
                 <div class="content">
                     <h2>${title}</h2>
@@ -166,8 +179,8 @@ const getBaseTemplate = (title: string, content: string, companyName: string, ac
                     </div>` : ''}
                 </div>
                 <div class="footer">
-                    <p>&copy; ${new Date().getFullYear()} ${companyName}. All rights reserved.</p>
-                    <p>Designed for excellence in workspace management.</p>
+                    <p>&copy; ${new Date().getFullYear()} ${companyName}. Sent via Applizor ERP.</p>
+                    <p>This is an automated notification. Please do not reply directly to this email.</p>
                 </div>
             </div>
         </div>
@@ -413,15 +426,21 @@ export const notifyTaskAssigned = async (to: string, task: any, project: any) =>
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const taskUrl = `${frontendUrl}/projects/${project.id}/tasks?taskId=${task.id}`;
 
+    const priorityClass = `badge-${(task.priority || 'medium').toLowerCase()}`;
+    const statusClass = `badge-${(task.status || 'todo').toLowerCase().replace(' ', '-')}`;
+
     const content = `
-        <p>You have been assigned to a new task in the project <strong>${project.name}</strong>.</p>
+        <p>You have been assigned to a new task in <strong>${project.name}</strong>.</p>
         <div class="highlight-box">
-            <div class="meta-item"><span class="meta-label">Task Title:</span> <span class="meta-value">${task.title}</span></div>
-            <div class="meta-item"><span class="meta-label">Project:</span> <span class="meta-value">${project.name}</span></div>
-            ${task.priority ? `<div class="meta-item"><span class="meta-label">Priority:</span> <span class="meta-value">${task.priority}</span></div>` : ''}
-            ${task.dueDate ? `<div class="meta-item"><span class="meta-label">Due Date:</span> <span class="meta-value">${new Date(task.dueDate).toLocaleDateString()}</span></div>` : ''}
+            <div class="meta-grid">
+                <div class="meta-item"><span class="meta-label">Title</span> <span class="meta-value">${task.title}</span></div>
+                <div class="meta-item"><span class="meta-label">Project</span> <span class="meta-value">${project.name}</span></div>
+                <div class="meta-item"><span class="meta-label">Priority</span> <span class="badge ${priorityClass}">${task.priority || 'Medium'}</span></div>
+                <div class="meta-item"><span class="meta-label">Status</span> <span class="badge ${statusClass}">${task.status || 'To Do'}</span></div>
+                ${task.dueDate ? `<div class="meta-item"><span class="meta-label">Due Date</span> <span class="meta-value">${new Date(task.dueDate).toLocaleDateString()}</span></div>` : ''}
+            </div>
+            ${task.description ? `<div style="padding-top: 12px; border-top: 1px solid #f1f5f9; font-size: 13px; color: #64748b;">${task.description.replace(/<[^>]*>?/g, '')}</div>` : ''}
         </div>
-        ${task.description ? `<p style="font-size: 14px; color: #64748b;">Description: ${task.description.replace(/<[^>]*>?/g, '')}</p>` : ''}
     `;
 
     const html = getBaseTemplate("New Task Assignment", content, companyName, "View Task", taskUrl);
@@ -434,13 +453,20 @@ export const notifyTaskUpdated = async (assignee: any, task: any, project: any, 
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const taskUrl = `${frontendUrl}/projects/${project.id}/tasks?taskId=${task.id}`;
 
+    const statusClass = `badge-${(task.status || 'todo').toLowerCase().replace(' ', '-')}`;
+
     const content = `
         <p>Hello <strong>${assignee.firstName}</strong>,</p>
-        <p>There have been updates to a task you are assigned to in <strong>${project.name}</strong>.</p>
+        <p>There have been updates to your task in <strong>${project.name}</strong>.</p>
         <div class="highlight-box">
-            <p><strong>Recent Changes:</strong> ${changes.join(', ')}</p>
-            <div class="meta-item"><span class="meta-label">Task:</span> <span class="meta-value">${task.title}</span></div>
-            <div class="meta-item"><span class="meta-label">Status:</span> <span class="meta-value">${task.status}</span></div>
+            <div class="meta-grid">
+                <div class="meta-item"><span class="meta-label">Task</span> <span class="meta-value">${task.title}</span></div>
+                <div class="meta-item"><span class="meta-label">Status</span> <span class="badge ${statusClass}">${task.status}</span></div>
+            </div>
+            <div style="margin-top: 12px; font-size: 13px;">
+                <strong style="color: #64748b; font-size: 10px; text-transform: uppercase;">Changes:</strong>
+                <p style="margin: 4px 0; color: #0f172a;">${changes.join(', ')}</p>
+            </div>
         </div>
     `;
 
@@ -454,14 +480,17 @@ export const notifyNewTask = async (to: string, task: any, project: any) => {
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const taskUrl = `${frontendUrl}/projects/${project.id}/tasks?taskId=${task.id}`;
 
+    const priorityClass = `badge-${(task.priority || 'medium').toLowerCase()}`;
+
     const content = `
-        <p>A new task has been added to the project <strong>${project.name}</strong>.</p>
+        <p>A new task has been added to <strong>${project.name}</strong>.</p>
         <div class="highlight-box">
-            <div class="meta-item"><span class="meta-label">Title:</span> <span class="meta-value">${task.title}</span></div>
-            <div class="meta-item"><span class="meta-label">Created By:</span> <span class="meta-value">${task.createdBy?.name || 'System'}</span></div>
-            ${task.priority ? `<div class="meta-item"><span class="meta-label">Priority:</span> <span class="meta-value">${task.priority}</span></div>` : ''}
+            <div class="meta-grid">
+                <div class="meta-item"><span class="meta-label">Title</span> <span class="meta-value">${task.title}</span></div>
+                <div class="meta-item"><span class="meta-label">Created By</span> <span class="meta-value">${task.createdBy?.name || 'System'}</span></div>
+                <div class="meta-item"><span class="meta-label">Priority</span> <span class="badge ${priorityClass}">${task.priority || 'Medium'}</span></div>
+            </div>
         </div>
-        <p>Stay updated with the latest project developments on your dashboard.</p>
     `;
 
     const html = getBaseTemplate("Task Created", content, companyName, "View Dashboard", taskUrl);
@@ -476,14 +505,39 @@ export const notifyMention = async (recipient: { email: string, firstName: strin
 
     const content = `
         <p>Hello <strong>${recipient.firstName}</strong>,</p>
-        <p><strong>${author}</strong> has mentioned you in a comment regarding the task <strong>${task.title}</strong>.</p>
-        <div class="highlight-box">
-            <p style="font-style: italic; color: #475569;">"${commentContent.replace(/<[^>]*>?/g, '')}"</p>
+        <p><strong>${author}</strong> mentioned you in a comment on <strong>${task.title}</strong>.</p>
+        <div class="highlight-box" style="border-left: 4px solid #4F46E5;">
+            <p style="font-style: italic; color: #1e293b; margin: 0; font-size: 14px;">"${commentContent.replace(/<[^>]*>?/g, '')}"</p>
         </div>
     `;
 
-    const html = getBaseTemplate("New Mention", content, companyName, "View Comment", commentUrl);
+    const html = getBaseTemplate("New Mention", content, companyName, "Reply to Comment", commentUrl);
     return sendEmail(recipient.email, subject, html);
+};
+
+export const notifyTaskReminder = async (to: string, task: any, project: any, daysRemaining: number) => {
+    const companyName = await getCompanyName(project.companyId);
+    const subject = `Reminder: Task "${task.title}" is due soon - ${companyName}`;
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const taskUrl = `${frontendUrl}/projects/${project.id}/tasks?taskId=${task.id}`;
+
+    const priorityClass = `badge-${(task.priority || 'medium').toLowerCase()}`;
+    const statusClass = `badge-${(task.status || 'todo').toLowerCase().replace(' ', '-')}`;
+
+    const content = `
+        <p>This is a reminder that the following task is due in <strong>${daysRemaining} ${daysRemaining === 1 ? 'day' : 'days'}</strong>.</p>
+        <div class="highlight-box" style="border-top: 4px solid #f59e0b;">
+            <div class="meta-grid">
+                <div class="meta-item"><span class="meta-label">Task</span> <span class="meta-value">${task.title}</span></div>
+                <div class="meta-item"><span class="meta-label">Due Date</span> <span class="meta-value" style="color: #b91c1c; font-weight: 800;">${new Date(task.dueDate).toLocaleDateString()}</span></div>
+                <div class="meta-item"><span class="meta-label">Status</span> <span class="badge ${statusClass}">${task.status}</span></div>
+                <div class="meta-item"><span class="meta-label">Priority</span> <span class="badge ${priorityClass}">${task.priority}</span></div>
+            </div>
+        </div>
+    `;
+
+    const html = getBaseTemplate("Task Reminder", content, companyName, "View Task", taskUrl);
+    return sendEmail(to, subject, html);
 };
 
 export const sendInterviewInvite = async (

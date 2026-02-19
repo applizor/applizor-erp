@@ -47,6 +47,7 @@ export default function ProjectAutomationPage({ params }: { params: { id: string
             case 'TASK_ASSIGNED': return 'Assignment';
             case 'COMMENT_ADDED': return 'New Comment';
             case 'MENTION_FOUND': return 'Mention (@)';
+            case 'TASK_REMINDER': return 'Task Reminder';
             default: return type;
         }
     };
@@ -148,6 +149,8 @@ export default function ProjectAutomationPage({ params }: { params: { id: string
                                             <span>Triggers on @mention in comments</span>
                                         ) : rule.triggerType === 'TASK_ASSIGNED' ? (
                                             <span>Triggers on task assignment</span>
+                                        ) : rule.triggerType === 'TASK_REMINDER' ? (
+                                            <span>Notify {rule.triggerConfig?.daysBefore || 1} day(s) before due date</span>
                                         ) : (
                                             <span>Triggers on task creation</span>
                                         )}

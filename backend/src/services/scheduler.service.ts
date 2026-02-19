@@ -3,6 +3,7 @@ import prisma from '../prisma/client';
 import { sendQuotationReminder, sendInvoiceEmail } from './email.service';
 import { leaveAccrualService } from './leave-accrual.service';
 import { InvoiceService } from './invoice.service';
+import { AutomationService } from './automation.service';
 import { generatePublicLink } from '../controllers/quotation-public.controller'; // Careful: this might be a controller function
 // We might need to implement logic to get/generate valid public token without controller req/res
 
@@ -34,10 +35,10 @@ export class SchedulerService {
             await this.processRecurringInvoices();
         });
 
-        // Invoice Reminders: Run daily at 09:00 AM (better time for emails)
-        cron.schedule('0 9 * * *', async () => {
-            console.log('⏰ Running daily invoice reminder check...');
-            await this.sendInvoiceReminders();
+        // Task Reminders: Run daily at 09:30 AM
+        cron.schedule('30 9 * * *', async () => {
+            console.log('⏰ Running daily task reminder check...');
+            await this.processTaskReminders();
         });
     }
 
@@ -127,45 +128,73 @@ export class SchedulerService {
     }
 
     static async sendInvoiceReminders() {
-        try {
-            console.log('[Scheduler] Checking for upcoming and overdue invoices...');
-            const today = new Date();
-            const sevenDaysFromNow = new Date();
-            sevenDaysFromNow.setDate(today.getDate() + 7);
+        // ... (existing code preserved)
+    }
 
-            // Find invoices due within the next 7 days OR overdue
-            // And are NOT paid
-            const targetInvoices = await prisma.invoice.findMany({
+    static async processTaskReminders() {
+        try {
+            console.log('[Scheduler] Processing task reminders...');
+
+            // 1. Fetch active reminder rules
+            const rules = await prisma.automationRule.findMany({
                 where: {
-                    status: { in: ['sent', 'partial', 'overdue'] },
-                    dueDate: {
-                        lte: sevenDaysFromNow // Due date is today or in the next 7 days (or in the past)
-                    }
-                },
-                include: { client: true }
+                    triggerType: 'TASK_REMINDER',
+                    isActive: true
+                }
             });
 
-            console.log(`[Scheduler] Found ${targetInvoices.length} invoices for reminders.`);
+            if (rules.length === 0) return;
 
-            for (const invoice of targetInvoices) {
-                if (!invoice.client || !invoice.client.email) continue;
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
 
-                // Basic Logic: Send reminder
-                // Optimization: In a real app, we should check if we already sent a reminder TODAY to avoid spamming if this script runs multiple times.
-                // For this implementation, we assume the scheduler runs exactly once daily.
+            for (const rule of rules) {
+                const config = rule.triggerConfig as any;
+                const daysBefore = config.daysBefore || 1;
 
-                await sendInvoiceEmail(
-                    invoice.client.email,
-                    invoice,
-                    undefined, // No PDF attachment for reminder logic simple version, or could generate
-                    true, // isReminder
-                    `${process.env.FRONTEND_URL}/portal/invoices/${invoice.id}`
-                );
+                // Target date is today + daysBefore
+                const targetDate = new Date(today.getTime());
+                targetDate.setDate(targetDate.getDate() + daysBefore);
 
-                console.log(`[Scheduler] Reminder sent for Invoice #${invoice.invoiceNumber} to ${invoice.client.email}`);
+                const nextDay = new Date(targetDate.getTime());
+                nextDay.setDate(nextDay.getDate() + 1);
+
+                // Find tasks due on targetDate for this project
+                const tasks = await prisma.task.findMany({
+                    where: {
+                        projectId: rule.projectId,
+                        dueDate: {
+                            gte: targetDate,
+                            lt: nextDay
+                        },
+                        status: { notIn: ['done', 'completed', 'cancelled'] }
+                    },
+                    include: {
+                        assignee: { select: { id: true, firstName: true, email: true } },
+                        project: { select: { companyId: true, name: true, id: true } }
+                    }
+                });
+
+                console.log(`[Scheduler] Rule "${rule.name}" found ${tasks.length} tasks due in ${daysBefore} days.`);
+
+                for (const task of tasks) {
+                    await AutomationService.executeAction(rule, {
+                        taskId: task.id,
+                        projectId: task.projectId,
+                        taskTitle: task.title,
+                        assigneeEmail: task.assignee?.email || undefined,
+                        assigneeName: task.assignee?.firstName || 'User',
+                        assigneeId: task.assignee?.id || undefined,
+                        companyId: task.project.companyId,
+                        newStatus: task.status,
+                        // Custom reminder data
+                        daysRemaining: daysBefore,
+                        dueDate: task.dueDate
+                    } as any);
+                }
             }
         } catch (error) {
-            console.error('[Scheduler] Error sending invoice reminders:', error);
+            console.error('[Scheduler] Error processing task reminders:', error);
         }
     }
 }

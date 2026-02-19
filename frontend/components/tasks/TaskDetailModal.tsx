@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth';
 import { useForm, Controller } from 'react-hook-form';
-import { X, Paperclip, Send, Clock, Trash2, Briefcase, Plus, MessageSquare, Heart, Smile, MoreHorizontal } from 'lucide-react';
+import { X, Paperclip, Send, Clock, Trash2, Briefcase, Plus, MessageSquare, Heart, Smile, MoreHorizontal, CheckSquare } from 'lucide-react';
 import { PermissionGuard } from '@/components/PermissionGuard'; // Ensure correct path
 import TaskTimesheetList from '@/components/hrms/timesheets/TaskTimesheetList';
 import BulkTimeLogModal from '@/components/hrms/timesheets/BulkTimeLogModal';
@@ -225,12 +225,12 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
 
     const fetchSprintsAndEpics = async () => {
         try {
-            const [sprintsRes, tasksRes] = await Promise.all([
+            const [sprintsRes, epicsRes] = await Promise.all([
                 api.get(`/projects/${projectId}/sprints`),
-                api.get(`/tasks?projectId=${projectId}&type=epic`)
+                api.get(`/projects/${projectId}/epics`)
             ]);
             setSprints(sprintsRes.data);
-            setEpics(tasksRes.data);
+            setEpics(epicsRes.data);
         } catch (error) { console.error(error); }
     };
 
@@ -441,7 +441,7 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                                 </div>
 
                                 {/* Attachments Section */}
-                                <div>
+                                <div className="mb-8">
                                     <h4 className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">
                                         <Paperclip size={12} /> Attachments
                                     </h4>
@@ -484,6 +484,94 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                                         </div>
                                     )}
                                 </div>
+
+                                {/* Subtasks Section */}
+                                {!isNew && (
+                                    <div className="space-y-4 mb-8">
+                                        <div className="flex justify-between items-center">
+                                            <h4 className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                                                <CheckSquare size={12} /> Subtasks ({task?.subtasks?.length || 0})
+                                            </h4>
+                                            <div className="h-[1px] flex-1 bg-slate-100 mx-4" />
+                                            {task?.subtasks?.length > 0 && (
+                                                <span className="text-[9px] font-black text-emerald-600 uppercase">
+                                                    {task.subtasks.filter((s: any) => s.status === 'done').length} / {task.subtasks.length} Completed
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            {task?.subtasks?.map((sub: any) => (
+                                                <div
+                                                    key={sub.id}
+                                                    className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-100 rounded-md hover:border-primary-200 transition-all group"
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={sub.status === 'done'}
+                                                        onChange={async (e) => {
+                                                            const newStatus = e.target.checked ? 'done' : 'todo';
+                                                            await api.put(`/tasks/${sub.id}`, { status: newStatus });
+                                                            fetchTaskDetails();
+                                                            onUpdate();
+                                                        }}
+                                                        className="w-4 h-4 rounded text-primary-600 focus:ring-primary-500 border-slate-300 cursor-pointer"
+                                                    />
+                                                    <div className="flex-1 flex items-center justify-between gap-4 overflow-hidden">
+                                                        <span
+                                                            onClick={() => {
+                                                                onClose();
+                                                                window.location.href = `/projects/${projectId}/tasks?taskId=${sub.id}`;
+                                                            }}
+                                                            className={`text-xs font-bold cursor-pointer hover:text-primary-600 transition-colors truncate ${sub.status === 'done' ? 'text-slate-400 line-through' : 'text-slate-700'}`}
+                                                        >
+                                                            {sub.title}
+                                                        </span>
+                                                        <div className="flex items-center gap-3 shrink-0">
+                                                            {sub.assignee && (
+                                                                <div className="w-5 h-5 rounded-md bg-indigo-600 text-white flex items-center justify-center text-[8px] font-black border border-white uppercase" title={sub.assignee.firstName}>
+                                                                    {sub.assignee.firstName[0]}
+                                                                </div>
+                                                            )}
+                                                            <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${sub.status === 'done' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'}`}>
+                                                                {sub.status}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+
+                                            <div className="flex items-center gap-3 p-3 bg-white border border-dashed border-slate-200 rounded-md">
+                                                <Plus size={14} className="text-slate-400" />
+                                                <input
+                                                    placeholder="Add a subtask..."
+                                                    className="flex-1 text-xs font-bold outline-none bg-transparent placeholder:text-slate-300"
+                                                    onKeyDown={async (e) => {
+                                                        if (e.key === 'Enter' && e.currentTarget.value.trim()) {
+                                                            const title = e.currentTarget.value.trim();
+                                                            e.currentTarget.value = '';
+                                                            try {
+                                                                await api.post('/tasks', {
+                                                                    projectId,
+                                                                    parentId: taskId,
+                                                                    title,
+                                                                    type: 'task',
+                                                                    status: 'todo',
+                                                                    priority: 'medium'
+                                                                });
+                                                                toast.success('Subtask added');
+                                                                fetchTaskDetails();
+                                                                onUpdate();
+                                                            } catch (error) {
+                                                                toast.error('Failed to add subtask');
+                                                            }
+                                                        }
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </form>
 
                             {/* Activity / Comments */}
@@ -827,19 +915,11 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                     </div>
                 </div>
             </div>
+
             {/* Log Work Modal */}
             <BulkTimeLogModal
                 open={isLogModalOpen}
-                onClose={() => {
-                    setIsLogModalOpen(false);
-                    setAccumulatedSeconds(0);
-                    setTimerStartTime(null);
-                    setTimerActive(false);
-                    setIsPaused(false);
-                    setActiveTimerId(null);
-                    fetchSpentHours();
-                    onUpdate();
-                }}
+                onClose={() => setIsLogModalOpen(false)}
                 defaultEntry={{
                     projectId,
                     taskId: taskId ?? undefined,
@@ -849,5 +929,3 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
         </Portal>
     );
 }
-
-

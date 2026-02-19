@@ -21,7 +21,7 @@ interface TriggerPayload {
     creatorName?: string;
 }
 
-export type AutomationTrigger = 'TASK_STATUS_CHANGE' | 'TASK_CREATED' | 'TASK_ASSIGNED' | 'COMMENT_ADDED' | 'MENTION_FOUND';
+export type AutomationTrigger = 'TASK_STATUS_CHANGE' | 'TASK_CREATED' | 'TASK_ASSIGNED' | 'COMMENT_ADDED' | 'MENTION_FOUND' | 'TASK_REMINDER';
 
 export class AutomationService {
 
@@ -75,7 +75,7 @@ export class AutomationService {
         }
     }
 
-    private static async executeAction(rule: any, payload: TriggerPayload) {
+    public static async executeAction(rule: any, payload: TriggerPayload) {
         const config = rule.actionConfig as any;
         const project = await prisma.project.findUnique({
             where: { id: payload.projectId },
@@ -112,6 +112,12 @@ export class AutomationService {
                     await notifyTaskAssigned(payload.assigneeEmail!, { title: payload.taskTitle, description: '', priority: 'medium', status: payload.newStatus || 'todo', type: 'task' }, project);
                 } else if (config.useTemplate === 'created') {
                     await notifyNewTask(email, { title: payload.taskTitle, description: '', priority: 'medium', type: 'task' }, project);
+                } else if (config.useTemplate === 'status') {
+                    await notifyTaskUpdated({ firstName: payload.assigneeName || 'User', email: email }, { title: payload.taskTitle, id: payload.taskId, status: payload.newStatus || 'Updated' }, project, [`Status changed to ${payload.newStatus}`]);
+                } else if (rule.triggerType === 'TASK_REMINDER') {
+                    // Custom reminder logic: payload should have daysRemaining
+                    const daysRemaining = (payload as any).daysRemaining || 0;
+                    await (require('./email.service')).notifyTaskReminder(email, { title: payload.taskTitle, id: payload.taskId, priority: (payload as any).priority || 'Medium', status: payload.newStatus || 'To Do', dueDate: (payload as any).dueDate }, project, daysRemaining);
                 } else {
                     await sendEmail(email, config.subject || `Update: ${payload.taskTitle}`, config.body || `Task ${payload.taskTitle} has been updated.`);
                 }

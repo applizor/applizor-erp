@@ -7,7 +7,7 @@ import api from '@/lib/api';
 import { useParams, useSearchParams } from 'next/navigation';
 import {
     Plus, MoreVertical, Paperclip, MessageSquare, Bug, Bookmark, Layout, CheckSquare,
-    Filter, LayoutGrid, Users, Calendar, Clock, Copy, Edit2, Trash2, Link as LinkIcon
+    Filter, LayoutGrid, Users, Calendar, Clock, Copy, Edit2, Trash2, Link as LinkIcon, ListTree
 } from 'lucide-react';
 import TaskDetailModal from '@/components/tasks/TaskDetailModal';
 import BulkTimeLogModal from '@/components/hrms/timesheets/BulkTimeLogModal';
@@ -28,7 +28,7 @@ interface Task {
     storyPoints?: number;
     assignee?: { id: string, firstName: string, lastName: string };
     epic?: { id: string, title: string };
-    _count?: { comments: number, documents: number };
+    _count?: { comments: number, documents: number, subtasks: number };
 }
 
 const COLUMNS = {
@@ -391,6 +391,11 @@ export default function KanbanBoard() {
                                                             </div>
 
                                                             <div className="flex items-center gap-3">
+                                                                {(task._count?.subtasks || 0) > 0 && (
+                                                                    <div className="flex items-center gap-1 text-[10px] text-slate-400" title="Subtasks">
+                                                                        <ListTree size={12} /> {task._count?.subtasks}
+                                                                    </div>
+                                                                )}
                                                                 {(task._count?.comments || 0) > 0 && (
                                                                     <div className="flex items-center gap-1 text-[10px] text-slate-400">
                                                                         <MessageSquare size={12} /> {task._count?.comments}

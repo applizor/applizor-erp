@@ -18,6 +18,7 @@ export default function PortalProjectDetail({ params }: { params: { id: string }
     const router = useRouter();
     const [project, setProject] = useState<any>(null);
     const [tasks, setTasks] = useState<any[]>([]);
+    const [milestones, setMilestones] = useState<any[]>([]);
     const [activeTab, setActiveTab] = useState<'board' | 'review' | 'roadmap' | 'files' | 'financials' | 'team'>('board');
     const [loading, setLoading] = useState(true);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -62,9 +63,10 @@ export default function PortalProjectDetail({ params }: { params: { id: string }
 
     const fetchProjectData = async () => {
         try {
-            const [projectsRes, tasksRes] = await Promise.all([
+            const [projectsRes, tasksRes, milestonesRes] = await Promise.all([
                 api.get('/portal/projects'),
-                api.get(`/portal/tasks?projectId=${params.id}`)
+                api.get(`/portal/tasks?projectId=${params.id}`),
+                api.get(`/portal/projects/${params.id}/milestones`)
             ]);
 
             const foundProject = projectsRes.data.find((p: any) => p.id === params.id);
@@ -73,6 +75,7 @@ export default function PortalProjectDetail({ params }: { params: { id: string }
             }
             setProject(foundProject);
             setTasks(tasksRes.data);
+            setMilestones(milestonesRes.data);
         } catch (error) {
             console.error(error);
         } finally {
@@ -144,6 +147,40 @@ export default function PortalProjectDetail({ params }: { params: { id: string }
                         <p className="text-sm font-black text-slate-900 uppercase">{project?.type?.replace(/_/g, ' ') || 'General'}</p>
                     </div>
                 </div>
+
+                {/* Health Card */}
+                <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Project Health</p>
+                    <div className="space-y-3 mt-2">
+                        {/* Tasks */}
+                        <div>
+                            <div className="flex justify-between text-[9px] font-bold uppercase mb-1">
+                                <span className="text-slate-500">Tasks</span>
+                                <span className="text-slate-900">{tasks.filter(t => t.status === 'done').length}/{tasks.length}</span>
+                            </div>
+                            <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                <div
+                                    className="h-full bg-emerald-500 rounded-full"
+                                    style={{ width: `${tasks.length > 0 ? (tasks.filter(t => t.status === 'done').length / tasks.length) * 100 : 0}%` }}
+                                />
+                            </div>
+                        </div>
+                        {/* Milestones */}
+                        <div>
+                            <div className="flex justify-between text-[9px] font-bold uppercase mb-1">
+                                <span className="text-slate-500">Milestones</span>
+                                <span className="text-slate-900">{milestones.filter(m => m.status === 'completed').length}/{milestones.length}</span>
+                            </div>
+                            <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                <div
+                                    className="h-full bg-indigo-500 rounded-full"
+                                    style={{ width: `${milestones.length > 0 ? (milestones.filter(m => m.status === 'completed').length / milestones.length) * 100 : 0}%` }}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Timeline</p>
                     <div className="flex items-center gap-2">

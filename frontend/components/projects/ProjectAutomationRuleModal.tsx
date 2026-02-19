@@ -125,7 +125,8 @@ export default function ProjectAutomationRuleModal({ projectId, rule, onClose, o
                                     { label: 'Task Status Changed', value: 'TASK_STATUS_CHANGE' },
                                     { label: 'Task Assigned', value: 'TASK_ASSIGNED' },
                                     { label: 'New Comment Added', value: 'COMMENT_ADDED' },
-                                    { label: 'User Mentioned (@user)', value: 'MENTION_FOUND' }
+                                    { label: 'User Mentioned (@user)', value: 'MENTION_FOUND' },
+                                    { label: '⏰ Task Reminder (Scheduled)', value: 'TASK_REMINDER' }
                                 ]}
                                 className="w-full"
                             />
@@ -164,6 +165,26 @@ export default function ProjectAutomationRuleModal({ projectId, rule, onClose, o
                                             className="w-full"
                                         />
                                     </div>
+                                </div>
+                            )}
+
+                            {triggerType === 'TASK_REMINDER' && (
+                                <div className="animate-fade-in bg-slate-50 p-4 rounded-md border border-slate-100 space-y-3">
+                                    <label className="ent-label">Days Before Due Date</label>
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            max="30"
+                                            className="ent-input w-24 font-bold"
+                                            value={triggerConfig.daysBefore || 1}
+                                            onChange={(e) => setTriggerConfig({ ...triggerConfig, daysBefore: parseInt(e.target.value) })}
+                                        />
+                                        <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Days remaining</span>
+                                    </div>
+                                    <p className="text-[10px] text-slate-400 font-bold uppercase leading-relaxed">
+                                        System will scan daily and notify recipients when task due date is exactly X days away.
+                                    </p>
                                 </div>
                             )}
                         </div>
