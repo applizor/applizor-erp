@@ -43,6 +43,8 @@ export default function AdminAttendancePage() {
         employeeId: '',
         dateRange: { start: new Date().toISOString().split('T')[0], end: new Date().toISOString().split('T')[0] },
         status: 'present',
+        checkInTime: '09:00',
+        checkOutTime: '18:00',
         notes: '',
         skipOffDays: true
     });
@@ -170,6 +172,8 @@ export default function AdminAttendancePage() {
             employeeId,
             dateRange: { start: dateKey, end: dateKey },
             status: currentStatus || 'present',
+            checkInTime: '09:00',
+            checkOutTime: '18:00',
             notes: '',
             skipOffDays: true
         });
@@ -220,10 +224,18 @@ export default function AdminAttendancePage() {
             const assignments = [];
 
             for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                const dateStr = formatDate(new Date(d));
+
+                // Combine date with time strings
+                const checkInISO = manualData.checkInTime ? `${dateStr}T${manualData.checkInTime}:00` : null;
+                const checkOutISO = manualData.checkOutTime ? `${dateStr}T${manualData.checkOutTime}:00` : null;
+
                 assignments.push({
                     employeeId: manualData.employeeId,
-                    date: formatDate(new Date(d)),
+                    date: dateStr,
                     status: manualData.status,
+                    checkIn: checkInISO,
+                    checkOut: checkOutISO,
                     notes: manualData.notes
                 });
             }
@@ -446,6 +458,27 @@ export default function AdminAttendancePage() {
                             value={manualData.status}
                             onChange={(val) => setManualData({ ...manualData, status: val })}
                         />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="ent-form-group">
+                            <label className="ent-label">Check-In Time</label>
+                            <input
+                                type="time"
+                                className="ent-input w-full"
+                                value={manualData.checkInTime}
+                                onChange={(e) => setManualData({ ...manualData, checkInTime: e.target.value })}
+                            />
+                        </div>
+                        <div className="ent-form-group">
+                            <label className="ent-label">Check-Out Time</label>
+                            <input
+                                type="time"
+                                className="ent-input w-full"
+                                value={manualData.checkOutTime}
+                                onChange={(e) => setManualData({ ...manualData, checkOutTime: e.target.value })}
+                            />
+                        </div>
                     </div>
 
                     <div className="ent-form-group">

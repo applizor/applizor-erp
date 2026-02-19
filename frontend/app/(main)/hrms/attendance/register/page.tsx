@@ -59,6 +59,8 @@ export default function AttendanceRegisterPage() {
     const [bulkStart, setBulkStart] = useState('');
     const [bulkEnd, setBulkEnd] = useState('');
     const [bulkStatus, setBulkStatus] = useState('present');
+    const [bulkCheckIn, setBulkCheckIn] = useState('09:00');
+    const [bulkCheckOut, setBulkCheckOut] = useState('18:00');
     const [skipOffDays, setSkipOffDays] = useState(true);
 
     // Local changes to be saved
@@ -190,7 +192,17 @@ export default function AttendanceRegisterPage() {
 
                 const key = `${emp.employee.id}-${day}`;
                 const dateStr = current.toISOString().split('T')[0];
-                newChanges[key] = { employeeId: emp.employee.id, date: dateStr, status: bulkStatus };
+
+                const checkInISO = bulkCheckIn ? `${dateStr}T${bulkCheckIn}:00` : null;
+                const checkOutISO = bulkCheckOut ? `${dateStr}T${bulkCheckOut}:00` : null;
+
+                newChanges[key] = {
+                    employeeId: emp.employee.id,
+                    date: dateStr,
+                    status: bulkStatus,
+                    checkIn: checkInISO,
+                    checkOut: checkOutISO
+                };
                 count++;
 
                 current.setDate(current.getDate() + 1);
@@ -564,6 +576,27 @@ export default function AttendanceRegisterPage() {
                                     <option value="late">Late</option>
                                     <option value="half-day">Half-Day</option>
                                 </select>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1.5">
+                                    <label className="text-[9px] font-black text-slate-500 uppercase">Check-In Time</label>
+                                    <input
+                                        type="time"
+                                        value={bulkCheckIn}
+                                        onChange={(e) => setBulkCheckIn(e.target.value)}
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-md p-2 text-xs font-bold outline-none focus:ring-2 focus:ring-primary-500"
+                                    />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-[9px] font-black text-slate-500 uppercase">Check-Out Time</label>
+                                    <input
+                                        type="time"
+                                        value={bulkCheckOut}
+                                        onChange={(e) => setBulkCheckOut(e.target.value)}
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-md p-2 text-xs font-bold outline-none focus:ring-2 focus:ring-primary-500"
+                                    />
+                                </div>
                             </div>
 
                             <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-lg border border-slate-200">

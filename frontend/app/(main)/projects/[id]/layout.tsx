@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useParams } from 'next/navigation';
 import api from '@/lib/api';
 import { useProjectPermissions } from '@/hooks/useProjectPermissions';
 import { EditProjectModal } from '@/components/projects/EditProjectModal';
@@ -17,25 +17,26 @@ import { ScrollArea } from '@/components/ui/ScrollArea';
 
 export default function ProjectLayout({
     children,
-    params
 }: {
-    children: React.ReactNode,
-    params: { id: string }
+    children: React.ReactNode
 }) {
     const pathname = usePathname();
+    const router = useRouter();
+    const params = useParams();
+    const id = params.id as string;
     const [project, setProject] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
     useEffect(() => {
         fetchProjectHeader();
-    }, [params.id]);
+    }, [id]);
 
     const fetchProjectHeader = async () => {
         try {
             // We might need a lightweight endpoint just for header info if the full getProject is heavy
             // For now, using the main endpoint
-            const res = await api.get(`/projects/${params.id}`);
+            const res = await api.get(`/projects/${id}`);
             setProject(res.data);
         } catch (error) {
             console.error('Failed to load project header', error);
@@ -161,7 +162,7 @@ export default function ProjectLayout({
                 <ScrollArea className="flex items-center gap-1 mt-8 border-b border-gray-100 pb-1">
                     {tabs.map((tab) => {
                         // Exact match for root, partial for sub-routes
-                        const fullPath = `/projects/${params.id}${tab.id}`;
+                        const fullPath = `/projects/${id}${tab.id}`;
                         const isActive = pathname === fullPath;
 
                         return (

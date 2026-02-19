@@ -9,15 +9,17 @@ import { useRouter } from 'next/navigation';
 import { Plus, Edit2, Trash2, DollarSign, Percent, Archive, CheckCircle, Settings2, ChevronRight, Activity } from 'lucide-react';
 import { payrollApi, SalaryComponent } from '@/lib/api/payroll';
 import { CustomSelect } from '@/components/ui/CustomSelect';
+import api from '@/lib/api';
 
 export default function PayrollComponentsPage() {
     const toast = useToast();
     const { confirm } = useConfirm();
     const router = useRouter();
-    const [components, setComponents] = useState<PayrollComponent[]>([]);
+    const [components, setComponents] = useState<SalaryComponent[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingComponent, setEditingComponent] = useState<SalaryComponent | null>(null);
+    const [accounts, setAccounts] = useState<any[]>([]);
 
     // Form State
     const [formData, setFormData] = useState<Partial<SalaryComponent>>({
@@ -30,7 +32,17 @@ export default function PayrollComponentsPage() {
 
     useEffect(() => {
         fetchComponents();
+        fetchAccounts();
     }, []);
+
+    const fetchAccounts = async () => {
+        try {
+            const res = await api.get('/settings/accounts');
+            setAccounts(res.data || []);
+        } catch (error) {
+            console.error('Failed to fetch accounts', error);
+        }
+    };
 
     const fetchComponents = async () => {
         try {
@@ -128,6 +140,7 @@ export default function PayrollComponentsPage() {
                             <th>Classification</th>
                             <th>Valuation Protocol</th>
                             <th>Default Magnitude</th>
+                            <th>Ledger Account</th>
                             <th>Lifecycle Status</th>
                             <th className="text-right">Operations</th>
                         </tr>
@@ -158,6 +171,16 @@ export default function PayrollComponentsPage() {
                                     <td className="p-4 text-xs font-black text-gray-900">
                                         {comp.defaultValue}
                                         {comp.calculationType === 'percentage_basic' && '%'}
+                                    </td>
+                                    <td className="p-4">
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] font-black text-gray-900 uppercase tracking-tight">
+                                                {accounts.find(a => a.id === comp.ledgerAccountId)?.code || '---'}
+                                            </span>
+                                            <span className="text-[9px] text-gray-400 font-bold uppercase tracking-widest leading-tight">
+                                                {accounts.find(a => a.id === comp.ledgerAccountId)?.name || 'Not Mapped'}
+                                            </span>
+                                        </div>
                                     </td>
                                     <td className="p-4">
                                         <span className={`ent-badge ${comp.isActive ? 'ent-badge-success' : 'ent-badge-neutral'}`}>
@@ -218,7 +241,7 @@ export default function PayrollComponentsPage() {
                                             { label: 'Deduction (-)', value: 'deduction' }
                                         ]}
                                         value={formData.type || 'earning'}
-                                        onChange={val => setFormData({ ...formData, type: val as 'earning' | 'deduction' })}
+                                        onChange={(val: any) => setFormData({ ...formData, type: val as 'earning' | 'deduction' })}
                                     />
                                 </div>
                                 <div className="ent-form-group">
@@ -229,7 +252,7 @@ export default function PayrollComponentsPage() {
                                             { label: 'Formula Computation', value: 'percentage_basic' }
                                         ]}
                                         value={formData.calculationType || 'flat'}
-                                        onChange={val => setFormData({ ...formData, calculationType: val as 'flat' | 'percentage_basic' })}
+                                        onChange={(val: any) => setFormData({ ...formData, calculationType: val as 'flat' | 'percentage_basic' })}
                                     />
                                 </div>
                             </div>
@@ -247,6 +270,17 @@ export default function PayrollComponentsPage() {
                                     value={formData.defaultValue}
                                     onChange={e => setFormData({ ...formData, defaultValue: parseFloat(e.target.value) })}
                                 />
+                            </div>
+
+                            <div className="ent-form-group">
+                                <label className="ent-label">Accounting: Ledger Account</label>
+                                <CustomSelect
+                                    options={accounts.map(a => ({ value: a.id, label: `${a.code} - ${a.name}` }))}
+                                    value={formData.ledgerAccountId || ''}
+                                    onChange={(val: any) => setFormData({ ...formData, ledgerAccountId: val })}
+                                    placeholder="Select Mapping"
+                                />
+                                <p className="text-[8px] text-slate-400 mt-1 uppercase font-bold tracking-widest">Maps this component to chart of accounts</p>
                             </div>
 
                             <div className="flex items-center gap-3 py-2 px-1">

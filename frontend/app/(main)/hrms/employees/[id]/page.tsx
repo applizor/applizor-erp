@@ -144,6 +144,8 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
                 ifscCode: emp.ifscCode || '',
                 panNumber: emp.panNumber || '',
                 aadhaarNumber: emp.aadhaarNumber || '',
+                ptState: emp.ptState || 'Maharashtra',
+                workLocation: emp.workLocation || 'Head Office',
                 // New Fields
                 employmentType: emp.employmentType || '',
                 hourlyRate: emp.hourlyRate || '',
@@ -923,8 +925,28 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
                                                             <input type="text" disabled={!isEditing} value={formData.panNumber} onChange={(e) => setFormData({ ...formData, panNumber: e.target.value })} className="ent-input font-mono" />
                                                         </div>
                                                         <div className="ent-form-group">
-                                                            <label className="ent-label">National ID (Aadhaar)</label>
                                                             <input type="text" disabled={!isEditing} value={formData.aadhaarNumber} onChange={(e) => setFormData({ ...formData, aadhaarNumber: e.target.value })} className="ent-input font-mono" />
+                                                        </div>
+                                                        <div className="ent-form-group">
+                                                            <label className="ent-label">Professional Tax State</label>
+                                                            <CustomSelect
+                                                                disabled={!isEditing}
+                                                                options={[
+                                                                    { label: 'Maharashtra', value: 'Maharashtra' },
+                                                                    { label: 'Madhya Pradesh', value: 'Madhya Pradesh' },
+                                                                    { label: 'Karnataka', value: 'Karnataka' },
+                                                                    { label: 'Gujarat', value: 'Gujarat' },
+                                                                    { label: 'Tamil Nadu', value: 'Tamil Nadu' },
+                                                                    { label: 'West Bengal', value: 'West Bengal' },
+                                                                    { label: 'Telangana', value: 'Telangana' },
+                                                                    { label: 'Andhra Pradesh', value: 'Andhra Pradesh' },
+                                                                    { label: 'Delhi', value: 'Delhi' },
+                                                                    { label: 'Other', value: 'Other' }
+                                                                ]}
+                                                                value={formData.ptState}
+                                                                onChange={(val) => setFormData({ ...formData, ptState: val })}
+                                                                className="w-full"
+                                                            />
                                                         </div>
                                                     </div>
                                                 </section>

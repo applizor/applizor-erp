@@ -19,6 +19,7 @@ export default function RunPayrollPage() {
     const [month, setMonth] = useState(new Date().getMonth() + 1);
     const [year, setYear] = useState(new Date().getFullYear());
     const [loading, setLoading] = useState(false);
+    const [posting, setPosting] = useState(false);
     const [result, setResult] = useState<any>(null);
 
     if (user && !can('Payroll', 'create')) {
@@ -36,6 +37,19 @@ export default function RunPayrollPage() {
             toast.error(error.response?.data?.error || 'Batch initialization failed');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handlePostToAccounting = async () => {
+        try {
+            setPosting(true);
+            await payrollApi.postToAccounting({ month, year });
+            toast.success('Governance synchronized: Journal entries posted to Ledger');
+        } catch (error: any) {
+            console.error(error);
+            toast.error(error.response?.data?.error || 'Accounting synchronization failed');
+        } finally {
+            setPosting(false);
         }
     };
 
@@ -132,10 +146,22 @@ export default function RunPayrollPage() {
                                 <Activity size={12} className="text-primary-600" />
                                 Execution Summary: {result.payrolls.length} Recognized Entities
                             </h3>
-                            <span className="text-[9px] font-black text-emerald-700 bg-emerald-50 px-3 py-1 rounded-md border border-emerald-100 flex items-center gap-2 uppercase tracking-widest">
-                                <CheckCircle size={14} />
-                                Protocol Verified
-                            </span>
+                            <div className="flex items-center gap-3">
+                                <PermissionGuard module="Payroll" action="create">
+                                    <button
+                                        onClick={handlePostToAccounting}
+                                        disabled={posting || result.payrolls.length === 0}
+                                        className="btn-primary py-1 px-3 bg-emerald-600 hover:bg-emerald-700 shadow-emerald-900/10 text-[9px]"
+                                    >
+                                        {posting ? <LoadingSpinner size="sm" /> : <LayoutGrid size={12} className="mr-2 inline" />}
+                                        Post to Accounts
+                                    </button>
+                                </PermissionGuard>
+                                <span className="text-[9px] font-black text-emerald-700 bg-emerald-50 px-3 py-1 rounded-md border border-emerald-100 flex items-center gap-2 uppercase tracking-widest">
+                                    <CheckCircle size={14} />
+                                    Protocol Verified
+                                </span>
+                            </div>
                         </div>
 
                         <div className="overflow-x-auto">

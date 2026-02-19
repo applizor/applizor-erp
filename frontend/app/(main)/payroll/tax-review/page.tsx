@@ -9,6 +9,7 @@ import { Check, X, Eye, FileText, Search } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/Table';
 
 export default function TaxReviewDashboard() {
+    const toast = useToast();
     const [loading, setLoading] = useState(true);
     const [pendingInvestments, setPendingInvestments] = useState<any[]>([]);
     const [selectedEmployee, setSelectedEmployee] = useState<string>('');

@@ -33,7 +33,8 @@ import {
     LifeBuoy,
     CalendarDays,
     Scale,
-    Newspaper
+    Newspaper,
+    CheckSquare
 } from 'lucide-react';
 import { auth, useAuth } from '@/lib/auth';
 import { useState, useEffect, useRef } from 'react';
@@ -93,6 +94,8 @@ export default function Sidebar() {
         { name: 'My Payslips', href: '/payroll/my-payslips', icon: FileSpreadsheet, category: 'Finance & Payroll', module: 'Payroll', action: 'read' },
         { name: 'Salary Units', href: '/payroll/components', icon: Layers, category: 'Finance & Payroll', module: 'SalaryComponent' },
         { name: 'Structure Admin', href: '/payroll/structure', icon: Edit, category: 'Finance & Payroll', module: 'SalaryStructure' },
+        { name: 'Bulk Assignment', href: '/payroll/structure/bulk', icon: CheckSquare, category: 'Finance & Payroll', module: 'SalaryStructure' },
+        { name: 'Salary Templates', href: '/payroll/templates', icon: Copy, category: 'Finance & Payroll', module: 'SalaryStructure' },
         { name: 'Payroll Ledger', href: '/payroll/payslips', icon: FileSpreadsheet, category: 'Finance & Payroll', module: 'Payroll' },
 
         // Accounting

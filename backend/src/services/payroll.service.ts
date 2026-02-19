@@ -90,8 +90,12 @@ export class PayrollService {
                     esiEmployerRate: clean(data.esiEmployerRate, 3.25),
                     esiGrossLimit: clean(data.esiGrossLimit, 21000),
                     professionalTaxEnabled: data.professionalTaxEnabled === true,
-                    ptSlabs: Array.isArray(data.ptSlabs) ? data.ptSlabs : [],
+                    ptSlabs: (Array.isArray(data.ptSlabs) || typeof data.ptSlabs === 'object') ? data.ptSlabs : [],
                     tdsEnabled: data.tdsEnabled === true,
+                    salaryPayableAccountId: data.salaryPayableAccountId || undefined,
+                    pfPayableAccountId: data.pfPayableAccountId || undefined,
+                    ptPayableAccountId: data.ptPayableAccountId || undefined,
+                    tdsPayableAccountId: data.tdsPayableAccountId || undefined,
                 },
                 create: {
                     company: { connect: { id: companyId } },
@@ -102,8 +106,12 @@ export class PayrollService {
                     esiEmployerRate: clean(data.esiEmployerRate, 3.25),
                     esiGrossLimit: clean(data.esiGrossLimit, 21000),
                     professionalTaxEnabled: data.professionalTaxEnabled === true,
-                    ptSlabs: Array.isArray(data.ptSlabs) ? data.ptSlabs : [],
+                    ptSlabs: (Array.isArray(data.ptSlabs) || typeof data.ptSlabs === 'object') ? data.ptSlabs : [],
                     tdsEnabled: data.tdsEnabled === true,
+                    salaryPayableAccountId: data.salaryPayableAccountId || undefined,
+                    pfPayableAccountId: data.pfPayableAccountId || undefined,
+                    ptPayableAccountId: data.ptPayableAccountId || undefined,
+                    tdsPayableAccountId: data.tdsPayableAccountId || undefined,
                 }
             });
         } catch (error) {
@@ -115,7 +123,10 @@ export class PayrollService {
     /**
      * Calculate statutory deductions based on basic and gross salary
      */
-    static async calculateStatutoryDeductions(companyId: string, basic: number, gross: number, month?: number, year?: number) {
+    /**
+     * Calculate statutory deductions based on basic and gross salary
+     */
+    static async calculateStatutoryDeductions(companyId: string, basic: number, gross: number, ptState: string = 'Maharashtra', month?: number, year?: number) {
         const config = await this.getStatutoryConfig(companyId);
 
         // PF Calculation
@@ -134,21 +145,39 @@ export class PayrollService {
         return {
             pf: { employee: pfEmployee, employer: pfEmployer },
             esi: { employee: esiEmployee, employer: esiEmployer },
-            pt: config.professionalTaxEnabled ? this.calculateProfessionalTax(gross, config.ptSlabs, month) : 0
+            pt: config.professionalTaxEnabled ? this.calculateProfessionalTax(gross, config.ptSlabs, ptState, month) : 0
         };
     }
 
     /**
-     * Professional Tax logic using dynamic slabs
+     * Professional Tax logic using dynamic slabs (State-wise)
      */
-    private static calculateProfessionalTax(gross: number, slabs: any, targetMonth?: number): number {
-        if (!slabs || !Array.isArray(slabs) || slabs.length === 0) {
+    private static calculateProfessionalTax(gross: number, slabs: any, ptState: string, targetMonth?: number): number {
+        if (!slabs) return 0;
+
+        // Determine which set of slabs to use
+        let targetSlabs = [];
+
+        // precise match
+        if (Array.isArray(slabs[ptState])) {
+            targetSlabs = slabs[ptState];
+        }
+        // fallback to 'default' key if exists
+        else if (Array.isArray(slabs['default'])) {
+            targetSlabs = slabs['default'];
+        }
+        // legacy support: if slabs is just an array (old format)
+        else if (Array.isArray(slabs)) {
+            targetSlabs = slabs;
+        } else {
             return 0;
         }
 
+        if (targetSlabs.length === 0) return 0;
+
         const currentMonth = targetMonth || (new Date().getMonth() + 1); // 1-12
 
-        for (const slab of slabs) {
+        for (const slab of targetSlabs) {
             if (gross >= slab.min && gross <= slab.max) {
                 // Check for Exception Month (e.g., Feb is 2)
                 if (slab.exceptionMonth && slab.exceptionAmount && slab.exceptionMonth === currentMonth) {
@@ -158,8 +187,6 @@ export class PayrollService {
             }
         }
 
-        // Handle case where gross exceeds max defined slab (usually highest slab has max 9999999)
-        // If not covered, return 0 or check last slab? Assuming slabs cover all ranges.
         return 0;
     }
 
@@ -312,5 +339,159 @@ export class PayrollService {
     static isTDS(name: string): boolean {
         const n = name.toUpperCase();
         return n === 'TDS' || n === 'INCOME TAX' || n.includes('TAX DEDUCTED');
+    }
+
+    /**
+     * Bulk Assign Salary Template
+     */
+    static async bulkAssignTemplate(companyId: string, templateId: string, employeeIds: string[]) {
+        // 1. Get Template with components
+        const template = await prisma.salaryTemplate.findUnique({
+            where: { id: templateId, companyId },
+            include: {
+                components: {
+                    include: { component: true }
+                }
+            }
+        });
+
+        if (!template) throw new Error('Template not found');
+
+        const results = {
+            success: 0,
+            failed: 0,
+            errors: [] as any[]
+        };
+
+        // 2. Process each employee
+        for (const empId of employeeIds) {
+            try {
+                // Get Employee's current Structure (for CTC)
+                const empStructure = await prisma.employeeSalaryStructure.findUnique({
+                    where: { employeeId: empId }
+                });
+
+                if (!empStructure || !empStructure.ctc || Number(empStructure.ctc) === 0) {
+                    throw new Error(`Employee ${empId} has no CTC defined`);
+                }
+
+                const ctc = Number(empStructure.ctc);
+                const monthlyComponents: { componentId: string; amount: number; type: string }[] = [];
+                let totalEarnings = 0;
+                let totalDeductions = 0;
+
+                // 3. Calculate Components
+                // Sort checks: Dependents need Base first.
+                // For MVP: We assume formulas are simple (CTC or Basic based)
+                // We'll calculate Basic first if present, then others.
+
+                // Map to store calculated values for formula reference
+                const context: Record<string, number> = {
+                    CTC: ctc,
+                    GROSS: ctc / 12 // Approx, or sum of monthly earnings
+                };
+
+                // Helper to evaluate formula/value
+                const calculateValue = (comp: any) => {
+                    if (comp.calculationType === 'flat') {
+                        return Number(comp.value);
+                    } else if (comp.calculationType === 'percentage') {
+                        // Default % of CTC if not specified in formula? 
+                        // Or usually schema implies 'percentage' of value against a base. 
+                        // For now, let's assume value is % of CTC if formula is empty
+                        return (ctc / 12) * (Number(comp.value) / 100);
+                    } else if (comp.calculationType === 'formula' && comp.formula) {
+                        try {
+                            // Simple parser: Replace variables
+                            // Supported: CTC, BASIC
+                            let expression = comp.formula.toUpperCase();
+                            expression = expression.replace(/CTC/g, String(ctc / 12)); // Monthly CTC approach? Or Annual?
+                            // Usually formulas are on monthly basis in this system
+
+                            // If Basic is calculated, use it
+                            if (context['BASIC']) {
+                                expression = expression.replace(/BASIC/g, String(context['BASIC']));
+                            }
+
+                            // Safe Eval using function constructor (restricted scope)
+                            // Warning: usage of eval/Function. Ideally use a library.
+                            // For MVP valid inputs:
+                            return Function('"use strict";return (' + expression + ')')();
+                        } catch (e) {
+                            console.error('Formula Error', e);
+                            return 0;
+                        }
+                    }
+                    return 0;
+                };
+
+                // Order components: Put 'Basic' first
+                const sortedComponents = [...template.components].sort((a, b) => {
+                    if (a.component.name.toUpperCase().includes('BASIC')) return -1;
+                    if (b.component.name.toUpperCase().includes('BASIC')) return 1;
+                    return 0;
+                });
+
+                for (const tc of sortedComponents) {
+                    const amount = calculateValue(tc);
+                    const monthlyAmount = Math.round(amount * 100) / 100;
+
+                    monthlyComponents.push({
+                        componentId: tc.componentId,
+                        amount: monthlyAmount,
+                        type: tc.component.type
+                    });
+
+                    // Update context for next components
+                    const key = tc.component.name.toUpperCase().replace(/\s+/g, '_');
+                    context[key] = monthlyAmount;
+                    if (key.includes('BASIC')) context['BASIC'] = monthlyAmount; // Alias
+
+                    if (tc.component.type === 'earning') totalEarnings += monthlyAmount;
+                    else if (tc.component.type === 'deduction') totalDeductions += monthlyAmount;
+                }
+
+                // 4. Verification: Does Total Earnings match Monthly CTC?
+                // If not, add 'Special Allowance' or 'Balancing Component' if configured?
+                // For now, we skip balancing and just save.
+
+                const netSalary = totalEarnings - totalDeductions;
+
+                // 5. Save to DB (Transaction)
+                await prisma.$transaction(async (tx) => {
+                    // Update Structure Header
+                    await tx.employeeSalaryStructure.update({
+                        where: { id: empStructure.id },
+                        data: {
+                            templateId: template.id,
+                            netSalary: netSalary,
+                            // effectiveDate: new Date() // Keep original or update?
+                        }
+                    });
+
+                    // Clear old components
+                    await tx.employeeSalaryComponent.deleteMany({
+                        where: { structureId: empStructure.id }
+                    });
+
+                    // Insert new components
+                    await tx.employeeSalaryComponent.createMany({
+                        data: monthlyComponents.map(c => ({
+                            structureId: empStructure.id,
+                            componentId: c.componentId,
+                            monthlyAmount: c.amount
+                        }))
+                    });
+                });
+
+                results.success++;
+            } catch (error: any) {
+                console.error(`Bulk Assign Error for ${empId}:`, error);
+                results.failed++;
+                results.errors.push({ id: empId, error: error.message });
+            }
+        }
+
+        return { success: true, results };
     }
 }

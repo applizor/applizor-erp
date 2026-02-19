@@ -7,6 +7,7 @@ export interface SalaryComponent {
     calculationType: 'flat' | 'percentage_basic';
     defaultValue: number;
     isActive: boolean;
+    ledgerAccountId?: string;
     createdAt?: string;
     updatedAt?: string;
 }
@@ -111,6 +112,10 @@ export const payrollApi = {
     // Process
     process: async (data: { month: number; year: number; departmentId?: string }) => {
         const response = await api.post('/payroll/process', data);
+        return response.data;
+    },
+    postToAccounting: async (data: { month: number; year: number }) => {
+        const response = await api.post('/payroll/run/post-to-accounting', data);
         return response.data;
     }
 };

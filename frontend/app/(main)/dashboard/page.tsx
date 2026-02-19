@@ -33,11 +33,12 @@ import {
 } from 'recharts';
 import { usePermission } from '@/hooks/usePermission';
 import { useToast } from '@/hooks/useToast';
+import { useConfirm } from '@/hooks/useConfirm';
 
 export default function DashboardPage() {
   const { can, user } = usePermission();
   const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
+  const toast = useToast();
 
   // We can determine view based on 'Accounting.read' permission
   // Admin view requires ability to read accounting data
@@ -67,10 +68,13 @@ export default function DashboardPage() {
 
 function EmployeeDashboard() {
   const { user } = usePermission();
-  const { toast } = useToast();
+  const toast = useToast();
+  const { confirm: _confirm } = useConfirm();
   const [attendance, setAttendance] = useState<any>(null);
   const [leaves, setLeaves] = useState<any[]>([]);
+  const [taskAnalysis, setTaskAnalysis] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
     loadMyData();
@@ -78,13 +82,15 @@ function EmployeeDashboard() {
 
   const loadMyData = async () => {
     try {
-      const [attRes, leaveRes] = await Promise.all([
+      const [attRes, leaveRes, taskRes] = await Promise.all([
         api.get('/attendance-leave/today-status').catch(() => ({ data: {} })),
-        api.get('/leave-type/my-balances').catch(() => ({ data: [] }))
+        api.get('/leave-type/my-balances').catch(() => ({ data: [] })),
+        api.get('/tasks/analysis/me').catch(() => ({ data: null }))
       ]);
 
       setAttendance(attRes.data);
       setLeaves(leaveRes.data || []);
+      setTaskAnalysis(taskRes.data);
     } catch (error) {
       console.error('Failed to load employee data', error);
     } finally {
@@ -159,13 +165,13 @@ function EmployeeDashboard() {
           </div>
 
           <div className="mt-6">
-            {!attendance?.checkedIn && (
+            {!attendance?.hasRecord && (
               <button onClick={checkIn} className="w-full btn-primary py-3 rounded-md shadow-lg">Check In Now</button>
             )}
-            {attendance?.checkedIn && !attendance?.checkedOut && (
+            {attendance?.checkedIn && (
               <button onClick={checkOut} className="w-full bg-amber-500 hover:bg-amber-600 text-white font-black py-3 rounded-md uppercase tracking-widest text-[10px] shadow-lg transition-all">Check Out</button>
             )}
-            {attendance?.checkedIn && attendance?.checkedOut && (
+            {attendance?.checkedOut && (
               <div className="w-full bg-slate-100 text-slate-400 font-black py-3 rounded-md uppercase tracking-widest text-center text-[10px]">Shift Completed</div>
             )}
           </div>
@@ -236,6 +242,104 @@ function EmployeeDashboard() {
           </div>
         </div>
 
+      </div>
+
+      {/* Advanced Task Analysis Section */}
+      <div className="mt-8">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="h-px flex-1 bg-slate-100" />
+          <h2 className="text-[10px] font-black text-slate-400 tracking-[0.2em] uppercase whitespace-nowrap px-4">Performance Intelligence</h2>
+          <div className="h-px flex-1 bg-slate-100" />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Main Stats Card */}
+          <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="ent-card p-4 bg-white shadow-sm border-l-4 border-l-primary-600">
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Tasks</p>
+              <h4 className="text-2xl font-black text-slate-900">{taskAnalysis?.stats?.total || 0}</h4>
+            </div>
+            <div className="ent-card p-4 bg-white shadow-sm border-l-4 border-l-emerald-500">
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Completed</p>
+              <h4 className="text-2xl font-black text-emerald-600">{taskAnalysis?.stats?.completed || 0}</h4>
+            </div>
+            <div className="ent-card p-4 bg-white shadow-sm border-l-4 border-l-amber-500">
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">In Progress</p>
+              <h4 className="text-2xl font-black text-amber-600">{taskAnalysis?.stats?.inProgress || 0}</h4>
+            </div>
+            <div className="ent-card p-4 bg-white shadow-sm border-l-4 border-l-rose-500">
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Overdue</p>
+              <h4 className="text-2xl font-black text-rose-600">{taskAnalysis?.stats?.overdue || 0}</h4>
+            </div>
+
+            {/* Project Distribution Chart */}
+            <div className="md:col-span-4 ent-card p-6 bg-white shadow-md">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">Project Distribution</h3>
+                <Activity size={16} className="text-slate-300" />
+              </div>
+              <div className="h-48 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={taskAnalysis?.projectData || []}>
+                    <defs>
+                      <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.1} />
+                        <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <Area type="monotone" dataKey="count" stroke="#0ea5e9" fillOpacity={1} fill="url(#colorCount)" strokeWidth={3} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-4">
+                {taskAnalysis?.projectData?.map((p: any, i: number) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-sky-500" />
+                    <span className="text-[10px] font-bold text-slate-500 uppercase">{p.name} ({p.count})</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Recent Activity Side Card */}
+          <div className="lg:col-span-4 ent-card p-6 bg-slate-900 shadow-xl overflow-hidden relative">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-primary-500/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
+            <h3 className="text-xs font-black text-white uppercase tracking-widest mb-6 flex items-center gap-2">
+              <Zap size={14} className="text-amber-400" />
+              Recent Trajectory
+            </h3>
+            <div className="space-y-4">
+              {taskAnalysis?.recentTasks?.length > 0 ? taskAnalysis.recentTasks.map((task: any, i: number) => (
+                <div
+                  key={i}
+                  onClick={() => router.push(`/projects/${task.projectId}/tasks?taskId=${task.id}`)}
+                  className="group relative pl-4 border-l border-slate-700 pb-2 cursor-pointer hover:border-primary-500 transition-all"
+                >
+                  <div className="absolute -left-[4.5px] top-1 w-2 h-2 rounded-full bg-slate-700 group-hover:bg-primary-500 transition-colors shadow-sm" />
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter mb-1 group-hover:text-primary-300 transition-colors">{task.projectName || 'Internal'}</p>
+                  <h4 className="text-xs font-bold text-white mb-1 group-hover:text-primary-400 transition-colors truncate">{task.title}</h4>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter ${task.status === 'completed' ? 'bg-emerald-500/20 text-emerald-400' :
+                      task.status === 'todo' ? 'bg-slate-500/20 text-slate-400' :
+                        'bg-amber-500/20 text-amber-400'
+                      }`}>
+                      {task.status}
+                    </span>
+                    <span className="text-[8px] text-slate-500 font-bold uppercase">{new Date(task.updatedAt).toLocaleDateString()}</span>
+                  </div>
+                </div>
+              )) : (
+                <div className="text-center py-10">
+                  <p className="text-xs text-slate-500 italic">No recent activity</p>
+                </div>
+              )}
+            </div>
+            <Link href="/projects" className="block w-full text-center mt-8 py-3 bg-slate-800 hover:bg-slate-700 text-white font-black uppercase text-[10px] tracking-widest rounded-md transition-all">
+              View Workroom
+            </Link>
+          </div>
+        </div>
       </div>
     </div>
   );

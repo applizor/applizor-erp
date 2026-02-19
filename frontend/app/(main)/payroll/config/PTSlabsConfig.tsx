@@ -1,6 +1,7 @@
 'use client';
 
-import { Plus, Trash2, AlertCircle } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Plus, Trash2, AlertCircle, MapPin } from 'lucide-react';
 
 export interface PTSlab {
     min: number;
@@ -11,40 +12,69 @@ export interface PTSlab {
 }
 
 interface PTSlabsConfigProps {
-    slabs: PTSlab[];
-    onChange: (slabs: PTSlab[]) => void;
+    slabs: PTSlab[] | Record<string, PTSlab[]>;
+    onChange: (slabs: Record<string, PTSlab[]>) => void;
     enabled: boolean;
 }
 
+const SUPPORTED_STATES = [
+    'Maharashtra',
+    'Madhya Pradesh',
+    'Karnataka',
+    'Gujarat',
+    'Tamil Nadu',
+    'West Bengal',
+    'Telangana',
+    'Andhra Pradesh',
+    'Delhi',
+    'Other'
+];
+
 export default function PTSlabsConfig({ slabs, onChange, enabled }: PTSlabsConfigProps) {
+    const [activeState, setActiveState] = useState<string>('Maharashtra');
+
+    // Normalize input to object
+    const slabMap: Record<string, PTSlab[]> = useMemo(() => {
+        if (Array.isArray(slabs)) {
+            return { 'Maharashtra': slabs };
+        }
+        return slabs || {};
+    }, [slabs]);
+
+    const activeSlabs = slabMap[activeState] || [];
+
+    const updateMap = (state: string, newSlabs: PTSlab[]) => {
+        const newMap = { ...slabMap, [state]: newSlabs };
+        onChange(newMap);
+    };
 
     const addSlab = () => {
         const newSlab: PTSlab = { min: 0, max: 0, amount: 200 };
         // Suggest min based on last max
-        if (slabs.length > 0) {
-            const lastSlab = slabs[slabs.length - 1];
+        if (activeSlabs.length > 0) {
+            const lastSlab = activeSlabs[activeSlabs.length - 1];
             newSlab.min = lastSlab.max + 1;
             newSlab.max = 999999999;
         }
-        onChange([...slabs, newSlab]);
+        updateMap(activeState, [...activeSlabs, newSlab]);
     };
 
     const removeSlab = (index: number) => {
-        const newSlabs = [...slabs];
+        const newSlabs = [...activeSlabs];
         newSlabs.splice(index, 1);
-        onChange(newSlabs);
+        updateMap(activeState, newSlabs);
     };
 
     const updateSlab = (index: number, field: keyof PTSlab, value: number) => {
-        const newSlabs = [...slabs];
+        const newSlabs = [...activeSlabs];
         newSlabs[index] = { ...newSlabs[index], [field]: value };
-        onChange(newSlabs);
+        updateMap(activeState, newSlabs);
     };
 
     if (!enabled) return null;
 
     return (
-        <div className="bg-white p-8 rounded-md border border-slate-200 shadow-sm md:col-span-2 space-y-6 animate-fade-in">
+        <div className="bg-white p-6 rounded-md border border-slate-200 shadow-sm md:col-span-2 space-y-6 animate-fade-in">
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
                 <div className="flex items-center gap-3">
                     <div className="h-8 w-8 rounded bg-blue-50 flex items-center justify-center">
@@ -63,6 +93,30 @@ export default function PTSlabsConfig({ slabs, onChange, enabled }: PTSlabsConfi
                 </button>
             </div>
 
+            {/* State Tabs */}
+            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
+                {SUPPORTED_STATES.map(state => {
+                    const hasRule = (slabMap[state] || []).length > 0;
+                    return (
+                        <button
+                            key={state}
+                            onClick={() => setActiveState(state)}
+                            className={`
+                                whitespace-nowrap px-3 py-1.5 rounded text-[10px] uppercase font-bold tracking-wider transition-all border
+                                ${activeState === state
+                                    ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                                    : hasRule
+                                        ? 'bg-blue-50 text-blue-700 border-blue-100 hover:border-blue-300'
+                                        : 'bg-white text-slate-400 border-slate-100 hover:border-slate-300 hover:text-slate-600'
+                                }
+                            `}
+                        >
+                            {state} {hasRule && '✓'}
+                        </button>
+                    )
+                })}
+            </div>
+
             <div className="overflow-x-auto">
                 <table className="ent-table w-full">
                     <thead>
@@ -76,14 +130,14 @@ export default function PTSlabsConfig({ slabs, onChange, enabled }: PTSlabsConfi
                         </tr>
                     </thead>
                     <tbody>
-                        {slabs.length === 0 ? (
+                        {activeSlabs.length === 0 ? (
                             <tr>
                                 <td colSpan={6} className="text-center py-6 text-[10px] text-slate-400 uppercase italic">
-                                    No slabs defined. System will not deduct PT.
+                                    No slabs defined for <span className="font-bold text-slate-600">{activeState}</span>.
                                 </td>
                             </tr>
                         ) : (
-                            slabs.map((slab, index) => (
+                            activeSlabs.map((slab, index) => (
                                 <tr key={index} className="group hover:bg-slate-50/50">
                                     <td className="p-2">
                                         <input
@@ -147,8 +201,7 @@ export default function PTSlabsConfig({ slabs, onChange, enabled }: PTSlabsConfi
             <div className="flex items-start gap-2 p-3 bg-blue-50/50 rounded border border-blue-100">
                 <AlertCircle size={14} className="text-blue-600 mt-0.5" />
                 <p className="text-[10px] text-blue-900 leading-relaxed">
-                    <strong>Logic:</strong> If an employee's <strong>Gross Salary</strong> falls between Min and Max (inclusive), the defined Amount will be deducted.
-                    If an Exception Month is set, that specific month will deduct the Exception Amount instead.
+                    <strong>Logic for {activeState}:</strong> If an employee's <strong>Gross Salary</strong> falls between Min and Max, the Amount will be deducted.
                 </p>
             </div>
         </div>

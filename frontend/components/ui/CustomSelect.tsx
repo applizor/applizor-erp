@@ -22,6 +22,7 @@ interface CustomSelectProps {
     searchable?: boolean;
     className?: string;
     align?: 'left' | 'right';
+    portal?: boolean;
 }
 
 export const CustomSelect: React.FC<CustomSelectProps> = ({

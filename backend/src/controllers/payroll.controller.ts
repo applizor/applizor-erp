@@ -6,6 +6,7 @@ import { ensureAccount, createJournalEntry } from '../services/accounting.servic
 import { PermissionService } from '../services/permission.service';
 import { PayrollService } from '../services/payroll.service';
 import { ComplianceService } from '../services/compliance.service';
+import { PayrollAccountingService } from '../services/payroll-accounting.service';
 import { sendPayslipEmail } from '../services/email.service';
 
 // --- Salary Component Master ---
@@ -297,8 +298,9 @@ export const processPayroll = async (req: AuthRequest, res: Response) => {
             }
 
             // --- Statutory Calculations ---
+            // --- Statutory Calculations ---
             const basicAmount = (Object.entries(earningsBreakdown).find(([name]) => PayrollService.isBasic(name))?.[1] as number) || 0;
-            const statutory = await PayrollService.calculateStatutoryDeductions(req.user!.companyId, basicAmount, grossEarned, Number(month), Number(year));
+            const statutory = await PayrollService.calculateStatutoryDeductions(req.user!.companyId, basicAmount, grossEarned, emp.ptState || 'Maharashtra', Number(month), Number(year));
 
             // Integrate PF (FORCE if Configured)
             // Even if no component exists, statutory config dictates the rule.
@@ -400,6 +402,29 @@ export const processPayroll = async (req: AuthRequest, res: Response) => {
     } catch (error: any) {
         console.error('Process payroll error:', error);
         res.status(500).json({ error: 'Failed to process payroll' });
+    }
+};
+
+export const postPayrollToAccounting = async (req: AuthRequest, res: Response) => {
+    try {
+        if (!PermissionService.hasBasicPermission(req.user, 'Accounting', 'update')) {
+            return res.status(403).json({ error: 'Access denied: Accounting update permission required' });
+        }
+
+        const { month, year } = req.body;
+        const companyId = req.user!.companyId;
+
+        const result = await PayrollAccountingService.postPayrollToAccounting(
+            companyId,
+            Number(month),
+            Number(year),
+            req.userId
+        );
+
+        res.json({ message: 'Payroll posted to accounting successfully', entry: result });
+    } catch (error: any) {
+        console.error('Post to accounting error:', error);
+        res.status(500).json({ error: error.message || 'Failed to post payroll to accounting' });
     }
 };
 
@@ -691,6 +716,125 @@ export const createSalaryTemplate = async (req: AuthRequest, res: Response) => {
         res.json(template);
     } catch (error) {
         res.status(500).json({ error: 'Failed to create template' });
+    }
+};
+
+export const getSalaryTemplate = async (req: AuthRequest, res: Response) => {
+    try {
+        const companyId = req.user!.companyId;
+        const { id } = req.params;
+
+        const template = await prisma.salaryTemplate.findFirst({
+            where: { id, companyId },
+            include: {
+                components: {
+                    include: { component: true }
+                }
+            }
+        });
+
+        if (!template) {
+            return res.status(404).json({ error: 'Template not found' });
+        }
+
+        res.json(template);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch template' });
+    }
+};
+
+export const updateSalaryTemplate = async (req: AuthRequest, res: Response) => {
+    try {
+        const companyId = req.user!.companyId;
+        const { id } = req.params;
+        const { name, description, components } = req.body;
+
+        const template = await prisma.salaryTemplate.findFirst({ where: { id, companyId } });
+        if (!template) return res.status(404).json({ error: 'Template not found' });
+
+        // Update with transaction to replace components
+        const updated = await prisma.$transaction(async (tx) => {
+            // 1. Update details
+            await tx.salaryTemplate.update({
+                where: { id },
+                data: { name, description }
+            });
+
+            // 2. Delete existing components
+            await tx.salaryTemplateComponent.deleteMany({
+                where: { templateId: id }
+            });
+
+            // 3. Create new components
+            return await tx.salaryTemplate.update({
+                where: { id },
+                data: {
+                    components: {
+                        create: components.map((c: any) => ({
+                            componentId: c.componentId,
+                            calculationType: c.calculationType,
+                            value: c.value,
+                            formula: c.formula
+                        }))
+                    }
+                },
+                include: {
+                    components: {
+                        include: { component: true }
+                    }
+                }
+            });
+        });
+
+        res.json(updated);
+    } catch (error) {
+        console.error('Update template error:', error);
+        res.status(500).json({ error: 'Failed to update template' });
+    }
+};
+
+export const deleteSalaryTemplate = async (req: AuthRequest, res: Response) => {
+    try {
+        const companyId = req.user!.companyId;
+        const { id } = req.params;
+
+        // Verify ownership
+        const template = await prisma.salaryTemplate.findFirst({
+            where: { id, companyId }
+        });
+
+        if (!template) {
+            return res.status(404).json({ error: 'Template not found' });
+        }
+
+        // Delete (Cascade verify? Prisma usually handles cascade if defined, 
+        // but SalaryTemplateComponent typically cascades on delete of SalaryTemplate)
+        await prisma.salaryTemplate.delete({
+            where: { id }
+        });
+
+        res.json({ message: 'Template deleted successfully' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to delete template' });
+    }
+};
+
+
+export const bulkAssignTemplate = async (req: AuthRequest, res: Response) => {
+    try {
+        const companyId = req.user!.companyId;
+        const { templateId, employeeIds } = req.body;
+
+        if (!templateId || !employeeIds || !Array.isArray(employeeIds)) {
+            return res.status(400).json({ error: 'Invalid request data' });
+            return; // Explicit return to satisfy TS
+        }
+
+        const result = await PayrollService.bulkAssignTemplate(companyId, templateId, employeeIds);
+        res.json(result);
+    } catch (error) {
+        console.error('Bulk assign error:', error);
+        res.status(500).json({ error: 'Bulk assignment failed' });
     }
 };
 

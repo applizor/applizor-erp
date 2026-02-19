@@ -87,10 +87,10 @@ export default function DocumentsPage() {
         }
     };
 
-    const handleDelete = async (id: string) => {
+    const handleDeleteTemplate = async (id: string) => {
         if (!await confirm({ message: 'Delete this template?', type: 'danger' })) return;
         try {
-            await api.delete(`/documents/${id}`);
+            await api.delete(`/document-templates/${id}`);
             toast.success('Template deleted');
             loadTemplates();
         } catch (error) {

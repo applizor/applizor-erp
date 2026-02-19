@@ -11,22 +11,10 @@ import { PermissionGuard } from '@/components/PermissionGuard';
 import AccessDenied from '@/components/AccessDenied';
 import { Plus, Trash2, Clock, Calendar, Users, Settings2, Activity, X, Edit2 } from 'lucide-react';
 
-interface Shift {
-    id: string;
-    name: string;
-    startTime: string;
-    endTime: string;
-    breakDuration: number;
-    isActive: boolean;
-    workDays: string[];
-    _count?: {
-        employees: number;
-    };
-}
 
 export default function ShiftsPage() {
     const toast = useToast();
-    const { confirm } = useConfirm();
+    const { confirm: _confirm } = useConfirm();
     const { can, user } = usePermission();
     const [shifts, setShifts] = useState<Shift[]>([]);
     const [loading, setLoading] = useState(true);
@@ -93,10 +81,10 @@ export default function ShiftsPage() {
         }
     };
 
-    const { confirm } = useConfirm();
+
 
     const handleDelete = async (id: string) => {
-        if (!await confirm({ message: 'Are you sure you want to delete this shift? This action cannot be undone.', type: 'danger' })) return;
+        if (!await _confirm({ message: 'Are you sure you want to delete this shift? This action cannot be undone.', type: 'danger' })) return;
         try {
             await api.delete(`/shifts/${id}`);
             loadShifts();

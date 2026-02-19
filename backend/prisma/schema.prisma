@@ -847,6 +847,8 @@ model Employee {
   shiftId                String?
   salary                 Decimal?                 @db.Decimal(12, 2)
   salaryStructure        Json?
+  workLocation           String?                  @default("Head Office")
+  ptState                String?                  // State for Professional Tax (e.g. "Maharashtra")
   status                 String                   @default("active")
   createdAt              DateTime                 @default(now())
   updatedAt              DateTime                 @updatedAt
@@ -1103,6 +1105,8 @@ model SalaryComponent {
   defaultValue       Decimal                   @default(0) @db.Decimal(12, 2)
   isActive           Boolean                   @default(true)
   isTaxable          Boolean                   @default(true)
+  ledgerAccountId    String?
+  ledgerAccount      LedgerAccount?            @relation(fields: [ledgerAccountId], references: [id])
   createdAt          DateTime                  @default(now())
   updatedAt          DateTime                  @updatedAt
   employeeComponents EmployeeSalaryComponent[]
@@ -1110,6 +1114,7 @@ model SalaryComponent {
   company            Company                   @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId])
+  @@index([ledgerAccountId])
 }
 
 model SalaryTemplate {
@@ -1152,6 +1157,13 @@ model StatutoryConfig {
   professionalTaxEnabled Boolean  @default(true)
   ptSlabs                Json?
   tdsEnabled             Boolean  @default(true)
+  
+  // Accounting Mapping
+  salaryPayableAccountId String?
+  pfPayableAccountId     String?
+  ptPayableAccountId     String?
+  tdsPayableAccountId    String?
+  
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
   company                Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -1655,8 +1667,9 @@ model LedgerAccount {
   isActive     Boolean            @default(true)
   createdAt    DateTime           @default(now())
   updatedAt    DateTime           @updatedAt
-  journalLines JournalEntryLine[]
-  company      Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  journalLines     JournalEntryLine[]
+  salaryComponents SalaryComponent[]
+  company          Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@unique([companyId, code])
   @@index([companyId])

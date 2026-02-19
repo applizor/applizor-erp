@@ -149,12 +149,11 @@ export default function KanbanBoard() {
 
     // Handle Deep Linking
     useEffect(() => {
-        if (deepLinkedTaskId && !initialLoadHandled) {
+        if (deepLinkedTaskId) {
             setSelectedTaskId(deepLinkedTaskId);
             setIsDetailOpen(true);
-            setInitialLoadHandled(true);
         }
-    }, [deepLinkedTaskId, initialLoadHandled]);
+    }, [deepLinkedTaskId]);
 
     // Derived State: Distribute tasks into columns based on filters
     useEffect(() => {

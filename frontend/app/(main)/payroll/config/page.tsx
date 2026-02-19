@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import api from '@/lib/api';
-import { ShieldCheck, Save, Percent, IndianRupee, Info, AlertTriangle, Activity } from 'lucide-react';
-
+import { ShieldCheck, Save, Percent, IndianRupee, Info, AlertTriangle, Activity, CreditCard } from 'lucide-react';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 import PTSlabsConfig, { PTSlab } from './PTSlabsConfig';
 
 interface StatutoryConfigState {
@@ -16,8 +16,18 @@ interface StatutoryConfigState {
     esiEmployerRate: number;
     esiGrossLimit: number;
     professionalTaxEnabled: boolean;
-    ptSlabs: PTSlab[];
+    ptSlabs: PTSlab[] | Record<string, PTSlab[]>;
     tdsEnabled: boolean;
+    salaryPayableAccountId?: string;
+    pfPayableAccountId?: string;
+    ptPayableAccountId?: string;
+    tdsPayableAccountId?: string;
+}
+
+interface Account {
+    id: string;
+    code: string;
+    name: string;
 }
 
 export default function StatutoryConfigPage() {
@@ -33,22 +43,40 @@ export default function StatutoryConfigPage() {
         esiGrossLimit: 21000,
         professionalTaxEnabled: true,
         ptSlabs: [],
-        tdsEnabled: true
+        tdsEnabled: true,
+        salaryPayableAccountId: '',
+        pfPayableAccountId: '',
+        ptPayableAccountId: '',
+        tdsPayableAccountId: ''
     });
+    const [accounts, setAccounts] = useState<Account[]>([]);
 
     useEffect(() => {
         loadConfig();
+        loadAccounts();
     }, []);
+
+    const loadAccounts = async () => {
+        try {
+            const res = await api.get('/settings/accounts'); // Assuming this endpoint exists for trial balance or similar
+            setAccounts(res.data || []);
+        } catch (error) {
+            console.error('Failed to load accounts:', error);
+        }
+    };
 
     const loadConfig = async () => {
         try {
             setLoading(true);
             const res = await api.get('/payroll/statutory-config');
             if (res.data) {
-                // Ensure ptSlabs is an array
+                // Determine if legacy array or new object
+                let slabs = res.data.ptSlabs || [];
+                // No forced array conversion here, we accept object too.
+
                 setConfig({
                     ...res.data,
-                    ptSlabs: res.data.ptSlabs || []
+                    ptSlabs: slabs
                 });
             }
         } catch (error) {
@@ -63,6 +91,30 @@ export default function StatutoryConfigPage() {
         try {
             setSaving(true);
 
+            // Sanitize Slabs (Array or Object)
+            let sanitizedSlabs: any = [];
+            if (Array.isArray(config.ptSlabs)) {
+                sanitizedSlabs = config.ptSlabs.map(s => ({
+                    min: Number(s.min) || 0,
+                    max: Number(s.max) || 0,
+                    amount: Number(s.amount) || 0,
+                    exceptionMonth: s.exceptionMonth ? Number(s.exceptionMonth) : undefined,
+                    exceptionAmount: s.exceptionAmount ? Number(s.exceptionAmount) : undefined
+                }));
+            } else {
+                // Object map
+                sanitizedSlabs = {};
+                Object.keys(config.ptSlabs).forEach(key => {
+                    sanitizedSlabs[key] = (config.ptSlabs as Record<string, PTSlab[]>)[key].map(s => ({
+                        min: Number(s.min) || 0,
+                        max: Number(s.max) || 0,
+                        amount: Number(s.amount) || 0,
+                        exceptionMonth: s.exceptionMonth ? Number(s.exceptionMonth) : undefined,
+                        exceptionAmount: s.exceptionAmount ? Number(s.exceptionAmount) : undefined
+                    }));
+                });
+            }
+
             // Sanitize: ensure all numeric fields are valid numbers
             const sanitized = {
                 ...config,
@@ -72,13 +124,7 @@ export default function StatutoryConfigPage() {
                 esiEmployeeRate: Number(config.esiEmployeeRate) || 0,
                 esiEmployerRate: Number(config.esiEmployerRate) || 0,
                 esiGrossLimit: Number(config.esiGrossLimit) || 0,
-                ptSlabs: config.ptSlabs.map(s => ({
-                    min: Number(s.min) || 0,
-                    max: Number(s.max) || 0,
-                    amount: Number(s.amount) || 0,
-                    exceptionMonth: s.exceptionMonth ? Number(s.exceptionMonth) : undefined,
-                    exceptionAmount: s.exceptionAmount ? Number(s.exceptionAmount) : undefined
-                }))
+                ptSlabs: sanitizedSlabs
             };
 
             await api.post('/payroll/statutory-config', sanitized);
@@ -263,6 +309,55 @@ export default function StatutoryConfigPage() {
                             <Info size={14} />
                             NOTE: Updating these parameters will affect all UNAPPROVED payroll cycles immediately. Approved and Paid cycles remain locked against configuration drift.
                         </p>
+                    </div>
+                </div>
+
+                {/* Accounting Mapping */}
+                <div className="bg-white p-8 rounded-md border border-slate-200 shadow-sm md:col-span-2 space-y-6">
+                    <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
+                        <div className="h-8 w-8 rounded bg-primary-900 flex items-center justify-center">
+                            <CreditCard size={14} className="text-white" />
+                        </div>
+                        <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">Accounting Integration Mapping</h3>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div className="ent-form-group">
+                            <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1.5 block">Net Salary Payable Account</label>
+                            <CustomSelect
+                                options={accounts.map(a => ({ value: a.id, label: `${a.code} - ${a.name}` }))}
+                                value={config.salaryPayableAccountId || ''}
+                                onChange={(val) => setConfig({ ...config, salaryPayableAccountId: val })}
+                                placeholder="Select Account"
+                            />
+                        </div>
+                        <div className="ent-form-group">
+                            <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1.5 block">PF Liability Account</label>
+                            <CustomSelect
+                                options={accounts.map(a => ({ value: a.id, label: `${a.code} - ${a.name}` }))}
+                                value={config.pfPayableAccountId || ''}
+                                onChange={(val) => setConfig({ ...config, pfPayableAccountId: val })}
+                                placeholder="Select Account"
+                            />
+                        </div>
+                        <div className="ent-form-group">
+                            <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1.5 block">PT Liability Account</label>
+                            <CustomSelect
+                                options={accounts.map(a => ({ value: a.id, label: `${a.code} - ${a.name}` }))}
+                                value={config.ptPayableAccountId || ''}
+                                onChange={(val) => setConfig({ ...config, ptPayableAccountId: val })}
+                                placeholder="Select Account"
+                            />
+                        </div>
+                        <div className="ent-form-group">
+                            <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1.5 block">TDS Liability Account</label>
+                            <CustomSelect
+                                options={accounts.map(a => ({ value: a.id, label: `${a.code} - ${a.name}` }))}
+                                value={config.tdsPayableAccountId || ''}
+                                onChange={(val) => setConfig({ ...config, tdsPayableAccountId: val })}
+                                placeholder="Select Account"
+                            />
+                        </div>
                     </div>
                 </div>
 

@@ -57,6 +57,8 @@ export interface Employee {
     ifscCode?: string;
     panNumber?: string;
     aadhaarNumber?: string;
+    ptState?: string;
+    workLocation?: string;
 
     // Documents
     documents?: Document[];
@@ -187,3 +189,38 @@ export const documentsApi = {
         return response.data;
     }
 };
+
+export interface Shift {
+    id: string;
+    companyId: string;
+    name: string;
+    startTime: string;
+    endTime: string;
+    breakDuration: number;
+    isActive: boolean;
+    workDays: string[];
+    description?: string;
+    _count?: {
+        employees: number;
+    };
+}
+
+export const shiftsApi = {
+    getAll: async () => {
+        const response = await api.get('/shifts');
+        return response.data;
+    },
+    create: async (data: Partial<Shift>) => {
+        const response = await api.post('/shifts', data);
+        return response.data;
+    },
+    update: async (id: string, data: Partial<Shift>) => {
+        const response = await api.put(`/shifts/${id}`, data);
+        return response.data;
+    },
+    delete: async (id: string) => {
+        const response = await api.delete(`/shifts/${id}`);
+        return response.data;
+    }
+};
+

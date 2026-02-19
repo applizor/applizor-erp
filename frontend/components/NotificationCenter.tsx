@@ -8,6 +8,7 @@ import { useSocket } from '@/contexts/SocketContext';
 import { useToast } from '@/hooks/useToast';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
+import { useRouter } from 'next/navigation';
 
 interface Notification {
     id: string;
@@ -26,7 +27,8 @@ export default function NotificationCenter() {
     const [loading, setLoading] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const { socket } = useSocket();
-    const { toast } = useToast();
+    const router = useRouter();
+    const toast = useToast();
 
     const fetchNotifications = async () => {
         try {
@@ -108,6 +110,9 @@ export default function NotificationCenter() {
     const handleNotificationClick = (notification: Notification) => {
         if (!notification.isRead) {
             markAsRead(notification.id);
+        }
+        if (notification.link) {
+            router.push(notification.link);
         }
         setIsOpen(false);
     };

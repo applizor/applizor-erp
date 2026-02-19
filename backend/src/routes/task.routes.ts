@@ -16,6 +16,9 @@ router.get('/:id', checkPermission('ProjectTask', 'read'), taskController.getTas
 router.put('/:id', checkPermission('ProjectTask', 'update'), taskController.updateTask);
 router.delete('/:id', checkPermission('ProjectTask', 'delete'), taskController.deleteTask);
 
+// Analysis
+router.get('/analysis/me', taskController.getMyTaskAnalysis);
+
 // Comments
 router.get('/:id/comments', taskController.getComments);
 router.post('/:id/comments', taskController.addComment);

@@ -461,3 +461,57 @@ export const deleteTaskComment = async (req: AuthRequest, res: Response) => {
         res.status(500).json({ error: 'Failed to delete comment' });
     }
 };
+
+export const getMyTaskAnalysis = async (req: AuthRequest, res: Response) => {
+    try {
+        const userId = req.user!.id;
+
+        const tasks = await prisma.task.findMany({
+            where: { assignedToId: userId },
+            include: { project: { select: { name: true } } }
+        });
+
+        const now = new Date();
+        const stats = {
+            total: tasks.length,
+            todo: tasks.filter(t => t.status === 'todo').length,
+            inProgress: tasks.filter(t => t.status === 'in-progress').length,
+            completed: tasks.filter(t => t.status === 'completed').length,
+            overdue: tasks.filter(t => t.status !== 'completed' && t.dueDate && new Date(t.dueDate) < now).length,
+            highPriority: tasks.filter(t => t.priority === 'high').length,
+            lowPriority: tasks.filter(t => t.priority === 'low').length,
+            mediumPriority: tasks.filter(t => t.priority === 'medium').length,
+        };
+
+        // Project Distribution
+        const projectMap: Record<string, number> = {};
+        tasks.forEach(t => {
+            if (t.project?.name) {
+                projectMap[t.project.name] = (projectMap[t.project.name] || 0) + 1;
+            }
+        });
+
+        const projectData = Object.entries(projectMap)
+            .map(([name, count]) => ({ name, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 5);
+
+        // Recent Updates
+        const recentTasks = tasks
+            .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
+            .slice(0, 5)
+            .map(t => ({
+                id: t.id,
+                title: t.title,
+                status: t.status,
+                updatedAt: t.updatedAt,
+                projectName: t.project?.name,
+                projectId: t.projectId
+            }));
+
+        res.json({ stats, projectData, recentTasks });
+    } catch (error) {
+        console.error("Task Analysis Error:", error);
+        res.status(500).json({ error: 'Failed to fetch task analysis' });
+    }
+};
