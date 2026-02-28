@@ -43,7 +43,7 @@ services:
       postgres:
         condition: service_healthy
     networks:
-      - applizor-network-prod
+      - applizor-network
 
   # Gotenberg
   gotenberg:
