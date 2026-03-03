@@ -54,6 +54,7 @@ jobs:
         host: ${{ secrets.APPLIZOR_IP }}
         username: ${{ secrets.APPLIZOR_USERNAME }}
         key: ${{ secrets.APPLIZOR_PEM_KEY }}
+        command_timeout: 40m
         script: |
           echo "🚀 Starting Unified Deployment for Applizor ERP..."
           
