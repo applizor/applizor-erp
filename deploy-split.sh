@@ -100,7 +100,18 @@ DOCKER_EOF
 sudo docker compose -f docker-compose.backend.yml up -d --build
 
 # Wait for DB
-sleep 5
+echo "Waiting for database to be ready..."
+for i in {1..30}; do
+  if sudo docker compose -f docker-compose.backend.yml exec -T postgres pg_isready -U applizor -d applizor_erp > /dev/null 2>&1; then
+    echo "Database is accepting connections!"
+    break
+  fi
+  echo "Database starting up, waiting 2 seconds..."
+  sleep 2
+done
+
+# Give it 2 more seconds just in case
+sleep 2
 
 # Restore DB if needed
 TABLE_COUNT=$(sudo docker compose -f docker-compose.backend.yml exec -T postgres psql -U applizor -d applizor_erp -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';")
