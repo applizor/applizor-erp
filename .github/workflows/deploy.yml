@@ -1,0 +1,85 @@
+name: Deploy Applizor ERP (Docker)
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    # We copy the entire project directory to the server.
+    # Exclude .git and backup directories to save transfer time.
+    - name: Copy project files to server
+      uses: appleboy/scp-action@v0.1.4
+      with:
+        host: ${{ secrets.APPLIZOR_IP }}
+        username: ${{ secrets.APPLIZOR_USERNAME }}
+        key: ${{ secrets.APPLIZOR_PEM_KEY }}
+        source: "."
+        target: "/home/admin/applizor-erp"
+        rm: false 
+        # Note: We are using a single project root for Docker Compose 
+        # instead of separating frontend and backend into their respect public_html folders.
+        # Nginx/Apache in those public_html folders will reverse proxy to these Docker containers.
+
+    # Run Docker Compose up --build on the server
+    - name: Execute Docker Deployment
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.APPLIZOR_IP }}
+        username: ${{ secrets.APPLIZOR_USERNAME }}
+        key: ${{ secrets.APPLIZOR_PEM_KEY }}
+        script: |
+          # Go to project directory
+          cd /home/admin/applizor-erp
+
+          echo "🚀 Deploying Applizor ERP via Docker Compose..."
+
+          # Ensure environment files exist so Docker doesn't fail
+          # Note: If these files exist, they WON'T be overwritten, preserving your production secrets.
+          if [ ! -f backend/.env ]; then
+            echo "Creating default backend/.env from example"
+            cp backend/.env.example backend/.env || touch backend/.env
+          fi
+          
+          if [ ! -f frontend/.env ]; then
+            echo "Creating default frontend/.env from example"
+            cp frontend/.env.example frontend/.env || touch frontend/.env
+          fi
+
+          # Build and start all services in backend and frontend
+          docker compose -f docker-compose.prod.yml up -d --build
+
+          # Verify database connectivity and wait for it
+          echo "Waiting for database to be ready..."
+          sleep 5
+
+          # Restore database if empty
+          echo "Checking if database needs restoration..."
+          TABLE_COUNT=$(docker compose -f docker-compose.prod.yml exec -T postgres psql -U applizor -d applizor_erp -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';")
+          if [ "$TABLE_COUNT" -eq 0 ]; then
+            echo "Database is empty. Restoring from init_prod_backup.sql..."
+            # Copy backup into the postgres container and restore it
+            docker compose -f docker-compose.prod.yml cp backups/init_prod_backup.sql applizor-postgres:/tmp/init_prod_backup.sql
+            docker compose -f docker-compose.prod.yml exec -T postgres psql -U applizor -d applizor_erp -f /tmp/init_prod_backup.sql
+            echo "✅ Database restored successfully!"
+          else
+            echo "Database already contains data ($TABLE_COUNT tables). Skipping restore."
+          fi
+
+          # Apply database migrations non-interactively
+          echo "Running Prisma migrations..."
+          docker compose -f docker-compose.prod.yml exec -T backend npx prisma migrate deploy
+          
+          # Optional: Run seed if it's the first time
+          # docker compose -f docker-compose.prod.yml exec -T backend npm run seed
+          
+          # Clean up old docker images/dangling images to free up space
+          docker system prune -f
+          
+          echo "✅ Deployment successful. Containers are running."
