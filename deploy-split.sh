@@ -123,6 +123,9 @@ fi
 # Migrate
 sudo docker compose -f docker-compose.backend.yml exec -T backend npx prisma migrate deploy
 
+# Set full permissions for API directory
+sudo chmod -R 777 $API_DIR
+
 # ----------------------------------------------------
 # 2. SETUP FRONTEND
 # ----------------------------------------------------
@@ -170,4 +173,8 @@ DOCKER_EOF
 sudo docker compose -f docker-compose.frontend.yml up -d --build
 
 sudo docker system prune -f
+
+# Set full permissions for Frontend directory
+sudo chmod -R 777 $FRONTEND_DIR
+
 echo "✅ Split Deployment successful!"
