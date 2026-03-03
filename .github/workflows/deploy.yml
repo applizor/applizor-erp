@@ -13,19 +13,15 @@ jobs:
       uses: actions/checkout@v3
 
     # We copy the entire project directory to the server.
-    # Exclude .git and backup directories to save transfer time.
     - name: Copy project files to server
-      uses: appleboy/scp-action@v0.1.4
+      uses: appleboy/scp-action@v0.1.7
       with:
         host: ${{ secrets.APPLIZOR_IP }}
         username: ${{ secrets.APPLIZOR_USERNAME }}
         key: ${{ secrets.APPLIZOR_PEM_KEY }}
         source: "."
         target: "/home/admin/applizor-erp"
-        rm: false 
-        # Note: We are using a single project root for Docker Compose 
-        # instead of separating frontend and backend into their respect public_html folders.
-        # Nginx/Apache in those public_html folders will reverse proxy to these Docker containers.
+        rm: false
 
     # Run Docker Compose up --build on the server
     - name: Execute Docker Deployment
