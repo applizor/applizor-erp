@@ -44,3 +44,28 @@ jobs:
     #   env:
     #     DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
     #     JWT_SECRET: "dummy_secret_for_testing"
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    # Pull code directly via SSH and run Docker Compose
+    - name: Execute Docker Deployment
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.APPLIZOR_IP }}
+        username: ${{ secrets.APPLIZOR_USERNAME }}
+        key: ${{ secrets.APPLIZOR_PEM_KEY }}
+        script: |
+          echo "🚀 Starting Split Deployment for Applizor ERP..."
+          
+          # We host the script on raw.githubusercontent or fetch it directly.
+          wget -qO /tmp/deploy-split.sh https://raw.githubusercontent.com/applizor/applizor-erp/main/deploy-split.sh
+          chmod +x /tmp/deploy-split.sh
+          
+          # Execute the script
+          /tmp/deploy-split.sh
+          
+          echo "✅ Deployment completed successfully!"
