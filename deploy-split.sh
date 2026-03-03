@@ -23,6 +23,10 @@ fi
 git fetch origin main
 git reset --hard origin/main
 
+# Clean up redundant frontend code from backend dir
+echo "Cleaning up frontend code from API directory..."
+rm -rf frontend
+
 # Ensure env files exist
 if [ ! -f backend/.env ]; then
   cp backend/.env.example backend/.env || touch backend/.env
@@ -120,6 +124,10 @@ if [ ! -d ".git" ]; then
 fi
 git fetch origin main
 git reset --hard origin/main
+
+# Clean up redundant backend code from frontend dir
+echo "Cleaning up backend code from Frontend directory..."
+rm -rf backend backups docs docker-compose* deploy* scripts || true
 
 if [ ! -f frontend/.env ]; then
   cp frontend/.env.example frontend/.env || touch frontend/.env
