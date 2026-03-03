@@ -20,7 +20,7 @@ jobs:
         username: ${{ secrets.APPLIZOR_USERNAME }}
         key: ${{ secrets.APPLIZOR_PEM_KEY }}
         source: "."
-        target: "/home/admin/applizor-erp"
+        target: "/home/admin/web/iam.applizor.com/applizor-erp"
         rm: false
 
     # Run Docker Compose up --build on the server
@@ -32,7 +32,7 @@ jobs:
         key: ${{ secrets.APPLIZOR_PEM_KEY }}
         script: |
           # Go to project directory
-          cd /home/admin/applizor-erp
+          cd /home/admin/web/iam.applizor.com/applizor-erp
 
           echo "🚀 Deploying Applizor ERP via Docker Compose..."
 
