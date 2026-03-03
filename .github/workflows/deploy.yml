@@ -16,60 +16,14 @@ jobs:
         username: ${{ secrets.APPLIZOR_USERNAME }}
         key: ${{ secrets.APPLIZOR_PEM_KEY }}
         script: |
-          # Use sudo to prepare the directory if it doesn't exist
-          sudo mkdir -p /home/admin/applizor-erp
-          sudo chown -R $USER:$USER /home/admin/applizor-erp
+          echo "🚀 Starting Split Deployment for Applizor ERP..."
           
-          cd /home/admin/applizor-erp
-
-          # Initialize git or pull the latest changes
-          if [ ! -d ".git" ]; then
-            echo "Initializing Git repository..."
-            git init
-            git remote add origin https://github.com/applizor/applizor-erp.git
-          fi
+          # We host the script on raw.githubusercontent or fetch it directly.
+          # The easiest is to just pull the script from the main branch on github
+          wget -qO /tmp/deploy-split.sh https://raw.githubusercontent.com/applizor/applizor-erp/main/deploy-split.sh
+          chmod +x /tmp/deploy-split.sh
           
-          echo "Fetching latest changes..."
-          git fetch origin main
-          git reset --hard origin/main
-
-          echo "🚀 Deploying Applizor ERP via Docker Compose..."
-
-          # Ensure environment files exist
-          if [ ! -f backend/.env ]; then
-            echo "Creating default backend/.env from example"
-            cp backend/.env.example backend/.env || touch backend/.env
-          fi
+          # Execute the script
+          /tmp/deploy-split.sh
           
-          if [ ! -f frontend/.env ]; then
-            echo "Creating default frontend/.env from example"
-            cp frontend/.env.example frontend/.env || touch frontend/.env
-          fi
-
-          # Build and start services
-          sudo docker compose -f docker-compose.prod.yml up -d --build
-
-          # Verify database connectivity and wait for it
-          echo "Waiting for database to be ready..."
-          sleep 5
-
-          # Restore database if empty
-          echo "Checking if database needs restoration..."
-          TABLE_COUNT=$(sudo docker compose -f docker-compose.prod.yml exec -T postgres psql -U applizor -d applizor_erp -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';")
-          if [ "$TABLE_COUNT" -eq 0 ]; then
-            echo "Database is empty. Restoring from init_prod_backup.sql..."
-            sudo docker compose -f docker-compose.prod.yml cp backups/init_prod_backup.sql applizor-postgres:/tmp/init_prod_backup.sql
-            sudo docker compose -f docker-compose.prod.yml exec -T postgres psql -U applizor -d applizor_erp -f /tmp/init_prod_backup.sql
-            echo "✅ Database restored successfully!"
-          else
-            echo "Database already contains data ($TABLE_COUNT tables). Skipping restore."
-          fi
-
-          # Apply Prisma migrations
-          echo "Running Prisma migrations..."
-          sudo docker compose -f docker-compose.prod.yml exec -T backend npx prisma migrate deploy
-          
-          # Clean up old docker images
-          sudo docker system prune -f
-          
-          echo "✅ Deployment successful!"
+          echo "✅ Deployment completed successfully!"
