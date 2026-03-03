@@ -55,13 +55,74 @@ jobs:
         username: ${{ secrets.APPLIZOR_USERNAME }}
         key: ${{ secrets.APPLIZOR_PEM_KEY }}
         script: |
-          echo "🚀 Starting Split Deployment for Applizor ERP..."
+          echo "🚀 Starting Unified Deployment for Applizor ERP..."
           
-          # We host the script on raw.githubusercontent or fetch it directly.
-          wget -qO /tmp/deploy-split.sh https://raw.githubusercontent.com/applizor/applizor-erp/main/deploy-split.sh
-          chmod +x /tmp/deploy-split.sh
+          # Target directory
+          TARGET_DIR="/home/admin/web/iam.applizor.com/public_html"
           
-          # Execute the script
-          /tmp/deploy-split.sh
+          # Prepare directory
+          sudo mkdir -p $TARGET_DIR
+          sudo chown -R $USER:$USER $TARGET_DIR
+          cd $TARGET_DIR
           
-          echo "✅ Deployment completed successfully!"
+          # Initialize git or pull the latest changes
+          if [ ! -d ".git" ]; then
+            echo "Initializing Git repository..."
+            git init
+            git remote add origin https://github.com/applizor/applizor-erp.git
+          fi
+          
+          echo "Fetching latest changes..."
+          git fetch origin main
+          git reset --hard origin/main
+          
+          # Ensure environment files exist
+          if [ ! -f backend/.env ]; then
+            echo "Creating default backend/.env from example"
+            cp backend/.env.example backend/.env || touch backend/.env
+          fi
+          
+          if [ ! -f frontend/.env ]; then
+            echo "Creating default frontend/.env from example"
+            cp frontend/.env.example frontend/.env || touch frontend/.env
+          fi
+          
+          # Build and start services
+          sudo docker compose -f docker-compose.prod.yml up -d --build
+          
+          # Wait for database
+          echo "Waiting for database to be ready..."
+          for i in {1..30}; do
+            if sudo docker compose -f docker-compose.prod.yml exec -T postgres pg_isready -U applizor -d applizor_erp > /dev/null 2>&1; then
+              echo "Database is accepting connections!"
+              break
+            fi
+            echo "Database starting up, waiting 2 seconds..."
+            sleep 2
+          done
+          sleep 2
+          
+          # Restore database if empty
+          echo "Checking if database needs restoration..."
+          TABLE_COUNT=$(sudo docker compose -f docker-compose.prod.yml exec -T postgres psql -U applizor -d applizor_erp -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';")
+          if [ "$TABLE_COUNT" -eq 0 ]; then
+            echo "Database is empty. Restoring from init_prod_backup.sql..."
+            sudo docker compose -f docker-compose.prod.yml cp backups/init_prod_backup.sql applizor-postgres:/tmp/init_prod_backup.sql
+            sudo docker compose -f docker-compose.prod.yml exec -T postgres psql -U applizor -d applizor_erp -f /tmp/init_prod_backup.sql
+            echo "✅ Database restored successfully!"
+          else
+            echo "Database already contains data ($TABLE_COUNT tables). Skipping restore."
+          fi
+          
+          # Apply Prisma migrations
+          echo "Running Prisma migrations..."
+          sudo docker compose -f docker-compose.prod.yml exec -T backend npx prisma migrate deploy
+          
+          # Clean up old docker images
+          sudo docker system prune -f
+          
+          # Set full permissions
+          echo "Setting 777 permissions..."
+          sudo chmod -R 777 $TARGET_DIR
+          
+          echo "✅ Unified Deployment completed successfully!"
