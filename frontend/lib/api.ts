@@ -41,8 +41,13 @@ api.interceptors.response.use(
       if (typeof window !== 'undefined') {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        // Force redirect to login page
-        window.location.href = '/login';
+
+        // Context-aware redirection
+        if (window.location.pathname.startsWith('/portal')) {
+          window.location.href = '/portal/login';
+        } else {
+          window.location.href = '/login';
+        }
       }
     }
     return Promise.reject(error);
