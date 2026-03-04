@@ -18,8 +18,6 @@ const SocketContext = createContext<SocketContextType>({
 
 export const useSocket = () => useContext(SocketContext);
 
-const socketUrl = getBaseUrl();
-
 export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     const { user } = useAuth();
     const [socket, setSocket] = useState<Socket | null>(null);
