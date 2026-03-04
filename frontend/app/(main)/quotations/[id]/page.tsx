@@ -6,6 +6,7 @@ import api from '@/lib/api';
 import { useToast } from '@/hooks/useToast';
 import { usePermission } from '@/hooks/usePermission';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { copyToClipboard } from '@/lib/utils/clipboard';
 import { useCurrency } from '@/context/CurrencyContext';
 import { Plus, Trash2, FileText, CheckCircle, Printer, Mail, Download, ArrowLeft, Edit, Activity, ExternalLink, RefreshCw, Copy, XCircle, Globe } from 'lucide-react';
 import Link from 'next/link';
@@ -62,11 +63,15 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
         }
     };
 
-    const handleCopyLink = () => {
+    const handleCopyLink = async () => {
         if (quotation?.publicToken) {
             const url = `${window.location.origin}/public/quotations/${quotation.publicToken}`;
-            navigator.clipboard.writeText(url);
-            toast.success('Link copied to clipboard!');
+            const success = await copyToClipboard(url);
+            if (success) {
+                toast.success('Link copied to clipboard!');
+            } else {
+                toast.error('Failed to copy link');
+            }
         }
     };
 

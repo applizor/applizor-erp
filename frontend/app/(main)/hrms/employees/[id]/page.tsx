@@ -35,6 +35,8 @@ import { departmentsApi, positionsApi, employeesApi, documentsApi, Department, P
 import { usePermission } from '@/hooks/usePermission';
 import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { getBaseUrl } from '@/lib/utils/url';
+import { useConfirm } from '@/context/ConfirmationContext';
 import DocumentPreviewModal from '@/components/hrms/DocumentPreviewModal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { ReviewDocumentModal } from '@/components/hrms/ReviewDocumentModal';
@@ -582,14 +584,16 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
                                                                 </td>
                                                                 <td className="p-4">
                                                                     <div className="flex flex-col gap-1">
-                                                                        <a
-                                                                            href={doc.filePath.startsWith('http') ? doc.filePath : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000'}${doc.filePath}`}
-                                                                            target="_blank"
-                                                                            rel="noopener noreferrer"
-                                                                            className="btn-secondary text-[10px] py-1 px-3 h-auto justify-center"
+                                                                        <button
+                                                                            onClick={() => {
+                                                                                const baseUrl = getBaseUrl();
+                                                                                window.open(`${baseUrl}${doc.filePath}`, '_blank');
+                                                                            }}
+                                                                            className="p-1 hover:bg-gray-100 rounded text-gray-500 hover:text-primary-600 transition-colors"
+                                                                            title="Download"
                                                                         >
-                                                                            <Download size={10} className="mr-1.5" /> Download
-                                                                        </a>
+                                                                            <Download size={14} />
+                                                                        </button>
                                                                     </div>
                                                                 </td>
                                                                 <td className="p-4">

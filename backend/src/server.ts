@@ -49,6 +49,22 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // Serve static files
 // Server Entry Point - Updated
 import path from 'path';
+import fs from 'fs';
+
+const uploadsDirs = [
+  path.join(process.cwd(), 'uploads'),
+  path.join(process.cwd(), 'uploads', 'letterheads'),
+  path.join(process.cwd(), 'uploads', 'documents'),
+  path.join(process.cwd(), 'uploads', 'temp')
+];
+
+uploadsDirs.forEach(dir => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+    console.log(`Created directory: ${dir}`);
+  }
+});
+
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 // Health check
@@ -56,6 +72,7 @@ app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
     message: 'Applizor ERP Backend API is running',
+    directories: uploadsDirs.map(d => ({ path: d, exists: fs.existsSync(d) })),
     timestamp: new Date().toISOString()
   });
 });

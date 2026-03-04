@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { X, CheckCircle, Download, FileText, ZoomIn, ZoomOut, Maximize, Minimize } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { getBaseUrl } from '@/lib/utils/url';
 import PagedRichTextEditor from '@/components/ui/PagedRichTextEditor';
 import { Switch } from '@/components/ui/Switch';
 import Portal from '@/components/ui/Portal';
@@ -96,11 +97,8 @@ export default function DocumentPreviewModal({ templateId, employeeId, onClose, 
         if (!path) return null; // Or return a verified default if we had one
         if (path.startsWith('http')) return path;
         if (path.startsWith('/uploads')) {
-            // Use environment variable or default to localhost:5000 (standard for this project)
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-            // If api url ends with /api, strip it to get base url
-            const baseUrl = apiUrl.replace(/\/api$/, '');
-            return `${baseUrl}${path}`;
+            const baseUrl = getBaseUrl();
+            return `${baseUrl}${path.startsWith('/') ? path : '/' + path}`;
         }
         return path;
     };

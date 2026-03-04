@@ -12,6 +12,7 @@ import { invoicesApi } from '@/lib/api/invoices';
 import { useToast } from '@/hooks/useToast';
 import { useCurrency } from '@/context/CurrencyContext';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { copyToClipboard } from '@/lib/utils/clipboard';
 import Link from 'next/link';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { InvoiceActivityLog } from '@/components/invoices/InvoiceActivityLog';
@@ -62,11 +63,15 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
         }
     };
 
-    const handleCopyLink = () => {
+    const handleCopyLink = async () => {
         if (invoice?.publicToken) {
             const url = `${window.location.origin}/public/invoices/${invoice.publicToken}`;
-            navigator.clipboard.writeText(url);
-            toast.success('Public link copied to clipboard');
+            const success = await copyToClipboard(url);
+            if (success) {
+                toast.success('Link copied to clipboard!');
+            } else {
+                toast.error('Failed to copy link');
+            }
         } else {
             // Legacy/Fallback
             const url = `${window.location.protocol}//${window.location.host}/public/invoices/${params.id}`;

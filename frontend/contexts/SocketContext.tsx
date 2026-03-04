@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '@/lib/auth';
+import { getBaseUrl } from '@/lib/utils/url';
 import { useToast } from '@/hooks/useToast';
 
 interface SocketContextType {
@@ -16,6 +17,8 @@ const SocketContext = createContext<SocketContextType>({
 });
 
 export const useSocket = () => useContext(SocketContext);
+
+const socketUrl = getBaseUrl();
 
 export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     const { user } = useAuth();
