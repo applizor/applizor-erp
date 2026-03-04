@@ -78,6 +78,8 @@ jobs:
         platforms: linux/arm64
         push: true
         tags: ghcr.io/applizor/applizor-frontend:latest
+        build-args: |
+          NEXT_PUBLIC_API_URL=https://api.iam.applizor.com/api
 
   deploy:
     needs: build
