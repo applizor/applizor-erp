@@ -28,7 +28,7 @@ export const authenticate = async (
       return res.status(401).json({ error: 'Token not provided' });
     }
 
-    const jwtSecret = process.env.JWT_SECRET;
+    const jwtSecret = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
     if (!jwtSecret) {
       console.error('JWT_SECRET not configured');
       throw new Error('JWT_SECRET not configured');
@@ -162,7 +162,7 @@ export const combinedAuth = async (req: Request, res: Response, next: NextFuncti
     const token = authHeader.startsWith('Bearer ') ? authHeader.replace('Bearer ', '') : authHeader;
     if (!token) return res.status(401).json({ error: 'Token not provided' });
 
-    const jwtSecret = process.env.JWT_SECRET;
+    const jwtSecret = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
     if (!jwtSecret) throw new Error('JWT_SECRET not configured');
 
     const decoded = jwt.verify(token, jwtSecret) as { userId: string };

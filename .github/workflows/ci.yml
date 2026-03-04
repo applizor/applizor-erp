@@ -69,6 +69,8 @@ jobs:
         platforms: linux/arm64
         push: true
         tags: ghcr.io/applizor/applizor-backend:latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
 
     - name: Build and Push Frontend Image (ARM64)
       if: github.ref == 'refs/heads/main'
@@ -80,6 +82,8 @@ jobs:
         tags: ghcr.io/applizor/applizor-frontend:latest
         build-args: |
           NEXT_PUBLIC_API_URL=https://api.iam.applizor.com/api
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
 
   deploy:
     needs: build
