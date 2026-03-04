@@ -14,6 +14,7 @@ import {
     Search,
     Filter
 } from 'lucide-react';
+import api from '@/lib/api';
 
 export default function AuditLogsPage() {
     const [logs, setLogs] = useState<any[]>([]);
@@ -27,15 +28,12 @@ export default function AuditLogsPage() {
     const fetchLogs = async (page: number) => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('token');
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/audit-logs?page=${page}&limit=${pagination.limit}`, {
-                headers: { Authorization: `Bearer ${token}` }
+            const res = await api.get('/audit-logs', {
+                params: { page, limit: pagination.limit }
             });
-            if (res.ok) {
-                const data = await res.json();
-                setLogs(data.logs);
-                setPagination(data.pagination);
-            }
+            const data = res.data;
+            setLogs(data.logs);
+            setPagination(data.pagination);
         } catch (error) {
             console.error('Failed to fetch audit logs');
         } finally {

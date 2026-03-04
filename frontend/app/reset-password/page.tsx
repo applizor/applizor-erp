@@ -2,6 +2,7 @@
 
 import { useState, use } from 'react';
 import { useRouter } from 'next/navigation';
+import api from '@/lib/api';
 
 export default function ResetPasswordPage({ searchParams }: { searchParams: Promise<{ token: string }> }) {
     const router = useRouter();
@@ -27,23 +28,11 @@ export default function ResetPasswordPage({ searchParams }: { searchParams: Prom
         setMessage('');
 
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/auth/reset-password`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ token, newPassword: password }),
-            });
-
-            const data = await res.json();
-            if (res.ok) {
-                setMessage('Password reset successful! Redirecting to login...');
-                setTimeout(() => router.push('/login'), 2000);
-            } else {
-                setMessage(data.error || 'Failed to reset password');
-            }
-        } catch (error) {
-            setMessage('An error occurred. Please try again.');
+            await api.post('/auth/reset-password', { token, newPassword: password });
+            setMessage('Password reset successful! Redirecting to login...');
+            setTimeout(() => router.push('/login'), 2000);
+        } catch (error: any) {
+            setMessage(error.response?.data?.error || 'An error occurred. Please try again.');
         } finally {
             setLoading(false);
         }

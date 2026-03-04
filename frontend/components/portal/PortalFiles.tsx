@@ -154,7 +154,11 @@ export default function PortalFiles({ projectId }: { projectId: string }) {
 
                                         {/* Download button should eventually point to a real proxy/signed url */}
                                         <button
-                                            onClick={() => window.open(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/portal/documents/${doc.id}/download`, '_blank')}
+                                            onClick={() => {
+                                                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+                                                // Ensure we use the /api path for this specific endpoint but handle the base URL correctly
+                                                window.open(`${apiUrl}/portal/documents/${doc.id}/download`, '_blank');
+                                            }}
                                             className="p-1.5 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all"
                                             title="Download"
                                         >

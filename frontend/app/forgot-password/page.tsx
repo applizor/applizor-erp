@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import api from '@/lib/api';
 
 export default function ForgotPasswordPage() {
     const [email, setEmail] = useState('');
@@ -14,15 +15,8 @@ export default function ForgotPasswordPage() {
         setMessage('');
 
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/auth/forgot-password`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ email }),
-            });
-
-            const data = await res.json();
+            const res = await api.post('/auth/forgot-password', { email });
+            const data = res.data;
             setMessage(data.message || 'If an account exists, an email has been sent.');
         } catch (error) {
             setMessage('An error occurred. Please try again.');

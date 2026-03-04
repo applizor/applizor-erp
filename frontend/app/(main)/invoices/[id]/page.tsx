@@ -164,21 +164,11 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
 
         try {
             setActionLoading(true);
-            const token = localStorage.getItem('token');
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/payments/${paymentId}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-
-            if (res.ok) {
-                toast.success('Payment record deleted');
-                loadInvoice(); // Reload to update balance and status
-            } else {
-                throw new Error('Failed to delete payment');
-            }
+            await invoicesApi.deletePayment(paymentId);
+            toast.success('Payment record deleted');
+            loadInvoice(); // Reload to update balance and status
         } catch (error) {
+            console.error('Delete payment error', error);
             toast.error('Could not delete payment record');
         } finally {
             setActionLoading(false);

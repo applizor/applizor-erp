@@ -24,7 +24,7 @@ services:
       service: frontend
 
 volumes:
-  postgres_data_dev:
+  postgres_data:
 
 
 networks:

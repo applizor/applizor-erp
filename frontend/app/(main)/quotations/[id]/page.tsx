@@ -317,7 +317,11 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
                                         <img
                                             src={quotation.company.logo.startsWith('http')
                                                 ? quotation.company.logo
-                                                : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000'}${quotation.company.logo}`
+                                                : (() => {
+                                                    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+                                                    const baseUrl = apiUrl.replace(/\/api$/, '');
+                                                    return `${baseUrl}${quotation.company.logo}`;
+                                                })()
                                             }
                                             alt={quotation.company.name}
                                             className="h-10 w-auto mb-4"

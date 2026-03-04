@@ -11,6 +11,7 @@ import { CurrencySelect } from '@/components/ui/CurrencySelect';
 import { CustomSelect } from '@/components/ui/CustomSelect';
 import { MultiSelect } from '@/components/ui/MultiSelect';
 import { Controller } from 'react-hook-form';
+import api from '@/lib/api';
 
 const itemSchema = z.object({
     description: z.string().min(1, 'Description required'),
@@ -87,12 +88,9 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
             if (client?.currency) setValue('currency', client.currency);
             else if (globalCurrency) setValue('currency', globalCurrency);
 
-            const token = localStorage.getItem('token');
-            fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/projects?clientId=${watchClientId}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            })
-                .then(res => res.json())
-                .then(data => {
+            api.get('/projects', { params: { clientId: watchClientId } })
+                .then(res => {
+                    const data = res.data;
                     const projectList = Array.isArray(data) ? data : (data.projects || []);
                     setProjects(projectList);
                 })
@@ -110,14 +108,13 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
     useEffect(() => {
         const fetchSettings = async () => {
             try {
-                const token = localStorage.getItem('token');
                 const [taxesRes, unitsRes] = await Promise.all([
-                    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/settings/taxes`, { headers: { Authorization: `Bearer ${token}` } }),
-                    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/settings/units`, { headers: { Authorization: `Bearer ${token}` } })
+                    api.get('/settings/taxes'),
+                    api.get('/settings/units')
                 ]);
 
-                if (taxesRes.ok) setTaxRates(await taxesRes.json());
-                if (unitsRes.ok) setUnitTypes(await unitsRes.json());
+                setTaxRates(taxesRes.data);
+                setUnitTypes(unitsRes.data);
             } catch (error) {
                 console.error('Failed to fetch invoice settings', error);
             }

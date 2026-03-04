@@ -2,6 +2,7 @@
 
 import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import api from '@/lib/api';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -37,23 +38,11 @@ export default function CreateLocationPage() {
         e.preventDefault();
         setLoading(true);
         try {
-            const token = localStorage.getItem('token');
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/branches`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`
-                },
-                body: JSON.stringify(formData)
-            });
-
-            if (res.ok) {
-                router.push('/settings/locations');
-            } else {
-                toast.error('Failed to create location');
-            }
-        } catch (error) {
+            await api.post('/branches', formData);
+            router.push('/settings/locations');
+        } catch (error: any) {
             console.error('Error creating location', error);
+            toast.error(error.response?.data?.error || 'Failed to create location');
         } finally {
             setLoading(false);
         }

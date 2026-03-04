@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Shield, Plus, Users, Lock, ChevronRight, RefreshCw, Key } from 'lucide-react';
+import api from '@/lib/api';
 
 export default function RolesPage() {
     const toast = useToast();
@@ -21,14 +22,8 @@ export default function RolesPage() {
 
     const fetchRoles = async () => {
         try {
-            const token = localStorage.getItem('token');
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/roles`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setRoles(data);
-            }
+            const res = await api.get('/roles');
+            setRoles(res.data);
         } catch (error) {
             console.error('Failed to fetch roles', error);
         } finally {
@@ -39,12 +34,9 @@ export default function RolesPage() {
     const handleSync = async () => {
         setSyncing(true);
         try {
-            const token = localStorage.getItem('token');
-            await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/roles/sync-permissions`, {
-                method: 'POST',
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            await api.post('/roles/sync-permissions');
             toast.info('System Permissions Re-Indexed Successfully');
+            fetchRoles(); // Refresh after sync
         } catch (error) {
             toast.error('Sync Failed');
         } finally {

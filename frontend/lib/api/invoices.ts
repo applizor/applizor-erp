@@ -120,5 +120,9 @@ export const invoicesApi = {
   getActivities: async (id: string) => {
     const response = await api.get(`/invoices/${id}/activities`);
     return response.data;
+  },
+  deletePayment: async (paymentId: string) => {
+    const response = await api.delete(`/payments/${paymentId}`);
+    return response.data;
   }
 };

@@ -9,6 +9,7 @@ import { CustomSelect } from '@/components/ui/CustomSelect';
 import TaxConfiguration from '@/components/settings/TaxConfiguration';
 import UnitConfiguration from '@/components/settings/UnitConfiguration';
 import { MultiSelect } from '@/components/ui/MultiSelect';
+import api from '@/lib/api';
 
 export default function CompanySettingsPage() {
     const toast = useToast();
@@ -44,25 +45,20 @@ export default function CompanySettingsPage() {
 
     const fetchCompany = async () => {
         try {
-            const token = localStorage.getItem('token');
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/company`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setCompany(data.company);
-                if (data.company.logo) {
-                    setLogoPreview(`${getBaseUrl()}${data.company.logo}`);
-                }
-                if (data.company.digitalSignature) {
-                    setSignaturePreview(`${getBaseUrl()}${data.company.digitalSignature}`);
-                }
-                if (data.company.letterhead) {
-                    setLetterheadPreview(`${getBaseUrl()}${data.company.letterhead}`);
-                }
-                if (data.company.continuationSheet) {
-                    setContinuationPreview(`${getBaseUrl()}${data.company.continuationSheet}`);
-                }
+            const res = await api.get('/company');
+            const data = res.data;
+            setCompany(data.company);
+            if (data.company.logo) {
+                setLogoPreview(`${getBaseUrl()}${data.company.logo}`);
+            }
+            if (data.company.digitalSignature) {
+                setSignaturePreview(`${getBaseUrl()}${data.company.digitalSignature}`);
+            }
+            if (data.company.letterhead) {
+                setLetterheadPreview(`${getBaseUrl()}${data.company.letterhead}`);
+            }
+            if (data.company.continuationSheet) {
+                setContinuationPreview(`${getBaseUrl()}${data.company.continuationSheet}`);
             }
         } catch (error) {
             console.error('Failed to fetch company details');
@@ -87,22 +83,10 @@ export default function CompanySettingsPage() {
             const formData = new FormData();
             formData.append('logo', logoFile);
 
-            const token = localStorage.getItem('token');
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/company/logo`, {
-                method: 'PUT',
-                headers: {
-                    Authorization: `Bearer ${token}`
-                },
-                body: formData
-            });
-
-            if (res.ok) {
-                toast.success('Logo updated successfully!');
-                fetchCompany(); // Refresh
-                setLogoFile(null); // Clear file selection
-            } else {
-                toast.error('Failed to update logo');
-            }
+            await api.put('/company/logo', formData);
+            toast.success('Logo updated successfully!');
+            fetchCompany(); // Refresh
+            setLogoFile(null); // Clear file selection
         } catch (error) {
             console.error('Logo upload error', error);
             toast.error('Error uploading logo');
@@ -126,22 +110,10 @@ export default function CompanySettingsPage() {
             const formData = new FormData();
             formData.append('signature', signatureFile);
 
-            const token = localStorage.getItem('token');
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/company/signature`, {
-                method: 'PUT',
-                headers: {
-                    Authorization: `Bearer ${token}`
-                },
-                body: formData
-            });
-
-            if (res.ok) {
-                toast.success('Signature updated successfully!');
-                fetchCompany(); // Refresh
-                setSignatureFile(null); // Clear file selection
-            } else {
-                toast.error('Failed to update signature');
-            }
+            await api.put('/company/signature', formData);
+            toast.success('Signature updated successfully!');
+            fetchCompany(); // Refresh
+            setSignatureFile(null); // Clear file selection
         } catch (error) {
             console.error('Signature upload error', error);
             toast.error('Error uploading signature');
@@ -165,22 +137,10 @@ export default function CompanySettingsPage() {
             const formData = new FormData();
             formData.append('letterhead', letterheadFile);
 
-            const token = localStorage.getItem('token');
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/company/letterhead-asset`, {
-                method: 'PUT',
-                headers: {
-                    Authorization: `Bearer ${token}`
-                },
-                body: formData
-            });
-
-            if (res.ok) {
-                toast.success('Letterhead updated successfully!');
-                fetchCompany(); // Refresh
-                setLetterheadFile(null); // Clear file selection
-            } else {
-                toast.error('Failed to update letterhead');
-            }
+            await api.put('/company/letterhead-asset', formData);
+            toast.success('Letterhead updated successfully!');
+            fetchCompany(); // Refresh
+            setLetterheadFile(null); // Clear file selection
         } catch (error) {
             console.error('Letterhead upload error', error);
             toast.error('Error uploading letterhead');
@@ -204,22 +164,10 @@ export default function CompanySettingsPage() {
             const formData = new FormData();
             formData.append('continuationSheet', continuationFile);
 
-            const token = localStorage.getItem('token');
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/company/continuation-sheet-asset`, {
-                method: 'PUT',
-                headers: {
-                    Authorization: `Bearer ${token}`
-                },
-                body: formData
-            });
-
-            if (res.ok) {
-                toast.success('Continuation sheet updated successfully!');
-                fetchCompany(); // Refresh
-                setContinuationFile(null); // Clear file selection
-            } else {
-                toast.error('Failed to update continuation sheet');
-            }
+            await api.put('/company/continuation-sheet-asset', formData);
+            toast.success('Continuation sheet updated successfully!');
+            fetchCompany(); // Refresh
+            setContinuationFile(null); // Clear file selection
         } catch (error) {
             console.error('Continuation upload error', error);
             toast.error('Error uploading continuation sheet');
@@ -232,20 +180,8 @@ export default function CompanySettingsPage() {
         e.preventDefault();
         setSaving(true);
         try {
-            const token = localStorage.getItem('token');
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/company`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`
-                },
-                body: JSON.stringify(company)
-            });
-            if (res.ok) {
-                toast.success('Company profile updated successfully!');
-            } else {
-                toast.error('Failed to update profile');
-            }
+            await api.put('/company', company);
+            toast.success('Company profile updated successfully!');
         } catch (error) {
             console.error(error);
             toast.error('An error occurred while saving');

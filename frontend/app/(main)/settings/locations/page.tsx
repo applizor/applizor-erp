@@ -3,6 +3,7 @@
 import { useToast } from '@/hooks/useToast';
 import { useConfirm } from '@/context/ConfirmationContext';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import api from '@/lib/api';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -32,14 +33,8 @@ export default function LocationsPage() {
 
     const fetchLocations = async () => {
         try {
-            const token = localStorage.getItem('token');
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/branches`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setLocations(data);
-            }
+            const res = await api.get('/branches');
+            setLocations(res.data);
         } catch (error) {
             console.error('Failed to fetch locations');
         } finally {
@@ -52,18 +47,11 @@ export default function LocationsPage() {
     const handleDelete = async (id: string) => {
         if (!await confirm({ message: 'Are you sure you want to delete this location?', type: 'danger' })) return;
         try {
-            const token = localStorage.getItem('token');
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/branches/${id}`, {
-                method: 'DELETE',
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            if (res.ok) {
-                fetchLocations();
-            } else {
-                toast.error('Failed to delete location');
-            }
+            await api.delete(`/branches/${id}`);
+            fetchLocations();
         } catch (error) {
             console.error(error);
+            toast.error('Failed to delete location');
         }
     };
 
