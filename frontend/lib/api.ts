@@ -42,7 +42,8 @@ api.interceptors.response.use(
       if (typeof window !== 'undefined') {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        // Don't redirect here, let the component handle it
+        // Force redirect to login page
+        window.location.href = '/login';
       }
     }
     return Promise.reject(error);
