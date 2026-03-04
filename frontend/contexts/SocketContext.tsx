@@ -47,8 +47,16 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     useEffect(() => {
         if (!user) return;
 
-        const socketUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000';
-        const newSocket = io(socketUrl);
+        const socketUrl = getBaseUrl();
+        console.log(`[Socket] Connecting to: ${socketUrl}`);
+
+        const newSocket = io(socketUrl, {
+            reconnectionAttempts: 5,
+            reconnectionDelay: 1000,
+            autoConnect: true,
+            transports: ['polling', 'websocket'],
+            path: '/socket.io/'
+        });
 
         newSocket.on('connect', () => {
             console.log('Socket connected');

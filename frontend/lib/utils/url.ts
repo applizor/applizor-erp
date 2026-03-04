@@ -1,4 +1,15 @@
 export const getBaseUrl = () => {
+    // If we're in the browser, and the current URL is a production-like URL,
+    // we should prefer the current origin to avoid DNS issues with hardcoded protocols
+    if (typeof window !== 'undefined') {
+        const origin = window.location.origin;
+        // If we're on a known production domain or not on localhost, 
+        // we can safely assume the backend is on the same domain
+        if (!origin.includes('localhost')) {
+            return origin;
+        }
+    }
+
     const apiUrl = process.env.NEXT_PUBLIC_API_URL;
 
     if (!apiUrl || apiUrl === 'undefined') {
@@ -20,7 +31,6 @@ export const getBaseUrl = () => {
 
     // Ensure it has a protocol
     if (!cleaned.startsWith('http') && typeof window !== 'undefined') {
-        // Handle protocol-relative or hostname-only URLs
         if (cleaned.startsWith('//')) {
             cleaned = window.location.protocol + cleaned;
         } else {
