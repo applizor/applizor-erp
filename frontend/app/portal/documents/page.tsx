@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
+import { getBaseUrl } from '@/lib/utils/url';
 import { Package, Download, Upload, Check, X, Clock, AlertCircle, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
-const SERVER_URL = API_URL.replace('/api', '');
+// Used getBaseUrl() directly instead of static constants
+const SERVER_URL = getBaseUrl();
 
 export default function PortalDocumentsPage() {
     const toast = useToast();

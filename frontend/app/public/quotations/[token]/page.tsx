@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { CheckCircle, XCircle, Download, AlertCircle } from 'lucide-react';
+import { getBaseUrl } from '@/lib/utils/url';
 import SignaturePad from '@/components/SignaturePad';
 import AlertDialog from '@/components/ui/AlertDialog';
 import api from '@/lib/api';
@@ -245,7 +246,7 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
                                 <img
                                     src={quotation.company.logo.startsWith('http')
                                         ? quotation.company.logo
-                                        : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000'}${quotation.company.logo}`
+                                        : `${getBaseUrl()}${quotation.company.logo}`
                                     }
                                     alt={quotation.company.name}
                                     className="h-12 w-auto mb-3"

@@ -1,3 +1,4 @@
+'use client';
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth';
 import { useForm, Controller } from 'react-hook-form';
@@ -7,6 +8,7 @@ import TaskTimesheetList from '@/components/hrms/timesheets/TaskTimesheetList';
 import BulkTimeLogModal from '@/components/hrms/timesheets/BulkTimeLogModal';
 import { useToast } from '@/hooks/useToast';
 import api from '@/lib/api';
+import { getBaseUrl } from '@/lib/utils/url';
 import Portal from '@/components/ui/Portal';
 import RichTextEditor from '@/components/ui/RichTextEditor';
 import { CustomSelect } from '@/components/ui/CustomSelect';
@@ -77,7 +79,7 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
 
     const handleDeleteComment = async (commentId: string) => {
         try {
-            await api.delete(`/tasks/${taskId}/comments/${commentId}`);
+            await api.delete(`/ tasks / ${taskId} /comments/${commentId} `);
             toast.success('Comment deleted');
             fetchComments();
         } catch (error) {
@@ -145,7 +147,7 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
 
     const syncTimerWithServer = async () => {
         try {
-            const res = await api.get(`/timesheets/timer/task/${taskId}`);
+            const res = await api.get(`/ timesheets / timer / task / ${taskId} `);
             if (res.data) {
                 setTimerActive(true);
                 setActiveTimerId(res.data.id);
@@ -166,7 +168,7 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
 
     const fetchSpentHours = async () => {
         try {
-            const res = await api.get(`/timesheets?taskId=${taskId}`);
+            const res = await api.get(`/ timesheets ? taskId = ${taskId} `);
             const total = res.data.reduce((acc: number, curr: any) => acc + Number(curr.hours), 0);
             setSpentHours(total);
         } catch (error) { console.error(error); }
@@ -182,14 +184,14 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                 setIsPaused(res.data.isPaused);
                 setAccumulatedSeconds(res.data.accumulatedTime);
             } else {
-                const res = await api.post(`/timesheets/timer/stop/${activeTimerId}`);
+                const res = await api.post(`/ timesheets / timer / stop / ${activeTimerId} `);
                 setTimerActive(false);
                 setActiveTimerId(null);
                 setTimerStartTime(null);
                 setIsPaused(false);
                 setAccumulatedSeconds(0);
 
-                toast.success(`Work logged: ${res.data.durationHours}h`);
+                toast.success(`Work logged: ${res.data.durationHours} h`);
 
                 // Refresh data
                 fetchSpentHours();
@@ -206,7 +208,7 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
         if (!activeTimerId) return;
         try {
             const endpoint = isPaused ? 'resume' : 'pause';
-            const res = await api.post(`/timesheets/timer/${endpoint}/${activeTimerId}`);
+            const res = await api.post(`/ timesheets / timer / ${endpoint}/${activeTimerId}`);
             setIsPaused(res.data.isPaused);
             setAccumulatedSeconds(res.data.accumulatedTime);
             setTimerStartTime(new Date(res.data.startTime).getTime());
@@ -463,7 +465,7 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                                             {task?.documents?.map((doc: any) => (
                                                 <a
                                                     key={doc.id}
-                                                    href={`http://localhost:5000/${doc.filePath}`}
+                                                    href={`${getBaseUrl()}/${doc.filePath}`}
                                                     target="_blank"
                                                     className="flex items-center gap-3 px-3 py-2 bg-slate-50 border border-slate-200 rounded-md hover:border-primary-200 hover:bg-primary-50/50 transition-all group no-underline"
                                                 >

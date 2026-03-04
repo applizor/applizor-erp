@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Briefcase, MapPin, ArrowRight, User, Mail, Phone, FileText, CheckCircle2 } from 'lucide-react';
+import { getBaseUrl } from '@/lib/utils/url';
 import axios from 'axios';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
@@ -31,7 +32,7 @@ export default function CareerPage({ params }: { params: { companyId: string } }
     useEffect(() => {
         const loadJobs = async () => {
             try {
-                const res = await axios.get(`http://localhost:5000/api/recruitment/public/jobs/${params.companyId}`);
+                const res = await axios.get(`${getBaseUrl()}/api/recruitment/public/jobs/${params.companyId}`);
                 setData(res.data);
             } catch (error) {
                 console.error('Failed to load careers:', error);
@@ -48,7 +49,7 @@ export default function CareerPage({ params }: { params: { companyId: string } }
         const formData = new FormData(e.currentTarget);
 
         try {
-            await axios.post(`http://localhost:5000/api/recruitment/public/candidates`, {
+            await axios.post(`${getBaseUrl()}/api/recruitment/public/candidates`, {
                 companyId: params.companyId,
                 jobOpeningId: selectedJob?.id,
                 firstName: formData.get('firstName'),
@@ -94,7 +95,7 @@ export default function CareerPage({ params }: { params: { companyId: string } }
                         <div className="flex items-center gap-3">
                             {data.logo ? (
                                 <img
-                                    src={data.logo.startsWith('http') ? data.logo : `http://localhost:5000${data.logo}`}
+                                    src={data.logo.startsWith('http') ? data.logo : `${getBaseUrl()}${data.logo}`}
                                     alt={data.company}
                                     className="h-8 w-auto rounded-md"
                                 />

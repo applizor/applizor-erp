@@ -7,6 +7,8 @@ import { useRouter } from 'next/navigation';
 import { QuickAddModal } from '@/components/ui/QuickAddModal';
 import { ArrowLeft, Building2, User, Phone, Mail, MapPin, CreditCard, Hash, Globe, Save, Lock, Plus } from 'lucide-react';
 import { z } from 'zod';
+import api from '@/lib/api';
+import { getBaseUrl } from '@/lib/utils/url';
 import { clientsApi } from '@/lib/api/clients';
 import { usePermission } from '@/hooks/usePermission';
 import AccessDenied from '@/components/AccessDenied';
@@ -14,8 +16,8 @@ import { CustomSelect } from '@/components/ui/CustomSelect';
 
 
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
-const SERVER_URL = API_URL.replace('/api', '');
+// Used getBaseUrl() directly instead of static API_URL
+const SERVER_URL = getBaseUrl();
 
 // Define Zod Schema
 const clientSchema = z.object({

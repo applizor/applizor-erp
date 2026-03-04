@@ -10,6 +10,7 @@ import TaxConfiguration from '@/components/settings/TaxConfiguration';
 import UnitConfiguration from '@/components/settings/UnitConfiguration';
 import { MultiSelect } from '@/components/ui/MultiSelect';
 import api from '@/lib/api';
+import { getBaseUrl } from '@/lib/utils/url';
 
 export default function CompanySettingsPage() {
     const toast = useToast();
@@ -33,11 +34,6 @@ export default function CompanySettingsPage() {
 
     const [saving, setSaving] = useState(false);
 
-    // Helper to get base URL (without /api)
-    const getBaseUrl = () => {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
-        return apiUrl.replace(/\/api$/, '');
-    };
 
     useEffect(() => {
         fetchCompany();

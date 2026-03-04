@@ -5,6 +5,8 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Save, X, Building2, Mail, Phone, MapPin, Globe, FileText, CreditCard, Tag, Activity, Lock, Plus } from 'lucide-react';
 import { z } from 'zod';
+import api from '@/lib/api';
+import { getBaseUrl } from '@/lib/utils/url';
 import { clientsApi } from '@/lib/api/clients';
 import { useToast } from '@/hooks/useToast';
 import { usePermission } from '@/hooks/usePermission';
@@ -13,8 +15,8 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { QuickAddModal } from '@/components/ui/QuickAddModal';
 import { CustomSelect } from '@/components/ui/CustomSelect';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
-const SERVER_URL = API_URL.replace('/api', '');
+// Used getBaseUrl() directly instead of static API_URL
+const SERVER_URL = getBaseUrl();
 
 const clientSchema = z.object({
     salutation: z.string().optional(),

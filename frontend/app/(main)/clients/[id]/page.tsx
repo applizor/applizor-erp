@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Edit, Trash2, Mail, Phone, MapPin, Building2, FileText, Calendar, Check, X, AlertCircle } from 'lucide-react';
 import api from '@/lib/api';
+import { getBaseUrl } from '@/lib/utils/url';
 import { clientsApi } from '@/lib/api/clients';
 import { quotationsApi } from '@/lib/api/quotations';
 import { invoicesApi } from '@/lib/api/invoices';
@@ -16,8 +17,8 @@ import { ProfileSkeleton } from '@/components/skeletons/ProfileSkeleton';
 import { useCurrency } from '@/context/CurrencyContext';
 import { ClientQuotationsDialog } from '@/components/clients/ClientQuotationsDialog';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
-const SERVER_URL = API_URL.replace('/api', '');
+// Used getBaseUrl() directly instead of static API_URL
+const SERVER_URL = getBaseUrl();
 
 export default function ClientDetailPage() {
     const router = useRouter();

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
+import { getBaseUrl } from '@/lib/utils/url';
 import { useToast } from '@/hooks/useToast';
 import { usePermission } from '@/hooks/usePermission';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
@@ -322,11 +323,7 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
                                         <img
                                             src={quotation.company.logo.startsWith('http')
                                                 ? quotation.company.logo
-                                                : (() => {
-                                                    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-                                                    const baseUrl = apiUrl.replace(/\/api$/, '');
-                                                    return `${baseUrl}${quotation.company.logo}`;
-                                                })()
+                                                : `${getBaseUrl()}${quotation.company.logo}`
                                             }
                                             alt={quotation.company.name}
                                             className="h-10 w-auto mb-4"

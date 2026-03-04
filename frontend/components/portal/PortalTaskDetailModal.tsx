@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Paperclip, Send, Clock, CheckCircle2, User, MessageSquare } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
 import api from '@/lib/api';
+import { getBaseUrl } from '@/lib/utils/url';
 import Portal from '@/components/ui/Portal';
 import RichTextEditor from '@/components/ui/RichTextEditor';
 import CommentItem from '@/components/tasks/CommentItem';
@@ -236,7 +237,7 @@ export default function PortalTaskDetailModal({ taskId, onClose, onUpdate }: Por
                                         {task.documents.map((doc: any) => (
                                             <a
                                                 key={doc.id}
-                                                href={`http://localhost:5000/${doc.filePath}`}
+                                                href={`${getBaseUrl()}/${doc.filePath}`}
                                                 target="_blank"
                                                 className="flex items-center gap-3 px-3 py-2 bg-white border border-slate-200 rounded-lg hover:border-primary-400 hover:shadow-sm transition-all group no-underline min-w-[200px]"
                                             >

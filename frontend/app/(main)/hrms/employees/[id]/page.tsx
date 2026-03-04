@@ -601,7 +601,7 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
                                                                         doc.signedFilePath ? (
                                                                             <div className="flex items-center gap-2">
                                                                                 <a
-                                                                                    href={doc.signedFilePath?.startsWith('http') ? doc.signedFilePath : `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000'}${doc.signedFilePath}`}
+                                                                                    href={doc.signedFilePath?.startsWith('http') ? doc.signedFilePath : `${getBaseUrl()}${doc.signedFilePath}`}
                                                                                     target="_blank"
                                                                                     rel="noopener noreferrer"
                                                                                     className="text-blue-600 hover:text-blue-700 text-[10px] font-bold flex items-center gap-1"

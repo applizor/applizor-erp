@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import api from '@/lib/api';
+import { getBaseUrl } from '@/lib/utils/url';
 import {
     FileText, Download, Upload, Trash2,
     File, FileCode, ImageIcon, Search, Plus
@@ -155,7 +156,7 @@ export default function PortalFiles({ projectId }: { projectId: string }) {
                                         {/* Download button should eventually point to a real proxy/signed url */}
                                         <button
                                             onClick={() => {
-                                                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+                                                const apiUrl = `${getBaseUrl()}/api`;
                                                 // Ensure we use the /api path for this specific endpoint but handle the base URL correctly
                                                 window.open(`${apiUrl}/portal/documents/${doc.id}/download`, '_blank');
                                             }}

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
+import { getBaseUrl } from '@/lib/utils/url';
 import PageHeader from '@/components/ui/PageHeader';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Save, ArrowLeft, User, Calendar, FileText, LayoutTemplate, X, Check, Copy, Send } from 'lucide-react';
@@ -105,10 +106,7 @@ export default function EditContractPage({ params }: { params: { id: string } })
         }
     };
 
-    const getBaseUrl = () => {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
-        return apiUrl.replace(/\/api$/, '');
-    };
+    // Removed local getBaseUrl
 
     const processVariables = (text: string, clientData?: any) => {
         let processed = text;
