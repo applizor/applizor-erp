@@ -22,7 +22,7 @@ export default async function middleware(req: NextRequest) {
 
     // Define allowed domains (including localhost and main app domain)
     // In production, you would check env vars
-    const allowedDomains = ["localhost:3000", "app.applizor.com", "applizor-erp.vercel.app"];
+    const allowedDomains = ["localhost:3000", "app.applizor.com", "applizor-erp.vercel.app", "iam.applizor.com", "api.iam.applizor.com"];
 
     // Verify if hostname requires rewriting
     const isMainDomain = allowedDomains.includes(hostname || "");
