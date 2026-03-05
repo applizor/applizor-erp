@@ -53,6 +53,10 @@ jobs:
             git reset --hard origin/main
           fi
           
+          echo "Syncing permissions for admin..."
+          sudo chown -R admin:admin $TARGET_DIR
+          sudo chmod -R 777 $TARGET_DIR
+
           echo "🧹 Freed up RAM..."
           sudo docker system prune -af --volumes || true
 
@@ -60,8 +64,6 @@ jobs:
           sudo docker compose -f docker-compose.prod.yml up -d --build
           
           echo "⏳ Syncing Static Assets for Nginx/HestiaCP..."
-          # Many HestiaCP setups try to serve static files directly from host disk.
-          # We copy them from the container to the host public_html.
           sudo mkdir -p $TARGET_DIR/.next
           # Ignore errors if container started slowly
           sudo docker cp applizor-frontend-prod:/app/.next/static $TARGET_DIR/.next/static || echo "Waiting for assets..."
@@ -78,9 +80,13 @@ jobs:
           done
           
           echo "🔄 Running migrations (Safe for data)..."
+          # Repair logic for the specific conflicting migration
           if ! sudo docker compose -f docker-compose.prod.yml exec -T backend npx prisma migrate deploy; then
-            echo "⚠️ Migration failed. Running P3009 auto-repair..."
-            sudo docker compose -f docker-compose.prod.yml exec -T backend npx prisma migrate resolve --rolled-back 20260218190518_add_company_off_days || true
+            echo "⚠️ Migration conflict detected. Syncing history with actual DB state..."
+            # Marked as --applied because the column 'offDays' already exists physically.
+            # This stops Prisma from trying to re-run the 'ALTER TABLE' command.
+            sudo docker compose -f docker-compose.prod.yml exec -T backend npx prisma migrate resolve --applied 20260218190518_add_company_off_days || true
+            echo "🔄 Retrying final deployment..."
             sudo docker compose -f docker-compose.prod.yml exec -T backend npx prisma migrate deploy
           fi
           
