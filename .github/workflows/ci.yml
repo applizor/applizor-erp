@@ -2,57 +2,22 @@ name: Node.js CI
 
 on:
   push:
-    branches: [ "main", "dev" ]
-  pull_request:
-    branches: [ "main", "dev" ]
+    branches:
+      - main
+      - dev
+  workflow_dispatch:
 
 permissions:
   contents: read
   packages: write
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v3
-
-    - name: Use Node.js 18.x
-      uses: actions/setup-node@v3
-      with:
-        node-version: 18.x
-        cache: 'npm'
-        cache-dependency-path: backend/package-lock.json
-
-    - name: Install Dependencies
-      working-directory: ./backend
-      run: npm ci
-
-    - name: Generate Prisma Client
-      working-directory: ./backend
-      run: npx prisma generate
-
-    - name: Build
-      working-directory: ./backend
-      run: npm run build
-
-    # Tests require a live Postgres DB with schema to pass.
-    # Temporarily commenting out to unblock deployment.
-    # - name: Run Tests
-    #   working-directory: ./backend
-    #   run: npm test
-    #   env:
-    #     DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
-    #     JWT_SECRET: "dummy_secret_for_testing"
-
   deploy:
-    needs: build
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     
     steps:
-    # Pull code directly via SSH and run Docker Compose
-    - name: Execute Docker Deployment
+    - name: Execute Server-Side Build & Deploy
       uses: appleboy/ssh-action@v1.0.0
       with:
         host: ${{ secrets.APPLIZOR_IP }}
@@ -60,7 +25,7 @@ jobs:
         key: ${{ secrets.APPLIZOR_PEM_KEY }}
         command_timeout: 40m
         script: |
-          echo "🚀 Starting High-Speed Local Build Deployment..."
+          echo "🚀 Starting High-Speed Server-Side Build & Deployment..."
           
           # Target directory
           TARGET_DIR="/home/admin/web/iam.applizor.com/public_html"
@@ -95,4 +60,4 @@ jobs:
           # Clean up old docker images
           sudo docker system prune -f
           
-          echo "✅ Local Build Deployment completed successfully!"
+          echo "✅ Server-Side Build Deployment completed successfully!"
