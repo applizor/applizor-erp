@@ -4,10 +4,12 @@ import prisma from '../prisma/client';
 import { ClientAuthRequest } from '../middleware/client.auth';
 import { PDFService } from '../services/pdf.service';
 import { NotificationService } from '../services/notification.service';
+import { PermissionService } from '../services/permission.service';
+import { StorageService } from '../services/storage.service';
 import fs from 'fs';
 import path from 'path';
 
-export const getDashboardStats = async (req: ClientAuthRequest, res: Response) => {
+export const getDashboardSummary = async (req: ClientAuthRequest, res: Response) => {
     try {
         const clientId = req.clientId;
 
@@ -1104,18 +1106,9 @@ export const uploadDocument = async (req: ClientAuthRequest, res: Response) => {
 
         const safeName = (name || req.file.originalname).replace(/[^a-zA-Z0-9-_]/g, '_');
         const ext = req.file.originalname.split('.').pop() || 'pdf';
-        const finalFileName = `${client.name.replace(/\s+/g, '_')}_${safeName}_${Date.now()}.${ext}`;
+        const finalFileName = `documents/client_${client.id}_${safeName}_${Date.now()}.${ext}`;
 
-        // With multer.diskStorage, the file is already on disk at req.file.path
-        const uploadDir = path.join(process.cwd(), 'uploads', 'documents');
-        if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-
-        const finalPath = path.join(uploadDir, finalFileName);
-
-        // Move file from generic uploads/ to documents/
-        fs.renameSync(req.file.path, finalPath);
-
-        const fileUrl = `/uploads/documents/${finalFileName}`;
+        const fileUrl = await StorageService.uploadFile(req.file.buffer, finalFileName, req.file.mimetype);
 
         const document = await prisma.document.create({
             data: {
@@ -1305,15 +1298,12 @@ export const downloadPortalDocument = async (req: ClientAuthRequest, res: Respon
             return res.status(404).json({ error: 'Document not found or access denied' });
         }
 
-        const absolutePath = path.isAbsolute(document.filePath)
-            ? document.filePath
-            : path.join(process.cwd(), document.filePath.startsWith('/') ? document.filePath.slice(1) : document.filePath);
-
-        if (!fs.existsSync(absolutePath)) {
-            return res.status(404).json({ error: 'File not found on server' });
+        const url = await StorageService.getFileUrl(document.filePath);
+        if (!url) {
+            return res.status(404).json({ error: 'File not found on storage server' });
         }
 
-        res.download(absolutePath, document.name);
+        res.redirect(url);
     } catch (error) {
         console.error('Download Portal Document Error:', error);
         res.status(500).json({ error: 'Failed to download document' });

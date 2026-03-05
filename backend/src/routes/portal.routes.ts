@@ -1,7 +1,7 @@
 import express from 'express';
 import { login } from '../controllers/client.auth.controller';
 import {
-    getDashboardStats,
+    getDashboardSummary,
     getMyInvoices,
     getMyProjects,
     getInvoiceDetails,
@@ -28,7 +28,7 @@ const router = express.Router();
 router.post('/login', login);
 
 // Protected routes
-router.get('/dashboard', authenticateClient, getDashboardStats);
+router.get('/dashboard', authenticateClient, getDashboardSummary);
 // Quotations
 router.get('/quotations', authenticateClient, getMyQuotations);
 router.get('/quotations/:id', authenticateClient, getQuotationDetails);

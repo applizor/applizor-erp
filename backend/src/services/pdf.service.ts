@@ -1,8 +1,9 @@
 import axios from 'axios';
 import FormData from 'form-data';
-import fs from 'fs';
 import path from 'path';
 import { PDFDocument } from 'pdf-lib';
+import prisma from '../prisma/client';
+import { StorageService } from './storage.service';
 
 const GOTENBERG_URL = process.env.GOTENBERG_URL || 'http://gotenberg:3000';
 
@@ -111,47 +112,20 @@ interface PDFData {
 }
 
 export class PDFService {
-    /**
-     * Convert local file path to base64 data URI
-     */
-    public static getImageBase64(filePath: string | undefined): string | undefined {
+    public static async getImageBase64(filePath: string | undefined): Promise<string | undefined> {
         if (!filePath) return undefined;
 
         // If it's already a base64 or external URL, return as is
         if (filePath.startsWith('data:') || filePath.startsWith('http')) return filePath;
 
         try {
-            // Clean path
-            let relativePath = filePath.startsWith('/') ? filePath.substring(1) : filePath;
+            // Use StorageService to get the buffer (handles S3/Local automatically)
+            const fileBuffer = await StorageService.getFileBuffer(filePath);
 
-            // Ensure it starts with 'uploads/' if it's not an absolute system path
-            if (!path.isAbsolute(relativePath)) {
-                if (!relativePath.startsWith('uploads/') && !relativePath.startsWith('backend/uploads/')) {
-                    relativePath = path.join('uploads', relativePath);
-                }
-            }
-
-            const absolutePath = path.isAbsolute(relativePath)
-                ? relativePath
-                : path.resolve(process.cwd(), relativePath);
-
-            console.log(`[PDFService] Resolving image path: ${filePath} -> ${absolutePath}`);
-
-            if (fs.existsSync(absolutePath)) {
-                const fileBuffer = fs.readFileSync(absolutePath);
-                const extension = path.extname(absolutePath).substring(1).toLowerCase();
+            if (fileBuffer) {
+                const extension = path.extname(filePath).substring(1).toLowerCase();
                 const mimeType = extension === 'png' ? 'image/png' : 'image/jpeg';
                 return `data:${mimeType};base64,${fileBuffer.toString('base64')}`;
-            } else {
-                // Secondary attempt: check if it's already in the parent directory's uploads (common in some dev setups)
-                const secondaryPath = path.resolve(process.cwd(), '..', relativePath);
-                if (fs.existsSync(secondaryPath)) {
-                    const fileBuffer = fs.readFileSync(secondaryPath);
-                    const extension = path.extname(secondaryPath).substring(1).toLowerCase();
-                    const mimeType = extension === 'png' ? 'image/png' : 'image/jpeg';
-                    return `data:${mimeType};base64,${fileBuffer.toString('base64')}`;
-                }
-                console.error(`[PDFService] File not found at paths: ${absolutePath} or ${secondaryPath}`);
             }
         } catch (error) {
             console.error('[PDFService] Error converting image to base64:', error);
@@ -798,31 +772,10 @@ export class PDFService {
             const overlayPages = mainPdfDoc.getPages();
 
             const getBackdropDoc = async (p: string) => {
-                let relativePath = p.startsWith('/') ? p.substring(1) : p;
-
-                if (!path.isAbsolute(relativePath)) {
-                    if (!relativePath.startsWith('uploads/') && !relativePath.startsWith('backend/uploads/')) {
-                        relativePath = path.join('uploads', relativePath);
-                    }
+                const fileBuffer = await StorageService.getFileBuffer(p);
+                if (fileBuffer) {
+                    return await PDFDocument.load(fileBuffer);
                 }
-
-                const absolutePath = path.isAbsolute(relativePath)
-                    ? relativePath
-                    : path.resolve(process.cwd(), relativePath);
-
-                console.log(`[PDFService] Resolving overlay path: ${p} -> ${absolutePath}`);
-
-                if (fs.existsSync(absolutePath)) {
-                    return await PDFDocument.load(fs.readFileSync(absolutePath));
-                }
-
-                // Secondary check
-                const secondaryPath = path.resolve(process.cwd(), '..', relativePath);
-                if (fs.existsSync(secondaryPath)) {
-                    return await PDFDocument.load(fs.readFileSync(secondaryPath));
-                }
-
-                console.error(`[PDFService] Overlay file not found: ${absolutePath} or ${secondaryPath}`);
                 return null;
             };
 

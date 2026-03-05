@@ -2,11 +2,10 @@ import { Response } from 'express';
 import { DocumentGenerationService } from '../services/document.service';
 import { PDFService } from '../services/pdf.service';
 import { notifyDocumentStatus } from '../services/email.service';
-import fs from 'fs';
-import path from 'path';
 import prisma from '../prisma/client';
 import { AuthRequest } from '../middleware/auth';
 import { PermissionService } from '../services/permission.service';
+import { StorageService } from '../services/storage.service';
 
 export const generateDocument = async (req: AuthRequest, res: Response) => {
     try {
@@ -148,25 +147,28 @@ export const createDocument = async (req: AuthRequest, res: Response) => {
             useLetterhead: !!useLetterhead
         };
 
-        let pdfBuffer: Buffer;
+        let pdfBuffer: Buffer | null = null;
         const finalContent = customContent || template.content;
 
         if (finalContent) {
             pdfBuffer = await PDFService.generateGenericPDF(finalContent, data);
-        } else if (template.filePath && fs.existsSync(template.filePath)) {
-            const templateBuffer = fs.readFileSync(template.filePath);
-            const docxBuffer = await DocumentGenerationService.generateDocx(templateBuffer, data);
-            pdfBuffer = await DocumentGenerationService.convertToPdf(docxBuffer);
-        } else {
-            return res.status(500).json({ error: 'Content missing' });
+        } else if (template.filePath) {
+            // Fetch template buffer via StorageService
+            const templateBuffer = await StorageService.getFileBuffer(template.filePath);
+            if (templateBuffer) {
+                const docxBuffer = await DocumentGenerationService.generateDocx(templateBuffer, data);
+                pdfBuffer = await DocumentGenerationService.convertToPdf(docxBuffer);
+            }
         }
 
-        const fileName = `${employee.firstName}_${template.name.replace(/\s+/g, '_')}_${Date.now()}.pdf`;
-        const uploadDir = path.join(process.cwd(), 'uploads', 'documents');
-        if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+        if (!pdfBuffer) {
+            return res.status(500).json({ error: 'Content missing or failed to fetch template' });
+        }
 
-        const filePath = path.join(uploadDir, fileName);
-        fs.writeFileSync(filePath, pdfBuffer);
+        const fileName = `documents/${employee.firstName}_${template.name.replace(/\s+/g, '_')}_${Date.now()}.pdf`;
+
+        // Upload via StorageService
+        const fileUrl = await StorageService.uploadFile(pdfBuffer, fileName, 'application/pdf');
 
         const status = saveAsDraft ? 'draft' : 'pending_signature';
 
@@ -176,7 +178,7 @@ export const createDocument = async (req: AuthRequest, res: Response) => {
                 employee: { connect: { id: employee.id } },
                 name: `${template.name} - ${new Date().toLocaleDateString()}`,
                 type: template.type,
-                filePath: `/uploads/documents/${fileName}`,
+                filePath: fileUrl,
                 fileSize: pdfBuffer.length,
                 status: status,
                 workflowType: 'signature_required',
@@ -211,16 +213,14 @@ export const uploadSignedDocument = async (req: AuthRequest, res: Response) => {
 
         // Sanitize document name to remove slashes and other unsafe characters
         const safeDocName = document.name.replace(/[^a-zA-Z0-9-_]/g, '_');
-        const signedFileName = `signed_${safeDocName}_${Date.now()}.pdf`;
-        const uploadDir = path.join(process.cwd(), 'uploads', 'documents');
-        const signedFilePath = path.join(uploadDir, signedFileName);
+        const signedFileName = `documents/signed_${safeDocName}_${Date.now()}.pdf`;
 
-        fs.writeFileSync(signedFilePath, req.file.buffer);
+        const fileUrl = await StorageService.uploadFile(req.file.buffer, signedFileName, req.file.mimetype || 'application/pdf');
 
         const updated = await prisma.document.update({
             where: { id },
             data: {
-                signedFilePath: `/uploads/documents/${signedFileName}`,
+                signedFilePath: fileUrl,
                 status: 'submitted',
                 rejectionReason: null
             }
@@ -293,14 +293,12 @@ export const deleteDocument = async (req: AuthRequest, res: Response) => {
             return res.status(403).json({ error: 'Access denied: You can only delete your own documents' });
         }
 
-        if (document.filePath && document.filePath.startsWith('/uploads')) {
-            const absolutePath = path.join(process.cwd(), document.filePath);
-            if (fs.existsSync(absolutePath)) fs.unlinkSync(absolutePath);
+        if (document.filePath) {
+            await StorageService.deleteFile(document.filePath);
         }
 
-        if (document.signedFilePath && document.signedFilePath.startsWith('/uploads')) {
-            const absolutePath = path.join(process.cwd(), document.signedFilePath);
-            if (fs.existsSync(absolutePath)) fs.unlinkSync(absolutePath);
+        if (document.signedFilePath) {
+            await StorageService.deleteFile(document.signedFilePath);
         }
 
         await prisma.document.delete({ where: { id } });
@@ -357,15 +355,19 @@ export const generateFromTemplate = async (req: AuthRequest, res: Response) => {
             useLetterhead: !!useLetterhead
         };
 
-        let pdfBuffer: Buffer;
+        let pdfBuffer: Buffer | null = null;
         if (template.content) {
             pdfBuffer = await PDFService.generateGenericPDF(template.content, data);
-        } else if (template.filePath && fs.existsSync(template.filePath)) {
-            const templateBuffer = fs.readFileSync(template.filePath);
-            const docxBuffer = await DocumentGenerationService.generateDocx(templateBuffer, data);
-            pdfBuffer = await DocumentGenerationService.convertToPdf(docxBuffer);
-        } else {
-            return res.status(500).json({ error: 'Content missing' });
+        } else if (template.filePath) {
+            const templateBuffer = await StorageService.getFileBuffer(template.filePath);
+            if (templateBuffer) {
+                const docxBuffer = await DocumentGenerationService.generateDocx(templateBuffer, data);
+                pdfBuffer = await DocumentGenerationService.convertToPdf(docxBuffer);
+            }
+        }
+
+        if (!pdfBuffer) {
+            return res.status(500).json({ error: 'Content missing or failed to fetch template' });
         }
 
         res.setHeader('Content-Type', 'application/pdf');
@@ -411,14 +413,9 @@ export const uploadGenericDocument = async (req: AuthRequest, res: Response) => 
         if (!employee) return res.status(404).json({ error: 'Employee not found' });
 
         const safeName = (name || 'doc').replace(/[^a-zA-Z0-9-_]/g, '_');
-        const fileName = `${employee.firstName}_${safeName}_${Date.now()}_${req.file.originalname.replace(/[^a-zA-Z0-9-_\.]/g, '_')}`;
-        const uploadDir = path.join(process.cwd(), 'uploads', 'documents');
-        if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+        const fileName = `documents/${employee.firstName}_${safeName}_${Date.now()}_${req.file.originalname.replace(/[^a-zA-Z0-9-_\.]/g, '_')}`;
 
-        const filePath = path.join(uploadDir, fileName);
-        fs.writeFileSync(filePath, req.file.buffer);
-
-        const fileUrl = `/uploads/documents/${fileName}`;
+        const fileUrl = await StorageService.uploadFile(req.file.buffer, fileName, req.file.mimetype);
 
         const document = await prisma.document.create({
             data: {

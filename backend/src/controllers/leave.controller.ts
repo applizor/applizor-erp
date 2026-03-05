@@ -3,6 +3,7 @@ import { AuthRequest } from '../middleware/auth';
 import prisma from '../prisma/client';
 import { logAction } from '../services/audit.service';
 import { PermissionService } from '../services/permission.service';
+import { StorageService } from '../services/storage.service'; // Added this import
 import { notifyLeaveRequested, notifyLeaveStatusUpdate } from '../services/email.service';
 
 // Get all Leave Types
@@ -191,7 +192,7 @@ export const createLeaveType = async (req: AuthRequest, res: Response) => {
             module: 'LEAVE',
             entityType: 'LeaveType',
             entityId: leaveType.id,
-            details: `Created Leave Type: ${leaveType.name}`,
+            details: `Created Leave Type: ${leaveType.name} `,
             changes: req.body
         });
 
@@ -1224,9 +1225,13 @@ export const uploadAttachment = async (req: AuthRequest, res: Response) => {
             return res.status(400).json({ error: 'No file uploaded' });
         }
 
-        // Return the relative path for database storage
-        const filePath = `uploads/leaves/${req.file.filename}`;
-        res.json({ filePath });
+        // Return the relative path/URL for database storage via StorageService
+        const safeName = req.file.originalname.replace(/[^a-zA-Z0-9-_\.]/g, '_');
+        const fileName = `leaves/${req.userId}_${Date.now()}_${safeName}`;
+
+        const fileUrl = await StorageService.uploadFile(req.file.buffer, fileName, req.file.mimetype);
+
+        res.json({ filePath: fileUrl });
     } catch (error) {
         console.error('Upload attachment error:', error);
         res.status(500).json({ error: 'Failed to upload attachment' });

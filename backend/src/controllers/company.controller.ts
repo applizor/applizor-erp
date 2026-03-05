@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import prisma from '../prisma/client';
 import { AuthRequest } from '../middleware/auth';
+import { StorageService } from '../services/storage.service';
 
 export const getCompany = async (req: AuthRequest, res: Response) => {
   try {
@@ -145,9 +146,9 @@ export const updateLogo = async (req: AuthRequest, res: Response) => {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user || !user.companyId) return res.status(404).json({ error: 'Company not found' });
 
-    // Construct public URL
-    // Assumption: Server serves /uploads route mapped to uploads folder
-    const logoUrl = `/uploads/logos/${req.file.filename}`;
+    // Upload via StorageService
+    const safeName = `logos/logo_${user.companyId}_${Date.now()}`;
+    const logoUrl = await StorageService.uploadFile(req.file.buffer, safeName, req.file.mimetype);
 
     const company = await prisma.company.update({
       where: { id: user.companyId },
@@ -173,8 +174,9 @@ export const updateSignature = async (req: AuthRequest, res: Response) => {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user || !user.companyId) return res.status(404).json({ error: 'Company not found' });
 
-    // Construct public URL
-    const signatureUrl = `/uploads/signatures/${req.file.filename}`;
+    // Upload via StorageService
+    const safeName = `signatures/sig_${user.companyId}_${Date.now()}`;
+    const signatureUrl = await StorageService.uploadFile(req.file.buffer, safeName, req.file.mimetype);
 
     const company = await prisma.company.update({
       where: { id: user.companyId },
@@ -207,7 +209,8 @@ export const updateLetterheadAsset = async (req: AuthRequest, res: Response) => 
     }
 
     const fieldName = req.file.fieldname; // 'letterhead' or 'continuationSheet'
-    const assetUrl = `/uploads/letterheads/${req.file.filename}`;
+    const safeName = `letterheads/${fieldName}_${finalCompanyId}_${Date.now()}`;
+    const assetUrl = await StorageService.uploadFile(req.file.buffer, safeName, req.file.mimetype);
 
     const company = await prisma.company.update({
       where: { id: finalCompanyId },

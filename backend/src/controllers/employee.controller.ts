@@ -1,8 +1,11 @@
 import { Response } from 'express';
+import jwt from 'jsonwebtoken';
+import { StorageService } from '../services/storage.service';
 import prisma from '../prisma/client';
 import { AuthRequest } from '../middleware/auth';
 import { PermissionService } from '../services/permission.service';
 
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret';
 
 // Create Employee (with optional User account)
 export const createEmployee = async (req: AuthRequest, res: Response) => {
@@ -611,7 +614,10 @@ export const uploadEmployeeDocument = async (req: AuthRequest, res: Response) =>
         const employee = await prisma.employee.findUnique({ where: { id } });
         if (!employee) return res.status(404).json({ error: 'Employee not found' });
 
-        const fileUrl = `/uploads/documents/${req.file.filename}`;
+        const safeName = (name || 'doc').replace(/[^a-zA-Z0-9-_]/g, '_');
+        const fileName = `documents/${employee.firstName}_${safeName}_${Date.now()}`;
+
+        const fileUrl = await StorageService.uploadFile(req.file.buffer, fileName, req.file.mimetype);
 
         const document = await prisma.document.create({
             data: {

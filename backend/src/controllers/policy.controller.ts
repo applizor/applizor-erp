@@ -1,7 +1,7 @@
-
 import { Request, Response } from 'express';
 import prisma from '../prisma/client';
 import { AuthRequest } from '../middleware/auth';
+import { StorageService } from '../services/storage.service';
 
 export const createPolicy = async (req: AuthRequest, res: Response) => {
     try {
@@ -15,7 +15,9 @@ export const createPolicy = async (req: AuthRequest, res: Response) => {
 
         let fileUrl = null;
         if (req.file) {
-            fileUrl = `/uploads/${req.file.filename}`;
+            const safeName = req.file.originalname.replace(/[^a-zA-Z0-9-_\.]/g, '_');
+            const fileName = `policies / ${companyId}_${Date.now()}_${safeName} `;
+            fileUrl = await StorageService.uploadFile(req.file.buffer, fileName, req.file.mimetype);
         } else if (req.body.fileUrl) {
             fileUrl = req.body.fileUrl;
         }
@@ -34,7 +36,7 @@ export const createPolicy = async (req: AuthRequest, res: Response) => {
         res.status(201).json(policy);
     } catch (error: any) {
         console.error('Create Policy Error:', error);
-        res.status(500).json({ error: `Failed to create policy: ${error.message}` });
+        res.status(500).json({ error: `Failed to create policy: ${error.message} ` });
     }
 };
 
@@ -60,7 +62,7 @@ export const getPolicies = async (req: AuthRequest, res: Response) => {
         res.json(policies);
     } catch (error: any) {
         console.error('Fetch Policies Error:', error);
-        res.status(500).json({ error: `Failed to fetch policies: ${error.message}` });
+        res.status(500).json({ error: `Failed to fetch policies: ${error.message} ` });
     }
 };
 
@@ -81,7 +83,9 @@ export const updatePolicy = async (req: AuthRequest, res: Response) => {
 
         let fileUrl = existing.fileUrl;
         if (req.file) {
-            fileUrl = `/uploads/${req.file.filename}`;
+            const safeName = req.file.originalname.replace(/[^a-zA-Z0-9-_\.]/g, '_');
+            const fileName = `policies / ${companyId}_${Date.now()}_${safeName} `;
+            fileUrl = await StorageService.uploadFile(req.file.buffer, fileName, req.file.mimetype);
         } else if (req.body.fileUrl) {
             fileUrl = req.body.fileUrl;
         }
@@ -100,7 +104,7 @@ export const updatePolicy = async (req: AuthRequest, res: Response) => {
         res.json(policy);
     } catch (error: any) {
         console.error('Update Policy Error:', error);
-        res.status(500).json({ error: `Failed to update policy: ${error.message}` });
+        res.status(500).json({ error: `Failed to update policy: ${error.message} ` });
     }
 };
 
@@ -125,6 +129,6 @@ export const deletePolicy = async (req: AuthRequest, res: Response) => {
         res.json({ message: 'Policy deleted' });
     } catch (error: any) {
         console.error('Delete Policy Error:', error);
-        res.status(500).json({ error: `Failed to delete policy: ${error.message}` });
+        res.status(500).json({ error: `Failed to delete policy: ${error.message} ` });
     }
 };

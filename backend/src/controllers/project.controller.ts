@@ -1,10 +1,11 @@
-
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import prisma from '../prisma/client';
 import { PermissionService } from '../services/permission.service';
 import fs from 'fs';
 import path from 'path';
+import { v4 as uuidv4 } from 'uuid';
+import { StorageService } from '../services/storage.service';
 
 export const createProject = async (req: AuthRequest, res: Response) => {
     try {
@@ -87,7 +88,7 @@ export const createProject = async (req: AuthRequest, res: Response) => {
                         notes: 'Subscription for project.',
                         subscriptionDetails: {
                             planId: subscriptionPlan.id,
-                            name: `Subscription - ${subscriptionPlan.name}`
+                            name: `Subscription - ${subscriptionPlan.name} `
                         }
                     });
                 }
@@ -328,7 +329,7 @@ export const getProjectById = async (req: AuthRequest, res: Response) => {
         }, {});
 
         const assigneeDistribution = detailedTasks.reduce((acc: any, t: any) => {
-            const name = t.assignee ? `${t.assignee.firstName} ${t.assignee.lastName}` : 'Unassigned';
+            const name = t.assignee ? `${t.assignee.firstName} ${t.assignee.lastName} ` : 'Unassigned';
             acc[name] = (acc[name] || 0) + 1;
             return acc;
         }, {});
@@ -358,8 +359,8 @@ export const getProjectById = async (req: AuthRequest, res: Response) => {
             ...history.map(h => ({
                 id: h.id,
                 type: 'history',
-                user: h.user ? `${h.user.firstName} ${h.user.lastName}` : 'System',
-                action: `updated ${h.field}`,
+                user: h.user ? `${h.user.firstName} ${h.user.lastName} ` : 'System',
+                action: `updated ${h.field} `,
                 taskTitle: h.task.title,
                 taskId: h.taskId,
                 oldValue: h.oldValue,
@@ -369,7 +370,7 @@ export const getProjectById = async (req: AuthRequest, res: Response) => {
             ...comments.map(c => ({
                 id: c.id,
                 type: 'comment',
-                user: c.user ? `${c.user.firstName} ${c.user.lastName}` : 'External',
+                user: c.user ? `${c.user.firstName} ${c.user.lastName} ` : 'External',
                 action: 'commented on',
                 taskTitle: c.task.title,
                 taskId: c.taskId,
@@ -379,7 +380,7 @@ export const getProjectById = async (req: AuthRequest, res: Response) => {
                 id: m.id,
                 type: 'milestone',
                 user: 'System',
-                action: `milestone ${m.status}`,
+                action: `milestone ${m.status} `,
                 milestoneTitle: m.title,
                 createdAt: m.updatedAt
             }))
@@ -619,13 +620,18 @@ export const uploadProjectDocument = async (req: AuthRequest, res: Response) => 
         const { id } = req.params; // projectId
         const { category, tags } = req.body;
 
+        const safeName = req.file.originalname.replace(/[^a-zA-Z0-9-_\.]/g, '_');
+        const fileName = `projects / ${id}_${Date.now()}_${safeName} `;
+
+        const fileUrl = await StorageService.uploadFile(req.file.buffer, fileName, req.file.mimetype);
+
         const document = await prisma.document.create({
             data: {
                 project: { connect: { id } },
                 name: req.file.originalname,
                 type: 'project_file', // Generic type
                 category: category || 'General',
-                filePath: req.file.path,
+                filePath: fileUrl,
                 fileSize: req.file.size,
                 mimeType: req.file.mimetype,
                 company: { connect: { id: req.user!.companyId } },
@@ -648,9 +654,9 @@ export const deleteProjectDocument = async (req: AuthRequest, res: Response) => 
 
         if (!document) return res.status(404).json({ error: 'Document not found' });
 
-        // Delete file from filesystem
-        if (fs.existsSync(document.filePath)) {
-            fs.unlinkSync(document.filePath);
+        // Delete file from storage
+        if (document.filePath) {
+            await StorageService.deleteFile(document.filePath);
         }
 
         await prisma.document.delete({ where: { id: docId } });
@@ -869,36 +875,36 @@ export const generateSOW = async (req: AuthRequest, res: Response) => {
             htmlContent = template.content || '';
         } else {
             htmlContent = `
-                <div style="font-family: 'Inter', sans-serif; padding: 40px; color: #333;">
-                    <h1 style="text-align: center; color: #1e40af; margin-bottom: 20px;">STATEMENT OF WORK</h1>
-                    <h3 style="text-align: center; color: #64748b; margin-bottom: 40px;">${project.name}</h3>
-                    
-                    <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
-                    <p><strong>Client:</strong> ${project.client?.companyName || 'N/A'}</p>
-                    <p><strong>Project ID:</strong> ${project.id.slice(0, 8).toUpperCase()}</p>
-                    
-                    <h4 style="border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; margin-top: 30px;">1. SCOPE OF SERVICES</h4>
-                    <p>${project.description || 'As discussed and agreed upon.'}</p>
-                    
-                    <h4 style="border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; margin-top: 30px;">2. TIMELINE</h4>
-                    <p>Start Date: <strong>${project.startDate ? project.startDate.toLocaleDateString() : 'TBD'}</strong></p>
-                    <p>End Date: <strong>${project.endDate ? project.endDate.toLocaleDateString() : 'TBD'}</strong></p>
-                    
-                    <h4 style="border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; margin-top: 30px;">3. INVESTMENT</h4>
-                    <p>Total Budget: <strong>${project.budget ? project.currency + ' ' + project.budget : 'Time & Materials'}</strong></p>
-                    
-                    <div style="margin-top: 60px; display: flex; justify-content: space-between;">
-                        <div>
-                            <p>__________________________</p>
-                            <p><strong>${project.company.name}</strong></p>
-                        </div>
-                        <div>
-                            <p>__________________________</p>
-                            <p><strong>${project.client?.companyName || 'Client Representative'}</strong></p>
-                        </div>
-                    </div>
-                </div>
-            `;
+    < div style = "font-family: 'Inter', sans-serif; padding: 40px; color: #333;" >
+        <h1 style="text-align: center; color: #1e40af; margin-bottom: 20px;" > STATEMENT OF WORK </h1>
+            < h3 style = "text-align: center; color: #64748b; margin-bottom: 40px;" > ${project.name} </h3>
+
+                < p > <strong>Date: </strong> ${new Date().toLocaleDateString()}</p >
+                    <p><strong>Client: </strong> ${project.client?.companyName || 'N/A'}</p>
+                        < p > <strong>Project ID: </strong> ${project.id.slice(0, 8).toUpperCase()}</p >
+
+                            <h4 style="border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; margin-top: 30px;" > 1. SCOPE OF SERVICES </h4>
+                                < p > ${project.description || 'As discussed and agreed upon.'} </p>
+
+                                    < h4 style = "border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; margin-top: 30px;" > 2. TIMELINE </h4>
+                                        < p > Start Date: <strong>${project.startDate ? project.startDate.toLocaleDateString() : 'TBD'} </strong></p >
+                                            <p>End Date: <strong>${project.endDate ? project.endDate.toLocaleDateString() : 'TBD'} </strong></p >
+
+                                                <h4 style="border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; margin-top: 30px;" > 3. INVESTMENT </h4>
+                                                    < p > Total Budget: <strong>${project.budget ? project.currency + ' ' + project.budget : 'Time & Materials'} </strong></p >
+
+                                                        <div style="margin-top: 60px; display: flex; justify-content: space-between;" >
+                                                            <div>
+                                                            <p>__________________________ </p>
+                                                            < p > <strong>${project.company.name} </strong></p >
+                                                                </div>
+                                                                < div >
+                                                                <p>__________________________ </p>
+                                                                < p > <strong>${project.client?.companyName || 'Client Representative'} </strong></p >
+                                                                    </div>
+                                                                    </div>
+                                                                    </div>
+                                                                        `;
         }
 
         if (!project.client) {
@@ -922,7 +928,7 @@ export const generateSOW = async (req: AuthRequest, res: Response) => {
 
         // 4. Return
         res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename=SOW_${project.name}.pdf`);
+        res.setHeader('Content-Disposition', `attachment; filename = SOW_${project.name}.pdf`);
         res.send(pdfBuffer);
 
     } catch (error) {
