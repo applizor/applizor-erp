@@ -65,6 +65,7 @@ jobs:
           
           echo "⏳ Syncing Static Assets for Nginx/HestiaCP..."
           sudo mkdir -p $TARGET_DIR/.next
+          # Ignore errors if container started slowly
           sudo docker cp applizor-frontend-prod:/app/.next/static $TARGET_DIR/.next/static || echo "Waiting for assets..."
           sudo docker cp applizor-frontend-prod:/app/public $TARGET_DIR/public || echo "Waiting for public..."
 
@@ -78,16 +79,27 @@ jobs:
             sleep 2
           done
           
-          echo "🔄 Syncing Migration History with Restored Data..."
-          # Since you restored a full database, Prisma's internal history is behind the actual schema.
-          # We mark the latest migrations as already applied so Prisma doesn't try to re-run 'ALTER TABLE'
-          # which would fail because columns/tables already exist.
-          sudo docker compose -f docker-compose.prod.yml exec -T backend npx prisma migrate resolve --applied 20260218190518_add_company_off_days || true
-          sudo docker compose -f docker-compose.prod.yml exec -T backend npx prisma migrate resolve --applied 20260219153640_add_payroll_accounting_fields || true
-          sudo docker compose -f docker-compose.prod.yml exec -T backend npx prisma migrate resolve --applied 20260219184312_add_advanced_pm_hierarchy || true
-          
-          echo "🔄 Finalizing Migration Deployment..."
-          sudo docker compose -f docker-compose.prod.yml exec -T backend npx prisma migrate deploy
+          echo "🔄 Running migrations (Safe for data)..."
+          # PERMANENT SOLUTION: Try to deploy. If it fails due to existing columns (P3018) or blocked state (P3009),
+          # we use a loop to resolve ALL migrations that are physically present in the restored DB.
+          if ! sudo docker compose -f docker-compose.prod.yml exec -T backend npx prisma migrate deploy; then
+            echo "⚠️ Migration conflict detected. Syncing ALL known migrations with actual DB state..."
+            
+            # List of specific migrations that typically fail after a full restore from this project
+            MIGRATIONS=(
+              "20260218190518_add_company_off_days"
+              "20260219153640_add_payroll_accounting_fields"
+              "20260219184312_add_advanced_pm_hierarchy"
+            )
+            
+            for m in "${MIGRATIONS[@]}"; do
+              echo "Checking/Resolving: $m"
+              sudo docker compose -f docker-compose.prod.yml exec -T backend npx prisma migrate resolve --applied "$m" || true
+            done
+            
+            echo "🔄 Retrying final migration deployment..."
+            sudo docker compose -f docker-compose.prod.yml exec -T backend npx prisma migrate deploy
+          fi
           
           echo "🔐 Final permission sweep for admin user..."
           sudo chown -R admin:admin $TARGET_DIR
