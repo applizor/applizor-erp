@@ -27,8 +27,11 @@ jobs:
           echo "🚀 Starting Deployment Process..."
           
           TARGET_DIR="/home/admin/web/iam.applizor.com/public_html"
-          # Use GITHUB_TOKEN for authenticated clone without needing SSH keys on server
           REPO_URL="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/applizor/applizor-erp.git"
+          
+          # Fix Dubious Ownership before any git command
+          echo "Configuring git safe directory..."
+          git config --global --add safe.directory $TARGET_DIR || true
           
           if [ ! -d "$TARGET_DIR" ]; then
             echo "Creating target directory..."
@@ -47,12 +50,17 @@ jobs:
             cd public_html
           else
             echo "🔄 Repository found. Updating..."
-            # Update remote URL to include current token (in case it changed)
+            # Update remote URL to include current token
             git remote set-url origin $REPO_URL
             git fetch origin main
             git reset --hard origin/main
           fi
           
+          # Ensure admin has permissions early
+          echo "Syncing permissions for admin..."
+          sudo chown -R admin:admin $TARGET_DIR
+          sudo chmod -R 777 $TARGET_DIR
+
           echo "📦 Starting Docker build..."
           sudo docker compose -f docker-compose.prod.yml up -d --build
           
@@ -69,8 +77,6 @@ jobs:
           sudo docker compose -f docker-compose.prod.yml exec -T backend npx prisma migrate deploy
           
           echo "🧹 Cleaning up..."
-          echo "Setting permissions for admin user..."
-          sudo chown -R admin:admin $TARGET_DIR
-          sudo chmod -R 777 $TARGET_DIR
+          sudo docker system prune -f
           
-          echo "✅ Deployment completed successfully!"
+          echo "✅ DEPLOYMENT SUCCESSFUL!"
