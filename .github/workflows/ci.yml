@@ -1,11 +1,6 @@
 name: Node.js CI
 
-on:
-  push:
-    branches:
-      - main
-      - dev
-  workflow_dispatch:
+on: [push, workflow_dispatch]
 
 permissions:
   contents: read
@@ -27,17 +22,28 @@ jobs:
         script: |
           echo "🚀 Starting High-Speed Server-Side Build & Deployment..."
           
-          # Target directory
           TARGET_DIR="/home/admin/web/iam.applizor.com/public_html"
+          REPO_URL="git@github.com:applizor/applizor-erp.git"
           
-          # Prepare directory
-          cd $TARGET_DIR
+          # Handle empty server or missing .git
+          if [ ! -d "$TARGET_DIR/.git" ]; then
+            echo "📁 .git directory not found. Performing fresh clone..."
+            # Create directory if it doesn't exist
+            mkdir -p $TARGET_DIR
+            # Enter parent directory to clone into the target folder
+            cd $TARGET_DIR/..
+            # Remove any existing files to avoid clone conflicts
+            sudo rm -rf public_html/* public_html/.* 2>/dev/null || true
+            git clone $REPO_URL public_html
+            cd $TARGET_DIR
+          else
+            echo "🔄 .git directory found. Fetching latest changes..."
+            cd $TARGET_DIR
+            git fetch origin main
+            git reset --hard origin/main
+          fi
           
-          echo "Fetching latest changes..."
-          git fetch origin main
-          git reset --hard origin/main
-          
-          # Build and Start services locally (MUCH FASTER than GHCR push/pull)
+          # Build and Start services locally
           echo "Building and starting containers locally..."
           sudo docker compose -f docker-compose.prod.yml up -d --build
           
