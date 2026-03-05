@@ -59,8 +59,8 @@ export const handleCallback = async (req: Request, res: Response) => {
         return res.status(400).send('Error: State parameter missing (needed for PKCE code verifier)');
     }
 
-    if (!clientId || !clientSecret) {
-        return res.status(500).send('Error: Microsoft credentials not configured in .env');
+    if (!clientId) {
+        return res.status(500).send('Error: MICROSOFT_CLIENT_ID not configured in .env');
     }
 
     try {
@@ -70,7 +70,9 @@ export const handleCallback = async (req: Request, res: Response) => {
         params.append('code', code as string);
         params.append('redirect_uri', redirectUri);
         params.append('grant_type', 'authorization_code');
-        params.append('client_secret', clientSecret);
+        if (clientSecret) {
+            params.append('client_secret', clientSecret);
+        }
         params.append('code_verifier', state as string);
 
         const response = await axios.post(TOKEN_ENDPOINT, params, {
@@ -94,7 +96,7 @@ export const handleCallback = async (req: Request, res: Response) => {
                 <ul>
                     <li><strong>SMTP_SERVICE_PROVIDER=</strong>MICROSOFT</li>
                     <li><strong>MICROSOFT_CLIENT_ID=</strong>${clientId}</li>
-                    <li><strong>MICROSOFT_CLIENT_SECRET=</strong>${clientSecret}</li>
+                    ${clientSecret ? `<li><strong>MICROSOFT_CLIENT_SECRET=</strong>${clientSecret}</li>` : ''}
                     <li><strong>EMAIL_FROM=</strong>(Your Microsoft Email Address)</li>
                 </ul>
 
