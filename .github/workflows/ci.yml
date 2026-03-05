@@ -2,7 +2,9 @@ name: Node.js CI
 
 on:
   push:
-    branches: [ "main", "dev" ]
+    branches:
+      - main
+      - dev
   workflow_dispatch:
 
 permissions:
@@ -12,8 +14,6 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    
     steps:
     - name: Execute Server-Side Build & Deploy
       uses: appleboy/ssh-action@v1.0.0
@@ -23,40 +23,50 @@ jobs:
         key: ${{ secrets.APPLIZOR_PEM_KEY }}
         command_timeout: 40m
         script: |
-          echo "🚀 Starting High-Speed Server-Side Build & Deployment..."
+          set -e
+          echo "🚀 Starting Deployment Process..."
           
           TARGET_DIR="/home/admin/web/iam.applizor.com/public_html"
-          REPO_URL="git@github.com:applizor/applizor-erp.git"
+          REPO_URL="https://github.com/applizor/applizor-erp.git"
           
-          if [ ! -d "$TARGET_DIR/.git" ]; then
-            echo "📁 .git directory not found. Performing fresh clone..."
-            mkdir -p $TARGET_DIR
-            cd $TARGET_DIR/..
+          # Check if TARGET_DIR exists, if not create it
+          if [ ! -d "$TARGET_DIR" ]; then
+            echo "Creating target directory..."
+            sudo mkdir -p $TARGET_DIR
+            sudo chown -R $USER:$USER $TARGET_DIR
+          fi
+
+          cd $TARGET_DIR
+          
+          if [ ! -d ".git" ]; then
+            echo "📁 .git not found. Performing fresh clone..."
+            cd ..
+            # Move existing files to a backup or delete them
             sudo rm -rf public_html/* public_html/.* 2>/dev/null || true
             git clone $REPO_URL public_html
-            cd $TARGET_DIR
+            cd public_html
           else
-            echo "🔄 .git directory found. Fetching latest changes..."
-            cd $TARGET_DIR
+            echo "🔄 Repository found. Updating..."
             git fetch origin main
             git reset --hard origin/main
           fi
           
-          echo "Building and starting containers locally..."
+          echo "📦 Starting Docker build (this may take a few minutes)..."
           sudo docker compose -f docker-compose.prod.yml up -d --build
           
-          echo "Waiting for database to be ready..."
+          echo "⏳ Waiting for database..."
           for i in {1..30}; do
             if sudo docker compose -f docker-compose.prod.yml exec -T postgres pg_isready -U applizor -d applizor_erp > /dev/null 2>&1; then
-              echo "Database is accepting connections!"
+              echo "✅ Database is ready!"
               break
             fi
-            echo "Database starting up..."
             sleep 2
           done
           
-          echo "Running Prisma migrations..."
+          echo "🔄 Running migrations..."
           sudo docker compose -f docker-compose.prod.yml exec -T backend npx prisma migrate deploy
           
+          echo "🧹 Cleaning up..."
           sudo docker system prune -f
-          echo "✅ Deployment completed successfully!"
+          
+          echo "✅ DEPLOYMENT SUCCESSFUL!"
