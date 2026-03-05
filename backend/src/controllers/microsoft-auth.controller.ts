@@ -1,5 +1,13 @@
 import { Request, Response } from 'express';
 import axios from 'axios';
+import crypto from 'crypto';
+
+function base64URLEncode(buffer: Buffer): string {
+    return buffer.toString('base64')
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=/g, '');
+}
 
 // Microsoft Graph API Endpoints
 const TENANT_ID = process.env.MICROSOFT_TENANT_ID || 'common';
@@ -19,7 +27,11 @@ export const getAuthUrl = (req: Request, res: Response) => {
         return res.status(500).send('Error: MICROSOFT_CLIENT_ID is not defined in .env');
     }
 
-    const authUrl = `${AUTH_ENDPOINT}?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&response_mode=query&scope=${encodeURIComponent(SCOPES)}&state=12345`;
+    const verifierBuffer = crypto.randomBytes(32);
+    const verifier = base64URLEncode(verifierBuffer);
+    const challenge = base64URLEncode(crypto.createHash('sha256').update(verifier).digest());
+
+    const authUrl = `${AUTH_ENDPOINT}?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&response_mode=query&scope=${encodeURIComponent(SCOPES)}&state=${verifier}&code_challenge=${challenge}&code_challenge_method=S256`;
 
     res.send(`
         <h1>Microsoft Email Integration Setup</h1>
@@ -29,14 +41,22 @@ export const getAuthUrl = (req: Request, res: Response) => {
 };
 
 export const handleCallback = async (req: Request, res: Response) => {
-    const { code } = req.query;
+    const { code, state, error, error_description } = req.query;
     const clientId = process.env.MICROSOFT_CLIENT_ID;
     const clientSecret = process.env.MICROSOFT_CLIENT_SECRET;
     const backendUrl = process.env.BACKEND_URL || 'http://localhost:5000';
     const redirectUri = process.env.MICROSOFT_REDIRECT_URI || `${backendUrl}/api/automation/microsoft/callback`;
 
+    if (error) {
+        return res.status(400).send(`<h1>Authorization Error</h1><p>${error_description}</p>`);
+    }
+
     if (!code) {
         return res.status(400).send('Error: No code provided');
+    }
+
+    if (!state) {
+        return res.status(400).send('Error: State parameter missing (needed for PKCE code verifier)');
     }
 
     if (!clientId || !clientSecret) {
@@ -51,6 +71,7 @@ export const handleCallback = async (req: Request, res: Response) => {
         params.append('redirect_uri', redirectUri);
         params.append('grant_type', 'authorization_code');
         params.append('client_secret', clientSecret);
+        params.append('code_verifier', state as string);
 
         const response = await axios.post(TOKEN_ENDPOINT, params, {
             headers: {
