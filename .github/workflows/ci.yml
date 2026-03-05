@@ -2,8 +2,6 @@ name: App Deployer
 
 on:
   push:
-    branches:
-      - main
   workflow_dispatch:
 
 permissions:
@@ -13,8 +11,6 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    
     steps:
     - name: Trigger Server-Side Deployment
       uses: appleboy/ssh-action@v1.0.0
