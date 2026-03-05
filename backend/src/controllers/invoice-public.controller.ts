@@ -37,6 +37,15 @@ export const getInvoiceByToken = async (req: Request, res: Response) => {
             return res.status(404).json({ error: 'Invoice not found or link expired' });
         }
 
+        const { StorageService } = await import('../services/storage.service');
+
+        if (invoice.company) {
+            if (invoice.company.logo) invoice.company.logo = StorageService.getFileUrl(invoice.company.logo);
+            if (invoice.company.digitalSignature) invoice.company.digitalSignature = StorageService.getFileUrl(invoice.company.digitalSignature);
+            if (invoice.company.letterhead) invoice.company.letterhead = StorageService.getFileUrl(invoice.company.letterhead);
+            if (invoice.company.continuationSheet) invoice.company.continuationSheet = StorageService.getFileUrl(invoice.company.continuationSheet);
+        }
+
         // Update Analytics: View Count
         const ipAddress = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
         const userAgent = req.headers['user-agent'] || 'unknown';

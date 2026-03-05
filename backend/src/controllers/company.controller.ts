@@ -23,6 +23,13 @@ export const getCompany = async (req: AuthRequest, res: Response) => {
       where: { id: user.companyId },
     });
 
+    if (company) {
+      if (company.logo) company.logo = StorageService.getFileUrl(company.logo);
+      if (company.digitalSignature) company.digitalSignature = StorageService.getFileUrl(company.digitalSignature);
+      if (company.letterhead) company.letterhead = StorageService.getFileUrl(company.letterhead);
+      if (company.continuationSheet) company.continuationSheet = StorageService.getFileUrl(company.continuationSheet);
+    }
+
     res.json({ company });
   } catch (error: any) {
     console.error('Get company error:', error);
@@ -93,6 +100,13 @@ export const updateCompany = async (req: AuthRequest, res: Response) => {
         offDays // Added
       } as any
     });
+
+    if (company) {
+      if (company.logo) company.logo = StorageService.getFileUrl(company.logo);
+      if (company.digitalSignature) company.digitalSignature = StorageService.getFileUrl(company.digitalSignature);
+      if (company.letterhead) company.letterhead = StorageService.getFileUrl(company.letterhead);
+      if (company.continuationSheet) company.continuationSheet = StorageService.getFileUrl(company.continuationSheet);
+    }
 
     res.json(company);
   } catch (error: any) {

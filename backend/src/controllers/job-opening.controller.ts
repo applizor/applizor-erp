@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { PrismaClient } from '@prisma/client';
 import { PermissionService } from '../services/permission.service';
+import { StorageService } from '../services/storage.service';
 
 const prisma = new PrismaClient();
 import { RecruitmentService } from '../services/recruitment.service';
@@ -163,7 +164,9 @@ export const getPublicJobOpenings = async (req: Request, res: Response) => {
             select: { name: true, logo: true }
         });
 
-        res.json({ company: company?.name, logo: company?.logo, jobs });
+        const formattedLogo = company?.logo ? StorageService.getFileUrl(company.logo) : undefined;
+
+        res.json({ company: company?.name, logo: formattedLogo, jobs });
     } catch (error) {
         console.error('Get public jobs error:', error);
         res.status(500).json({ error: 'Failed to fetch public jobs' });

@@ -160,6 +160,15 @@ export const getQuotationByToken = async (req: Request, res: Response) => {
             return res.status(404).json({ error: 'Quotation not found or link expired' });
         }
 
+        const { StorageService } = await import('../services/storage.service');
+
+        if (quotation.company) {
+            if (quotation.company.logo) quotation.company.logo = StorageService.getFileUrl(quotation.company.logo) as any;
+            if (quotation.company.digitalSignature) quotation.company.digitalSignature = StorageService.getFileUrl(quotation.company.digitalSignature) as any;
+            if (quotation.company.letterhead) quotation.company.letterhead = StorageService.getFileUrl(quotation.company.letterhead) as any;
+            if (quotation.company.continuationSheet) quotation.company.continuationSheet = StorageService.getFileUrl(quotation.company.continuationSheet) as any;
+        }
+
         // Hydrate appliedTaxes for legacy items
         const allTaxRates = await prisma.taxRate.findMany({ where: { companyId: quotation.companyId } });
         const taxMap = new Map<number, any>();
