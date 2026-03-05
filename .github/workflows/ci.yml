@@ -1,6 +1,10 @@
-name: Node.js CI
+name: App Deployer
 
-on: [push, workflow_dispatch]
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -12,7 +16,7 @@ jobs:
     if: github.ref == 'refs/heads/main'
     
     steps:
-    - name: Execute Server-Side Build & Deploy
+    - name: Trigger Server-Side Deployment
       uses: appleboy/ssh-action@v1.0.0
       with:
         host: ${{ secrets.APPLIZOR_IP }}
@@ -25,14 +29,10 @@ jobs:
           TARGET_DIR="/home/admin/web/iam.applizor.com/public_html"
           REPO_URL="git@github.com:applizor/applizor-erp.git"
           
-          # Handle empty server or missing .git
           if [ ! -d "$TARGET_DIR/.git" ]; then
             echo "📁 .git directory not found. Performing fresh clone..."
-            # Create directory if it doesn't exist
             mkdir -p $TARGET_DIR
-            # Enter parent directory to clone into the target folder
             cd $TARGET_DIR/..
-            # Remove any existing files to avoid clone conflicts
             sudo rm -rf public_html/* public_html/.* 2>/dev/null || true
             git clone $REPO_URL public_html
             cd $TARGET_DIR
@@ -43,27 +43,21 @@ jobs:
             git reset --hard origin/main
           fi
           
-          # Build and Start services locally
           echo "Building and starting containers locally..."
           sudo docker compose -f docker-compose.prod.yml up -d --build
           
-          # Wait for database
           echo "Waiting for database to be ready..."
           for i in {1..30}; do
             if sudo docker compose -f docker-compose.prod.yml exec -T postgres pg_isready -U applizor -d applizor_erp > /dev/null 2>&1; then
               echo "Database is accepting connections!"
               break
             fi
-            echo "Database starting up, waiting 2 seconds..."
+            echo "Database starting up..."
             sleep 2
           done
-          sleep 2
           
-          # Apply Prisma migrations
           echo "Running Prisma migrations..."
           sudo docker compose -f docker-compose.prod.yml exec -T backend npx prisma migrate deploy
           
-          # Clean up old docker images
           sudo docker system prune -f
-          
-          echo "✅ Server-Side Build Deployment completed successfully!"
+          echo "✅ Deployment completed successfully!"
