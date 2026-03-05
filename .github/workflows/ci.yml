@@ -27,9 +27,9 @@ jobs:
           echo "🚀 Starting Deployment Process..."
           
           TARGET_DIR="/home/admin/web/iam.applizor.com/public_html"
-          REPO_URL="https://github.com/applizor/applizor-erp.git"
+          # Use GITHUB_TOKEN for authenticated clone without needing SSH keys on server
+          REPO_URL="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/applizor/applizor-erp.git"
           
-          # Check if TARGET_DIR exists, if not create it
           if [ ! -d "$TARGET_DIR" ]; then
             echo "Creating target directory..."
             sudo mkdir -p $TARGET_DIR
@@ -41,17 +41,19 @@ jobs:
           if [ ! -d ".git" ]; then
             echo "📁 .git not found. Performing fresh clone..."
             cd ..
-            # Move existing files to a backup or delete them
+            # Ensure folder is clean
             sudo rm -rf public_html/* public_html/.* 2>/dev/null || true
             git clone $REPO_URL public_html
             cd public_html
           else
             echo "🔄 Repository found. Updating..."
+            # Update remote URL to include current token (in case it changed)
+            git remote set-url origin $REPO_URL
             git fetch origin main
             git reset --hard origin/main
           fi
           
-          echo "📦 Starting Docker build (this may take a few minutes)..."
+          echo "📦 Starting Docker build..."
           sudo docker compose -f docker-compose.prod.yml up -d --build
           
           echo "⏳ Waiting for database..."
