@@ -67,11 +67,11 @@ jobs:
           
           echo "⏳ Syncing Static Assets for Nginx (Fixing 404s)..."
           sleep 5
-          sudo mkdir -p $TARGET_DIR/.next
-          sudo mkdir -p $TARGET_DIR/_next
-          sudo docker cp applizor-frontend-prod:/app/.next/static $TARGET_DIR/.next/static || echo "Retrying static sync..."
-          sudo docker cp applizor-frontend-prod:/app/public $TARGET_DIR/public || echo "Retrying public sync..."
-          sudo cp -r $TARGET_DIR/.next/static $TARGET_DIR/_next/static || true
+          sudo rm -rf $TARGET_DIR/.next/static $TARGET_DIR/_next/static $TARGET_DIR/public
+          sudo mkdir -p $TARGET_DIR/.next $TARGET_DIR/_next
+          sudo docker cp applizor-frontend-prod:/app/.next/static $TARGET_DIR/.next/ || echo "Retrying static sync..."
+          sudo docker cp applizor-frontend-prod:/app/public $TARGET_DIR/ || echo "Retrying public sync..."
+          sudo cp -r $TARGET_DIR/.next/static $TARGET_DIR/_next/ || true
 
           echo "⏳ Waiting for database and services to stabilize..."
           sleep 10
