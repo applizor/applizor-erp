@@ -136,7 +136,7 @@ export class PDFService {
     /**
      * Generate standard @page CSS for backgrounds and margins
      */
-    public static getBackgroundCSS(company: any, useLetterhead: boolean): string {
+    public static async getBackgroundCSS(company: any, useLetterhead: boolean): Promise<string> {
         if (!useLetterhead) {
             return `
             @page { margin: 40px; }
@@ -147,8 +147,8 @@ export class PDFService {
         const isLetterheadPDF = company.letterhead?.toLowerCase().endsWith('.pdf');
         const isContinuationPDF = company.continuationSheet?.toLowerCase().endsWith('.pdf');
 
-        const letterheadBase64 = !isLetterheadPDF ? this.getImageBase64(company.letterhead) : undefined;
-        const continuationBase64 = !isContinuationPDF ? this.getImageBase64(company.continuationSheet) : undefined;
+        const letterheadBase64 = !isLetterheadPDF ? await this.getImageBase64(company.letterhead) : undefined;
+        const continuationBase64 = !isContinuationPDF ? await this.getImageBase64(company.continuationSheet) : undefined;
 
         const marginTop = company.pdfMarginTop || 180;
         const contTop = company.pdfContinuationTop || 80;
@@ -176,7 +176,7 @@ export class PDFService {
     /**
      * Generate HTML template for Quotations/Invoices
      */
-    private static generateHTML(data: PDFData, type: 'QUOTATION' | 'INVOICE', isSigned: boolean = false): string {
+    private static async generateHTML(data: PDFData, type: 'QUOTATION' | 'INVOICE', isSigned: boolean = false): Promise<string> {
         const formatCurrency = (amount: number) => {
             return new Intl.NumberFormat(data.currency === 'INR' ? 'en-IN' : 'en-US', {
                 style: 'currency',
@@ -206,7 +206,9 @@ export class PDFService {
         const subDateLabel = type === 'QUOTATION' ? 'Valid Till' : 'Due Date';
         const recipient = data.client || data.lead;
 
-        const backgroundCSS = this.getBackgroundCSS(data.company, !!data.useLetterhead);
+        const backgroundCSS = await this.getBackgroundCSS(data.company, !!data.useLetterhead);
+        const logoBase64 = await this.getImageBase64(data.company.logo);
+        const digitalSignatureBase64 = await this.getImageBase64(data.company.digitalSignature);
 
         // Aggregate Tax Breakdown if not provided
         if ((!data.taxBreakdown || data.taxBreakdown.length === 0) && data.items) {
@@ -264,8 +266,6 @@ export class PDFService {
         }
         (data as any).totalItemDiscount = totalItemDiscount;
 
-        const logoBase64 = this.getImageBase64(data.company.logo);
-        const signatureBase64 = this.getImageBase64(data.company.digitalSignature);
         return `
 <!DOCTYPE html>
 <html>
@@ -677,10 +677,10 @@ export class PDFService {
                     </div>
                 </td>
                 <td style="width: 40%; vertical-align: top; text-align: right;">
-                    ${signatureBase64 ? `
+                    ${digitalSignatureBase64 ? `
                     <div style="display: flex; flex-direction: column; align-items: flex-end;">
                         <div style="font-size: 11px; font-weight: bold; color: #374151; margin-bottom: 5px;">For ${data.company.name}</div>
-                        <img src="${signatureBase64}" style="max-height: 50px; margin-bottom: 8px;">
+                        <img src="${digitalSignatureBase64}" style="max-height: 50px; margin-bottom: 8px;">
                         <div style="font-size: 10px; font-weight: bold; text-transform: uppercase; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 5px; width: 150px; text-align: center;">
                             Authorized Signatory
                         </div>
@@ -691,11 +691,11 @@ export class PDFService {
         </table>
     </div>
     ` : `
-    ${signatureBase64 ? `
+    ${digitalSignatureBase64 ? `
     <div style="margin-top: 60px; text-align: right;">
         <div style="display: inline-block; text-align: center;">
             <div style="font-size: 11px; font-weight: bold; color: #374151; margin-bottom: 5px; text-align: right;">For ${data.company.name}</div>
-            <img src="${signatureBase64}" style="max-height: 60px; display: block; margin-bottom: 5px;">
+            <img src="${digitalSignatureBase64}" style="max-height: 60px; display: block; margin-bottom: 5px;">
             <div style="font-size: 10px; font-weight: bold; text-transform: uppercase; color: #666; border-top: 1px solid #eee; padding-top: 5px;">
                 Authorized Signatory
             </div>
@@ -817,7 +817,7 @@ export class PDFService {
     }
 
     static async generateQuotationPDF(data: any): Promise<Buffer> {
-        const html = this.generateHTML(data, 'QUOTATION', false);
+        const html = await this.generateHTML(data, 'QUOTATION', false);
         const contentPdf = await this.convertHTMLToPDF(html);
         if (data.useLetterhead) {
             return this.overlayBackdrop(contentPdf, data.company.letterhead, data.company.continuationSheet);
@@ -826,7 +826,7 @@ export class PDFService {
     }
 
     static async generateInvoicePDF(data: any): Promise<Buffer> {
-        const html = this.generateHTML(data, 'INVOICE', false);
+        const html = await this.generateHTML(data, 'INVOICE', false);
         const contentPdf = await this.convertHTMLToPDF(html);
         if (data.useLetterhead) {
             return this.overlayBackdrop(contentPdf, data.company.letterhead, data.company.continuationSheet);
@@ -835,7 +835,7 @@ export class PDFService {
     }
 
     static async generateSignedQuotationPDF(data: any): Promise<Buffer> {
-        const html = this.generateHTML(data, 'QUOTATION', true);
+        const html = await this.generateHTML(data, 'QUOTATION', true);
         const contentPdf = await this.convertHTMLToPDF(html);
         if (data.useLetterhead) {
             return this.overlayBackdrop(contentPdf, data.company.letterhead, data.company.continuationSheet);
