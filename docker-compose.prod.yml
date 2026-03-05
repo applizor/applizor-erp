@@ -24,7 +24,10 @@ services:
 
   # Backend API
   backend:
-    image: ghcr.io/applizor/applizor-backend:latest
+    build:
+      context: ./backend
+      target: runner
+    image: applizor-backend-prod:latest
     container_name: applizor-backend-prod
     restart: always
     env_file:
@@ -55,7 +58,12 @@ services:
 
   # Frontend
   frontend:
-    image: ghcr.io/applizor/applizor-frontend:latest
+    build:
+      context: ./frontend
+      target: runner
+      args:
+        - NEXT_PUBLIC_API_URL=https://api.iam.applizor.com/api
+    image: applizor-frontend-prod:latest
     container_name: applizor-frontend-prod
     restart: always
     environment:

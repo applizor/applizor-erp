@@ -45,46 +45,6 @@ jobs:
     #     DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
     #     JWT_SECRET: "dummy_secret_for_testing"
 
-    - name: Login to GitHub Container Registry
-      if: github.ref == 'refs/heads/main'
-      uses: docker/login-action@v2
-      with:
-        registry: ghcr.io
-        username: applizor
-        password: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Set up QEMU
-      if: github.ref == 'refs/heads/main'
-      uses: docker/setup-qemu-action@v2
-
-    - name: Set up Docker Buildx
-      if: github.ref == 'refs/heads/main'
-      uses: docker/setup-buildx-action@v2
-
-    - name: Build and Push Backend Image (ARM64)
-      if: github.ref == 'refs/heads/main'
-      uses: docker/build-push-action@v4
-      with:
-        context: ./backend
-        platforms: linux/arm64
-        push: true
-        tags: ghcr.io/applizor/applizor-backend:latest
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
-
-    - name: Build and Push Frontend Image (ARM64)
-      if: github.ref == 'refs/heads/main'
-      uses: docker/build-push-action@v4
-      with:
-        context: ./frontend
-        platforms: linux/arm64
-        push: true
-        tags: ghcr.io/applizor/applizor-frontend:latest
-        build-args: |
-          NEXT_PUBLIC_API_URL=https://api.iam.applizor.com/api
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
-
   deploy:
     needs: build
     runs-on: ubuntu-latest
@@ -94,69 +54,27 @@ jobs:
     # Pull code directly via SSH and run Docker Compose
     - name: Execute Docker Deployment
       uses: appleboy/ssh-action@v1.0.0
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         host: ${{ secrets.APPLIZOR_IP }}
         username: ${{ secrets.APPLIZOR_USERNAME }}
         key: ${{ secrets.APPLIZOR_PEM_KEY }}
-        envs: GITHUB_TOKEN
         command_timeout: 40m
         script: |
-          echo "🚀 Starting Unified Deployment for Applizor ERP..."
+          echo "🚀 Starting High-Speed Local Build Deployment..."
           
           # Target directory
           TARGET_DIR="/home/admin/web/iam.applizor.com/public_html"
           
           # Prepare directory
-          sudo mkdir -p $TARGET_DIR
-          sudo chown -R $USER:$USER $TARGET_DIR
           cd $TARGET_DIR
-          
-          # Install Docker if not installed
-          if ! command -v docker &> /dev/null; then
-            echo "Installing Docker..."
-            sudo apt-get update
-            sudo apt-get install -y ca-certificates curl gnupg lsb-release
-            sudo mkdir -p /etc/apt/keyrings
-            curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-            echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-            sudo apt-get update
-            sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
-            echo "✅ Docker installed"
-          else
-            echo "ℹ️ Docker is already installed"
-          fi
-          
-          # Initialize git or pull the latest changes
-          if [ ! -d ".git" ]; then
-            echo "Initializing Git repository..."
-            git init
-            git remote add origin https://github.com/applizor/applizor-erp.git
-          fi
           
           echo "Fetching latest changes..."
           git fetch origin main
           git reset --hard origin/main
           
-          # Ensure environment files exist
-          if [ ! -f backend/.env ]; then
-            echo "Creating default backend/.env from example"
-            cp backend/.env.example backend/.env || touch backend/.env
-          fi
-          
-          if [ ! -f frontend/.env ]; then
-            echo "Creating default frontend/.env from example"
-            cp frontend/.env.example frontend/.env || touch frontend/.env
-          fi
-          
-          # Log in to GHCR and pull fresh images
-          echo "Logging into GitHub Container Registry..."
-          echo $GITHUB_TOKEN | sudo docker login ghcr.io -u applizor --password-stdin
-          sudo docker compose -f docker-compose.prod.yml pull
-          
-          # Start services
-          sudo docker compose -f docker-compose.prod.yml up -d
+          # Build and Start services locally (MUCH FASTER than GHCR push/pull)
+          echo "Building and starting containers locally..."
+          sudo docker compose -f docker-compose.prod.yml up -d --build
           
           # Wait for database
           echo "Waiting for database to be ready..."
@@ -170,18 +88,6 @@ jobs:
           done
           sleep 2
           
-          # Restore database if empty
-          echo "Checking if database needs restoration..."
-          TABLE_COUNT=$(sudo docker compose -f docker-compose.prod.yml exec -T postgres psql -U applizor -d applizor_erp -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';")
-          if [ "$TABLE_COUNT" -eq 0 ]; then
-            echo "Database is empty. Restoring from init_prod_backup.sql..."
-            sudo docker compose -f docker-compose.prod.yml cp backups/init_prod_backup.sql applizor-postgres:/tmp/init_prod_backup.sql
-            sudo docker compose -f docker-compose.prod.yml exec -T postgres psql -U applizor -d applizor_erp -f /tmp/init_prod_backup.sql
-            echo "✅ Database restored successfully!"
-          else
-            echo "Database already contains data ($TABLE_COUNT tables). Skipping restore."
-          fi
-          
           # Apply Prisma migrations
           echo "Running Prisma migrations..."
           sudo docker compose -f docker-compose.prod.yml exec -T backend npx prisma migrate deploy
@@ -189,8 +95,4 @@ jobs:
           # Clean up old docker images
           sudo docker system prune -f
           
-          # Set full permissions
-          echo "Setting 777 permissions..."
-          sudo chmod -R 777 $TARGET_DIR
-          
-          echo "✅ Unified Deployment completed successfully!"
+          echo "✅ Local Build Deployment completed successfully!"
