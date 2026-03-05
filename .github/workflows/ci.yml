@@ -86,4 +86,8 @@ jobs:
           echo "🧹 Cleaning up unnecessary Docker images..."
           sudo docker system prune -f
           
+          echo "🔐 Final permission sweep for admin user..."
+          sudo chown -R admin:admin $TARGET_DIR || true
+          sudo chmod -R 775 $TARGET_DIR || true
+          
           echo "✅ DEPLOYMENT SUCCESSFUL!"
