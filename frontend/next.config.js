@@ -10,7 +10,7 @@ const nextConfig = {
       poll: 1000,
       aggregateTimeout: 300,
     }
-    return config
+    return config 
   },
   eslint: {
     ignoreDuringBuilds: true,
