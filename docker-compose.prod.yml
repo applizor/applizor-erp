@@ -28,7 +28,7 @@ services:
     container_name: applizor-backend-prod
     restart: always
     env_file:
-      - ./backend/.env
+      - ./backend/.env.production
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://applizor:applizor123@postgres:5432/applizor_erp?schema=public

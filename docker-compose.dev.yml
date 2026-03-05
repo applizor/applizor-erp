@@ -29,7 +29,7 @@ services:
       target: development
     container_name: applizor-backend-dev
     env_file:
-      - ./backend/.env
+      - ./backend/.env.development
     environment:
       NODE_ENV: development
       DATABASE_URL: postgresql://applizor:applizor123@postgres:5432/applizor_erp?schema=public

@@ -235,11 +235,27 @@ export default function PortalTaskDetailModal({ taskId, onClose, onUpdate }: Por
                                     </h4>
                                     <div className="flex gap-3 flex-wrap">
                                         {task.documents.map((doc: any) => (
-                                            <a
+                                            <button
                                                 key={doc.id}
-                                                href={`${getBaseUrl()}/${doc.filePath}`}
-                                                target="_blank"
-                                                className="flex items-center gap-3 px-3 py-2 bg-white border border-slate-200 rounded-lg hover:border-primary-400 hover:shadow-sm transition-all group no-underline min-w-[200px]"
+                                                onClick={async () => {
+                                                    try {
+                                                        const res = await api.get(`/portal/documents/${doc.id}/download`, {
+                                                            responseType: 'blob'
+                                                        });
+                                                        const url = window.URL.createObjectURL(new Blob([res.data]));
+                                                        const link = document.createElement('a');
+                                                        link.href = url;
+                                                        link.setAttribute('download', doc.name);
+                                                        document.body.appendChild(link);
+                                                        link.click();
+                                                        link.parentNode?.removeChild(link);
+                                                        window.URL.revokeObjectURL(url);
+                                                    } catch (error) {
+                                                        console.error('Download failed:', error);
+                                                        toast.error('Failed to download file');
+                                                    }
+                                                }}
+                                                className="flex items-center gap-3 px-3 py-2 bg-white border border-slate-200 rounded-lg hover:border-primary-400 hover:shadow-sm transition-all group no-underline min-w-[200px] text-left"
                                             >
                                                 <div className="w-8 h-8 rounded bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 group-hover:text-primary-600 group-hover:bg-primary-50">
                                                     <Paperclip size={14} />
@@ -248,7 +264,7 @@ export default function PortalTaskDetailModal({ taskId, onClose, onUpdate }: Por
                                                     <p className="text-xs font-bold text-slate-700 truncate">{doc.name}</p>
                                                     <p className="text-[9px] font-bold text-slate-400 uppercase">{(doc.fileSize / 1024).toFixed(0)} KB</p>
                                                 </div>
-                                            </a>
+                                            </button>
                                         ))}
                                     </div>
                                 </div>

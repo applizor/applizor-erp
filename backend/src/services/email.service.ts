@@ -26,6 +26,9 @@ const getMicrosoftAccessToken = async () => {
         return response.data.access_token;
     } catch (error: any) {
         console.error('❌ Failed to refresh Microsoft Token:', error.response?.data || error.message);
+        if (error.response?.data?.error === 'invalid_grant') {
+            console.error('💡 TIP: The refresh token might be expired or invalid for this Redirect URI. Please re-authorize.');
+        }
         return null;
     }
 };
@@ -209,8 +212,10 @@ export const sendEmail = async (to: string, subject: string, html: string, attac
         console.log('Message sent: %s', info.messageId);
         return info;
 
-    } catch (error) {
-        console.error('Error sending email:', error);
+    } catch (error: any) {
+        console.error('❌ Error sending email:', error.response?.data || error.message);
+        if (error.stack) console.error(error.stack);
+
         // Fallback to mock behavior
         console.log('⚠️ Email sending failed. Falling back to MOCK mode.');
         return { messageId: `mock-${Date.now()}` };

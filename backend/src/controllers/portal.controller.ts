@@ -1060,7 +1060,12 @@ export const getDocuments = async (req: ClientAuthRequest, res: Response) => {
     try {
         const clientId = req.clientId;
         const documents = await prisma.document.findMany({
-            where: { clientId },
+            where: {
+                OR: [
+                    { clientId },
+                    { project: { clientId } }
+                ]
+            },
             orderBy: { createdAt: 'desc' },
             select: {
                 id: true,
@@ -1101,11 +1106,14 @@ export const uploadDocument = async (req: ClientAuthRequest, res: Response) => {
         const ext = req.file.originalname.split('.').pop() || 'pdf';
         const finalFileName = `${client.name.replace(/\s+/g, '_')}_${safeName}_${Date.now()}.${ext}`;
 
+        // With multer.diskStorage, the file is already on disk at req.file.path
         const uploadDir = path.join(process.cwd(), 'uploads', 'documents');
         if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
-        const filePath = path.join(uploadDir, finalFileName);
-        fs.writeFileSync(filePath, req.file.buffer);
+        const finalPath = path.join(uploadDir, finalFileName);
+
+        // Move file from generic uploads/ to documents/
+        fs.renameSync(req.file.path, finalPath);
 
         const fileUrl = `/uploads/documents/${finalFileName}`;
 
@@ -1284,15 +1292,28 @@ export const downloadPortalDocument = async (req: ClientAuthRequest, res: Respon
         const clientId = req.clientId;
 
         const document = await prisma.document.findFirst({
-            where: { id, clientId }
+            where: {
+                id,
+                OR: [
+                    { clientId }, // Directly owned
+                    { project: { clientId } } // Part of project owned by client
+                ]
+            }
         });
 
         if (!document) {
-            return res.status(404).json({ error: 'Document not found' });
+            return res.status(404).json({ error: 'Document not found or access denied' });
         }
 
-        const path = document.filePath;
-        res.download(path, document.name);
+        const absolutePath = path.isAbsolute(document.filePath)
+            ? document.filePath
+            : path.join(process.cwd(), document.filePath.startsWith('/') ? document.filePath.slice(1) : document.filePath);
+
+        if (!fs.existsSync(absolutePath)) {
+            return res.status(404).json({ error: 'File not found on server' });
+        }
+
+        res.download(absolutePath, document.name);
     } catch (error) {
         console.error('Download Portal Document Error:', error);
         res.status(500).json({ error: 'Failed to download document' });

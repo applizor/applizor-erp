@@ -156,15 +156,30 @@ export default function PortalDocumentsPage() {
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             {/* In a real app, this would be a download link */}
-                                            <a
-                                                href={`${SERVER_URL}/${doc.filePath}`}
-                                                target="_blank"
-                                                rel="noreferrer"
+                                            <button
+                                                onClick={async () => {
+                                                    try {
+                                                        const res = await api.get(`/portal/documents/${doc.id}/download`, {
+                                                            responseType: 'blob'
+                                                        });
+                                                        const url = window.URL.createObjectURL(new Blob([res.data]));
+                                                        const link = document.createElement('a');
+                                                        link.href = url;
+                                                        link.setAttribute('download', doc.name);
+                                                        document.body.appendChild(link);
+                                                        link.click();
+                                                        link.parentNode?.removeChild(link);
+                                                        window.URL.revokeObjectURL(url);
+                                                    } catch (error) {
+                                                        console.error('Download failed:', error);
+                                                        toast.error('Failed to download file');
+                                                    }
+                                                }}
                                                 className="inline-flex items-center justify-center w-8 h-8 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-900 transition-colors"
-                                                title="View Document"
+                                                title="Download Document"
                                             >
                                                 <Download size={16} />
-                                            </a>
+                                            </button>
                                         </td>
                                     </tr>
                                 ))}

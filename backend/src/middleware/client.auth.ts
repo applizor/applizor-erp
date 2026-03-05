@@ -1,10 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { JWT_SECRET } from '../utils/jwt';
 import prisma from '../prisma/client';
 
 export interface ClientAuthRequest extends Request {
     clientId?: string;
     client?: any;
+    files?: any; // Add files for multer compatibility in controllers
 }
 
 export const authenticateClient = async (
@@ -27,19 +29,14 @@ export const authenticateClient = async (
             return res.status(401).json({ error: 'Token not provided' });
         }
 
-        const jwtSecret = process.env.JWT_SECRET;
-        if (!jwtSecret) {
-            throw new Error('JWT_SECRET not configured');
-        }
-
-        const decoded = jwt.verify(token, jwtSecret) as { userId: string };
+        const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
 
         if (!decoded || !decoded.userId) {
             return res.status(401).json({ error: 'Invalid token payload' });
         }
 
         // Check Client Table
-        const client = await prisma.client.findUnique({
+        const client = await prisma.client.findFirst({
             where: { id: decoded.userId, status: 'active', portalAccess: true },
             include: { company: true }
         });

@@ -155,10 +155,27 @@ export default function PortalFiles({ projectId }: { projectId: string }) {
 
                                         {/* Download button should eventually point to a real proxy/signed url */}
                                         <button
-                                            onClick={() => {
-                                                const apiUrl = `${getBaseUrl()}/api`;
-                                                // Ensure we use the /api path for this specific endpoint but handle the base URL correctly
-                                                window.open(`${apiUrl}/portal/documents/${doc.id}/download`, '_blank');
+                                            onClick={async () => {
+                                                try {
+                                                    const res = await api.get(`/portal/documents/${doc.id}/download`, {
+                                                        responseType: 'blob'
+                                                    });
+
+                                                    // Create blob link to download
+                                                    const url = window.URL.createObjectURL(new Blob([res.data]));
+                                                    const link = document.createElement('a');
+                                                    link.href = url;
+                                                    link.setAttribute('download', doc.name);
+                                                    document.body.appendChild(link);
+                                                    link.click();
+
+                                                    // Clean up
+                                                    link.parentNode?.removeChild(link);
+                                                    window.URL.revokeObjectURL(url);
+                                                } catch (error) {
+                                                    console.error('Download failed:', error);
+                                                    toast.error('Failed to download file');
+                                                }
                                             }}
                                             className="p-1.5 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all"
                                             title="Download"

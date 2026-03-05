@@ -1,15 +1,8 @@
 import { Response, Request } from 'express';
-// import { ClientAuthRequest } from '../middleware/client.auth'; // Need to import this type or redefine
+import { ClientAuthRequest } from '../middleware/client.auth';
 import prisma from '../prisma/client';
 import { NotificationService } from '../services/notification.service';
 import { AutomationService } from '../services/automation.service';
-
-// Reusing interface normally, but here define locally to avoid circular deps if needed
-interface ClientAuthRequest extends Request {
-    clientId?: string;
-    client?: any;
-    files?: any; // for multer
-}
 
 export const createPortalTask = async (req: ClientAuthRequest, res: Response) => {
     try {

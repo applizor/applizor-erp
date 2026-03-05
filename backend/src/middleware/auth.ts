@@ -1,6 +1,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { JWT_SECRET } from '../utils/jwt';
 import prisma from '../prisma/client'; // Fix: Import directly
 
 export interface AuthRequest extends Request {
@@ -28,13 +29,7 @@ export const authenticate = async (
       return res.status(401).json({ error: 'Token not provided' });
     }
 
-    const jwtSecret = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
-    if (!jwtSecret) {
-      console.error('JWT_SECRET not configured');
-      throw new Error('JWT_SECRET not configured');
-    }
-
-    const decoded = jwt.verify(token, jwtSecret) as { userId: string };
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
 
     if (!decoded || !decoded.userId) {
       return res.status(401).json({ error: 'Invalid token payload' });
@@ -162,10 +157,7 @@ export const combinedAuth = async (req: Request, res: Response, next: NextFuncti
     const token = authHeader.startsWith('Bearer ') ? authHeader.replace('Bearer ', '') : authHeader;
     if (!token) return res.status(401).json({ error: 'Token not provided' });
 
-    const jwtSecret = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
-    if (!jwtSecret) throw new Error('JWT_SECRET not configured');
-
-    const decoded = jwt.verify(token, jwtSecret) as { userId: string };
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
     if (!decoded || !decoded.userId) return res.status(401).json({ error: 'Invalid token' });
 
     // 1. Try User (Staff)
@@ -185,7 +177,7 @@ export const combinedAuth = async (req: Request, res: Response, next: NextFuncti
     }
 
     // 2. Try Client
-    const client = await prisma.client.findUnique({
+    const client = await prisma.client.findFirst({
       where: { id: decoded.userId, status: 'active', portalAccess: true },
       include: { company: true }
     });

@@ -13,6 +13,10 @@ import clientCategoryRoutes from './routes/clientCategory.routes';
 // import leadRoutes from './routes/lead.routes'; // This import is removed as it's duplicated by the CRM leadRoutes
 import paymentRoutes from './routes/payment.routes';
 
+// Load environment variables
+const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env.development';
+dotenv.config({ path: path.resolve(process.cwd(), envFile) });
+// Fallback to .env if specific file not found
 dotenv.config();
 
 const app = express();
