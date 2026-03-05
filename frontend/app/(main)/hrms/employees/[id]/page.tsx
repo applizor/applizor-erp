@@ -35,7 +35,7 @@ import { departmentsApi, positionsApi, employeesApi, documentsApi, Department, P
 import { usePermission } from '@/hooks/usePermission';
 import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
-import { getBaseUrl } from '@/lib/utils/url';
+import { getBaseUrl, resolveUrl } from '@/lib/utils/url';
 import { useConfirm } from '@/context/ConfirmationContext';
 import DocumentPreviewModal from '@/components/hrms/DocumentPreviewModal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -586,8 +586,7 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
                                                                     <div className="flex flex-col gap-1">
                                                                         <button
                                                                             onClick={() => {
-                                                                                const baseUrl = getBaseUrl();
-                                                                                window.open(`${baseUrl}${doc.filePath}`, '_blank');
+                                                                                window.open(resolveUrl(doc.filePath), '_blank');
                                                                             }}
                                                                             className="p-1 hover:bg-gray-100 rounded text-gray-500 hover:text-primary-600 transition-colors"
                                                                             title="Download"
@@ -601,7 +600,7 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
                                                                         doc.signedFilePath ? (
                                                                             <div className="flex items-center gap-2">
                                                                                 <a
-                                                                                    href={doc.signedFilePath?.startsWith('http') ? doc.signedFilePath : `${getBaseUrl()}${doc.signedFilePath}`}
+                                                                                    href={doc.signedFilePath?.startsWith('data:') ? doc.signedFilePath : resolveUrl(doc.signedFilePath)}
                                                                                     target="_blank"
                                                                                     rel="noopener noreferrer"
                                                                                     className="text-blue-600 hover:text-blue-700 text-[10px] font-bold flex items-center gap-1"

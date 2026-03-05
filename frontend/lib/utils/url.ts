@@ -17,3 +17,18 @@ export const getBaseUrl = () => {
     // 3. Last resort for SSR or missing config
     return 'http://localhost:5000';
 };
+
+/**
+ * Safely resolves a path or absolute URL
+ * Returns the URL unmodified if it already starts with http/https/data:
+ * Otherwise prepends the backend base URL.
+ */
+export const resolveUrl = (path?: string | null): string => {
+    if (!path) return '';
+    if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:')) {
+        return path;
+    }
+    const baseUrl = getBaseUrl();
+    const separator = path.startsWith('/') ? '' : '/';
+    return `${baseUrl}${separator}${path}`;
+};

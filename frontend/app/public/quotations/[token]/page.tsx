@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { CheckCircle, XCircle, Download, AlertCircle } from 'lucide-react';
-import { getBaseUrl } from '@/lib/utils/url';
+import { getBaseUrl, resolveUrl } from '@/lib/utils/url';
 import SignaturePad from '@/components/SignaturePad';
 import AlertDialog from '@/components/ui/AlertDialog';
 import api from '@/lib/api';
@@ -244,9 +244,9 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
                         <div>
                             {quotation.company?.logo ? (
                                 <img
-                                    src={quotation.company.logo.startsWith('http')
+                                    src={quotation.company.logo.startsWith('data:')
                                         ? quotation.company.logo
-                                        : `${getBaseUrl()}${quotation.company.logo}`
+                                        : resolveUrl(quotation.company.logo)
                                     }
                                     alt={quotation.company.name}
                                     className="h-12 w-auto mb-3"

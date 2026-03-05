@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import { getBaseUrl } from '@/lib/utils/url';
+import { getBaseUrl, resolveUrl } from '@/lib/utils/url';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { CheckCircle2, Download, Info, ShieldCheck, ArrowLeft, CreditCard, Send, Clock } from 'lucide-react';
 
@@ -127,9 +127,9 @@ export default function PublicInvoiceDetails({ params }: { params: { token: stri
                         <div>
                             {invoice.company?.logo ? (
                                 <img
-                                    src={invoice.company.logo.startsWith('http')
+                                    src={invoice.company.logo.startsWith('data:')
                                         ? invoice.company.logo
-                                        : `${getBaseUrl()}${invoice.company.logo}`
+                                        : resolveUrl(invoice.company.logo)
                                     }
                                     alt={invoice.company.name}
                                     className="h-14 w-auto mb-4 object-contain"

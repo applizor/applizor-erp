@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Briefcase, MapPin, ArrowRight, User, Mail, Phone, FileText, CheckCircle2 } from 'lucide-react';
-import { getBaseUrl } from '@/lib/utils/url';
+import { getBaseUrl, resolveUrl } from '@/lib/utils/url';
 import axios from 'axios';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
@@ -95,7 +95,7 @@ export default function CareerPage({ params }: { params: { companyId: string } }
                         <div className="flex items-center gap-3">
                             {data.logo ? (
                                 <img
-                                    src={data.logo.startsWith('http') ? data.logo : `${getBaseUrl()}${data.logo}`}
+                                    src={data.logo.startsWith('data:') ? data.logo : resolveUrl(data.logo)}
                                     alt={data.company}
                                     className="h-8 w-auto rounded-md"
                                 />

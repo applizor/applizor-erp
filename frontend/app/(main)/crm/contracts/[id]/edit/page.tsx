@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import { getBaseUrl } from '@/lib/utils/url';
+import { getBaseUrl, resolveUrl } from '@/lib/utils/url';
 import PageHeader from '@/components/ui/PageHeader';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Save, ArrowLeft, User, Calendar, FileText, LayoutTemplate, X, Check, Copy, Send } from 'lucide-react';
@@ -116,7 +116,7 @@ export default function EditContractPage({ params }: { params: { id: string } })
         processed = processed.replace(/\[MY_COMPANY_NAME\]/g, companyData?.name || 'Applizor Softech');
 
         if (companyData?.digitalSignature) {
-            const signatureUrl = `${getBaseUrl()}${companyData.digitalSignature}`;
+            const signatureUrl = resolveUrl(companyData.digitalSignature);
             const signatureHtml = `<img src="${signatureUrl}" style="max-height: 60px; vertical-align: middle;" alt="Company Signature" />`;
             processed = processed.replace(/\[COMPANY_SIGNATURE\]/g, signatureHtml);
         } else {

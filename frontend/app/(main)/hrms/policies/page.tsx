@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import RichTextEditor from '@/components/ui/RichTextEditor';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { getBaseUrl } from '@/lib/utils/url';
+import { getBaseUrl, resolveUrl } from '@/lib/utils/url';
 import apiClient from '@/lib/api';
 
 export default function PoliciesPage() {
@@ -135,7 +135,7 @@ export default function PoliciesPage() {
 
     const openPolicy = (url?: string) => {
         if (!url) return;
-        const fullUrl = url.startsWith('http') ? url : `${getBaseUrl()}${url}`;
+        const fullUrl = resolveUrl(url);
         window.open(fullUrl, '_blank');
     };
 

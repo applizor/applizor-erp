@@ -10,7 +10,7 @@ import TaxConfiguration from '@/components/settings/TaxConfiguration';
 import UnitConfiguration from '@/components/settings/UnitConfiguration';
 import { MultiSelect } from '@/components/ui/MultiSelect';
 import api from '@/lib/api';
-import { getBaseUrl } from '@/lib/utils/url';
+import { getBaseUrl, resolveUrl } from '@/lib/utils/url';
 
 export default function CompanySettingsPage() {
     const toast = useToast();
@@ -45,16 +45,16 @@ export default function CompanySettingsPage() {
             const data = res.data;
             setCompany(data.company);
             if (data.company.logo) {
-                setLogoPreview(`${getBaseUrl()}${data.company.logo}`);
+                setLogoPreview(resolveUrl(data.company.logo));
             }
             if (data.company.digitalSignature) {
-                setSignaturePreview(`${getBaseUrl()}${data.company.digitalSignature}`);
+                setSignaturePreview(resolveUrl(data.company.digitalSignature));
             }
             if (data.company.letterhead) {
-                setLetterheadPreview(`${getBaseUrl()}${data.company.letterhead}`);
+                setLetterheadPreview(resolveUrl(data.company.letterhead));
             }
             if (data.company.continuationSheet) {
-                setContinuationPreview(`${getBaseUrl()}${data.company.continuationSheet}`);
+                setContinuationPreview(resolveUrl(data.company.continuationSheet));
             }
         } catch (error) {
             console.error('Failed to fetch company details');
