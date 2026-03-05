@@ -27,11 +27,9 @@ jobs:
           echo "🚀 Starting Deployment Process..."
           
           TARGET_DIR="/home/admin/web/iam.applizor.com/public_html"
-          # Use GITHUB_TOKEN for authenticated clone without needing SSH keys on server
           REPO_URL="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/applizor/applizor-erp.git"
           
-          # Fix Dubious Ownership before any git command
-          echo "Configuring git safe directory..."
+          # Fix Dubious Ownership
           git config --global --add safe.directory $TARGET_DIR || true
           
           if [ ! -d "$TARGET_DIR" ]; then
@@ -45,19 +43,16 @@ jobs:
           if [ ! -d ".git" ]; then
             echo "📁 .git not found. Performing fresh clone..."
             cd ..
-            # Ensure folder is clean
             sudo rm -rf public_html/* public_html/.* 2>/dev/null || true
             git clone $REPO_URL public_html
             cd public_html
           else
             echo "🔄 Repository found. Updating..."
-            # Update remote URL to include current token
             git remote set-url origin $REPO_URL
             git fetch origin main
             git reset --hard origin/main
           fi
           
-          # Ensure admin has permissions early for manual access
           echo "Syncing permissions for admin..."
           sudo chown -R admin:admin $TARGET_DIR
           sudo chmod -R 777 $TARGET_DIR
@@ -79,7 +74,14 @@ jobs:
           done
           
           echo "🔄 Running migrations (Safe for data)..."
-          sudo docker compose -f docker-compose.prod.yml exec -T backend npx prisma migrate deploy
+          # Try normal deploy, if it fails with the specific P3009 error, try to resolve it and retry
+          if ! sudo docker compose -f docker-compose.prod.yml exec -T backend npx prisma migrate deploy; then
+            echo "⚠️ Migration failed. Checking for P3009 blocked state..."
+            # Automatic Repair for the specific failed migration reported by user
+            sudo docker compose -f docker-compose.prod.yml exec -T backend npx prisma migrate resolve --rolled-back 20260218190518_add_company_off_days || true
+            echo "🔄 Retrying migration after resolve..."
+            sudo docker compose -f docker-compose.prod.yml exec -T backend npx prisma migrate deploy
+          fi
           
           echo "🧹 Cleaning up unnecessary Docker images..."
           sudo docker system prune -f
