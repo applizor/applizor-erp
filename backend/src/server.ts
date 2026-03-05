@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import http from 'http';
+import path from 'path';
+import fs from 'fs';
 import { initSocket } from './socket';
 
 // Routes
@@ -52,8 +54,6 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Serve static files
 // Server Entry Point - Updated
-import path from 'path';
-import fs from 'fs';
 
 const uploadsDirs = [
   path.join(process.cwd(), 'uploads'),
