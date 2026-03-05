@@ -29,7 +29,7 @@ jobs:
           TARGET_DIR="/home/admin/web/iam.applizor.com/public_html"
           REPO_URL="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/applizor/applizor-erp.git"
           
-          # Fix Dubious Ownership
+          # Fix Git Dubious Ownership
           git config --global --add safe.directory $TARGET_DIR || true
           
           if [ ! -d "$TARGET_DIR" ]; then
@@ -53,16 +53,20 @@ jobs:
             git reset --hard origin/main
           fi
           
-          echo "Syncing permissions for admin..."
-          sudo chown -R admin:admin $TARGET_DIR
-          sudo chmod -R 777 $TARGET_DIR
-
-          echo "🧹 Pre-build cleanup to free up RAM..."
+          echo "🧹 Freed up RAM..."
           sudo docker system prune -af --volumes || true
 
           echo "📦 Starting Docker build..."
           sudo docker compose -f docker-compose.prod.yml up -d --build
           
+          echo "⏳ Syncing Static Assets for Nginx/HestiaCP..."
+          # Many HestiaCP setups try to serve static files directly from host disk.
+          # We copy them from the container to the host public_html.
+          sudo mkdir -p $TARGET_DIR/.next
+          # Ignore errors if container started slowly
+          sudo docker cp applizor-frontend-prod:/app/.next/static $TARGET_DIR/.next/static || echo "Waiting for assets..."
+          sudo docker cp applizor-frontend-prod:/app/public $TARGET_DIR/public || echo "Waiting for public..."
+
           echo "⏳ Waiting for database and services to stabilize..."
           sleep 10
           for i in {1..30}; do
@@ -74,20 +78,14 @@ jobs:
           done
           
           echo "🔄 Running migrations (Safe for data)..."
-          # Try normal deploy, if it fails with the specific P3009 error, try to resolve it and retry
           if ! sudo docker compose -f docker-compose.prod.yml exec -T backend npx prisma migrate deploy; then
-            echo "⚠️ Migration failed. Checking for P3009 blocked state..."
-            # Automatic Repair for the specific failed migration reported by user
+            echo "⚠️ Migration failed. Running P3009 auto-repair..."
             sudo docker compose -f docker-compose.prod.yml exec -T backend npx prisma migrate resolve --rolled-back 20260218190518_add_company_off_days || true
-            echo "🔄 Retrying migration after resolve..."
             sudo docker compose -f docker-compose.prod.yml exec -T backend npx prisma migrate deploy
           fi
           
-          echo "🧹 Cleaning up unnecessary Docker images..."
-          sudo docker system prune -f
-          
           echo "🔐 Final permission sweep for admin user..."
-          sudo chown -R admin:admin $TARGET_DIR || true
-          sudo chmod -R 775 $TARGET_DIR || true
+          sudo chown -R admin:admin $TARGET_DIR
+          sudo chmod -R 775 $TARGET_DIR
           
           echo "✅ DEPLOYMENT SUCCESSFUL!"
