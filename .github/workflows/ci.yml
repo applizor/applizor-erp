@@ -29,17 +29,22 @@ jobs:
           TARGET_DIR="/home/admin/web/iam.applizor.com/public_html"
           REPO_URL="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/applizor/applizor-erp.git"
           
-          # Fix Git Dubious Ownership
-          git config --global --add safe.directory $TARGET_DIR || true
-          
-          if [ ! -d "$TARGET_DIR" ]; then
+          # 1. Take recursive ownership for the SSH user to allow git/docker operations
+          if [ -d "$TARGET_DIR" ]; then
+            echo "🔧 Taking ownership for deployment user..."
+            sudo chown -R $USER:$USER $TARGET_DIR
+          else
             echo "Creating target directory..."
             sudo mkdir -p $TARGET_DIR
             sudo chown -R $USER:$USER $TARGET_DIR
           fi
 
+          # Fix Git Dubious Ownership
+          git config --global --add safe.directory $TARGET_DIR || true
+          
           cd $TARGET_DIR
           
+          # 2. Git Synchronization
           if [ ! -d ".git" ]; then
             echo "📁 .git not found. Performing fresh clone..."
             cd ..
@@ -53,29 +58,19 @@ jobs:
             git reset --hard origin/main
           fi
           
-          echo "Syncing permissions for admin..."
-          sudo chown -R admin:admin $TARGET_DIR
-          sudo chmod -R 777 $TARGET_DIR
-
           echo "🧹 Freed up RAM..."
           sudo docker system prune -af --volumes || true
 
+          # 3. Docker Orchestration
           echo "📦 Starting Docker build..."
           sudo docker compose -f docker-compose.prod.yml up -d --build
           
           echo "⏳ Syncing Static Assets for Nginx (Fixing 404s)..."
-          # Wait a few seconds for container to initialize
           sleep 5
-          
-          # Create both .next and _next (some Nginx configs use underscore)
           sudo mkdir -p $TARGET_DIR/.next
           sudo mkdir -p $TARGET_DIR/_next
-          
-          # Copy assets from container to host
           sudo docker cp applizor-frontend-prod:/app/.next/static $TARGET_DIR/.next/static || echo "Retrying static sync..."
           sudo docker cp applizor-frontend-prod:/app/public $TARGET_DIR/public || echo "Retrying public sync..."
-          
-          # Create a symlink or mirror for _next to ensure Nginx finds it
           sudo cp -r $TARGET_DIR/.next/static $TARGET_DIR/_next/static || true
 
           echo "⏳ Waiting for database and services to stabilize..."
@@ -88,6 +83,7 @@ jobs:
             sleep 2
           done
           
+          # 4. Database Migrations
           echo "🔄 Running migrations (Safe for data)..."
           if ! sudo docker compose -f docker-compose.prod.yml exec -T backend npx prisma migrate deploy; then
             echo "⚠️ Migration conflict detected. Syncing history..."
@@ -102,8 +98,9 @@ jobs:
             sudo docker compose -f docker-compose.prod.yml exec -T backend npx prisma migrate deploy
           fi
           
+          # 5. Finalize Permissions: Give control back to the 'admin' user
           echo "🔐 Final permission sweep for admin user..."
           sudo chown -R admin:admin $TARGET_DIR
-          sudo chmod -R 775 $TARGET_DIR
+          sudo chmod -R 777 $TARGET_DIR
           
           echo "✅ DEPLOYMENT SUCCESSFUL!"
