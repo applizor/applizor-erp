@@ -29,8 +29,7 @@ jobs:
           TARGET_DIR="/home/admin/web/iam.applizor.com/public_html"
           REPO_URL="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/applizor/applizor-erp.git"
           
-          # Fix Dubious Ownership before any git command
-          echo "Configuring git safe directory..."
+          # Fix Dubious Ownership
           git config --global --add safe.directory $TARGET_DIR || true
           
           if [ ! -d "$TARGET_DIR" ]; then
@@ -44,22 +43,30 @@ jobs:
           if [ ! -d ".git" ]; then
             echo "📁 .git not found. Performing fresh clone..."
             cd ..
-            # Ensure folder is clean
             sudo rm -rf public_html/* public_html/.* 2>/dev/null || true
             git clone $REPO_URL public_html
             cd public_html
           else
             echo "🔄 Repository found. Updating..."
-            # Update remote URL to include current token
             git remote set-url origin $REPO_URL
             git fetch origin main
             git reset --hard origin/main
           fi
           
-          # Ensure admin has permissions early
           echo "Syncing permissions for admin..."
           sudo chown -R admin:admin $TARGET_DIR
           sudo chmod -R 777 $TARGET_DIR
+
+          # Check for missing .env files and create placeholders if needed to avoid build failure
+          # Note: User should manually update these on server for security
+          if [ ! -f "backend/.env.production" ]; then
+            echo "⚠️ backend/.env.production missing! Creating placeholder..."
+            echo "DATABASE_URL=postgresql://applizor:password@postgres:5432/applizor_erp" > backend/.env.production
+          fi
+          if [ ! -f "frontend/.env.production" ]; then
+            echo "⚠️ frontend/.env.production missing! Creating placeholder..."
+            echo "NEXT_PUBLIC_API_URL=https://api.iam.applizor.com/api" > frontend/.env.production
+          fi
 
           echo "📦 Starting Docker build..."
           sudo docker compose -f docker-compose.prod.yml up -d --build
