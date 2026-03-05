@@ -62,10 +62,14 @@ jobs:
           sudo chown -R admin:admin $TARGET_DIR
           sudo chmod -R 777 $TARGET_DIR
 
+          echo "🧹 Pre-build cleanup to free up RAM..."
+          sudo docker system prune -af --volumes || true
+
           echo "📦 Starting Docker build..."
           sudo docker compose -f docker-compose.prod.yml up -d --build
           
-          echo "⏳ Waiting for database..."
+          echo "⏳ Waiting for database and services to stabilize..."
+          sleep 10
           for i in {1..30}; do
             if sudo docker compose -f docker-compose.prod.yml exec -T postgres pg_isready -U applizor -d applizor_erp > /dev/null 2>&1; then
               echo "✅ Database is ready!"
@@ -74,7 +78,7 @@ jobs:
             sleep 2
           done
           
-          echo "🔄 Running migrations..."
+          echo "🔄 Running migrations (Safe for data)..."
           sudo docker compose -f docker-compose.prod.yml exec -T backend npx prisma migrate deploy
           
           echo "🧹 Cleaning up unnecessary Docker images..."
