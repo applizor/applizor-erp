@@ -66,9 +66,10 @@ router.put('/tasks/:id/status', authenticateClient, portalTaskController.updateP
 router.get('/tasks/:id/history', authenticateClient, portalTaskController.getPortalTaskHistory);
 
 // Documents
-import { getDocuments, uploadDocument } from '../controllers/portal.controller';
+import { getDocuments, uploadDocument, deleteDocument } from '../controllers/portal.controller';
 
 router.get('/documents', authenticateClient, getDocuments);
 router.post('/documents', authenticateClient, upload.single('file'), uploadDocument);
+router.delete('/documents/:id', authenticateClient, deleteDocument);
 
 export default router;

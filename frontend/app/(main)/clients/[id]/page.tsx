@@ -3,9 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Edit, Trash2, Mail, Phone, MapPin, Building2, FileText, Calendar, Check, X, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Mail, Phone, MapPin, Building2, FileText, Calendar, Check, X, AlertCircle, Download } from 'lucide-react';
 import api from '@/lib/api';
-import { getBaseUrl } from '@/lib/utils/url';
+import { getBaseUrl, resolveUrl } from '@/lib/utils/url';
 import { clientsApi } from '@/lib/api/clients';
 import { quotationsApi } from '@/lib/api/quotations';
 import { invoicesApi } from '@/lib/api/invoices';
@@ -145,6 +145,36 @@ export default function ClientDetailPage() {
     const openRejectDialog = (docId: string) => {
         setSelectedDocId(docId);
         setRejectDialog(true);
+    };
+
+    const handleDownloadDocument = async (docId: string, docName: string) => {
+        try {
+            const res = await api.get(`/clients/${client.id}/documents/${docId}/download`, {
+                responseType: 'blob'
+            });
+            const url = window.URL.createObjectURL(new Blob([res.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', docName);
+            document.body.appendChild(link);
+            link.click();
+            link.parentNode?.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Download failed:', error);
+            toast.error('Failed to download file');
+        }
+    };
+
+    const handleDeleteDocument = async (docId: string, docName: string) => {
+        if (!confirm(`Are you sure you want to delete ${docName}?`)) return;
+        try {
+            await api.delete(`/clients/${client.id}/documents/${docId}`);
+            toast.success('Document deleted');
+            loadDocuments(client.id);
+        } catch (error) {
+            toast.error('Failed to delete document');
+        }
     };
 
     if (loading) {
@@ -457,7 +487,7 @@ export default function ClientDetailPage() {
                                             <td className="pr-6 text-right">
                                                 <div className="flex items-center justify-end gap-2">
                                                     <a
-                                                        href={`${SERVER_URL}/${doc.filePath}`}
+                                                        href={resolveUrl(doc.filePath)}
                                                         target="_blank"
                                                         rel="noreferrer"
                                                         className="p-1.5 text-slate-400 hover:text-slate-900 transition-colors"
@@ -465,6 +495,13 @@ export default function ClientDetailPage() {
                                                     >
                                                         <FileText size={16} />
                                                     </a>
+                                                    <button
+                                                        onClick={() => handleDownloadDocument(doc.id, doc.name)}
+                                                        className="p-1.5 text-slate-400 hover:text-indigo-600 transition-colors"
+                                                        title="Download"
+                                                    >
+                                                        <Download size={16} />
+                                                    </button>
                                                     {doc.status === 'pending' && (
                                                         <>
                                                             <button
@@ -485,6 +522,15 @@ export default function ClientDetailPage() {
                                                             </button>
                                                         </>
                                                     )}
+                                                    <PermissionGuard module="Client" action="delete">
+                                                        <button
+                                                            onClick={() => handleDeleteDocument(doc.id, doc.name)}
+                                                            className="p-1.5 text-slate-400 hover:text-rose-600 transition-colors"
+                                                            title="Delete"
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    </PermissionGuard>
                                                 </div>
                                             </td>
                                         </tr>

@@ -7,7 +7,9 @@ import {
   deleteClient,
   getClientDocuments,
   approveDocument,
-  rejectDocument
+  rejectDocument,
+  downloadDocument,
+  deleteDocument
 } from '../controllers/client.controller';
 import { authenticate } from '../middleware/auth';
 import { uploadLogo, uploadProfilePicture } from '../utils/upload';
@@ -22,10 +24,10 @@ router.delete('/:id', authenticate, deleteClient);
 
 // Document Approval Routes
 router.get('/:id/documents', authenticate, getClientDocuments);
+router.get('/:id/documents/:documentId/download', authenticate, downloadDocument);
 router.post('/:id/documents/:documentId/approve', authenticate, approveDocument);
 router.post('/:id/documents/:documentId/reject', authenticate, rejectDocument);
-
-
+router.delete('/:id/documents/:documentId', authenticate, deleteDocument);
 router.post('/upload', authenticate, uploadLogo.single('image'), (req: any, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No file uploaded' });

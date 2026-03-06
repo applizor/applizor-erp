@@ -144,6 +144,36 @@ export class StorageService {
     }
 
     /**
+     * Get a readable stream for a file (used for piping downloads directly to frontend)
+     */
+    static async getFileStream(fileKey: string): Promise<Readable | null> {
+        if (!fileKey) return null;
+
+        if (STORAGE_TYPE === 's3' || fileKey.startsWith('http')) {
+            try {
+                const key = StorageService.extractKey(fileKey);
+                const command = new GetObjectCommand({
+                    Bucket: AWS_BUCKET_NAME,
+                    Key: key,
+                });
+                const response = await s3Client.send(command);
+                return response.Body as Readable;
+            } catch (error) {
+                console.error('[StorageService] S3 Stream Error:', error);
+                return null;
+            }
+        } else {
+            // Local storage
+            const relativePath = fileKey.startsWith('/uploads/') ? fileKey.substring(1) : fileKey;
+            const absolutePath = path.join(process.cwd(), relativePath);
+            if (fs.existsSync(absolutePath)) {
+                return fs.createReadStream(absolutePath);
+            }
+            return null;
+        }
+    }
+
+    /**
      * Get the public URL for a file
      */
     static getFileUrl(fileKey: string): string {

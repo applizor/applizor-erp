@@ -4,6 +4,7 @@ import { AuthRequest } from '../middleware/auth';
 import { PermissionService } from '../services/permission.service';
 import bcrypt from 'bcryptjs';
 import { notifyDocumentStatus } from '../services/email.service';
+import { StorageService } from '../services/storage.service';
 
 export const createClient = async (req: AuthRequest, res: Response) => {
   try {
@@ -441,5 +442,65 @@ export const rejectDocument = async (req: AuthRequest, res: Response) => {
   } catch (error) {
     console.error('Reject Document Error:', error);
     res.status(500).json({ error: 'Failed to reject document' });
+  }
+};
+
+export const downloadDocument = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id, documentId } = req.params;
+
+    if (!PermissionService.hasBasicPermission(req.user, 'Client', 'read')) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const document = await prisma.document.findUnique({
+      where: { id: documentId, clientId: id }
+    });
+
+    if (!document) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+
+    const stream = await StorageService.getFileStream(document.filePath);
+    if (!stream) {
+      return res.status(404).json({ error: 'File not found on storage server' });
+    }
+
+    res.setHeader('Content-Type', document.mimeType || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="${document.name}"`);
+
+    stream.pipe(res);
+  } catch (error) {
+    console.error('Download Document Error:', error);
+    res.status(500).json({ error: 'Failed to download document' });
+  }
+};
+
+export const deleteDocument = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id, documentId } = req.params;
+
+    if (!PermissionService.hasBasicPermission(req.user, 'Client', 'delete')) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const document = await prisma.document.findUnique({
+      where: { id: documentId, clientId: id }
+    });
+
+    if (!document) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+
+    await StorageService.deleteFile(document.filePath);
+
+    await prisma.document.delete({
+      where: { id: documentId }
+    });
+
+    res.json({ message: 'Document deleted successfully' });
+  } catch (error) {
+    console.error('Delete Document Error:', error);
+    res.status(500).json({ error: 'Failed to delete document' });
   }
 };

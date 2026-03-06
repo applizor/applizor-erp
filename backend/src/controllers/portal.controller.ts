@@ -1298,16 +1298,51 @@ export const downloadPortalDocument = async (req: ClientAuthRequest, res: Respon
             return res.status(404).json({ error: 'Document not found or access denied' });
         }
 
-        const url = await StorageService.getFileUrl(document.filePath);
-        if (!url) {
+        const stream = await StorageService.getFileStream(document.filePath);
+        if (!stream) {
             return res.status(404).json({ error: 'File not found on storage server' });
         }
 
-        res.redirect(url);
+        res.setHeader('Content-Type', document.mimeType || 'application/octet-stream');
+        res.setHeader('Content-Disposition', `attachment; filename="${document.name}"`);
+
+        stream.pipe(res);
     } catch (error) {
         console.error('Download Portal Document Error:', error);
         res.status(500).json({ error: 'Failed to download document' });
     }
 };
 
+export const deleteDocument = async (req: ClientAuthRequest, res: Response) => {
+    try {
+        const { id } = req.params;
+        const clientId = req.clientId;
 
+        const document = await prisma.document.findFirst({
+            where: {
+                id,
+                OR: [
+                    { clientId }, // Directly owned
+                    { project: { clientId } } // Part of project owned by client
+                ]
+            }
+        });
+
+        if (!document) {
+            return res.status(404).json({ error: 'Document not found or access denied' });
+        }
+
+        // Delete from storage
+        await StorageService.deleteFile(document.filePath);
+
+        // Delete from database
+        await prisma.document.delete({
+            where: { id }
+        });
+
+        res.json({ message: 'Document deleted successfully' });
+    } catch (error) {
+        console.error('Delete Portal Document Error:', error);
+        res.status(500).json({ error: 'Failed to delete document' });
+    }
+};

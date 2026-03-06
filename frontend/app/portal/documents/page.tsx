@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
 import { getBaseUrl } from '@/lib/utils/url';
-import { Package, Download, Upload, Check, X, Clock, AlertCircle, FileText } from 'lucide-react';
+import { Package, Download, Upload, Check, X, Clock, AlertCircle, FileText, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
 
 // Used getBaseUrl() directly instead of static constants
@@ -70,6 +70,19 @@ export default function PortalDocumentsPage() {
             toast.error('Failed to upload document');
         } finally {
             setUploading(false);
+        }
+    };
+
+    const handleDelete = async (docId: string, docName: string) => {
+        if (!confirm(`Are you sure you want to delete ${docName}?`)) return;
+
+        try {
+            await api.delete(`/portal/documents/${docId}`);
+            toast.success('Document deleted successfully');
+            fetchDocuments();
+        } catch (error) {
+            console.error('Delete error:', error);
+            toast.error('Failed to delete document');
         }
     };
 
@@ -175,10 +188,19 @@ export default function PortalDocumentsPage() {
                                                         toast.error('Failed to download file');
                                                     }
                                                 }}
-                                                className="inline-flex items-center justify-center w-8 h-8 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-900 transition-colors"
+                                                className="inline-flex items-center justify-center w-8 h-8 rounded-full hover:bg-slate-100 text-slate-400 hover:text-indigo-600 transition-colors"
                                                 title="Download Document"
                                             >
                                                 <Download size={16} />
+                                            </button>
+
+                                            {/* Only allow deletion if pending or rejected, perhaps? Or always allow? Always allow for now. */}
+                                            <button
+                                                onClick={() => handleDelete(doc.id, doc.name)}
+                                                className="inline-flex items-center justify-center w-8 h-8 rounded-full hover:bg-slate-100 text-slate-400 hover:text-rose-600 transition-colors ml-2"
+                                                title="Delete Document"
+                                            >
+                                                <Trash2 size={16} />
                                             </button>
                                         </td>
                                     </tr>
