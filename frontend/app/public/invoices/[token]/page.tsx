@@ -228,7 +228,7 @@ export default function PublicInvoiceDetails({ params }: { params: { token: stri
                     </div>
 
                     {/* Items Table */}
-                    <div className="border-b border-gray-100">
+                    <div className="border-b border-gray-100 overflow-x-auto w-full">
                         <table className="min-w-full divide-y divide-gray-100">
                             <thead className="bg-slate-50/50">
                                 <tr>

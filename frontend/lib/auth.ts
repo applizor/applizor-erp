@@ -76,9 +76,11 @@ export const useAuth = () => {
       const localUser = auth.getUser();
       if (localUser) setUser(localUser);
 
-      // 2. Verify token & refresh profile (to get latest permissions)
+      // 2. Verify token & refresh profile (to get latest permissions) if NOT a client
       const token = auth.getToken();
-      if (token) {
+      const isClientPortal = typeof window !== 'undefined' && localStorage.getItem('portalType') === 'client';
+
+      if (token && !isClientPortal) {
         try {
           // We need a getProfile endpoint. Assuming it exists at /auth/profile
           const res = await api.get('/auth/profile');
