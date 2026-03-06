@@ -161,7 +161,8 @@ export const updateLogo = async (req: AuthRequest, res: Response) => {
     if (!user || !user.companyId) return res.status(404).json({ error: 'Company not found' });
 
     // Upload via StorageService
-    const safeName = `logos/logo_${user.companyId}_${Date.now()}`;
+    const ext = req.file.originalname.split('.').pop() || 'png';
+    const safeName = `logos/logo_${user.companyId}_${Date.now()}.${ext}`;
     const logoUrl = await StorageService.uploadFile(req.file.buffer, safeName, req.file.mimetype);
 
     const company = await prisma.company.update({
@@ -189,7 +190,8 @@ export const updateSignature = async (req: AuthRequest, res: Response) => {
     if (!user || !user.companyId) return res.status(404).json({ error: 'Company not found' });
 
     // Upload via StorageService
-    const safeName = `signatures/sig_${user.companyId}_${Date.now()}`;
+    const ext = req.file.originalname.split('.').pop() || 'png';
+    const safeName = `signatures/sig_${user.companyId}_${Date.now()}.${ext}`;
     const signatureUrl = await StorageService.uploadFile(req.file.buffer, safeName, req.file.mimetype);
 
     const company = await prisma.company.update({
@@ -223,7 +225,8 @@ export const updateLetterheadAsset = async (req: AuthRequest, res: Response) => 
     }
 
     const fieldName = req.file.fieldname; // 'letterhead' or 'continuationSheet'
-    const safeName = `letterheads/${fieldName}_${finalCompanyId}_${Date.now()}`;
+    const ext = req.file.originalname.split('.').pop() || 'pdf';
+    const safeName = `letterheads/${fieldName}_${finalCompanyId}_${Date.now()}.${ext}`;
     const assetUrl = await StorageService.uploadFile(req.file.buffer, safeName, req.file.mimetype);
 
     const company = await prisma.company.update({
