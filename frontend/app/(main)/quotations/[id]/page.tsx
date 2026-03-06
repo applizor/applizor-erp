@@ -159,7 +159,7 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
                 </div>
 
                 <div className="flex items-center gap-2">
-                    {can('Quotation', 'update') && quotation.status === 'draft' && (
+                    {can('Quotation', 'update') && (quotation.status === 'draft' || quotation.status === 'sent') && (
                         <Link href={`/quotations/${quotation.id}/edit`}>
                             <Button variant="secondary" icon={Edit}>
                                 Edit
@@ -240,7 +240,7 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
                         </Button>
                     )}
 
-                    {can('Quotation', 'update') && quotation.status === 'draft' && (
+                    {can('Quotation', 'update') && (quotation.status === 'draft' || quotation.status === 'sent') && (
                         <Button
                             onClick={async () => {
                                 try {
@@ -257,9 +257,9 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
                             disabled={generatingLink}
                             isLoading={generatingLink}
                             variant="primary"
-                            icon={Mail}
+                            icon={quotation.status === 'sent' ? RefreshCw : Mail}
                         >
-                            Send to Client
+                            {quotation.status === 'sent' ? 'Resend' : 'Send to Client'}
                         </Button>
                     )}
 
