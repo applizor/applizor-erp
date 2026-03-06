@@ -69,7 +69,17 @@ uploadsDirs.forEach(dir => {
   }
 });
 
-app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads'), {
+  setHeaders: (res, path, stat) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+
+    // Explicitly set content type for PDF if express.static misses it
+    if (path.endsWith('.pdf')) {
+      res.set('Content-Type', 'application/pdf');
+    }
+  }
+}));
 
 // Health check
 app.get('/health', (req, res) => {
