@@ -384,6 +384,16 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
                                                 </div>
                                             </>
                                         )}
+                                        {quotation.client && (
+                                            <>
+                                                <p className="font-bold text-lg mb-1">{quotation.client.companyName || quotation.client.name}</p>
+                                                {quotation.client.companyName && <p className="font-medium text-gray-600 mb-1">{quotation.client.name}</p>}
+                                                <div className="text-gray-500 font-medium">
+                                                    {quotation.client.email && <p>{quotation.client.email}</p>}
+                                                    {(quotation.client.phone || quotation.client.mobile) && <p>{quotation.client.phone || quotation.client.mobile}</p>}
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
 

@@ -222,7 +222,8 @@ export const getQuotations = async (req: AuthRequest, res: Response) => {
                 where,
                 include: {
                     items: true,
-                    lead: true
+                    lead: true,
+                    client: true
                 },
                 orderBy: { createdAt: 'desc' },
                 skip: (Number(page) - 1) * Number(limit),
@@ -275,6 +276,7 @@ export const getQuotation = async (req: AuthRequest, res: Response) => {
                     }
                 },
                 lead: true,
+                client: true,
                 company: {
                     select: {
                         id: true,

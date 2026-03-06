@@ -290,10 +290,18 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
                         <div className="text-sm text-gray-900">
                             {quotation.lead && (
                                 <>
-                                    <p className="font-medium text-base">{quotation.lead.name}</p>
-                                    {quotation.lead.company && <p>{quotation.lead.company}</p>}
+                                    <p className="font-medium text-base">{quotation.lead.company || quotation.lead.name}</p>
+                                    {quotation.lead.company && <p className="text-gray-600">{quotation.lead.name}</p>}
                                     {quotation.lead.email && <p>{quotation.lead.email}</p>}
                                     {quotation.lead.phone && <p>{quotation.lead.phone}</p>}
+                                </>
+                            )}
+                            {quotation.client && (
+                                <>
+                                    <p className="font-medium text-base">{quotation.client.companyName || quotation.client.name}</p>
+                                    {quotation.client.companyName && <p className="text-gray-600">{quotation.client.name}</p>}
+                                    {quotation.client.email && <p>{quotation.client.email}</p>}
+                                    {(quotation.client.phone || quotation.client.mobile) && <p>{quotation.client.phone || quotation.client.mobile}</p>}
                                 </>
                             )}
                         </div>
