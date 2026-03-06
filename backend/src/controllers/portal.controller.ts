@@ -1099,7 +1099,7 @@ export const uploadDocument = async (req: ClientAuthRequest, res: Response) => {
 
         const client = await prisma.client.findUnique({
             where: { id: clientId },
-            include: { creator: true } // Fetch Account Manager
+            include: { company: { select: { email: true } } } // Fetch Company to get target email
         });
 
         if (!client) return res.status(404).json({ error: 'Client not found' });
@@ -1124,11 +1124,11 @@ export const uploadDocument = async (req: ClientAuthRequest, res: Response) => {
             }
         });
 
-        // Notify Account Manager
-        if (client.creator?.email) {
+        // Notify Company Email Configure in Settings
+        if (client.company?.email) {
             try {
                 const { notifyDocumentUploaded } = await import('../services/email.service');
-                await notifyDocumentUploaded(document, client.name, client.creator.email);
+                await notifyDocumentUploaded(document, client.name, client.company.email);
             } catch (emailError) {
                 console.error('Failed to send document upload notification:', emailError);
             }
