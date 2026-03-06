@@ -147,15 +147,25 @@ export default function ClientDetailPage() {
         setRejectDialog(true);
     };
 
-    const handleDownloadDocument = async (docId: string, docName: string) => {
+    const handleDownloadDocument = async (docId: string, docName: string, docFilePath: string) => {
         try {
             const res = await api.get(`/clients/${client.id}/documents/${docId}/download`, {
                 responseType: 'blob'
             });
-            const url = window.URL.createObjectURL(new Blob([res.data]));
+            const blob = new Blob([res.data], { type: res.headers['content-type'] || 'application/octet-stream' });
+            const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            link.setAttribute('download', docName);
+
+            let finalName = docName;
+            if (!finalName.includes('.')) {
+                const ext = docFilePath.split('.').pop();
+                if (ext && ext.length <= 4) {
+                    finalName = `${finalName}.${ext}`;
+                }
+            }
+
+            link.setAttribute('download', finalName);
             document.body.appendChild(link);
             link.click();
             link.parentNode?.removeChild(link);
@@ -496,13 +506,13 @@ export default function ClientDetailPage() {
                                                         <FileText size={16} />
                                                     </a>
                                                     <button
-                                                        onClick={() => handleDownloadDocument(doc.id, doc.name)}
+                                                        onClick={() => handleDownloadDocument(doc.id, doc.name, doc.filePath)}
                                                         className="p-1.5 text-slate-400 hover:text-indigo-600 transition-colors"
                                                         title="Download"
                                                     >
                                                         <Download size={16} />
                                                     </button>
-                                                    {doc.status === 'pending' && (
+                                                    {(doc.status === 'pending' || doc.status === 'submitted') && (
                                                         <>
                                                             <button
                                                                 onClick={() => handleApproveDocument(doc.id)}

@@ -175,10 +175,20 @@ export default function PortalDocumentsPage() {
                                                         const res = await api.get(`/portal/documents/${doc.id}/download`, {
                                                             responseType: 'blob'
                                                         });
-                                                        const url = window.URL.createObjectURL(new Blob([res.data]));
+                                                        const blob = new Blob([res.data], { type: res.headers['content-type'] || 'application/octet-stream' });
+                                                        const url = window.URL.createObjectURL(blob);
                                                         const link = document.createElement('a');
                                                         link.href = url;
-                                                        link.setAttribute('download', doc.name);
+
+                                                        let finalName = doc.name;
+                                                        if (!finalName.includes('.')) {
+                                                            const ext = doc.filePath?.split('.').pop();
+                                                            if (ext && ext.length <= 4) {
+                                                                finalName = `${finalName}.${ext}`;
+                                                            }
+                                                        }
+
+                                                        link.setAttribute('download', finalName);
                                                         document.body.appendChild(link);
                                                         link.click();
                                                         link.parentNode?.removeChild(link);
