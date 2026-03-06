@@ -1134,6 +1134,34 @@ export const uploadDocument = async (req: ClientAuthRequest, res: Response) => {
             }
         }
 
+        // Notify All Admins In-App
+        try {
+            const adminUsers = await prisma.user.findMany({
+                where: {
+                    companyId: client.companyId,
+                    roles: {
+                        some: {
+                            role: { name: 'Admin' }
+                        }
+                    }
+                }
+            });
+
+            const { NotificationService } = await import('../services/notification.service');
+            for (const admin of adminUsers) {
+                await NotificationService.createNotification({
+                    companyId: client.companyId,
+                    userId: admin.id,
+                    title: 'New Client Document',
+                    message: `${client.name} uploaded a new document: ${document.name}`,
+                    type: 'info',
+                    link: `/clients/${client.id}`
+                });
+            }
+        } catch (adminNotifError) {
+            console.error('Failed to notify admins of document upload:', adminNotifError);
+        }
+
         res.status(201).json(document);
     } catch (error) {
         console.error('Portal upload document error:', error);
