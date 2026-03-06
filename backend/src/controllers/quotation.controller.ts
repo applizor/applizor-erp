@@ -1022,9 +1022,10 @@ export const sendQuotationEmail = async (req: AuthRequest, res: Response) => {
             return res.status(404).json({ error: 'Quotation not found' });
         }
 
-        // Check if lead has email
-        if (!quotation.lead?.email) {
-            return res.status(400).json({ error: 'Lead does not have an email address' });
+        // Check if lead or client has email
+        const targetEmail = quotation.lead?.email || quotation.client?.email;
+        if (!targetEmail) {
+            return res.status(400).json({ error: 'The associated Lead or Client does not have an email address' });
         }
 
         // Generate public link if not already generated

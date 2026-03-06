@@ -32,8 +32,12 @@ export default function EditQuotationPage({ params }: { params: { id: string } }
     const [taxRates, setTaxRates] = useState<any[]>([]);
     const [unitTypes, setUnitTypes] = useState<any[]>([]);
 
+    const [clients, setClients] = useState<any[]>([]);
+    const [targetType, setTargetType] = useState<'lead' | 'client'>('lead');
+
     const [formData, setFormData] = useState({
         leadId: '',
+        clientId: '',
         title: '',
         description: '',
         validUntil: '',
@@ -61,8 +65,9 @@ export default function EditQuotationPage({ params }: { params: { id: string } }
 
         const loadData = async () => {
             try {
-                const [leadsRes, templatesRes, taxesRes, unitsRes, quotationData] = await Promise.all([
+                const [leadsRes, clientsRes, templatesRes, taxesRes, unitsRes, quotationData] = await Promise.all([
                     api.get('/leads'),
+                    api.get('/clients?status=active'),
                     api.get('/quotation-templates'),
                     api.get('/settings/taxes'),
                     api.get('/settings/units'),
@@ -70,6 +75,7 @@ export default function EditQuotationPage({ params }: { params: { id: string } }
                 ]);
 
                 setLeads(leadsRes.data.leads || []);
+                setClients(clientsRes.data.clients || []);
                 setTemplates(templatesRes.data.templates || []);
                 setTaxRates(taxesRes.data || []);
                 setUnitTypes(unitsRes.data || []);
@@ -81,8 +87,10 @@ export default function EditQuotationPage({ params }: { params: { id: string } }
                     return;
                 }
 
+                setTargetType(q.clientId ? 'client' : 'lead');
                 setFormData({
-                    leadId: q.leadId || q.clientId || '',
+                    leadId: q.leadId || '',
+                    clientId: q.clientId || '',
                     title: q.title,
                     description: q.description || '',
                     validUntil: q.validUntil ? new Date(q.validUntil).toISOString().split('T')[0] : '',
@@ -267,8 +275,8 @@ export default function EditQuotationPage({ params }: { params: { id: string } }
 
         const validItems = items.filter(item => item.description.trim() !== '' && item.quantity > 0);
 
-        if (!formData.leadId || !formData.title) {
-            toast.error('Please fill all required fields (Client and Title)');
+        if ((!formData.leadId && !formData.clientId) || !formData.title) {
+            toast.error('Please fill all required fields (Client/Lead and Title)');
             return;
         }
 
@@ -279,8 +287,15 @@ export default function EditQuotationPage({ params }: { params: { id: string } }
 
         try {
             setSaving(true);
+            const payload = { ...formData };
+            if (targetType === 'lead') {
+                payload.clientId = '';
+            } else {
+                payload.leadId = '';
+            }
+
             await quotationsApi.update(params.id, {
-                ...formData,
+                ...payload,
                 discount: Number(formData.discount || 0), // Store ONLY the additional/global discount
                 items: validItems.map(item => ({
                     ...item,
@@ -370,17 +385,48 @@ export default function EditQuotationPage({ params }: { params: { id: string } }
                                 <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
                                     Target Client / Lead <span className="text-red-500">*</span>
                                 </label>
-                                <CustomSelect
-                                    options={leads.map(lead => ({
-                                        label: `${lead.name} ${lead.company ? `- ${lead.company}` : ''}`,
-                                        value: lead.id,
-                                        description: lead.email
-                                    }))}
-                                    value={formData.leadId}
-                                    onChange={(val) => setFormData({ ...formData, leadId: val })}
-                                    placeholder="Select Lead or Client"
-                                    className="w-full"
-                                />
+                                <div className="flex bg-gray-100 p-1 rounded-md mb-3 w-fit">
+                                    <button
+                                        type="button"
+                                        onClick={() => setTargetType('lead')}
+                                        className={`px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md transition-all ${targetType === 'lead' ? 'bg-white text-primary-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                                    >
+                                        Lead
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setTargetType('client')}
+                                        className={`px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md transition-all ${targetType === 'client' ? 'bg-white text-primary-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                                    >
+                                        Existing Client
+                                    </button>
+                                </div>
+
+                                {targetType === 'lead' ? (
+                                    <CustomSelect
+                                        options={leads.map(lead => ({
+                                            label: `${lead.name} ${lead.company ? `- ${lead.company}` : ''}`,
+                                            value: lead.id,
+                                            description: lead.email
+                                        }))}
+                                        value={formData.leadId}
+                                        onChange={(val) => setFormData({ ...formData, leadId: val, clientId: '' })}
+                                        placeholder="Search Leads..."
+                                        className="w-full"
+                                    />
+                                ) : (
+                                    <CustomSelect
+                                        options={clients.map(client => ({
+                                            label: `${client.name} ${client.companyName ? `- ${client.companyName}` : ''}`,
+                                            value: client.id,
+                                            description: client.email
+                                        }))}
+                                        value={formData.clientId}
+                                        onChange={(val) => setFormData({ ...formData, clientId: val, leadId: '' })}
+                                        placeholder="Search Clients..."
+                                        className="w-full"
+                                    />
+                                )}
                             </div>
 
                             <div>
