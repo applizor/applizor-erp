@@ -2,6 +2,7 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import prisma from '../prisma/client';
+import { StorageService } from '../services/storage.service';
 
 export const uploadDocument = async (req: AuthRequest, res: Response) => {
     try {
@@ -12,11 +13,14 @@ export const uploadDocument = async (req: AuthRequest, res: Response) => {
             return res.status(400).json({ error: 'No file uploaded' });
         }
 
+        const fileName = `${type || 'document'}/${req.user!.employeeId!}/${Date.now()}_${file.originalname.replace(/[^a-zA-Z0-9-_\.]/g, '_')}`;
+        const fileUrl = await StorageService.uploadFile(file.buffer, fileName, file.mimetype);
+
         const document = await prisma.document.create({
             data: {
                 name: name || file.originalname,
                 type: type || 'document', // id_proof, address_proof, etc.
-                filePath: file.path,
+                filePath: fileUrl,
                 fileSize: file.size,
                 mimeType: file.mimetype,
                 company: { connect: { id: req.user!.companyId } },

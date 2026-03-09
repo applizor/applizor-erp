@@ -204,7 +204,9 @@ app.use('/api/accounting', accountingRoutes);
 
 // Automation/Debug Routes
 import automationRoutes from './routes/automation.routes';
+import uploadRoutes from './routes/upload.routes';
 app.use('/api/automation', automationRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // New HRMS Module Routes
 import policyRoutes from './routes/policy.routes';

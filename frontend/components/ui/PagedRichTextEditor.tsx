@@ -20,6 +20,8 @@ import { ListItemNode, ListNode } from '@lexical/list';
 import { LinkNode, AutoLinkNode } from '@lexical/link';
 import { TRANSFORMERS } from '@lexical/markdown';
 import { CodeNode, CodeHighlightNode } from '@lexical/code';
+import { ImageNode } from './Editor/ImageNode';
+import { ImagePlugin } from './Editor/EditorPlugins';
 import { Copy, Bold, Italic, Underline as UnderlineIcon, Undo, Redo, FileText, Layout } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
 
@@ -57,6 +59,7 @@ const EDITOR_NODES = [
     AutoLinkNode,
     CodeNode,
     CodeHighlightNode,
+    ImageNode,
 ];
 
 interface PagedRichTextEditorProps {
@@ -192,6 +195,7 @@ const PagedRichTextEditor = forwardRef(({
                         <MarkdownShortcutPlugin transformers={TRANSFORMERS} />
                         <InitialContentPlugin html={value} />
                         <LexicalOnChange htmlOnChange={onChange} />
+                        <ImagePlugin />
 
                         {/* Bridge for Ref */}
                         <EditorRefBridge ref={ref} />

@@ -3,6 +3,7 @@ import { ClientAuthRequest } from '../middleware/client.auth';
 import prisma from '../prisma/client';
 import { NotificationService } from '../services/notification.service';
 import { AutomationService } from '../services/automation.service';
+import { StorageService } from '../services/storage.service';
 
 export const createPortalTask = async (req: ClientAuthRequest, res: Response) => {
     try {
@@ -41,24 +42,26 @@ export const createPortalTask = async (req: ClientAuthRequest, res: Response) =>
         NotificationService.emitProjectUpdate(projectId, 'TASK_CREATED', task);
 
         // 3. Handle Attachments
-        // 3. Handle Attachments
         if (req.files && Array.isArray(req.files)) {
             const files = req.files as Express.Multer.File[];
-            await Promise.all(files.map(file =>
-                prisma.document.create({
+            await Promise.all(files.map(async (file) => {
+                const fileName = `tasks/${task.id}/${Date.now()}_${file.originalname.replace(/[^a-zA-Z0-9-_\.]/g, '_')}`;
+                const fileUrl = await StorageService.uploadFile(file.buffer, fileName, file.mimetype);
+
+                return prisma.document.create({
                     data: {
                         project: { connect: { id: projectId } },
                         task: { connect: { id: task.id } },
                         name: file.originalname,
                         type: 'task_attachment',
-                        filePath: file.path,
+                        filePath: fileUrl,
                         fileSize: file.size,
                         mimeType: file.mimetype,
                         company: { connect: { id: req.client.companyId } },
                         client: { connect: { id: clientId } }
                     }
-                })
-            ));
+                });
+            }));
         }
 
         // 4. Trigger Automation (Task Created)

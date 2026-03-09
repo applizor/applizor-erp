@@ -5,6 +5,7 @@ import { PermissionService } from '../services/permission.service';
 import { AutomationService } from '../services/automation.service';
 import { HistoryService } from '../services/history.service';
 import { NotificationService } from '../services/notification.service';
+import { StorageService } from '../services/storage.service';
 
 // Basic Teams Webhook Stub
 // In a real app, this would be a proper service capable of sending rich cards
@@ -55,22 +56,24 @@ export const createTask = async (req: AuthRequest, res: Response) => {
         // Handle Attachments if any (middleware puts them in req.files)
         if (req.files && Array.isArray(req.files)) {
             const files = req.files as Express.Multer.File[];
-            // Parallel upload not recommended for large files but fine for MVP
-            await Promise.all(files.map(file =>
-                prisma.document.create({
+            await Promise.all(files.map(async (file) => {
+                const fileName = `tasks/${task.id}/${Date.now()}_${file.originalname.replace(/[^a-zA-Z0-9-_\.]/g, '_')}`;
+                const fileUrl = await StorageService.uploadFile(file.buffer, fileName, file.mimetype);
+
+                return prisma.document.create({
                     data: {
                         project: { connect: { id: projectId } },
                         task: { connect: { id: task.id } },
                         name: file.originalname,
                         type: 'task_attachment',
-                        filePath: file.path,
+                        filePath: fileUrl,
                         fileSize: file.size,
                         mimeType: file.mimetype,
                         company: { connect: { id: req.user!.companyId } },
                         employee: { connect: { id: req.user!.employeeId! } }
                     }
-                })
-            ));
+                });
+            }));
         }
 
         // Evaluate Automation Rules

@@ -20,6 +20,8 @@ import { ListItemNode, ListNode } from '@lexical/list';
 import { LinkNode, AutoLinkNode } from '@lexical/link';
 import { TRANSFORMERS } from '@lexical/markdown';
 import { CodeNode, CodeHighlightNode } from '@lexical/code';
+import { ImageNode } from './Editor/ImageNode';
+import { ImagePlugin } from './Editor/EditorPlugins';
 import {
     Bold, Italic, Underline as UnderlineIcon,
     List as ListIcon, ListOrdered, Link as LinkIcon,
@@ -68,6 +70,7 @@ const EDITOR_NODES = [
     AutoLinkNode,
     CodeNode,
     CodeHighlightNode,
+    ImageNode,
 ];
 
 // --- TOOLBAR COMPONENT ---
@@ -196,6 +199,7 @@ const RichTextEditor = forwardRef(({ value, onChange, onPost, placeholder, class
 
                     <LexicalOnChange htmlOnChange={onChange} />
                     <InitialContentPlugin html={value} />
+                    <ImagePlugin />
                     <EditorRefBridge ref={ref} />
                 </div>
 
