@@ -7,8 +7,12 @@ export class LeaveAccrualService {
      */
     async processMonthlyAccruals() {
         const now = new Date();
-        const year = now.getFullYear();
-        const month = now.getMonth() + 1; // 1-indexed
+        // Shift back 1 day to ensure we get the year/month of the month that just ended
+        const d = new Date(now.getTime());
+        d.setDate(d.getDate() - 1);
+
+        const year = d.getFullYear();
+        const month = d.getMonth() + 1; // 1-indexed month of the completed month
 
         console.log(`[LeaveAccrual] Starting monthly accrual for ${month}/${year}`);
 
