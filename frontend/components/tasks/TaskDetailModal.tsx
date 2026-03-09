@@ -79,7 +79,7 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
 
     const handleDeleteComment = async (commentId: string) => {
         try {
-            await api.delete(`/ tasks / ${taskId} /comments/${commentId} `);
+            await api.delete(`/tasks/${taskId}/comments/${commentId}`);
             toast.success('Comment deleted');
             fetchComments();
         } catch (error) {
@@ -147,7 +147,7 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
 
     const syncTimerWithServer = async () => {
         try {
-            const res = await api.get(`/ timesheets / timer / task / ${taskId} `);
+            const res = await api.get(`/timesheets/timer/task/${taskId}`);
             if (res.data) {
                 setTimerActive(true);
                 setActiveTimerId(res.data.id);
@@ -168,7 +168,7 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
 
     const fetchSpentHours = async () => {
         try {
-            const res = await api.get(`/ timesheets ? taskId = ${taskId} `);
+            const res = await api.get(`/timesheets?taskId=${taskId}`);
             const total = res.data.reduce((acc: number, curr: any) => acc + Number(curr.hours), 0);
             setSpentHours(total);
         } catch (error) { console.error(error); }
@@ -184,7 +184,7 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                 setIsPaused(res.data.isPaused);
                 setAccumulatedSeconds(res.data.accumulatedTime);
             } else {
-                const res = await api.post(`/ timesheets / timer / stop / ${activeTimerId} `);
+                const res = await api.post(`/timesheets/timer/stop/${activeTimerId}`);
                 setTimerActive(false);
                 setActiveTimerId(null);
                 setTimerStartTime(null);
@@ -208,7 +208,7 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
         if (!activeTimerId) return;
         try {
             const endpoint = isPaused ? 'resume' : 'pause';
-            const res = await api.post(`/ timesheets / timer / ${endpoint}/${activeTimerId}`);
+            const res = await api.post(`/timesheets/timer/${endpoint}/${activeTimerId}`);
             setIsPaused(res.data.isPaused);
             setAccumulatedSeconds(res.data.accumulatedTime);
             setTimerStartTime(new Date(res.data.startTime).getTime());

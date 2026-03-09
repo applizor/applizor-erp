@@ -84,7 +84,7 @@ function EmployeeDashboard() {
     try {
       const [attRes, leaveRes, taskRes] = await Promise.all([
         api.get('/attendance-leave/today-status').catch(() => ({ data: {} })),
-        api.get('/leave-type/my-balances').catch(() => ({ data: [] })),
+        api.get('/attendance-leave/my-balances').catch(() => ({ data: [] })),
         api.get('/tasks/analysis/me').catch(() => ({ data: null }))
       ]);
 
