@@ -357,7 +357,7 @@ export default function PortalProjectDetail({ params }: { params: { id: string }
                                 <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Project Invoices</h3>
                                 <Link href="/portal/invoices" className="text-[10px] font-black text-primary-600 uppercase tracking-widest hover:underline">View All</Link>
                             </div>
-                            <div className="overflow-x-auto">
+                            <div className="ent-table-container">
                                 <table className="w-full text-left">
                                     <thead>
                                         <tr className="bg-slate-50 border-b border-slate-100">

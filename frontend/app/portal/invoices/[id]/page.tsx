@@ -117,7 +117,7 @@ export default function InvoiceDetails({ params }: { params: { id: string } }) {
                         </div>
 
                         {/* Items Table */}
-                        <div className="border-t border-slate-100">
+                        <div className="border-t border-slate-100 ent-table-container">
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-slate-50 text-slate-500 font-medium">
                                     <tr>
@@ -267,26 +267,28 @@ export default function InvoiceDetails({ params }: { params: { id: string } }) {
                         {invoice.payments && invoice.payments.length > 0 && (
                             <div className="p-6 border-t border-slate-100 bg-slate-50/20">
                                 <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Payment Records</h3>
-                                <table className="w-full text-left text-xs">
-                                    <thead className="text-slate-500 font-bold uppercase tracking-wider">
-                                        <tr>
-                                            <th className="pb-2">Date</th>
-                                            <th className="pb-2">Method</th>
-                                            <th className="pb-2 text-right">Amount</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-100">
-                                        {invoice.payments.map((p: any) => (
-                                            <tr key={p.id}>
-                                                <td className="py-2 font-medium text-slate-900">{new Date(p.paymentDate).toLocaleDateString()}</td>
-                                                <td className="py-2 text-slate-600 uppercase">{p.paymentMethod?.replace('-', ' ')}</td>
-                                                <td className="py-2 text-right font-bold text-emerald-600">
-                                                    {new Intl.NumberFormat('en-US', { style: 'currency', currency: invoice.currency || 'USD' }).format(Number(p.amount))}
-                                                </td>
+                                <div className="ent-table-container">
+                                    <table className="w-full text-left text-xs">
+                                        <thead className="text-slate-500 font-bold uppercase tracking-wider">
+                                            <tr>
+                                                <th className="pb-2">Date</th>
+                                                <th className="pb-2">Method</th>
+                                                <th className="pb-2 text-right">Amount</th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {invoice.payments.map((p: any) => (
+                                                <tr key={p.id}>
+                                                    <td className="py-2 font-medium text-slate-900">{new Date(p.paymentDate).toLocaleDateString()}</td>
+                                                    <td className="py-2 text-slate-600 uppercase">{p.paymentMethod?.replace('-', ' ')}</td>
+                                                    <td className="py-2 text-right font-bold text-emerald-600">
+                                                        {new Intl.NumberFormat('en-US', { style: 'currency', currency: invoice.currency || 'USD' }).format(Number(p.amount))}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         )}
                     </div>

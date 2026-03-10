@@ -218,7 +218,7 @@ export default function QuotationDetails({ params }: { params: { id: string } })
                         </div>
 
                         {/* Items Table */}
-                        <div className="border-t border-slate-100">
+                        <div className="border-t border-slate-100 ent-table-container">
                             <table className="w-full text-left text-xs">
                                 <thead className="bg-slate-50">
                                     <tr>
