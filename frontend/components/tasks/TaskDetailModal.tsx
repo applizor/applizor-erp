@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth';
 import { useForm, Controller } from 'react-hook-form';
-import { X, Paperclip, Send, Clock, Trash2, Briefcase, Plus, MessageSquare, Heart, Smile, MoreHorizontal, CheckSquare } from 'lucide-react';
+import { X, Paperclip, Send, Clock, Trash2, Briefcase, Plus, MessageSquare, Heart, Smile, MoreHorizontal, CheckSquare, Sparkles, Loader2 } from 'lucide-react';
 import { PermissionGuard } from '@/components/PermissionGuard'; // Ensure correct path
 import TaskTimesheetList from '@/components/hrms/timesheets/TaskTimesheetList';
 import BulkTimeLogModal from '@/components/hrms/timesheets/BulkTimeLogModal';
@@ -77,6 +77,9 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
 
     // User Context for Delete Permissions
     const { user: currentUser } = useAuth();
+    const [aiPrompt, setAiPrompt] = useState('');
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [showAiPrompt, setShowAiPrompt] = useState(false);
 
     const handleDeleteComment = async (commentId: string) => {
         try {
@@ -411,12 +414,71 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                                     )}
                                 </div>
 
-                                {/* Title Input */}
-                                <input
-                                    {...register('title', { required: true })}
-                                    placeholder="Task Title"
-                                    className="w-full text-3xl md:text-4xl font-black text-slate-900 placeholder:text-slate-200 border-none focus:ring-0 p-0 bg-transparent leading-tight"
-                                />
+                                 <div className="relative group/title flex items-center gap-3">
+                                    <input
+                                        {...register('title', { required: true })}
+                                        placeholder="Task Title"
+                                        className="flex-1 text-3xl md:text-4xl font-black text-slate-900 placeholder:text-slate-200 border-none focus:ring-0 p-0 bg-transparent leading-tight"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowAiPrompt(!showAiPrompt)}
+                                        className={`p-2 rounded-full transition-all ${showAiPrompt ? 'bg-primary-100 text-primary-600' : 'text-slate-300 hover:text-primary-500 hover:bg-primary-50'}`}
+                                        title="AI Task Generator"
+                                    >
+                                        <Sparkles size={24} />
+                                    </button>
+                                </div>
+
+                                {showAiPrompt && (
+                                    <div className="mt-4 p-4 bg-primary-50/50 border border-primary-100 rounded-xl animate-in slide-in-from-top-2 duration-300">
+                                        <div className="flex items-center gap-3">
+                                            <div className="flex-1 relative">
+                                                <input
+                                                    value={aiPrompt}
+                                                    onChange={(e) => setAiPrompt(e.target.value)}
+                                                    onKeyDown={async (e) => {
+                                                        if (e.key === 'Enter' && aiPrompt.trim()) {
+                                                            e.preventDefault();
+                                                            setIsGenerating(true);
+                                                            try {
+                                                                const res = await api.post('/ai/generate-task', { prompt: aiPrompt });
+                                                                setValue('title', res.data.title);
+                                                                setValue('description', res.data.description);
+                                                                setShowAiPrompt(false);
+                                                                setAiPrompt('');
+                                                                toast.success('AI Task Generated! You can now refine it.');
+                                                            } catch (err) {
+                                                                toast.error('Failed to generate task');
+                                                            } finally {
+                                                                setIsGenerating(false);
+                                                            }
+                                                        }
+                                                    }}
+                                                    placeholder="Describe your task (e.g., 'Center align units in CRL template')..."
+                                                    className="w-full bg-white border-slate-200 text-sm font-bold py-2.5 pl-4 pr-10 rounded-lg focus:ring-2 focus:ring-primary-100 outline-none transition-all"
+                                                />
+                                                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                                    {isGenerating ? (
+                                                        <Loader2 size={16} className="text-primary-600 animate-spin" />
+                                                    ) : (
+                                                        <Sparkles size={16} className="text-primary-400" />
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowAiPrompt(false)}
+                                                className="text-xs font-black uppercase text-slate-400 hover:text-slate-600 px-2"
+                                            >
+                                                Cancel
+                                            </button>
+                                        </div>
+                                        <p className="text-[9px] font-black text-primary-600 mt-2 uppercase tracking-widest pl-1">
+                                            ⚡ Press Enter to generate using AI
+                                        </p>
+                                    </div>
+                                )}
                             </div>
 
                             <form id="task-form" onSubmit={handleSubmit(onSubmit)} className="space-y-8">

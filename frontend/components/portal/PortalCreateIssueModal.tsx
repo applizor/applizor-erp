@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
-import { X, Paperclip, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { X, Paperclip, AlertCircle, CheckCircle2, Sparkles, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
 import api from '@/lib/api';
 import Portal from '@/components/ui/Portal';
@@ -16,10 +16,13 @@ interface PortalCreateIssueModalProps {
 }
 
 export default function PortalCreateIssueModal({ projectId, onClose, onSuccess }: PortalCreateIssueModalProps) {
-    const { register, control, handleSubmit, formState: { errors } } = useForm();
-    const [isLoading, setIsLoading] = useState(false);
     const [files, setFiles] = useState<File[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [aiPrompt, setAiPrompt] = useState('');
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [showAiPrompt, setShowAiPrompt] = useState(false);
     const toast = useToast();
+    const { register, control, handleSubmit, formState: { errors }, setValue } = useForm();
 
     const onSubmit = async (data: any) => {
         setIsLoading(true);
@@ -79,9 +82,61 @@ export default function PortalCreateIssueModal({ projectId, onClose, onSuccess }
                     <div className="flex-1 overflow-y-auto p-6 md:p-8">
                         <form id="issue-form" onSubmit={handleSubmit(onSubmit)} className="space-y-6">
 
-                            {/* Title */}
+                             {/* Title */}
                             <div className="ent-form-group">
-                                <label className="ent-label">Issue Title <span className="text-rose-500">*</span></label>
+                                <div className="flex justify-between items-center mb-1">
+                                    <label className="ent-label mb-0">Issue Title <span className="text-rose-500">*</span></label>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowAiPrompt(!showAiPrompt)}
+                                        className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md transition-all text-[9px] font-black uppercase tracking-widest ${showAiPrompt ? 'bg-primary-100 text-primary-600' : 'text-slate-400 hover:text-primary-600 hover:bg-primary-50'}`}
+                                    >
+                                        <Sparkles size={10} />
+                                        {showAiPrompt ? 'Hide AI' : 'Generate with AI'}
+                                    </button>
+                                </div>
+
+                                {showAiPrompt && (
+                                    <div className="mb-4 p-3 bg-primary-50/50 border border-primary-100 rounded-lg animate-in slide-in-from-top-2 duration-300">
+                                        <div className="relative">
+                                            <input
+                                                value={aiPrompt}
+                                                onChange={(e) => setAiPrompt(e.target.value)}
+                                                onKeyDown={async (e) => {
+                                                    if (e.key === 'Enter' && aiPrompt.trim()) {
+                                                        e.preventDefault();
+                                                        setIsGenerating(true);
+                                                        try {
+                                                            const res = await api.post('/ai/generate-task', { prompt: aiPrompt });
+                                                            setValue('title', res.data.title);
+                                                            setValue('description', res.data.description);
+                                                            setShowAiPrompt(false);
+                                                            setAiPrompt('');
+                                                            toast.success('AI Content Generated!');
+                                                        } catch (err) {
+                                                            toast.error('Failed to generate content');
+                                                        } finally {
+                                                            setIsGenerating(false);
+                                                        }
+                                                    }
+                                                }}
+                                                placeholder="Describe the issue... (e.g. 'Button is overlapping on mobile')"
+                                                className="w-full bg-white border-slate-200 text-xs font-bold py-2 pl-3 pr-8 rounded-md focus:ring-2 focus:ring-primary-100 outline-none transition-all"
+                                            />
+                                            <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                                                {isGenerating ? (
+                                                    <Loader2 size={12} className="text-primary-600 animate-spin" />
+                                                ) : (
+                                                    <Sparkles size={12} className="text-primary-300" />
+                                                )}
+                                            </div>
+                                        </div>
+                                        <p className="text-[8px] font-black text-primary-500 mt-1.5 uppercase tracking-widest px-0.5">
+                                            ⚡ AI will fill the title and detailed description for you
+                                        </p>
+                                    </div>
+                                )}
+
                                 <input
                                     {...register('title', { required: 'Title is required' })}
                                     className="ent-input text-sm"
