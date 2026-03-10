@@ -7,6 +7,9 @@ import {
     DecoratorNode,
     DOMExportOutput,
     LexicalEditor,
+    DOMConversionMap,
+    DOMConversionOutput,
+    DOMConversionUtil,
 } from 'lexical';
 import React, { Suspense } from 'react';
 
@@ -68,6 +71,15 @@ export class ImageNode extends DecoratorNode<React.JSX.Element> {
         element.setAttribute('width', this.__width.toString());
         element.setAttribute('height', this.__height.toString());
         return { element };
+    }
+
+    static importDOM(): DOMConversionMap | null {
+        return {
+            img: (node: Node) => ({
+                conversion: convertImageElement,
+                priority: 0,
+            }),
+        };
     }
 
     static importJSON(serializedNode: SerializedImageNode): ImageNode {
@@ -158,4 +170,18 @@ export function $createImageNode({
 
 export function $isImageNode(node: LexicalNode | null | undefined): node is ImageNode {
     return node instanceof ImageNode;
+}
+
+function convertImageElement(domNode: Node): null | DOMConversionOutput {
+    if (domNode instanceof HTMLImageElement) {
+        const { alt: altText, src, width, height } = domNode;
+        const node = $createImageNode({
+            altText,
+            src,
+            width: width === 0 ? undefined : (isNaN(Number(width)) ? undefined : Number(width)),
+            height: height === 0 ? undefined : (isNaN(Number(height)) ? undefined : Number(height)),
+        });
+        return { node };
+    }
+    return null;
 }
