@@ -209,10 +209,28 @@ export default function ConfigureStructurePage() {
                     <div className="ent-card p-6 bg-white overflow-hidden relative">
                         <div className="absolute top-0 right-0 p-12 bg-primary-50/30 rounded-full -mr-16 -mt-16 blur-3xl -z-1" />
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.15em] flex items-center gap-2">
-                                    <DollarSign size={12} className="text-primary-600" /> Annual Cost to Company (CTC)
+                                    <DollarSign size={12} className="text-primary-600" /> Monthly CTC
+                                </label>
+                                <div className="relative group">
+                                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                        <span className="text-gray-300 font-black text-[12px]">₹</span>
+                                    </div>
+                                    <input
+                                        type="number"
+                                        value={(ctc / 12).toFixed(2)}
+                                        onChange={(e) => setCtc(Number(e.target.value) * 12)}
+                                        className="ent-input w-full pl-10 h-12 text-lg font-black tracking-tight border-slate-200 focus:border-primary-500 hover:border-slate-300 transition-all rounded-md"
+                                        placeholder="0.00"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.15em] flex items-center gap-2">
+                                    <DollarSign size={12} className="text-primary-600" /> Annual CTC (Yearly)
                                 </label>
                                 <div className="relative group">
                                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -222,7 +240,7 @@ export default function ConfigureStructurePage() {
                                         type="number"
                                         value={ctc}
                                         onChange={(e) => setCtc(Number(e.target.value))}
-                                        className="ent-input w-full pl-10 h-12 text-xl font-black tracking-tight border-slate-200 focus:border-primary-500 hover:border-slate-300 transition-all rounded-md"
+                                        className="ent-input w-full pl-10 h-12 text-lg font-black tracking-tight border-slate-200 focus:border-primary-500 hover:border-slate-300 transition-all rounded-md"
                                         placeholder="0.00"
                                     />
                                 </div>
