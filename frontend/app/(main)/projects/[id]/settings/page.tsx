@@ -27,16 +27,28 @@ export default function ProjectSettingsPage({ params }: { params: { id: string }
 
     // Default Permissions Matrix Structure
     const [permissions, setPermissions] = useState<any>({
+        manager: {
+            tasks: { view: true, create: true, edit: true, delete: true },
+            milestones: { view: true, create: true, edit: true, delete: true },
+            financials: { view: true },
+            settings: { view: true, edit: true }
+        },
+        lead: {
+            tasks: { view: true, create: true, edit: true, delete: false },
+            milestones: { view: true, create: true, edit: true, delete: false },
+            financials: { view: true },
+            settings: { view: true, edit: false }
+        },
         member: {
             tasks: { view: true, create: true, edit: true, delete: false },
             milestones: { view: true, create: false, edit: false, delete: false },
-            financials: { view: false, create: false, edit: false, delete: false },
+            financials: { view: false },
             settings: { view: false, edit: false }
         },
         viewer: {
             tasks: { view: true, create: false, edit: false, delete: false },
             milestones: { view: true, create: false, edit: false, delete: false },
-            financials: { view: false, create: false, edit: false, delete: false },
+            financials: { view: false },
             settings: { view: false, edit: false }
         }
     });
@@ -314,131 +326,50 @@ export default function ProjectSettingsPage({ params }: { params: { id: string }
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-gray-50 border-b border-gray-100">
-                                <th className="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest w-1/4">Module</th>
-                                <th className="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center w-1/4">Manager</th>
-                                <th className="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center w-1/4">Member</th>
-                                <th className="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center w-1/4">Viewer</th>
+                                <th className="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest w-[20%]">Module</th>
+                                {['manager', 'lead', 'member', 'viewer'].map(role => (
+                                    <th key={role} className="p-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">
+                                        {role}
+                                    </th>
+                                ))}
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50 text-xs font-bold text-gray-700">
-                            {/* Tasks Module */}
-                            <tr className="hover:bg-gray-50/50 transition-colors">
-                                <td className="p-4">
-                                    <div className="font-bold text-gray-900">Tasks & Issues</div>
-                                    <p className="text-[9px] text-gray-400 mt-0.5 font-normal">Manage project deliverables</p>
-                                </td>
-                                <td className="p-4 text-center"><span className="text-emerald-600 text-[10px] uppercase font-black tracking-widest">Full Access</span></td>
-                                <td className="p-4">
-                                    <div className="flex flex-col gap-2 items-center">
-                                        <div className="flex items-center gap-2">
-                                            <input type="checkbox" checked={permissions.member?.tasks?.view} onChange={() => togglePermission('member', 'tasks', 'view')} className="rounded border-gray-300 text-primary-600 focus:ring-primary-500 w-3.5 h-3.5" />
-                                            <span className="text-[10px] uppercase tracking-wide">View</span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <input type="checkbox" checked={permissions.member?.tasks?.create} onChange={() => togglePermission('member', 'tasks', 'create')} className="rounded border-gray-300 text-primary-600 focus:ring-primary-500 w-3.5 h-3.5" />
-                                            <span className="text-[10px] uppercase tracking-wide">Create</span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <input type="checkbox" checked={permissions.member?.tasks?.edit} onChange={() => togglePermission('member', 'tasks', 'edit')} className="rounded border-gray-300 text-primary-600 focus:ring-primary-500 w-3.5 h-3.5" />
-                                            <span className="text-[10px] uppercase tracking-wide">Edit</span>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td className="p-4">
-                                    <div className="flex flex-col gap-2 items-center">
-                                        <div className="flex items-center gap-2">
-                                            <input type="checkbox" checked={permissions.viewer?.tasks?.view} onChange={() => togglePermission('viewer', 'tasks', 'view')} className="rounded border-gray-300 text-primary-600 focus:ring-primary-500 w-3.5 h-3.5" />
-                                            <span className="text-[10px] uppercase tracking-wide">View</span>
-                                        </div>
-                                    </div>
-                                </td>
-                            </tr>
+                            {[
+                                { id: 'tasks', label: 'Tasks & Issues', sub: 'Manage project deliverables', actions: ['view', 'create', 'edit', 'delete'] },
+                                { id: 'milestones', label: 'Milestones', sub: 'Timeline & Critical Path', actions: ['view', 'create', 'edit', 'delete'] },
+                                { id: 'financials', label: 'Financials', sub: 'Budget, Revenue, Expenses', actions: ['view'] },
+                                { id: 'settings', label: 'Project Settings', sub: 'Edit details, Manage team', actions: ['view', 'edit'] },
+                            ].map(module => (
+                                <tr key={module.id} className="hover:bg-gray-50/50 transition-colors">
+                                    <td className="p-4">
+                                        <div className="font-bold text-gray-900">{module.label}</div>
+                                        <p className="text-[9px] text-gray-400 mt-0.5 font-normal">{module.sub}</p>
+                                    </td>
+                                    {['manager', 'lead', 'member', 'viewer'].map(role => (
+                                        <td key={role} className="p-4">
+                                            <div className="flex flex-col gap-2 items-center">
+                                                {module.actions.map(action => {
+                                                    const isRestricted = (role === 'viewer' && module.id === 'settings');
+                                                    if (isRestricted) return <span key={action} className="text-[8px] uppercase tracking-widest italic opacity-30">Restricted</span>;
 
-                            {/* Milestones Module */}
-                            <tr className="hover:bg-gray-50/50 transition-colors">
-                                <td className="p-4">
-                                    <div className="font-bold text-gray-900">Milestones</div>
-                                    <p className="text-[9px] text-gray-400 mt-0.5 font-normal">Timeline & Critical Path</p>
-                                </td>
-                                <td className="p-4 text-center"><span className="text-emerald-600 text-[10px] uppercase font-black tracking-widest">Full Access</span></td>
-                                <td className="p-4">
-                                    <div className="flex flex-col gap-2 items-center">
-                                        <div className="flex items-center gap-2">
-                                            <input type="checkbox" checked={permissions.member?.milestones?.view} onChange={() => togglePermission('member', 'milestones', 'view')} className="rounded border-gray-300 text-primary-600 focus:ring-primary-500 w-3.5 h-3.5" />
-                                            <span className="text-[10px] uppercase tracking-wide">View</span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <input type="checkbox" checked={permissions.member?.milestones?.create} onChange={() => togglePermission('member', 'milestones', 'create')} className="rounded border-gray-300 text-primary-600 focus:ring-primary-500 w-3.5 h-3.5" />
-                                            <span className="text-[10px] uppercase tracking-wide">Create</span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <input type="checkbox" checked={permissions.member?.milestones?.edit} onChange={() => togglePermission('member', 'milestones', 'edit')} className="rounded border-gray-300 text-primary-600 focus:ring-primary-500 w-3.5 h-3.5" />
-                                            <span className="text-[10px] uppercase tracking-wide">Edit</span>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td className="p-4">
-                                    <div className="flex flex-col gap-2 items-center">
-                                        <div className="flex items-center gap-2">
-                                            <input type="checkbox" checked={permissions.viewer?.milestones?.view} onChange={() => togglePermission('viewer', 'milestones', 'view')} className="rounded border-gray-300 text-primary-600 focus:ring-primary-500 w-3.5 h-3.5" />
-                                            <span className="text-[10px] uppercase tracking-wide">View</span>
-                                        </div>
-                                    </div>
-                                </td>
-                            </tr>
-
-                            {/* Financials Module */}
-                            <tr className="hover:bg-gray-50/50 transition-colors">
-                                <td className="p-4">
-                                    <div className="font-bold text-gray-900">Financials</div>
-                                    <p className="text-[9px] text-gray-400 mt-0.5 font-normal">Budget, Revenue, Expenses</p>
-                                </td>
-                                <td className="p-4 text-center"><span className="text-emerald-600 text-[10px] uppercase font-black tracking-widest">Full Access</span></td>
-                                <td className="p-4">
-                                    <div className="flex flex-col gap-2 items-center">
-                                        <div className="flex items-center gap-2">
-                                            <input type="checkbox" checked={permissions.member?.financials?.view} onChange={() => togglePermission('member', 'financials', 'view')} className="rounded border-gray-300 text-primary-600 focus:ring-primary-500 w-3.5 h-3.5" />
-                                            <span className="text-[10px] uppercase tracking-wide">View Layer</span>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td className="p-4">
-                                    <div className="flex flex-col gap-2 items-center">
-                                        <div className="flex items-center gap-2">
-                                            <input type="checkbox" checked={permissions.viewer?.financials?.view} onChange={() => togglePermission('viewer', 'financials', 'view')} className="rounded border-gray-300 text-primary-600 focus:ring-primary-500 w-3.5 h-3.5" />
-                                            <span className="text-[10px] uppercase tracking-wide">View Layer</span>
-                                        </div>
-                                    </div>
-                                </td>
-                            </tr>
-
-                            {/* Settings Module */}
-                            <tr className="hover:bg-gray-50/50 transition-colors">
-                                <td className="p-4">
-                                    <div className="font-bold text-gray-900">Project Settings</div>
-                                    <p className="text-[9px] text-gray-400 mt-0.5 font-normal">Edit details, Manage team</p>
-                                </td>
-                                <td className="p-4 text-center"><span className="text-emerald-600 text-[10px] uppercase font-black tracking-widest">Full Access</span></td>
-                                <td className="p-4">
-                                    <div className="flex flex-col gap-2 items-center">
-                                        <div className="flex items-center gap-2">
-                                            <input type="checkbox" checked={permissions.member?.settings?.view} onChange={() => togglePermission('member', 'settings', 'view')} className="rounded border-gray-300 text-primary-600 focus:ring-primary-500 w-3.5 h-3.5" />
-                                            <span className="text-[10px] uppercase tracking-wide">View</span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <input type="checkbox" checked={permissions.member?.settings?.edit} onChange={() => togglePermission('member', 'settings', 'edit')} className="rounded border-gray-300 text-primary-600 focus:ring-primary-500 w-3.5 h-3.5" />
-                                            <span className="text-[10px] uppercase tracking-wide">Edit</span>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td className="p-4">
-                                    <div className="flex flex-col gap-2 items-center">
-                                        <div className="flex flex-col items-center justify-center opacity-30">
-                                            <span className="text-[8px] uppercase tracking-widest italic">Restricted</span>
-                                        </div>
-                                    </div>
-                                </td>
-                            </tr>
+                                                    return (
+                                                        <div key={action} className="flex items-center gap-2">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={permissions[role]?.[module.id]?.[action] || false}
+                                                                onChange={() => togglePermission(role, module.id, action)}
+                                                                className="rounded border-gray-300 text-primary-600 focus:ring-primary-500 w-3.5 h-3.5"
+                                                            />
+                                                            <span className="text-[10px] uppercase tracking-wide">{action === 'view' && module.id === 'financials' ? 'View Layer' : action}</span>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </td>
+                                    ))}
+                                </tr>
+                            ))}
                         </tbody>
                     </table>
                 </div>

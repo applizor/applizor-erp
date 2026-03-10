@@ -217,20 +217,29 @@ export const getProjectById = async (req: AuthRequest, res: Response) => {
 
         if (!isSuperAdmin) {
             // Find if this User is linked to any Employee in the project
-            // We need to match User -> Employee.id against Member.employeeId
             const userEmployee = await prisma.employee.findFirst({ where: { userId: user.id } });
 
             let isMember = false;
-            // Explicit cast to access relations safely
             const projectAny = project as any;
 
             if (userEmployee) {
                 const memberRecord = projectAny.members.find((m: any) => m.employeeId === userEmployee.id);
                 if (memberRecord) {
                     isMember = true;
-                    canViewBudget = memberRecord.canViewBudget;
-                    canManageTasks = memberRecord.canManageTasks;
-                    canManageTeam = memberRecord.canManageTeam;
+                    const role = memberRecord.role; // e.g., 'manager', 'lead', 'member', 'viewer'
+                    const projectPermissions = projectAny.settings?.permissions?.[role];
+
+                    if (projectPermissions) {
+                        // Deriving permissions from the matrix
+                        canViewBudget = !!projectPermissions.financials?.view;
+                        canManageTasks = !!(projectPermissions.tasks?.create || projectPermissions.tasks?.edit || projectPermissions.tasks?.delete);
+                        canManageTeam = !!projectPermissions.settings?.edit;
+                    } else {
+                        // Fallback to legacy flags if matrix not defined
+                        canViewBudget = memberRecord.canViewBudget;
+                        canManageTasks = memberRecord.canManageTasks;
+                        canManageTeam = memberRecord.canManageTeam;
+                    }
                 }
             }
 
@@ -238,7 +247,6 @@ export const getProjectById = async (req: AuthRequest, res: Response) => {
                 if (!PermissionService.hasBasicPermission(user, 'Project', 'read')) {
                     return res.status(403).json({ error: 'Access denied' });
                 }
-                // Generic read access (e.g. auditor/observer)
                 canViewBudget = false;
                 canManageTasks = false;
                 canManageTeam = false;
