@@ -89,51 +89,63 @@ export default function PortalCreateIssueModal({ projectId, onClose, onSuccess }
                                     <button
                                         type="button"
                                         onClick={() => setShowAiPrompt(!showAiPrompt)}
-                                        className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md transition-all text-[9px] font-black uppercase tracking-widest ${showAiPrompt ? 'bg-primary-100 text-primary-600' : 'text-slate-400 hover:text-primary-600 hover:bg-primary-50'}`}
+                                        className={`flex items-center gap-1.5 px-3 py-1 rounded-md transition-all text-[10px] font-black uppercase tracking-widest shadow-sm ${showAiPrompt ? 'bg-primary-900 text-white' : 'text-primary-600 bg-primary-50 hover:bg-primary-100 hover:shadow'}`}
                                     >
-                                        <Sparkles size={10} />
-                                        {showAiPrompt ? 'Hide AI' : 'Generate with AI'}
+                                        <Sparkles size={12} className={isGenerating ? 'animate-pulse' : ''} />
+                                        {showAiPrompt ? 'Hide Assistant' : 'AI Write Assistant'}
                                     </button>
                                 </div>
 
                                 {showAiPrompt && (
-                                    <div className="mb-4 p-3 bg-primary-50/50 border border-primary-100 rounded-lg animate-in slide-in-from-top-2 duration-300">
-                                        <div className="relative">
-                                            <input
-                                                value={aiPrompt}
-                                                onChange={(e) => setAiPrompt(e.target.value)}
-                                                onKeyDown={async (e) => {
-                                                    if (e.key === 'Enter' && aiPrompt.trim()) {
-                                                        e.preventDefault();
-                                                        setIsGenerating(true);
-                                                        try {
-                                                            const res = await api.post('/ai/generate-task', { prompt: aiPrompt });
-                                                            setValue('title', res.data.title);
-                                                            setValue('description', res.data.description);
-                                                            setShowAiPrompt(false);
-                                                            setAiPrompt('');
-                                                            toast.success('AI Content Generated!');
-                                                        } catch (err) {
-                                                            toast.error('Failed to generate content');
-                                                        } finally {
-                                                            setIsGenerating(false);
+                                    <div className="mb-6 p-5 bg-gradient-to-br from-primary-50 to-white border border-primary-100 rounded-xl shadow-md animate-in slide-in-from-top-4 duration-500">
+                                        <div className="flex items-center gap-3">
+                                            <div className="flex-1 relative group">
+                                                <input
+                                                    value={aiPrompt}
+                                                    onChange={(e) => setAiPrompt(e.target.value)}
+                                                    onKeyDown={async (e) => {
+                                                        if (e.key === 'Enter' && aiPrompt.trim()) {
+                                                            e.preventDefault();
+                                                            setIsGenerating(true);
+                                                            try {
+                                                                const res = await api.post('/ai/generate-task', { prompt: aiPrompt });
+                                                                setValue('title', res.data.title);
+                                                                setValue('description', res.data.description);
+                                                                setShowAiPrompt(false);
+                                                                setAiPrompt('');
+                                                                toast.success('Strategy Drafted by AI!');
+                                                            } catch (err) {
+                                                                toast.error('AI Generation encountered an error');
+                                                            } finally {
+                                                                setIsGenerating(false);
+                                                            }
                                                         }
-                                                    }
-                                                }}
-                                                placeholder="Describe the issue... (e.g. 'Button is overlapping on mobile')"
-                                                className="w-full bg-white border-slate-200 text-xs font-bold py-2 pl-3 pr-8 rounded-md focus:ring-2 focus:ring-primary-100 outline-none transition-all"
-                                            />
-                                            <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
-                                                {isGenerating ? (
-                                                    <Loader2 size={12} className="text-primary-600 animate-spin" />
-                                                ) : (
-                                                    <Sparkles size={12} className="text-primary-300" />
-                                                )}
+                                                    }}
+                                                    placeholder="Briefly describe what's happening... (e.g. 'Fix layout on iPhone')"
+                                                    className="w-full bg-white border-primary-200 text-sm font-bold py-3 pl-4 pr-12 rounded-lg focus:ring-4 focus:ring-primary-100 focus:border-primary-500 outline-none transition-all shadow-sm placeholder:text-slate-300"
+                                                />
+                                                <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                                                    {isGenerating ? (
+                                                        <Loader2 size={18} className="text-primary-600 animate-spin" />
+                                                    ) : (
+                                                        <Sparkles size={18} className="text-primary-400 group-hover:text-primary-600 transition-colors" />
+                                                    )}
+                                                </div>
                                             </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowAiPrompt(false)}
+                                                className="text-[10px] font-black uppercase text-slate-400 hover:text-slate-600 px-2 transition-colors"
+                                            >
+                                                Cancel
+                                            </button>
                                         </div>
-                                        <p className="text-[8px] font-black text-primary-500 mt-1.5 uppercase tracking-widest px-0.5">
-                                            ⚡ AI will fill the title and detailed description for you
-                                        </p>
+                                        <div className="flex items-center gap-2 mt-3 pl-1">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-pulse" />
+                                            <p className="text-[9px] font-black text-primary-600 uppercase tracking-widest">
+                                                Gemini Engine Active • Press <span className="text-slate-900 border border-slate-200 px-1 rounded-sm bg-white">Enter</span> to proceed
+                                            </p>
+                                        </div>
                                     </div>
                                 )}
 

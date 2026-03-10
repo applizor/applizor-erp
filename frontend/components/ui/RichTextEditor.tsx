@@ -198,7 +198,7 @@ const RichTextEditor = forwardRef(({ value, onChange, onPost, placeholder, class
                     <MarkdownShortcutPlugin transformers={TRANSFORMERS} />
 
                     <LexicalOnChange htmlOnChange={onChange} />
-                    <InitialContentPlugin html={value} />
+                    <ContentSyncPlugin html={value} />
                     <ImagePlugin />
                     <EditorRefBridge ref={ref} />
                 </div>
@@ -227,24 +227,35 @@ function LexicalOnChange({ htmlOnChange }: { htmlOnChange: (html: string) => voi
     );
 }
 
-// Helper for initial content
-function InitialContentPlugin({ html }: { html: string }) {
+// Helper for initial and external content updates
+function ContentSyncPlugin({ html }: { html: string }) {
     const [editor] = useLexicalComposerContext();
-    const isFirstRender = useRef(true);
+    const lastHtmlRef = useRef(html);
 
     useEffect(() => {
-        if (isFirstRender.current && html) {
-            isFirstRender.current = false;
+        // Only update if the external HTML is actually different from what we last sent/received
+        // This prevents cursor resets while the user is typing
+        if (html !== lastHtmlRef.current) {
+            lastHtmlRef.current = html;
             editor.update(() => {
                 const parser = new DOMParser();
-                const dom = parser.parseFromString(html, 'text/html');
+                const dom = parser.parseFromString(html || '', 'text/html');
                 const nodes = $generateNodesFromDOM(editor, dom);
                 $getRoot().clear().append(...nodes);
             });
         }
     }, [editor, html]);
 
-    return null;
+    return (
+        <OnChangePlugin onChange={() => {
+            editor.getEditorState().read(() => {
+                const currentHtml = $generateHtmlFromNodes(editor);
+                if (currentHtml !== lastHtmlRef.current) {
+                    lastHtmlRef.current = currentHtml;
+                }
+            });
+        }} />
+    );
 }
 
 // Helper to expose editor methods via ref

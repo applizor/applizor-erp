@@ -21,6 +21,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
     const router = useRouter();
     const pathname = usePathname();
     const [user, setUser] = useState<any>(null);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     useEffect(() => {
         // Check auth
@@ -64,8 +65,20 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
 
     return (
         <div className="min-h-screen bg-slate-50 flex">
+            {/* Mobile Sidebar Backdrop */}
+            {isSidebarOpen && (
+                <div 
+                    className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-30 md:hidden animate-fade-in"
+                    onClick={() => setIsSidebarOpen(false)}
+                />
+            )}
+
             {/* Sidebar */}
-            <div className="fixed inset-y-0 left-0 w-64 bg-slate-900 text-white z-30 flex flex-col transition-transform duration-300 ease-in-out md:translate-x-0 -translate-x-full border-r border-slate-800/50 shadow-2xl">
+            <div className={`
+                fixed inset-y-0 left-0 w-64 bg-slate-900 text-white z-40 flex flex-col transition-all duration-300 ease-in-out 
+                md:translate-x-0 ${isSidebarOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'} 
+                border-r border-slate-800/50
+            `}>
                 {/* Brand Section */}
                 <div className="h-16 flex items-center px-6 gap-3 border-b border-slate-800/50 bg-brand-gradient">
                     <div className="w-8 h-8 bg-white/10 backdrop-blur-md rounded-md flex items-center justify-center border border-white/10 flex-shrink-0">
@@ -85,6 +98,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
                             <Link
                                 key={item.name}
                                 href={item.href}
+                                onClick={() => setIsSidebarOpen(false)}
                                 className={`
                                     group flex items-center px-4 py-2 text-[11px] font-bold rounded-md transition-all duration-200 relative
                                     ${isActive
@@ -126,13 +140,16 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
             <main className="flex-1 md:ml-64 min-h-screen flex flex-col">
                 {/* Mobile Header */}
                 <header className="md:hidden h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 sticky top-0 z-20">
-                    <span className="font-black text-slate-800 uppercase">Applizor Portal</span>
-                    <button className="p-2 text-slate-600">
+                    <span className="font-black text-slate-800 uppercase text-xs tracking-widest">Applizor Portal</span>
+                    <button 
+                        className="p-2 text-slate-600 hover:bg-slate-50 rounded-md transition-colors"
+                        onClick={() => setIsSidebarOpen(true)}
+                    >
                         <Menu size={20} />
                     </button>
                 </header>
 
-                <div className="flex-1 p-6 md:p-8 max-w-7xl mx-auto w-full">
+                <div className="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full">
                     {children}
                 </div>
             </main>

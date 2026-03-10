@@ -1,15 +1,15 @@
-import { Router, Response } from 'express';
+import { Router, Response, Request } from 'express';
 import { AIService } from '../services/ai.service';
-import { authenticate, AuthRequest } from '../middleware/auth';
+import { combinedAuth, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
 /**
  * @route POST /api/ai/generate-task
  * @desc Generate a structured task from a user prompt
- * @access Private
+ * @access Private (Staff & Client Portal)
  */
-router.post('/generate-task', authenticate, async (req: AuthRequest, res: Response) => {
+router.post('/generate-task', combinedAuth, async (req: AuthRequest, res: Response) => {
     try {
         const { prompt } = req.body;
 
