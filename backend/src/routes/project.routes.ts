@@ -31,6 +31,7 @@ router.post('/:id/milestones', checkPermission('Project', 'update'), projectCont
 router.get('/:id/notes', checkPermission('Project', 'read'), projectController.getProjectNotes);
 router.post('/:id/notes', checkPermission('Project', 'update'), projectController.createProjectNote);
 router.put('/notes/:noteId', checkPermission('Project', 'update'), projectController.updateProjectNote);
+router.delete('/notes/:noteId', checkPermission('Project', 'update'), projectController.deleteProjectNote);
 
 // Documents (Files)
 router.get('/:id/documents', checkPermission('Project', 'read'), projectController.getProjectDocuments);

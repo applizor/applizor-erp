@@ -185,7 +185,7 @@ export default function DocumentTemplatesPage() {
                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Zero document nodes detected. Initialize first registry.</p>
                 </div>
             ) : (
-                <div className="ent-card overflow-hidden">
+                <div className="ent-table-container">
                     <table className="ent-table">
                         <thead>
                             <tr>

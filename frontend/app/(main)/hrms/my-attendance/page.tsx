@@ -214,7 +214,7 @@ export default function MyAttendancePage() {
                     <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Attendance History</h3>
                     <History size={14} className="text-gray-400" />
                 </div>
-                <div className="overflow-x-auto">
+                <div className="ent-table-container">
                     <table className="ent-table">
                         <thead>
                             <tr>

@@ -148,7 +148,7 @@ export default function BulkAssignPage() {
 
             {/* Table */}
             <div className="ent-card overflow-hidden">
-                <div className="overflow-x-auto">
+                <div className="ent-table-container">
                     <table className="ent-table w-full text-left">
                         <thead>
                             <tr>

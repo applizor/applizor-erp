@@ -386,7 +386,7 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
                     </button>
                 </div>
 
-                <div className="overflow-x-auto">
+                <div className="ent-table-container">
                     <table className="w-full border-collapse">
                         <thead>
                             <tr className="bg-gray-50/30 text-left border-b border-gray-50">

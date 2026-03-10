@@ -160,7 +160,7 @@ export default function AttendancePage() {
                     </h3>
                 </div>
 
-                <div className="ent-card overflow-hidden">
+                <div className="ent-table-container">
                     <table className="ent-table">
                         <thead>
                             <tr>
@@ -229,7 +229,7 @@ export default function AttendancePage() {
             </div>
 
             {/* Global Audit Ledger */}
-            <div className="ent-card overflow-hidden">
+            <div className="ent-table-container">
                 <table className="ent-table">
                     <thead>
                         <tr>

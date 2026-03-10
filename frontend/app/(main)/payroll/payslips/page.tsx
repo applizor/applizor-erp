@@ -147,7 +147,7 @@ export default function PayslipsPage() {
                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Zero disbursement records detected in current period</p>
                         </div>
                     ) : (
-                        <div className="overflow-x-auto">
+                        <div className="ent-table-container">
                             <table className="ent-table">
                                 <thead>
                                     <tr>

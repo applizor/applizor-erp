@@ -167,7 +167,7 @@ export default function TrialBalancePage() {
                         </span>
                     </div>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="ent-table-container">
                     <table className="ent-table w-full">
                         <thead>
                             <tr className="bg-white/50">

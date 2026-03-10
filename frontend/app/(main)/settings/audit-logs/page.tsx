@@ -68,7 +68,7 @@ export default function AuditLogsPage() {
                             <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></div>
                         </div>
                     </div>
-                    <div className="overflow-x-auto">
+                    <div className="ent-table-container">
                         <table className="ent-table">
                             <thead>
                                 <tr>

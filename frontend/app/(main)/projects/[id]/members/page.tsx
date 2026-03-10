@@ -6,6 +6,7 @@ import { employeesApi } from '@/lib/api/employees';
 import api from '@/lib/api';
 import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 export default function ProjectMembersPage({ params }: { params: { id: string } }) {
     const toast = useToast();
@@ -18,6 +19,7 @@ export default function ProjectMembersPage({ params }: { params: { id: string } 
     const [search, setSearch] = useState('');
     const [employees, setEmployees] = useState<any[]>([]);
     const [searchLoading, setSearchLoading] = useState(false);
+    const [roleToAssign, setRoleToAssign] = useState('member');
 
     useEffect(() => {
         fetchProject();
@@ -70,9 +72,9 @@ export default function ProjectMembersPage({ params }: { params: { id: string } 
         }
     };
 
-    const handleAddMember = async (employeeId: string, role: string = 'member') => {
+    const handleAddMember = async (employeeId: string) => {
         try {
-            await api.post(`/projects/${params.id}/members`, { employeeId, role });
+            await api.post(`/projects/${params.id}/members`, { employeeId, role: roleToAssign });
             toast.success('Member added successfully');
             setSearch('');
             setEmployees([]);
@@ -195,6 +197,18 @@ export default function ProjectMembersPage({ params }: { params: { id: string } 
                         </h3>
 
                         <div className="space-y-4">
+                            <div>
+                                <label className="ent-label block mb-1">Assign Role</label>
+                                <CustomSelect
+                                    options={[
+                                        { value: 'member', label: 'Team Member' },
+                                        { value: 'manager', label: 'Project Manager' }
+                                    ]}
+                                    value={roleToAssign}
+                                    onChange={setRoleToAssign}
+                                />
+                            </div>
+
                             <div className="relative">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
                                 <input

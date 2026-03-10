@@ -114,6 +114,7 @@ export default function TimesheetApprovals() {
             </div>
 
             <div className="bg-white rounded-md border border-gray-200 shadow-sm overflow-hidden">
+            <div className="ent-table-container">
                 <table className="ent-table w-full text-left">
                     <thead className="bg-gray-50">
                         <tr>
@@ -163,6 +164,7 @@ export default function TimesheetApprovals() {
                         )}
                     </tbody>
                 </table>
+            </div>
             </div>
 
             {/* Reject Modal */}

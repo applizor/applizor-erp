@@ -90,7 +90,7 @@ export default function LocationsPage() {
                     <div className="px-5 py-4 border-b border-slate-50 bg-slate-50/30">
                         <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Regional Branch Registry</h3>
                     </div>
-                    <div className="overflow-x-auto">
+                    <div className="ent-table-container">
                         <table className="ent-table">
                             <thead>
                                 <tr>

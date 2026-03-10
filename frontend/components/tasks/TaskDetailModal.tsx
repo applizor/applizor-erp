@@ -30,9 +30,10 @@ function LiveTimerDisplay({ startTime, formatTime, accumulatedTime = 0, isPaused
 
     useEffect(() => {
         const calculateElapsed = () => {
-            if (isPaused) return accumulatedTime;
+            if (isPaused) return Math.min(accumulatedTime, 43200);
             const elapsedSinceStart = Math.floor((Date.now() - startTime) / 1000);
-            return accumulatedTime + elapsedSinceStart;
+            const total = accumulatedTime + elapsedSinceStart;
+            return total > 43200 ? 43200 : total; // 12 hours max
         };
 
         setSeconds(calculateElapsed());

@@ -562,7 +562,7 @@ export default function EditQuotationPage({ params }: { params: { id: string } }
                         </div>
                     </div>
 
-                    <div className="overflow-x-auto">
+                    <div className="ent-table-container">
                         <table className="min-w-full divide-y divide-gray-100">
                             <thead className="bg-gray-50/50">
                                 <tr>

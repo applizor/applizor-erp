@@ -1,4 +1,4 @@
-import { Bell, LogOut, Search, User, Settings, HelpCircle, ChevronDown, Clock } from 'lucide-react';
+import { Bell, LogOut, Search, User, Settings, HelpCircle, ChevronDown, Clock, Menu, Building2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { auth } from '@/lib/auth';
 import { useState, useRef, useEffect } from 'react';
@@ -91,10 +91,30 @@ export default function TopHeader() {
         }
     };
 
+    const handleOpenMenu = () => {
+        window.dispatchEvent(new CustomEvent('open-mobile-menu'));
+    };
+
     return (
         <header className="h-14 bg-white border-b border-gray-200 sticky top-0 z-20 px-4 md:px-6 flex items-center justify-between shadow-sm">
-            {/* Left Side (Search or Breadcrumbs - Placeholder for now) */}
-            <div className="flex items-center gap-4 flex-1">
+            {/* Mobile Menu Trigger & Brand */}
+            <div className="flex items-center gap-3 md:hidden">
+                <button 
+                    onClick={handleOpenMenu}
+                    className="p-2 -ml-2 text-slate-600 hover:bg-slate-50 rounded-md transition-colors"
+                >
+                    <Menu size={20} />
+                </button>
+                <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 bg-primary-600 rounded flex items-center justify-center shadow-sm">
+                        <Building2 size={16} className="text-white" />
+                    </div>
+                    <span className="text-sm font-black tracking-tight text-primary-900 uppercase">Applizor</span>
+                </div>
+            </div>
+
+            {/* Left Side (Search - Desktop only) */}
+            <div className="hidden md:flex items-center gap-4 flex-1">
                 <div className="hidden md:flex items-center relative max-w-md w-full">
                     <Search className="absolute left-3 w-3.5 h-3.5 text-gray-400" />
                     <input
@@ -110,7 +130,7 @@ export default function TopHeader() {
             </div>
 
             {/* Right Side Actions */}
-            <div className="flex items-center gap-2 md:gap-4">
+            <div className="flex items-center gap-1.5 md:gap-4">
 
                 {/* Attendance Button */}
                 {statusFetched && !checkedOut && !isAdmin && (

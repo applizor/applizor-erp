@@ -179,7 +179,7 @@ export default function LeaveTypesPage() {
                     <div className="px-5 py-4 border-b border-slate-50">
                         <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Defined Leave Manifest</h3>
                     </div>
-                    <div className="overflow-x-auto">
+                    <div className="ent-table-container">
                         <table className="ent-table">
                             <thead>
                                 <tr>

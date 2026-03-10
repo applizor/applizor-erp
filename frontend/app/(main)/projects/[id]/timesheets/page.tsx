@@ -9,17 +9,35 @@ import { Badge } from '@/components/ui/Badge';
 import { format } from 'date-fns';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useSocket } from '@/contexts/SocketContext';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 export default function ProjectTimesheetPage({ params }: { params: { id: string } }) {
     const { error: showError } = useToast();
     const [timesheets, setTimesheets] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
+    // Filters
+    const [showFilters, setShowFilters] = useState(false);
+    const [filterEmployee, setFilterEmployee] = useState('');
+    const [filterStartDate, setFilterStartDate] = useState('');
+    const [filterEndDate, setFilterEndDate] = useState('');
+    const [employees, setEmployees] = useState<any[]>([]);
+
     const { socket } = useSocket();
 
     useEffect(() => {
         fetchTimesheets();
-    }, [params.id]);
+        fetchEmployees();
+    }, [params.id, filterEmployee, filterStartDate, filterEndDate]);
+
+    const fetchEmployees = async () => {
+        try {
+            const res = await api.get('/employees');
+            setEmployees(res.data.employees || res.data || []);
+        } catch (error) {
+            console.error('Failed to load employees', error);
+        }
+    };
 
     useEffect(() => {
         if (!socket) return;
@@ -37,7 +55,12 @@ export default function ProjectTimesheetPage({ params }: { params: { id: string 
     const fetchTimesheets = async () => {
         try {
             setLoading(true);
-            const res = await api.get(`/timesheets?projectId=${params.id}`);
+            let url = `/timesheets?projectId=${params.id}`;
+            if (filterEmployee) url += `&employeeId=${filterEmployee}`;
+            if (filterStartDate) url += `&startDate=${filterStartDate}`;
+            if (filterEndDate) url += `&endDate=${filterEndDate}`;
+
+            const res = await api.get(url);
             setTimesheets(res.data);
         } catch (error) {
             console.error(error);
@@ -57,15 +80,57 @@ export default function ProjectTimesheetPage({ params }: { params: { id: string 
                     <p className="text-xs text-slate-500">Track time spent on this project</p>
                 </div>
                 <div className="flex items-center gap-4">
-                    <div className="bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm">
+                    <div className="bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm mr-2 block">
                         <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block">Total Hours</span>
                         <span className="text-xl font-black text-slate-900">{totalHours.toFixed(2)}h</span>
                     </div>
+                    <Button 
+                        variant={showFilters ? 'secondary' : 'ghost'} 
+                        onClick={() => setShowFilters(!showFilters)}
+                        className={`bg-white border shadow-sm ${showFilters ? 'bg-primary-50 text-primary-700 border-primary-200' : 'text-slate-500 border-slate-200'}`}
+                    >
+                        <Filter size={14} className="mr-2" /> Filters
+                    </Button>
                 </div>
             </div>
 
+            {showFilters && (
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-4 animate-in fade-in slide-in-from-top-2">
+                    <div>
+                        <label className="ent-label block mb-1">Employee</label>
+                        <CustomSelect
+                            options={[
+                                { value: '', label: 'All Employees' },
+                                ...employees.map(e => ({ value: e.id, label: `${e.firstName} ${e.lastName}` }))
+                            ]}
+                            value={filterEmployee}
+                            onChange={setFilterEmployee}
+                            placeholder="Select Employee"
+                        />
+                    </div>
+                    <div>
+                        <label className="ent-label block mb-1">Start Date</label>
+                        <input 
+                            type="date" 
+                            className="ent-input w-full" 
+                            value={filterStartDate}
+                            onChange={(e) => setFilterStartDate(e.target.value)}
+                        />
+                    </div>
+                    <div>
+                        <label className="ent-label block mb-1">End Date</label>
+                        <input 
+                            type="date" 
+                            className="ent-input w-full" 
+                            value={filterEndDate}
+                            onChange={(e) => setFilterEndDate(e.target.value)}
+                        />
+                    </div>
+                </div>
+            )}
+
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="overflow-x-auto">
+                <div className="ent-table-container">
                     <table className="w-full text-sm text-left">
                         <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-medium">
                             <tr>
@@ -94,7 +159,15 @@ export default function ProjectTimesheetPage({ params }: { params: { id: string 
                                 timesheets.map((entry) => (
                                     <tr key={entry.id} className="hover:bg-slate-50 transition-colors">
                                         <td className="px-4 py-3 font-medium text-slate-700">
-                                            {format(new Date(entry.date), 'MMM d, yyyy')}
+                                            <div className="flex flex-col">
+                                                <span>{format(new Date(entry.date), 'MMM d, yyyy')}</span>
+                                                {(entry.startTime || entry.endTime) && (
+                                                    <span className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+                                                        <Clock size={10} />
+                                                        {entry.startTime ? format(new Date(entry.startTime), 'h:mm a') : '...'} - {entry.endTime ? format(new Date(entry.endTime), 'h:mm a') : '...'}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="px-4 py-3 flex items-center gap-2">
                                             <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-500">

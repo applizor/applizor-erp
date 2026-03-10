@@ -427,7 +427,7 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
                                 {/* Itemized Specification */}
                                 <div className="mb-10">
                                     <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 border-b border-gray-50 pb-2 text-right">Resource Ledger</h3>
-                                    <div className="overflow-x-auto">
+                                    <div className="ent-table-container">
                                         <table className="ent-table">
                                             <thead>
                                                 <tr>
@@ -534,7 +534,7 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
                                 {invoice.payments && invoice.payments.length > 0 && (
                                     <div className="mb-10">
                                         <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4 border-b border-gray-50 pb-2">Payment Records</h3>
-                                        <div className="overflow-x-auto">
+                                        <div className="ent-table-container">
                                             <table className="ent-table">
                                                 <thead>
                                                     <tr>

@@ -179,8 +179,8 @@ export default function ContractsList() {
 
             {/* List */}
             <div className="ent-card overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="ent-table">
+            <div className="ent-table-container">
+                <table className="ent-table">
                         <thead>
                             <tr>
                                 <th>Contract Title</th>

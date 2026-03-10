@@ -534,7 +534,7 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
                                         </div>
 
                                         {employee?.documents && employee.documents.length > 0 ? (
-                                            <div className="overflow-x-auto rounded-md border border-slate-200">
+                                            <div className="ent-table-container rounded-md border border-slate-200">
                                                 <table className="ent-table w-full text-left bg-white">
                                                     <thead className="bg-slate-50 text-[9px] font-black uppercase text-slate-500 tracking-widest border-b border-slate-200">
                                                         <tr>

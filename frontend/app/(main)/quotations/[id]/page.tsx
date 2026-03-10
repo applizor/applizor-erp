@@ -431,6 +431,7 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
 
                             {/* Items Table */}
                             <div className="px-8 py-8">
+                                <div className="ent-table-container">
                                 <table className="min-w-full">
                                     <thead>
                                         <tr className="border-b-2 border-gray-100">
@@ -475,6 +476,7 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
                                         ))}
                                     </tbody>
                                 </table>
+                                </div>
                             </div>
 
                             {/* Totals & Notes */}

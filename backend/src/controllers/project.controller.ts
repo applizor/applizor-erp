@@ -595,6 +595,29 @@ export const updateProjectNote = async (req: AuthRequest, res: Response) => {
     }
 };
 
+export const deleteProjectNote = async (req: AuthRequest, res: Response) => {
+    try {
+        const { noteId } = req.params;
+
+        const note = await prisma.projectNote.findUnique({
+            where: { id: noteId }
+        });
+
+        if (!note) {
+            return res.status(404).json({ error: 'Note not found' });
+        }
+
+        await prisma.projectNote.delete({
+            where: { id: noteId }
+        });
+
+        res.json({ message: 'Note deleted successfully' });
+    } catch (error) {
+        console.error('Delete Note Error:', error);
+        res.status(500).json({ error: 'Failed to delete note' });
+    }
+};
+
 // --- Project Documents (Files) ---
 
 export const getProjectDocuments = async (req: AuthRequest, res: Response) => {

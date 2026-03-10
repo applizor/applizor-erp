@@ -88,7 +88,7 @@ export default function GeneralLedgerPage() {
                 </div>
             </div>
 
-            <div className="ent-card overflow-hidden">
+            <div className="ent-table-container">
                 <table className="ent-table">
                     <thead>
                         <tr>

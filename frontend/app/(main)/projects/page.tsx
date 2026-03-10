@@ -227,7 +227,7 @@ export default function ProjectsPage() {
                 <>
                     {view === 'table' ? (
                         <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
-                            <div className="overflow-x-auto">
+                            <div className="ent-table-container">
                                 <table className="w-full text-left border-collapse">
                                     <thead>
                                         <tr className="bg-slate-50 border-b border-slate-200">

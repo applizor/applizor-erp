@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { BookOpen, Edit3, Save, Pin, Clock, Plus } from 'lucide-react';
+import { BookOpen, Edit3, Save, Pin, Clock, Plus, Trash2, AlertTriangle, X } from 'lucide-react';
 import api from '@/lib/api';
 import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
@@ -14,6 +14,7 @@ export default function ProjectWiki({ params }: { params: { id: string } }) {
     const [activeNote, setActiveNote] = useState<any | null>(null);
     const [isEditing, setIsEditing] = useState(false);
     const [members, setMembers] = useState<any[]>([]);
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
     // Editor State
     const [title, setTitle] = useState('');
@@ -89,6 +90,21 @@ export default function ProjectWiki({ params }: { params: { id: string } }) {
         }
     };
 
+    const handleDelete = async () => {
+        if (!activeNote) return;
+        try {
+            await api.delete(`/projects/notes/${activeNote.id}`);
+            toast.success('Wiki page deleted');
+            setIsDeleteDialogOpen(false);
+            setActiveNote(null);
+            setTitle('');
+            setContent('');
+            fetchNotes();
+        } catch (error) {
+            toast.error('Failed to delete page');
+        }
+    };
+
     if (loading) return <div className="p-12"><LoadingSpinner /></div>;
 
     return (
@@ -134,14 +150,24 @@ export default function ProjectWiki({ params }: { params: { id: string } }) {
                         )}
                     </div>
 
-                    <button
-                        onClick={handleSave}
-                        disabled={saving}
-                        className="btn-primary flex items-center gap-2"
-                    >
-                        {saving ? <LoadingSpinner size="sm" /> : <Save size={14} />}
-                        Save Changes
-                    </button>
+                    <div className="flex gap-3">
+                        {activeNote && (
+                            <button
+                                onClick={() => setIsDeleteDialogOpen(true)}
+                                className="ent-button-danger flex items-center gap-2"
+                            >
+                                <Trash2 size={14} /> Delete
+                            </button>
+                        )}
+                        <button
+                            onClick={handleSave}
+                            disabled={saving}
+                            className="btn-primary flex items-center gap-2"
+                        >
+                            {saving ? <LoadingSpinner size="sm" /> : <Save size={14} />}
+                            Save Changes
+                        </button>
+                    </div>
                 </div>
 
                 <div className="ent-card p-0 flex-1 flex flex-col overflow-hidden">
@@ -168,6 +194,37 @@ export default function ProjectWiki({ params }: { params: { id: string } }) {
                     />
                 </div>
             </div>
+
+            {/* Delete Confirmation Modal */}
+            {isDeleteDialogOpen && (
+                <div className="fixed inset-0 z-[100] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95">
+                        <div className="p-6">
+                            <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
+                                <AlertTriangle className="text-red-600" size={24} />
+                            </div>
+                            <h3 className="text-lg font-black text-slate-900 mb-2">Delete Wiki Page?</h3>
+                            <p className="text-slate-500 text-sm mb-6">
+                                Are you sure you want to delete <strong className="text-slate-700">{activeNote?.title}</strong>? This action cannot be undone.
+                            </p>
+                            <div className="flex gap-3 justify-end">
+                                <button
+                                    onClick={() => setIsDeleteDialogOpen(false)}
+                                    className="px-4 py-2 font-bold text-sm text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleDelete}
+                                    className="px-4 py-2 font-bold text-sm text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors flex items-center gap-2"
+                                >
+                                    <Trash2 size={16} /> Yes, Delete Page
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

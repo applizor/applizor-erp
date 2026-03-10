@@ -132,11 +132,12 @@ export const getTimesheets = async (req: AuthRequest, res: Response) => {
             return res.json([]);
         }
 
-        const { projectId, taskId, startDate, endDate } = req.query;
+        const { projectId, taskId, startDate, endDate, employeeId } = req.query;
 
         if (projectId) where.projectId = String(projectId);
         if (taskId) where.taskId = String(taskId);
         if (req.query.status) where.status = String(req.query.status);
+        if (employeeId) where.employeeId = String(employeeId);
 
         if (startDate || endDate) {
             where.date = {};
@@ -455,7 +456,16 @@ export const stopTimer = async (req: AuthRequest, res: Response) => {
             totalSeconds += Math.floor((now.getTime() - activeTimer.startTime.getTime()) / 1000);
         }
 
-        const durationHours = parseFloat((totalSeconds / 3600).toFixed(2));
+        let durationHours = parseFloat((totalSeconds / 3600).toFixed(2));
+
+        // Safety cap for runaway timers
+        let finalEndTime = now;
+        if (durationHours > 12) {
+            durationHours = 12;
+            // Adjust the actual end time in the database to be start time + 12 hours
+            // so it doesn't show 17 hours explicitly in the timesheet view.
+            finalEndTime = new Date(activeTimer.startTime.getTime() + (12 * 3600 * 1000));
+        }
 
         // Create Timesheet entry automatically
         let timesheetEntry = null;
@@ -467,8 +477,8 @@ export const stopTimer = async (req: AuthRequest, res: Response) => {
                     projectId: activeTimer.projectId,
                     taskId: activeTimer.taskId,
                     date: new Date(),
-                    startTime: activeTimer.startTime, // This might be slightly inaccurate for merged sessions, but fine for logs
-                    endTime: now,
+                    startTime: activeTimer.startTime, 
+                    endTime: finalEndTime,
                     hours: durationHours,
                     description: 'Timer Session',
                     status: 'draft' // Default to draft

@@ -140,7 +140,7 @@ export default function ChartOfAccountsPage() {
                     <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Operational Accounts</h3>
                     <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest bg-white px-2 py-1 rounded border border-gray-100 italic">Enterprise Ledger</span>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="ent-table-container">
                     <table className="ent-table w-full">
                         <thead>
                             <tr className="bg-white/50">

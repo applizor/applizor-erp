@@ -240,7 +240,7 @@ export default function MyLeavesPage() {
                         <span className="text-[10px] font-bold text-gray-500">{leaves.length} Total</span>
                     )}
                 </div>
-                <div className="overflow-x-auto">
+                <div className="ent-table-container">
                     <table className="ent-table">
                         <thead>
                             <tr>

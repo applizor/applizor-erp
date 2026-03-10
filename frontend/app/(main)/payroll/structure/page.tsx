@@ -77,7 +77,7 @@ export default function SalaryStructureListPage() {
             </div>
 
             {/* Data Grid */}
-            <div className="ent-card overflow-hidden">
+            <div className="ent-table-container">
                 <table className="ent-table">
                     <thead>
                         <tr>

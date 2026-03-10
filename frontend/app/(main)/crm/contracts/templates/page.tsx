@@ -92,67 +92,65 @@ export default function ContractTemplatesList() {
             </div>
 
             {/* List */}
-            <div className="ent-card overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="ent-table">
-                        <thead>
+            <div className="ent-table-container">
+                <table className="ent-table">
+                    <thead>
+                        <tr>
+                            <th>Template Name</th>
+                            <th>Description</th>
+                            <th>Last Updated</th>
+                            <th className="text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {filteredTemplates.length === 0 ? (
                             <tr>
-                                <th>Template Name</th>
-                                <th>Description</th>
-                                <th>Last Updated</th>
-                                <th className="text-right">Actions</th>
+                                <td colSpan={4} className="px-6 py-12 text-center text-slate-400 text-xs font-bold uppercase tracking-widest">
+                                    No templates found. Create one to get started.
+                                </td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            {filteredTemplates.length === 0 ? (
-                                <tr>
-                                    <td colSpan={4} className="px-6 py-12 text-center text-slate-400 text-xs font-bold uppercase tracking-widest">
-                                        No templates found. Create one to get started.
+                        ) : (
+                            filteredTemplates.map((template) => (
+                                <tr key={template.id} className="group">
+                                    <td>
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded bg-amber-50 flex items-center justify-center text-amber-600">
+                                                <Copy size={14} />
+                                            </div>
+                                            <p className="font-bold text-slate-900">{template.name}</p>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <p className="text-[11px] text-slate-500 max-w-md truncate">{template.description || '-'}</p>
+                                    </td>
+                                    <td>
+                                        <div className="text-[11px] font-bold text-slate-500">
+                                            {new Date(template.updatedAt).toLocaleDateString()}
+                                        </div>
+                                    </td>
+                                    <td className="text-right">
+                                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                                            <Link
+                                                href={`/crm/contracts/templates/${template.id}/edit`}
+                                                className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded transition-colors"
+                                                title="Edit"
+                                            >
+                                                <Edit size={14} />
+                                            </Link>
+                                            <button
+                                                onClick={() => handleDelete(template.id)}
+                                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
+                                                title="Delete"
+                                            >
+                                                <Trash size={14} />
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
-                            ) : (
-                                filteredTemplates.map((template) => (
-                                    <tr key={template.id} className="group">
-                                        <td>
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded bg-amber-50 flex items-center justify-center text-amber-600">
-                                                    <Copy size={14} />
-                                                </div>
-                                                <p className="font-bold text-slate-900">{template.name}</p>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <p className="text-[11px] text-slate-500 max-w-md truncate">{template.description || '-'}</p>
-                                        </td>
-                                        <td>
-                                            <div className="text-[11px] font-bold text-slate-500">
-                                                {new Date(template.updatedAt).toLocaleDateString()}
-                                            </div>
-                                        </td>
-                                        <td className="text-right">
-                                            <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                                                <Link
-                                                    href={`/crm/contracts/templates/${template.id}/edit`}
-                                                    className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded transition-colors"
-                                                    title="Edit"
-                                                >
-                                                    <Edit size={14} />
-                                                </Link>
-                                                <button
-                                                    onClick={() => handleDelete(template.id)}
-                                                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
-                                                    title="Delete"
-                                                >
-                                                    <Trash size={14} />
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                            ))
+                        )}
+                    </tbody>
+                </table>
             </div>
         </div>
     );

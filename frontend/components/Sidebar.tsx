@@ -46,6 +46,14 @@ export default function Sidebar() {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isCollapsed, setIsCollapsed] = useState(false);
 
+    // This effect handles direct external control via a custom event if needed,
+    // though we'll primarily use it locally for now.
+    useEffect(() => {
+        const handleOpenMobileMenu = () => setIsMobileMenuOpen(true);
+        window.addEventListener('open-mobile-menu', handleOpenMobileMenu);
+        return () => window.removeEventListener('open-mobile-menu', handleOpenMobileMenu);
+    }, []);
+
     // State for expanded categories
     const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
         'Main': true // Main always open by default
@@ -119,6 +127,7 @@ export default function Sidebar() {
     ];
 
     const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
+    const closeMobileMenu = () => setIsMobileMenuOpen(false);
     const toggleSidebar = () => setIsCollapsed(!isCollapsed);
 
     const { can } = usePermission();
@@ -199,19 +208,6 @@ export default function Sidebar() {
 
     return (
         <>
-            {/* Mobile Header */}
-            <div className="md:hidden bg-white/80 backdrop-blur-md border-b border-slate-100 p-4 flex justify-between items-center fixed w-full z-30 top-0">
-                <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-primary-600 rounded-md flex items-center justify-center">
-                        <Building2 size={18} className="text-white" />
-                    </div>
-                    <span className="sidebar-logo-text !text-primary-900">Applizor</span>
-                </div>
-                <button onClick={toggleMobileMenu} className="p-2 text-slate-600 hover:bg-slate-50 rounded-md transition-colors">
-                    <Menu size={24} />
-                </button>
-            </div>
-
             {/* Sidebar Container */}
             <div className={`
                 fixed inset-y-0 left-0 z-40 bg-slate-900 text-white transform transition-all duration-300 ease-in-out border-r border-slate-800/50 shadow-2xl flex flex-col

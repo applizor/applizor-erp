@@ -242,6 +242,7 @@ export default function GstSummaryPage() {
 
                 {/* Tax Summary Table */}
                 <div className="ent-card overflow-hidden">
+                    <div className="ent-table-container">
                     <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
                         <h3 className="text-xs font-black uppercase text-gray-900 tracking-widest">Tax Component Summary</h3>
                         <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">INR</span>
@@ -275,6 +276,7 @@ export default function GstSummaryPage() {
                             ))}
                         </tbody>
                     </table>
+                    </div>
                 </div>
             </div>
 
@@ -289,7 +291,7 @@ export default function GstSummaryPage() {
                         {data.transactions ? data.transactions.length : 0} Transactions
                     </span>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="ent-table-container">
                     <table className="ent-table w-full">
                         <thead>
                             <tr>

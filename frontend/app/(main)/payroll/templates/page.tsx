@@ -73,7 +73,7 @@ export default function SalaryTemplateListPage() {
             </div>
 
             {/* Template List */}
-            <div className="ent-card overflow-hidden">
+            <div className="ent-table-container">
                 <table className="ent-table w-full">
                     <thead>
                         <tr>

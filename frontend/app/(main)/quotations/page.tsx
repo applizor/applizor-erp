@@ -172,7 +172,7 @@ export default function QuotationsPage() {
                         <QuotationEmptyState />
                     ) : (
                         <div className="ent-card overflow-hidden">
-                            <div className="overflow-x-auto">
+                            <div className="ent-table-container">
                                 <table className="ent-table">
                                     <thead>
                                         <tr>

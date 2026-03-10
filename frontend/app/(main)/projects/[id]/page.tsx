@@ -214,7 +214,16 @@ export default function ProjectDashboard({ params }: { params: { id: string } })
                                                 <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${milestone.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
                                                     {milestone.status}
                                                 </span>
-                                                <p className="text-[9px] font-black text-slate-400 mt-1 uppercase">{milestone.dueDate ? new Date(milestone.dueDate).toLocaleDateString() : 'TBD'}</p>
+                                                <p className="text-[9px] font-black text-slate-400 mt-1 uppercase">
+                                                    {milestone.dueDate ? new Date(milestone.dueDate).toLocaleString('en-US', { 
+                                                        month: 'short', 
+                                                        day: 'numeric', 
+                                                        year: 'numeric', 
+                                                        hour: 'numeric', 
+                                                        minute: '2-digit', 
+                                                        hour12: true 
+                                                    }) : 'TBD'}
+                                                </p>
                                             </div>
                                         </div>
                                     </div>
@@ -250,7 +259,16 @@ export default function ProjectDashboard({ params }: { params: { id: string } })
                                             {activity.action} <span className="font-black text-white">{activity.taskTitle || activity.milestoneTitle}</span>
                                         </p>
                                         <div className="mt-2 flex items-center gap-3">
-                                            <span className="text-[8px] text-slate-600 font-bold uppercase">{new Date(activity.createdAt).toLocaleString([], { hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric' })}</span>
+                                            <span className="text-[8px] text-slate-600 font-bold uppercase">
+                                                {new Date(activity.createdAt).toLocaleString('en-US', { 
+                                                    month: 'short', 
+                                                    day: 'numeric', 
+                                                    year: 'numeric', 
+                                                    hour: 'numeric', 
+                                                    minute: '2-digit', 
+                                                    hour12: true 
+                                                })}
+                                            </span>
                                             {activity.taskId && (
                                                 <button
                                                     onClick={() => router.push(`/projects/${params.id}/tasks?taskId=${activity.taskId}`)}

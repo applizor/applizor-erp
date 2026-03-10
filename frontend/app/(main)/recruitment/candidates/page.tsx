@@ -145,129 +145,127 @@ export default function CandidatesPage() {
             </div>
 
             {/* Data Grid */}
-            <div className="ent-card overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="ent-table">
-                        <thead>
-                            <tr>
-                                <th>Candidate Identity</th>
-                                <th>Strategic Targeting</th>
-                                <th>Match Profile</th>
-                                <th>Evolvement State</th>
-                                <th>Intake Chronology</th>
-                                <th className="text-right">Operations</th>
+            <div className="ent-table-container">
+                <table className="ent-table">
+                    <thead>
+                        <tr>
+                            <th>Candidate Identity</th>
+                            <th>Strategic Targeting</th>
+                            <th>Match Profile</th>
+                            <th>Evolvement State</th>
+                            <th>Intake Chronology</th>
+                            <th className="text-right">Operations</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {loading && candidates.length === 0 ? (
+                            <TableRowSkeleton columns={6} rows={5} />
+                        ) : candidates.map((candidate) => (
+                            <tr key={candidate.id} className="group hover:bg-primary-50/30 transition-colors">
+                                <td className="p-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="h-9 w-9 rounded-md bg-primary-50 flex items-center justify-center text-[11px] font-black text-primary-700 border border-primary-100 shadow-sm">
+                                            {candidate.firstName ? candidate.firstName[0] : '?'}
+                                        </div>
+                                        <div>
+                                            <div className="text-[13px] font-black text-gray-900 tracking-tight leading-none uppercase group-hover:text-primary-700 transition-colors">
+                                                {candidate.firstName} {candidate.lastName}
+                                            </div>
+                                            <div className="flex flex-wrap gap-1 mt-1.5">
+                                                {candidate.tags?.map((tag: string) => (
+                                                    <span key={tag} className="px-1.5 py-0.5 bg-slate-100 text-[8px] font-black uppercase text-slate-500 rounded tracking-widest border border-slate-200">
+                                                        {tag}
+                                                    </span>
+                                                ))}
+                                                {candidate.email && (
+                                                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tight flex items-center gap-1">
+                                                        <Mail size={10} className="text-primary-400" /> {candidate.email}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td className="p-4">
+                                    <div className="flex items-center gap-2">
+                                        <Briefcase size={12} className="text-gray-400" />
+                                        <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">
+                                            {candidate.jobOpening?.title || 'GENERAL POOL'}
+                                        </span>
+                                    </div>
+                                </td>
+                                <td className="p-4">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden max-w-[80px]">
+                                            <div
+                                                className="h-full bg-primary-600 rounded-full"
+                                                style={{ width: `${Math.floor(Math.random() * 40) + 60}%` }}
+                                            />
+                                        </div>
+                                        <span className="text-[10px] font-black text-primary-700 uppercase tracking-widest">
+                                            {Math.floor(Math.random() * 40) + 60}%
+                                        </span>
+                                    </div>
+                                </td>
+                                <td className="p-4">
+                                    <span className={`ent-badge ${candidate.status === 'hired' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                                        candidate.status === 'rejected' ? 'bg-rose-50 text-rose-700 border-rose-100' :
+                                            'bg-primary-50 text-primary-700 border-primary-100'
+                                        }`}>
+                                        {candidate.status}
+                                    </span>
+                                </td>
+                                <td className="p-4">
+                                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                                        {new Date(candidate.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })} {new Date(candidate.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
+                                    </span>
+                                </td>
+                                <td className="p-4 text-right">
+                                    <div className="flex justify-end gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
+                                        <button
+                                            onClick={() => handleSchedule(candidate)}
+                                            className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-all"
+                                            title="Schedule Interview"
+                                        >
+                                            <Calendar size={14} />
+                                        </button>
+                                        <button
+                                            onClick={() => runAIAnalysis(candidate.id)}
+                                            className="p-2 text-primary-600 hover:bg-primary-50 rounded-md transition-all animate-pulse"
+                                            title="Execute AI Parsing"
+                                        >
+                                            <Zap size={14} />
+                                        </button>
+                                        <button
+                                            onClick={() => handleEdit(candidate)}
+                                            className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-md transition-all"
+                                            title="Edit Profile"
+                                        >
+                                            <Edit2 size={14} />
+                                        </button>
+                                        <button
+                                            onClick={() => handleDelete(candidate.id)}
+                                            className="p-2 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-all"
+                                            title="Purge Record"
+                                        >
+                                            <Trash2 size={14} />
+                                        </button>
+                                    </div>
+                                </td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            {loading && candidates.length === 0 ? (
-                                <TableRowSkeleton columns={6} rows={5} />
-                            ) : candidates.map((candidate) => (
-                                <tr key={candidate.id} className="group hover:bg-primary-50/30 transition-colors">
-                                    <td className="p-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="h-9 w-9 rounded-md bg-primary-50 flex items-center justify-center text-[11px] font-black text-primary-700 border border-primary-100 shadow-sm">
-                                                {candidate.firstName[0]}
-                                            </div>
-                                            <div>
-                                                <div className="text-[13px] font-black text-gray-900 tracking-tight leading-none uppercase group-hover:text-primary-700 transition-colors">
-                                                    {candidate.firstName} {candidate.lastName}
-                                                </div>
-                                                <div className="flex flex-wrap gap-1 mt-1.5">
-                                                    {candidate.tags?.map((tag: string) => (
-                                                        <span key={tag} className="px-1.5 py-0.5 bg-slate-100 text-[8px] font-black uppercase text-slate-500 rounded tracking-widest border border-slate-200">
-                                                            {tag}
-                                                        </span>
-                                                    ))}
-                                                    {candidate.email && (
-                                                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tight flex items-center gap-1">
-                                                            <Mail size={10} className="text-primary-400" /> {candidate.email}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="p-4">
-                                        <div className="flex items-center gap-2">
-                                            <Briefcase size={12} className="text-gray-400" />
-                                            <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">
-                                                {candidate.jobOpening?.title || 'GENERAL POOL'}
-                                            </span>
-                                        </div>
-                                    </td>
-                                    <td className="p-4">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden max-w-[80px]">
-                                                <div
-                                                    className="h-full bg-primary-600 rounded-full"
-                                                    style={{ width: `${Math.floor(Math.random() * 40) + 60}%` }}
-                                                />
-                                            </div>
-                                            <span className="text-[10px] font-black text-primary-700 uppercase tracking-widest">
-                                                {Math.floor(Math.random() * 40) + 60}%
-                                            </span>
-                                        </div>
-                                    </td>
-                                    <td className="p-4">
-                                        <span className={`ent-badge ${candidate.status === 'hired' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
-                                            candidate.status === 'rejected' ? 'bg-rose-50 text-rose-700 border-rose-100' :
-                                                'bg-primary-50 text-primary-700 border-primary-100'
-                                            }`}>
-                                            {candidate.status}
-                                        </span>
-                                    </td>
-                                    <td className="p-4">
-                                        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
-                                            {new Date(candidate.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
-                                        </span>
-                                    </td>
-                                    <td className="p-4 text-right">
-                                        <div className="flex justify-end gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
-                                            <button
-                                                onClick={() => handleSchedule(candidate)}
-                                                className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-all"
-                                                title="Schedule Interview"
-                                            >
-                                                <Calendar size={14} />
-                                            </button>
-                                            <button
-                                                onClick={() => runAIAnalysis(candidate.id)}
-                                                className="p-2 text-primary-600 hover:bg-primary-50 rounded-md transition-all animate-pulse"
-                                                title="Execute AI Parsing"
-                                            >
-                                                <Zap size={14} />
-                                            </button>
-                                            <button
-                                                onClick={() => handleEdit(candidate)}
-                                                className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-md transition-all"
-                                                title="Edit Profile"
-                                            >
-                                                <Edit2 size={14} />
-                                            </button>
-                                            <button
-                                                onClick={() => handleDelete(candidate.id)}
-                                                className="p-2 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-all"
-                                                title="Purge Record"
-                                            >
-                                                <Trash2 size={14} />
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                            {candidates.length === 0 && (
-                                <tr>
-                                    <td colSpan={6} className="p-12 text-center">
-                                        <div className="w-16 h-16 bg-gray-50 rounded-md flex items-center justify-center mx-auto mb-4 border border-gray-100">
-                                            <Users className="w-8 h-8 text-gray-300" />
-                                        </div>
-                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Reservoir Empty. Initiate Intake.</p>
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                        ))}
+                        {candidates.length === 0 && (
+                            <tr>
+                                <td colSpan={6} className="p-12 text-center">
+                                    <div className="w-16 h-16 bg-gray-50 rounded-md flex items-center justify-center mx-auto mb-4 border border-gray-100">
+                                        <Users className="w-8 h-8 text-gray-300" />
+                                    </div>
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Reservoir Empty. Initiate Intake.</p>
+                                </td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
             </div>
 
             <CandidateModal

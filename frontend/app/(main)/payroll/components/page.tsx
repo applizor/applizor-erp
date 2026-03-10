@@ -132,7 +132,7 @@ export default function PayrollComponentsPage() {
                 </div>
             </div>
 
-            <div className="bg-white rounded-md shadow-sm border border-gray-100 overflow-hidden">
+            <div className="ent-table-container">
                 <table className="ent-table">
                     <thead>
                         <tr>

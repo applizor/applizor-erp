@@ -182,7 +182,7 @@ export default function InvoicesPage() {
             <p className="text-xs text-gray-400 font-medium mt-1">Adjustment of filters may yield results</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="ent-table-container">
             <table className="ent-table">
               <thead>
                 <tr>

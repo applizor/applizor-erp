@@ -119,7 +119,7 @@ export default function TaxDeclarationPage() {
                             </Button>
                         </CardHeader>
                         <CardContent>
-                            <div className="overflow-x-auto">
+                            <div className="ent-table-container">
                                 <table className="w-full text-left">
                                     <thead>
                                         <tr className="border-b border-gray-100">
