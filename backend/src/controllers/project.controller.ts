@@ -197,7 +197,10 @@ export const getProjectById = async (req: AuthRequest, res: Response) => {
                 },
                 tasks: { select: { status: true } },
                 invoices: { select: { id: true, invoiceNumber: true, invoiceDate: true, total: true, paidAmount: true, status: true, subtotal: true, tax: true } },
-                timesheets: { select: { hours: true } },
+                timesheets: {
+                    where: { status: 'approved' },
+                    select: { hours: true }
+                },
                 _count: { select: { tasks: true } }
             }
         });
@@ -644,9 +647,11 @@ export const uploadProjectDocument = async (req: AuthRequest, res: Response) => 
         const { category, tags } = req.body;
 
         const safeName = req.file.originalname.replace(/[^a-zA-Z0-9-_\.]/g, '_');
-        const fileName = `projects / ${id}_${Date.now()}_${safeName} `;
+        const fileName = `projects/${id}_${Date.now()}_${safeName}`;
 
         const fileUrl = await StorageService.uploadFile(req.file.buffer, fileName, req.file.mimetype);
+
+        const employeeId = req.user?.employeeId;
 
         const document = await prisma.document.create({
             data: {
@@ -658,7 +663,8 @@ export const uploadProjectDocument = async (req: AuthRequest, res: Response) => 
                 fileSize: req.file.size,
                 mimeType: req.file.mimetype,
                 company: { connect: { id: req.user!.companyId } },
-                employee: { connect: { id: req.user!.employeeId! } }, // Assuming linked employee
+                ...(employeeId ? { employee: { connect: { id: employeeId } } } : {}),
+                uploadedBy: { connect: { id: req.user!.id } },
                 tags: tags ? JSON.parse(tags) : []
             }
         });

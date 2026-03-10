@@ -41,7 +41,7 @@ export const updateEmployeeStructure = async (req: AuthRequest, res: Response) =
     try {
         const userId = req.userId;
         const { employeeId } = req.params;
-        const { netSalary, ctc, effectiveDate, components } = req.body;
+        const { netSalary, ctc, effectiveDate, components, templateId } = req.body;
         // components: { componentId: string, monthlyAmount: number }[]
 
         const employee = await prisma.employee.findUnique({ where: { id: employeeId } });
@@ -56,11 +56,13 @@ export const updateEmployeeStructure = async (req: AuthRequest, res: Response) =
                     employeeId,
                     netSalary: netSalary || 0,
                     ctc: ctc || 0,
+                    templateId: templateId || null,
                     effectiveDate: effectiveDate ? new Date(effectiveDate) : new Date()
                 },
                 update: {
                     netSalary: netSalary || 0,
                     ctc: ctc || 0,
+                    templateId: templateId || null,
                     effectiveDate: effectiveDate ? new Date(effectiveDate) : new Date()
                 }
             });
@@ -75,8 +77,8 @@ export const updateEmployeeStructure = async (req: AuthRequest, res: Response) =
                 await tx.employeeSalaryComponent.createMany({
                     data: components.map((c: any) => ({
                         structureId: struct.id,
-                        componentId: c.componentId,
-                        monthlyAmount: c.monthlyAmount
+                        componentId: c.componentId || c.salaryComponentId,
+                        monthlyAmount: c.monthlyAmount !== undefined ? c.monthlyAmount : c.amount
                     }))
                 });
             }

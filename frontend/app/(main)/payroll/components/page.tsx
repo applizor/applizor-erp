@@ -106,108 +106,114 @@ export default function PayrollComponentsPage() {
 
     return (
         <div className="space-y-6">
-            {/* Page Header (Compact) */}
-            <div className="flex justify-between items-center bg-slate-50/50 p-4 rounded-md border border-slate-100">
-                <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-primary-900 rounded-md flex items-center justify-center shadow-md">
-                        <Settings2 size={16} className="text-white" />
+            {/* Standard Page Header */}
+            <div className="bg-white p-5 rounded-md border border-gray-200 shadow-sm flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                <div className="flex items-center gap-4">
+                    <div className="p-2.5 bg-primary-900 rounded-md shadow-lg">
+                        <Settings2 size={20} className="text-white" />
                     </div>
                     <div>
-                        <h2 className="text-sm font-black text-gray-900 uppercase tracking-tight">Component Registry</h2>
-                        <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest leading-none">Global Remuneration Schema Units</p>
+                        <h2 className="text-lg font-black text-gray-900 tracking-tight leading-none uppercase">Component Registry</h2>
+                        <p className="text-[10px] text-gray-500 font-bold mt-1 uppercase tracking-widest leading-none">Global Remuneration Schema Units</p>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3">
-                    <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-white border border-slate-200 rounded-md text-[9px] font-black uppercase tracking-widest text-slate-400">
+                <div className="flex items-center gap-3 w-full lg:w-auto">
+                    <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-100 rounded-md text-[9px] font-black uppercase tracking-widest text-slate-500">
                         <Activity size={12} className="text-primary-600" />
                         <span>Active: {components.filter(c => c.isActive).length} Nodes</span>
                     </div>
                     <button
                         onClick={() => handleOpenModal()}
-                        className="btn-primary py-2 px-4 shadow-lg shadow-primary-900/10 active:scale-95"
+                        className="btn-primary py-2 px-4 text-[10px] font-black uppercase tracking-widest shadow-sm active:scale-95"
                     >
                         <Plus size={14} className="mr-2" /> Register Component
                     </button>
                 </div>
             </div>
 
-            <div className="ent-table-container">
-                <table className="ent-table">
-                    <thead>
-                        <tr>
-                            <th>Component Identity</th>
-                            <th>Classification</th>
-                            <th>Valuation Protocol</th>
-                            <th>Default Magnitude</th>
-                            <th>Ledger Account</th>
-                            <th>Lifecycle Status</th>
-                            <th className="text-right">Operations</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {components.length === 0 ? (
+            <div className="bg-white rounded-md border border-gray-200 shadow-sm overflow-hidden">
+                <div className="ent-table-container">
+                    <table className="w-full text-xs text-left">
+                        <thead className="bg-slate-50 border-b border-gray-100 text-[9px] font-black uppercase tracking-widest text-slate-500">
                             <tr>
-                                <td colSpan={6} className="p-8 text-center text-gray-400">
-                                    No salary components defined yet.
-                                </td>
+                                <th className="px-5 py-4">Component Identity</th>
+                                <th className="px-5 py-4">Classification</th>
+                                <th className="px-5 py-4">Valuation Protocol</th>
+                                <th className="px-5 py-4">Default Magnitude</th>
+                                <th className="px-5 py-4">Ledger Account</th>
+                                <th className="px-5 py-4">Lifecycle Status</th>
+                                <th className="px-5 py-4 text-right">Operations</th>
                             </tr>
-                        ) : (
-                            components.map((comp) => (
-                                <tr key={comp.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
-                                    <td className="p-4 font-black text-gray-900 uppercase tracking-tight text-xs">{comp.name}</td>
-                                    <td className="p-4">
-                                        <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest border ${comp.type === 'earning'
-                                            ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
-                                            : 'bg-rose-50 text-rose-700 border-rose-100'
-                                            }`}>
-                                            {comp.type}
-                                        </span>
-                                    </td>
-                                    <td className="p-4 text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1.5 pt-6">
-                                        {comp.calculationType === 'flat' ? <DollarSign size={12} className="text-primary-600" /> : <Percent size={12} className="text-primary-600" />}
-                                        {comp.calculationType === 'flat' ? 'Flat Magnitude' : 'Formula Computation'}
-                                    </td>
-                                    <td className="p-4 text-xs font-black text-gray-900">
-                                        {comp.defaultValue}
-                                        {comp.calculationType === 'percentage_basic' && '%'}
-                                    </td>
-                                    <td className="p-4">
-                                        <div className="flex flex-col">
-                                            <span className="text-[10px] font-black text-gray-900 uppercase tracking-tight">
-                                                {accounts.find(a => a.id === comp.ledgerAccountId)?.code || '---'}
-                                            </span>
-                                            <span className="text-[9px] text-gray-400 font-bold uppercase tracking-widest leading-tight">
-                                                {accounts.find(a => a.id === comp.ledgerAccountId)?.name || 'Not Mapped'}
-                                            </span>
-                                        </div>
-                                    </td>
-                                    <td className="p-4">
-                                        <span className={`ent-badge ${comp.isActive ? 'ent-badge-success' : 'ent-badge-neutral'}`}>
-                                            {comp.isActive ? 'OPERATIONAL' : 'ARCHIVED'}
-                                        </span>
-                                    </td>
-                                    <td className="p-4 text-right">
-                                        <div className="flex items-center justify-end gap-3 px-2">
-                                            <button
-                                                onClick={() => handleOpenModal(comp)}
-                                                className="text-[9px] font-black text-primary-600 uppercase tracking-widest hover:text-primary-800 transition-colors"
-                                            >
-                                                Adjust
-                                            </button>
-                                            <button
-                                                onClick={() => handleDelete(comp.id)}
-                                                className="text-[9px] font-black text-gray-300 hover:text-rose-600 uppercase tracking-widest transition-colors"
-                                            >
-                                                Purge
-                                            </button>
-                                        </div>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {components.length === 0 ? (
+                                <tr>
+                                    <td colSpan={7} className="px-5 py-16 text-center text-slate-400 italic font-medium">
+                                        No salary components defined yet.
                                     </td>
                                 </tr>
-                            ))
-                        )}
-                    </tbody>
-                </table>
+                            ) : (
+                                components.map((comp) => (
+                                    <tr key={comp.id} className="hover:bg-slate-50/50 transition-colors group">
+                                        <td className="px-5 py-4 font-black text-slate-900 uppercase tracking-tight">{comp.name}</td>
+                                        <td className="px-5 py-4">
+                                            <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border ${comp.type === 'earning'
+                                                ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                                                : 'bg-rose-50 text-rose-700 border-rose-100'
+                                                }`}>
+                                                {comp.type}
+                                            </span>
+                                        </td>
+                                        <td className="px-5 py-4">
+                                            <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 uppercase">
+                                                {comp.calculationType === 'flat' ? <DollarSign size={12} className="text-primary-600" /> : <Percent size={12} className="text-primary-600" />}
+                                                {comp.calculationType === 'flat' ? 'Flat Magnitude' : 'Formula Computation'}
+                                            </div>
+                                        </td>
+                                        <td className="px-5 py-4 font-black text-slate-900">
+                                            {comp.defaultValue.toLocaleString()}
+                                            {comp.calculationType === 'percentage_basic' && '%'}
+                                        </td>
+                                        <td className="px-5 py-4">
+                                            <div className="flex flex-col">
+                                                <span className="text-[10px] font-black text-slate-900 uppercase tracking-tight">
+                                                    {accounts.find(a => a.id === comp.ledgerAccountId)?.code || '---'}
+                                                </span>
+                                                <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest leading-none mt-1">
+                                                    {accounts.find(a => a.id === comp.ledgerAccountId)?.name || 'Not Mapped'}
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td className="px-5 py-4">
+                                            <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border ${comp.isActive
+                                                ? 'bg-primary-50 text-primary-700 border-primary-100'
+                                                : 'bg-slate-50 text-slate-500 border-slate-100'}`}>
+                                                {comp.isActive ? 'OPERATIONAL' : 'ARCHIVED'}
+                                            </span>
+                                        </td>
+                                        <td className="px-5 py-4 text-right">
+                                            <div className="flex items-center justify-end gap-3 px-2">
+                                                <button
+                                                    onClick={() => handleOpenModal(comp)}
+                                                    className="text-[9px] font-black text-primary-600 uppercase tracking-widest hover:text-primary-800 transition-colors"
+                                                >
+                                                    Adjust
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDelete(comp.id)}
+                                                    className="text-[9px] font-black text-slate-300 hover:text-rose-600 uppercase tracking-widest transition-colors"
+                                                >
+                                                    Purge
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             {/* Modal */}

@@ -202,6 +202,7 @@ export default function ProjectMembersPage({ params }: { params: { id: string } 
                                 <CustomSelect
                                     options={[
                                         { value: 'member', label: 'Team Member' },
+                                        { value: 'lead', label: 'Team Lead' },
                                         { value: 'manager', label: 'Project Manager' }
                                     ]}
                                     value={roleToAssign}

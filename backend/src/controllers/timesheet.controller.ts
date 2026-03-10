@@ -34,7 +34,8 @@ export const createTimeEntry = async (req: AuthRequest, res: Response) => {
                 startTime: startTime ? new Date(startTime) : null,
                 endTime: endTime ? new Date(endTime) : null,
                 hours: Number(hours), // Prisma Decimal needs number or string
-                description
+                description,
+                status: 'pending' // Default to pending for approval workflow
             }
         });
 
@@ -86,7 +87,8 @@ export const bulkCreateTimeEntries = async (req: AuthRequest, res: Response) => 
                         taskId: entry.taskId || null,
                         date: new Date(date),
                         hours: Number(entry.hours),
-                        description: entry.description || ''
+                        description: entry.description || '',
+                        status: 'pending' // Default to pending for approval workflow
                     }
                 })
             )

@@ -150,15 +150,26 @@ export const upsertEmployeeSalaryStructure = async (req: AuthRequest, res: Respo
         }
 
         const { employeeId } = req.params;
-        const { ctc, netSalary, components } = req.body; // components: [{ componentId, amount }]
+        const { ctc, netSalary, components, templateId, effectiveDate } = req.body; 
 
         // Transaction to ensure atomicity
         const result = await prisma.$transaction(async (tx) => {
             // 1. Upsert Structure Header
             const structure = await tx.employeeSalaryStructure.upsert({
                 where: { employeeId },
-                update: { ctc, netSalary },
-                create: { employeeId, ctc, netSalary }
+                update: { 
+                    ctc, 
+                    netSalary,
+                    templateId: templateId || null,
+                    effectiveDate: effectiveDate ? new Date(effectiveDate) : undefined
+                },
+                create: { 
+                    employeeId, 
+                    ctc, 
+                    netSalary,
+                    templateId: templateId || null,
+                    effectiveDate: effectiveDate ? new Date(effectiveDate) : new Date()
+                }
             });
 
             // 2. Delete existing component mappings for this structure
@@ -171,11 +182,19 @@ export const upsertEmployeeSalaryStructure = async (req: AuthRequest, res: Respo
                 await tx.employeeSalaryComponent.createMany({
                     data: components.map((c: any) => ({
                         structureId: structure.id,
-                        componentId: c.componentId,
-                        monthlyAmount: c.amount
+                        // Fix for field mismatch: support both componentId and salaryComponentId
+                        componentId: c.componentId || c.salaryComponentId,
+                        // Fix for field mismatch: support both monthlyAmount and amount
+                        monthlyAmount: c.monthlyAmount !== undefined ? c.monthlyAmount : c.amount
                     }))
                 });
             }
+
+            // 4. Also update the salary field in Employee model for quick access listing
+            await tx.employee.update({
+                where: { id: employeeId },
+                data: { salary: ctc }
+            });
 
             return structure;
         });

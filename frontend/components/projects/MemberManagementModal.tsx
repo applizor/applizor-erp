@@ -118,13 +118,29 @@ export function MemberManagementModal({ isOpen, onClose, projectId, currentMembe
                                                 <p className="text-[9px] text-gray-400 uppercase tracking-wider">{emp.position?.title || 'No Position'}</p>
                                             </div>
                                         </div>
-                                        <button
-                                            onClick={() => handleAddMember(emp.id)}
-                                            className="p-1.5 bg-gray-900 text-white rounded hover:bg-primary-600 transition-colors"
-                                            title="Add as Member"
-                                        >
-                                            <UserPlus size={14} />
-                                        </button>
+                                        <div className="flex items-center gap-1.5">
+                                            <button
+                                                onClick={() => handleAddMember(emp.id, 'member')}
+                                                className="p-1.5 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors text-[9px] font-black uppercase"
+                                                title="Add as Member"
+                                            >
+                                                Member
+                                            </button>
+                                            <button
+                                                onClick={() => handleAddMember(emp.id, 'lead')}
+                                                className="p-1.5 bg-amber-50 text-amber-700 rounded hover:bg-amber-100 transition-colors text-[9px] font-black uppercase"
+                                                title="Add as Team Lead"
+                                            >
+                                                Lead
+                                            </button>
+                                            <button
+                                                onClick={() => handleAddMember(emp.id, 'manager')}
+                                                className="p-1.5 bg-primary-600 text-white rounded hover:bg-primary-700 transition-colors text-[9px] font-black uppercase"
+                                                title="Add as Project Manager"
+                                            >
+                                                Manager
+                                            </button>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
