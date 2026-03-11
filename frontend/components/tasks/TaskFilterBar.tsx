@@ -24,7 +24,7 @@ export function TaskFilterBar({ filters, onFilterChange, onClearFilters, members
         { label: 'Unassigned', value: 'unassigned' },
         ...members.map(m => ({
             label: `${m.employee.firstName} ${m.employee.lastName}`,
-            value: m.employee.id // Assuming we filter by employeeId or userId depending on backend
+            value: m.employee.userId
         }))
     ];
 

@@ -197,8 +197,7 @@ const RichTextEditor = forwardRef(({ value, onChange, onPost, placeholder, class
                     <TablePlugin />
                     <MarkdownShortcutPlugin transformers={TRANSFORMERS} />
 
-                    <LexicalOnChange htmlOnChange={onChange} />
-                    <ContentSyncPlugin html={value} />
+                    <ContentSyncPlugin html={value} onChange={onChange} />
                     <ImagePlugin />
                     <EditorRefBridge ref={ref} />
                 </div>
@@ -214,48 +213,62 @@ const RichTextEditor = forwardRef(({ value, onChange, onPost, placeholder, class
     );
 });
 
-// Helper to bridge Lexical state to HTML
-function LexicalOnChange({ htmlOnChange }: { htmlOnChange: (html: string) => void }) {
+// Consolidated helper for state synchronization
+function ContentSyncPlugin({ html, onChange }: { html: string, onChange: (html: string) => void }) {
     const [editor] = useLexicalComposerContext();
-    return (
-        <OnChangePlugin onChange={() => {
-            editor.getEditorState().read(() => {
-                const htmlString = $generateHtmlFromNodes(editor);
-                htmlOnChange(htmlString);
-            });
-        }} />
-    );
-}
+    const lastHtmlRef = useRef<string | null>(null);
 
-// Helper for initial and external content updates
-function ContentSyncPlugin({ html }: { html: string }) {
-    const [editor] = useLexicalComposerContext();
-    const lastHtmlRef = useRef(html);
-
+    // Initial load and external updates
     useEffect(() => {
-        if (html !== lastHtmlRef.current) {
-            lastHtmlRef.current = html;
-            editor.update(() => {
-                const currentHtml = $generateHtmlFromNodes(editor);
-                if (html === currentHtml) return;
+        // If html prop matches what we last recorded as sent from editor, skip update
+        if (html === lastHtmlRef.current) return;
 
-                // If it's a markdown-like string or plain text without HTML tags
-                if (html && !html.trim().startsWith('<') && !html.includes('</')) {
-                    $convertFromMarkdownString(html, TRANSFORMERS);
-                } else {
-                    const parser = new DOMParser();
-                    const dom = parser.parseFromString(html || '', 'text/html');
-                    const nodes = $generateNodesFromDOM(editor, dom);
-                    $getRoot().clear().append(...nodes);
-                }
-            });
-        }
+        const rootElement = editor.getRootElement();
+        // Check if editor is currently focused
+        const isFocused = rootElement === document.activeElement || rootElement?.contains(document.activeElement);
+
+        editor.update(() => {
+            const currentHtml = $generateHtmlFromNodes(editor);
+            
+            // Re-check current editor state before overwriting
+            if (html === currentHtml) {
+                lastHtmlRef.current = html;
+                return;
+            }
+
+            // CRITICAL: If focused, we ignore external changes to avoid cursor jumping/reverting.
+            // This happens when the parent state (formData) lags behind the editor state.
+            // We only allow it if it's the very first load or if the change is explicitly forced (like empty).
+            if (isFocused && lastHtmlRef.current !== null && html !== '') {
+                return;
+            }
+
+            lastHtmlRef.current = html;
+
+            const safeHtml = html || '';
+            const trimmed = safeHtml.trim();
+
+            // Handle content update
+            if (trimmed && !trimmed.startsWith('<') && !trimmed.includes('</')) {
+                // If it's plain text or markdown-like
+                $convertFromMarkdownString(safeHtml, TRANSFORMERS);
+            } else {
+                const parser = new DOMParser();
+                const dom = parser.parseFromString(safeHtml, 'text/html');
+                const nodes = $generateNodesFromDOM(editor, dom);
+                $getRoot().clear().append(...nodes);
+            }
+        });
     }, [editor, html]);
 
     return (
         <OnChangePlugin onChange={() => {
             editor.getEditorState().read(() => {
-                lastHtmlRef.current = $generateHtmlFromNodes(editor);
+                const htmlString = $generateHtmlFromNodes(editor);
+                if (htmlString !== lastHtmlRef.current) {
+                    lastHtmlRef.current = htmlString;
+                    onChange(htmlString);
+                }
             });
         }} />
     );
