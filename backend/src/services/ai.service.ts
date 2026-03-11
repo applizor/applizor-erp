@@ -34,10 +34,34 @@ Return ONLY the JSON object.`;
                     }
                 );
 
-                const text = response.data.candidates[0].content.parts[0].text;
+                if (!response.data.candidates || response.data.candidates.length === 0) {
+                    // Check if it was blocked by safety filters
+                    const promptFeedback = response.data.promptFeedback;
+                    if (promptFeedback?.blockReason) {
+                        throw new Error(`AI Request blocked by safety filter: ${promptFeedback.blockReason}`);
+                    }
+                    throw new Error("AI returned no results. This might be due to content filters.");
+                }
+
+                const candidate = response.data.candidates[0];
+                if (candidate.finishReason === 'SAFETY') {
+                    throw new Error("AI output was blocked by safety filters. Please try rephrasing your prompt.");
+                }
+
+                const text = candidate.content?.parts?.[0]?.text;
+                if (!text) {
+                    throw new Error("AI returned empty content parts.");
+                }
+
                 // Gemini sometimes wraps JSON in markdown blocks
-                const jsonMatch = text.match(/\{[\s\S]*\}/);
-                const result = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+                let result;
+                try {
+                    const jsonMatch = text.match(/\{[\s\S]*\}/);
+                    result = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+                } catch (parseError) {
+                    console.error("Failed to parse Gemini JSON:", text);
+                    throw new Error("Failed to parse AI response. The model may have returned malformed content.");
+                }
 
                 return {
                     title: result.title || "New Task",

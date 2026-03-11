@@ -21,7 +21,7 @@ router.post('/generate-task', combinedAuth, async (req: AuthRequest, res: Respon
         res.json(task);
     } catch (error: any) {
         console.error('AI Task Generation Error:', error);
-        res.status(500).json({ error: 'Failed to generate task' });
+        res.status(500).json({ error: error.message || 'Failed to generate task' });
     }
 });
 
