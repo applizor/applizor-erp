@@ -24,7 +24,7 @@ Return ONLY the JSON object.`;
 
             if (process.env.GEMINI_API_KEY) {
                 const response = await axios.post(
-                    `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${process.env.GEMINI_API_KEY}`,
+                    `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${process.env.GEMINI_API_KEY}`,
                     {
                         contents: [{
                             parts: [{
@@ -92,8 +92,19 @@ Return ONLY the JSON object.`;
                 description: result.description || "No description generated."
             };
         } catch (error: any) {
-            console.error("AI Generation Error:", error.response?.data || error.message);
-            throw new Error("AI Generation failed. Please check logs for details.");
+            const detail = error.response?.data || error.message;
+            console.error("AI Generation Error Details:", JSON.stringify(detail, null, 2));
+            
+            let errorMessage = "AI Generation failed";
+            if (error.response?.data?.error?.message) {
+                errorMessage += `: ${error.response.data.error.message}`;
+            } else if (typeof detail === 'string') {
+                errorMessage += `: ${detail}`;
+            } else {
+                errorMessage += `. Check server logs for full details.`;
+            }
+            
+            throw new Error(errorMessage);
         }
     }
 
