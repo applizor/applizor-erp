@@ -283,11 +283,22 @@ export const getTasks = async (req: AuthRequest, res: Response) => {
                 creator: { select: { firstName: true, lastName: true } },
                 epic: true,
                 parent: { select: { title: true } },
-                _count: { select: { comments: true, documents: true, subtasks: true } }
+                _count: { select: { comments: true, documents: true, subtasks: true } },
+                comments: {
+                    orderBy: { createdAt: 'desc' },
+                    take: 1,
+                    select: { clientId: true, userId: true }
+                }
             },
-            orderBy: { createdAt: 'desc' }
+            orderBy: { position: 'asc' }
         });
-        res.json(tasks);
+
+        const tasksWithMeta = tasks.map(task => ({
+            ...task,
+            hasUnansweredComment: task.comments.length > 0 && task.comments[0].clientId !== null && task.comments[0].userId === null
+        }));
+
+        res.json(tasksWithMeta);
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch tasks' });
     }

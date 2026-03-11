@@ -17,7 +17,6 @@ import { useSocket } from '@/contexts/SocketContext';
 import { useProjectPermissions } from '@/hooks/useProjectPermissions';
 import { CustomSelect } from '@/components/ui/CustomSelect';
 
-// Types
 interface Task {
     id: string;
     title: string;
@@ -25,9 +24,11 @@ interface Task {
     status: string; // todo, in-progress, review, done
     type: string; // epic, story, task, bug
     priority: string;
+    position: number;
     storyPoints?: number;
     assignee?: { id: string, firstName: string, lastName: string };
     epic?: { id: string, title: string };
+    hasUnansweredComment?: boolean;
     _count?: { comments: number, documents: number, subtasks: number };
 }
 
@@ -44,7 +45,7 @@ export default function KanbanBoard() {
     const [sprints, setSprints] = useState<any[]>([]);
     const [selectedSprintId, setSelectedSprintId] = useState<string>('all');
     const [filters, setFilters] = useState({ assignee: '', type: '', search: '' });
-    const [columns, setColumns] = useState<any>({ todo: [], 'in-progress': [], review: [], done: [] });
+    const [columns, setColumns] = useState<Record<string, Task[]>>({ todo: [], 'in-progress': [], review: [], done: [] });
     const toast = useToast();
     const { socket } = useSocket();
 
@@ -140,10 +141,8 @@ export default function KanbanBoard() {
     useEffect(() => {
         const closeMenu = () => setActiveMenuId(null);
         window.addEventListener('click', closeMenu);
-        window.addEventListener('scroll', closeMenu, true);
         return () => {
             window.removeEventListener('click', closeMenu);
-            window.removeEventListener('scroll', closeMenu, true);
         };
     }, []);
 
@@ -172,43 +171,44 @@ export default function KanbanBoard() {
         setColumns(newCols);
     }, [tasks, filters]);
 
+    const calculatePosition = (items: Task[], index: number) => {
+        if (items.length === 0) return 0;
+        if (index === 0) return (items[0]?.position ?? 0) - 1024;
+        if (index >= items.length) return (items[items.length - 1]?.position ?? 0) + 1024;
+        
+        const prev = items[index - 1]?.position ?? 0;
+        const next = items[index]?.position ?? 0;
+        return (prev + next) / 2;
+    };
+
     const onDragEnd = async (result: DropResult) => {
         const { source, destination, draggableId } = result;
         if (!destination) return;
         if (source.droppableId === destination.droppableId && source.index === destination.index) return;
 
-        const startCol = columns[source.droppableId];
-        const finishCol = columns[destination.droppableId];
+        const startCol = Array.from(columns[source.droppableId]);
+        const finishCol = source.droppableId === destination.droppableId ? startCol : Array.from(columns[destination.droppableId]);
+        
+        const [moved] = startCol.splice(source.index, 1);
         const newStatus = destination.droppableId;
+        const updatedMoved = { ...(moved as any), status: newStatus };
+        
+        finishCol.splice(destination.index, 0, updatedMoved);
 
-        if (source.droppableId === destination.droppableId) {
-            // Reorder same column
-            const newTasks = Array.from(startCol);
-            const [moved] = newTasks.splice(source.index, 1);
-            newTasks.splice(destination.index, 0, moved);
-            setColumns({ ...columns, [source.droppableId]: newTasks });
-        } else {
-            // Move across columns
-            const startTasks = Array.from(startCol);
-            const finishTasks = Array.from(finishCol);
-            const [moved] = startTasks.splice(source.index, 1);
+        const newCols = { ...columns };
+        newCols[source.droppableId] = startCol;
+        if (source.droppableId !== destination.droppableId) {
+            newCols[destination.droppableId] = finishCol;
+        }
+        setColumns(newCols);
 
-            // Optimistic update
-            const updatedTask = { ...moved as any, status: newStatus };
-            finishTasks.splice(destination.index, 0, updatedTask);
-
-            setColumns({
-                ...columns,
-                [source.droppableId]: startTasks,
-                [destination.droppableId]: finishTasks
-            });
-
-            try {
-                await api.put(`/tasks/${draggableId}`, { status: newStatus });
-            } catch (error) {
-                toast.error('Failed to update status');
-                fetchTasks(); // Revert
-            }
+        try {
+            const finishColForPos = finishCol.filter(t => t.id !== draggableId) as Task[];
+            const newPosition = calculatePosition(finishColForPos, destination.index);
+            await api.put(`/tasks/${draggableId}`, { status: newStatus, position: newPosition });
+        } catch (error) {
+            toast.error('Failed to update task');
+            fetchTasks(); // Revert
         }
     };
 
@@ -346,7 +346,7 @@ export default function KanbanBoard() {
                                                         {...provided.draggableProps}
                                                         {...provided.dragHandleProps}
                                                         onClick={() => openTask(task.id)}
-                                                        className={`bg-white p-4 rounded-lg border border-slate-200 shadow-sm group cursor-pointer hover:border-primary-300 transition-all ${snapshot.isDragging ? 'rotate-1 shadow-xl ring-2 ring-primary-500/20 z-50' : 'hover:shadow-md'}`}
+                                                        className={`bg-white p-4 rounded-lg border shadow-sm group cursor-pointer transition-all ${task.hasUnansweredComment ? 'border-amber-400 ring-2 ring-amber-400/20 animate-pulse-subtle' : 'border-slate-200 hover:border-primary-300'} ${snapshot.isDragging ? 'rotate-1 shadow-xl ring-2 ring-primary-500/20 z-50' : 'hover:shadow-md'}`}
                                                     >
                                                         {/* Task Tags & ID */}
                                                         <div className="flex justify-between items-start mb-3">
@@ -357,9 +357,9 @@ export default function KanbanBoard() {
                                                                     }`}>
                                                                     {task.priority}
                                                                 </span>
-                                                                {task.epic && (
-                                                                    <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded border bg-indigo-50 text-indigo-600 border-indigo-100 max-w-[100px] truncate">
-                                                                        {task.epic.title}
+                                                                {task.hasUnansweredComment && (
+                                                                    <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded border bg-amber-500 text-white border-amber-600 animate-pulse">
+                                                                        Client Message
                                                                     </span>
                                                                 )}
                                                             </div>

@@ -65,22 +65,10 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
             }
         };
 
-        const handleScroll = () => {
-            if (isOpen) setIsOpen(false);
-        };
-
-        const handleResize = () => {
-            if (isOpen) setIsOpen(false);
-        };
-
         document.addEventListener('mousedown', handleClickOutside);
-        window.addEventListener('scroll', handleScroll, true);
-        window.addEventListener('resize', handleResize);
 
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
-            window.removeEventListener('scroll', handleScroll, true);
-            window.removeEventListener('resize', handleResize);
         }
     }, [isOpen]);
 

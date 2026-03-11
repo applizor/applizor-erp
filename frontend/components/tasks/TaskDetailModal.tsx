@@ -345,8 +345,8 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
 
     return (
         <Portal>
-            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex justify-center items-center overflow-hidden p-4 md:p-6 animate-fade-in text-left">
-                <div className="bg-white rounded-md shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col md:flex-row overflow-y-auto md:overflow-hidden border border-slate-200">
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex justify-center items-center overflow-hidden p-0 md:p-6 animate-fade-in text-left">
+                <div className="bg-white rounded-none md:rounded-md shadow-2xl w-full max-w-6xl h-full md:h-[90vh] flex flex-col md:flex-row overflow-y-auto md:overflow-hidden border border-slate-200">
 
                     {/* Close Button */}
                     <button
@@ -358,12 +358,12 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
 
                     {/* Left: Main Content (Scrollable) */}
                     <div className="flex-1 flex flex-col md:h-full md:overflow-hidden bg-white">
-                        <div className="flex-1 overflow-visible md:overflow-y-auto p-8 md:p-10 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+                        <div className="flex-1 overflow-visible md:overflow-y-auto p-5 md:p-10 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
 
                             {/* Header Section */}
                             <div className="mb-8">
                                 {/* Breadcrumbs & Timer */}
-                                <div className="flex justify-between items-start mb-4 gap-4">
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
                                     <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                                         <span className="hover:text-primary-600 transition-colors cursor-pointer">Project</span>
                                         <span className="text-slate-300">/</span>
@@ -415,10 +415,23 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                                 </div>
 
                                  <div className="relative group/title flex items-center gap-3">
-                                    <input
+                                    <textarea
                                         {...register('title', { required: true })}
                                         placeholder="Task Title"
-                                        className="flex-1 text-3xl md:text-4xl font-black text-slate-900 placeholder:text-slate-200 border-none focus:ring-0 p-0 bg-transparent leading-tight"
+                                        rows={1}
+                                        className="flex-1 text-xl md:text-2xl font-black text-slate-900 placeholder:text-slate-200 border-none focus:ring-0 p-0 bg-transparent leading-tight resize-none"
+                                        onInput={(e) => {
+                                            const target = e.currentTarget;
+                                            target.style.height = 'auto';
+                                            target.style.height = `${target.scrollHeight}px`;
+                                        }}
+                                        ref={(e) => {
+                                            register('title').ref(e);
+                                            if (e) {
+                                                e.style.height = 'auto';
+                                                e.style.height = `${e.scrollHeight}px`;
+                                            }
+                                        }}
                                     />
                                     <button
                                         type="button"
@@ -643,7 +656,7 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                             {!isNew && (
                                 <div className="mt-12 pt-8 border-t border-slate-100">
                                     <div className="flex justify-between items-center mb-6 border-b border-slate-100">
-                                        <div className="flex items-center gap-6">
+                                        <div className="flex items-center gap-6 overflow-x-auto whitespace-nowrap scrollbar-hide pr-4">
                                             <button
                                                 onClick={() => setActiveTab('comments')}
                                                 className={`pb-4 text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2 ${activeTab === 'comments' ? 'text-primary-900 border-b-2 border-primary-900' : 'text-slate-400 hover:text-slate-600'}`}

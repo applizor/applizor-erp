@@ -169,7 +169,7 @@ export default function PortalTaskDetailModal({ taskId, onClose, onUpdate }: Por
     return (
         <Portal>
             <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-[100] flex justify-center items-center p-4 animate-fade-in">
-                <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col md:flex-row overflow-y-auto md:overflow-hidden animate-zoom-in border border-slate-200">
+                <div className="bg-white rounded-none md:rounded-xl shadow-2xl w-full max-w-5xl h-full md:h-[90vh] flex flex-col md:flex-row overflow-y-auto md:overflow-hidden animate-zoom-in border border-slate-200">
 
                     {/* Left: Content */}
                     <div className="flex-1 flex flex-col md:h-full md:overflow-hidden bg-white">
@@ -182,7 +182,7 @@ export default function PortalTaskDetailModal({ taskId, onClose, onUpdate }: Por
                             </button>
                         </div>
 
-                        <div className="flex-1 overflow-visible md:overflow-y-auto p-8 relative custom-scrollbar">
+                        <div className="flex-1 overflow-visible md:overflow-y-auto p-5 md:p-8 relative custom-scrollbar">
 
                             {/* Header */}
                             <div className="mb-8">
@@ -204,7 +204,7 @@ export default function PortalTaskDetailModal({ taskId, onClose, onUpdate }: Por
                                         #{task?.id?.split('-')[0].toUpperCase()}
                                     </span>
                                 </div>
-                                <h2 className="text-xl md:text-2xl font-black text-slate-900 leading-tight tracking-tight">
+                                <h2 className="text-lg md:text-xl font-black text-slate-900 leading-tight tracking-tight">
                                     {task?.title}
                                 </h2>
                                 <div className="flex items-center gap-4 mt-4 text-xs text-slate-500 font-medium">
@@ -347,16 +347,16 @@ export default function PortalTaskDetailModal({ taskId, onClose, onUpdate }: Por
                                                 <h4 className="text-xs font-black text-amber-900 uppercase tracking-wider">Ready for Review</h4>
                                                 <p className="text-[10px] text-amber-700/80 font-medium">Please review the work and take action.</p>
                                             </div>
-                                            <div className="flex gap-3">
+                                            <div className="flex flex-col sm:flex-row gap-3">
                                                 <button
                                                     onClick={() => handleReviewAction('reject')}
-                                                    className="px-4 py-2 bg-white text-rose-600 border border-rose-200 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-rose-50 hover:border-rose-300 transition-all shadow-sm"
+                                                    className="w-full sm:w-auto px-4 py-2 bg-white text-rose-600 border border-rose-200 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-rose-50 hover:border-rose-300 transition-all shadow-sm"
                                                 >
                                                     Request Changes
                                                 </button>
                                                 <button
                                                     onClick={() => handleReviewAction('approve')}
-                                                    className="px-5 py-2 bg-emerald-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500 shadow-md shadow-emerald-200 transition-all flex items-center gap-2"
+                                                    className="w-full sm:w-auto px-5 py-2 bg-emerald-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500 shadow-md shadow-emerald-200 transition-all flex items-center justify-center gap-2"
                                                 >
                                                     <CheckCircle2 size={14} /> Approve
                                                 </button>
