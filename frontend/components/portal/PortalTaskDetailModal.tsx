@@ -204,7 +204,7 @@ export default function PortalTaskDetailModal({ taskId, onClose, onUpdate }: Por
                                         #{task?.id?.split('-')[0].toUpperCase()}
                                     </span>
                                 </div>
-                                <h2 className="text-lg md:text-xl font-black text-slate-900 leading-tight tracking-tight">
+                                <h2 className="text-base md:text-lg font-black text-slate-900 leading-tight tracking-tight break-words">
                                     {task?.title}
                                 </h2>
                                 <div className="flex items-center gap-4 mt-4 text-xs text-slate-500 font-medium">

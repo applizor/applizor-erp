@@ -137,7 +137,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
             </div>
 
             {/* Main Content */}
-            <main className="flex-1 md:ml-64 min-h-screen flex flex-col">
+            <main className="flex-1 md:ml-64 min-h-screen flex flex-col w-full overflow-x-hidden">
                 {/* Mobile Header */}
                 <header className="md:hidden h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 sticky top-0 z-20">
                     <span className="font-black text-slate-800 uppercase text-xs tracking-widest">Applizor Portal</span>
@@ -150,7 +150,9 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
                 </header>
 
                 <div className="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full">
-                    {children}
+                    <div className="max-w-full overflow-x-hidden">
+                        {children}
+                    </div>
                 </div>
             </main>
         </div>

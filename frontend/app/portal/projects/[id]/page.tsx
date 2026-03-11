@@ -112,7 +112,7 @@ export default function PortalProjectDetail({ params }: { params: { id: string }
     const reviewCount = tasks.filter(t => t.status === 'review').length;
 
     return (
-        <div className="animate-fade-in flex flex-col h-[calc(100vh-100px)]">
+        <div className="animate-fade-in flex flex-col min-h-screen">
             {/* Header / Breadcrumb */}
             <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6">
                 <div className="flex-1 w-full">

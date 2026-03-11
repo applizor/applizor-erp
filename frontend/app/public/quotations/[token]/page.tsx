@@ -241,7 +241,7 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
                 <div className="bg-white shadow-lg rounded-md overflow-hidden border border-gray-200">
                     {/* Header */}
                     <div className="px-4 sm:px-8 py-6 sm:py-10 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start gap-6">
-                        <div>
+                        <div className="w-full">
                             {quotation.company?.logo ? (
                                 <img
                                     src={quotation.company.logo.startsWith('data:')
@@ -249,14 +249,14 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
                                         : resolveUrl(quotation.company.logo)
                                     }
                                     alt={quotation.company.name}
-                                    className="h-12 w-auto mb-3"
+                                    className="h-10 sm:h-12 w-auto mb-3"
                                 />
                             ) : (
-                                <div className="text-2xl font-bold text-primary-600 mb-2">
+                                <div className="text-xl sm:text-2xl font-bold text-primary-600 mb-2">
                                     {quotation.company?.name || 'COMPANY NAME'}
                                 </div>
                             )}
-                            <p className="text-sm text-gray-600 max-w-xs">
+                            <p className="text-[11px] sm:text-sm text-gray-600 max-w-xs">
                                 {quotation.company?.address && <>{quotation.company.address}<br /></>}
                                 {quotation.company?.city && quotation.company?.state && (
                                     <>{quotation.company.city}, {quotation.company.state} - {quotation.company.pincode || ''}<br /></>
@@ -265,18 +265,18 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
                                 {quotation.company?.phone && <> | {quotation.company.phone}</>}
                             </p>
                         </div>
-                        <div className="text-left sm:text-right w-full sm:w-auto">
-                            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">QUOTATION</h1>
-                            <div className="mt-3 space-y-1 text-sm">
-                                <p><span className="font-medium">Number:</span> {quotation.quotationNumber}</p>
-                                <p><span className="font-medium">Date:</span> {new Date(quotation.quotationDate).toLocaleDateString()}</p>
+                        <div className="text-left sm:text-right w-full sm:w-auto mt-2 sm:mt-0 pt-4 sm:pt-0 border-t sm:border-t-0 border-gray-100">
+                            <h1 className="text-xl sm:text-3xl font-bold text-gray-900">QUOTATION</h1>
+                            <div className="mt-3 space-y-1 text-sm sm:text-base">
+                                <p className="text-xs sm:text-sm"><span className="font-medium text-gray-500">Number:</span> <span className="font-bold">{quotation.quotationNumber}</span></p>
+                                <p className="text-xs sm:text-sm"><span className="font-medium text-gray-500">Date:</span> <span className="font-bold">{new Date(quotation.quotationDate).toLocaleDateString()}</span></p>
                                 {quotation.validUntil && (
-                                    <p><span className="font-medium">Valid Till:</span> {new Date(quotation.validUntil).toLocaleDateString()}</p>
+                                    <p className="text-xs sm:text-sm"><span className="font-medium text-gray-500">Valid Till:</span> <span className="font-bold text-red-600">{new Date(quotation.validUntil).toLocaleDateString()}</span></p>
                                 )}
-                                <span className={`inline-block mt-2 px-3 py-1 rounded-md text-xs font-medium ${quotation.status === 'accepted' ? 'bg-green-100 text-green-800' :
-                                    quotation.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                                        quotation.status === 'viewed' ? 'bg-blue-100 text-blue-800' :
-                                            'bg-yellow-100 text-yellow-800'
+                                <span className={`inline-block mt-2 px-3 py-1 rounded-md text-[10px] sm:text-xs font-bold ${quotation.status === 'accepted' ? 'bg-green-100 text-green-800 border border-green-200' :
+                                    quotation.status === 'rejected' ? 'bg-red-100 text-red-800 border border-red-200' :
+                                        quotation.status === 'viewed' ? 'bg-blue-100 text-blue-800 border border-blue-200' :
+                                            'bg-yellow-100 text-yellow-800 border border-yellow-200'
                                     }`}>
                                     {quotation.status === 'viewed' ? 'WAITING' : quotation.status.toUpperCase()}
                                 </span>
@@ -323,42 +323,42 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
                     )}
 
                     {/* Items Table */}
-                    <div className="ent-table-container">
+                    <div className="ent-table-container !-mx-0 sm:!-mx-1 border-t sm:border-t-0 border-gray-100">
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-                                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">HSN/SAC</th>
-                                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Qty</th>
-                                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">UoM</th>
-                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Rate</th>
-                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Disc %</th>
-                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                                    <th className="px-3 sm:px-6 py-3 text-left text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-wider min-w-[180px]">Description</th>
+                                    <th className="px-3 sm:px-6 py-3 text-center text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-wider">HSN/SAC</th>
+                                    <th className="px-3 sm:px-6 py-3 text-center text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-wider">Qty</th>
+                                    <th className="px-3 sm:px-6 py-3 text-center text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-wider">UoM</th>
+                                    <th className="px-3 sm:px-6 py-3 text-right text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-wider min-w-[100px]">Rate</th>
+                                    <th className="px-3 sm:px-6 py-3 text-right text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-wider">Disc %</th>
+                                    <th className="px-3 sm:px-6 py-3 text-right text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-wider min-w-[120px]">Amount</th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
                                 {quotation.items?.map((item: any, index: number) => (
-                                    <tr key={index}>
-                                        <td className="px-6 py-4">
-                                            <div className="text-sm text-gray-900 font-medium">{item.description}</div>
+                                    <tr key={index} className="hover:bg-gray-50/50 transition-colors">
+                                        <td className="px-3 sm:px-6 py-4">
+                                            <div className="text-xs sm:text-sm text-gray-900 font-bold">{item.description}</div>
                                         </td>
-                                        <td className="px-6 py-4 text-xs text-gray-500 text-center font-mono">{item.hsnSacCode || '--'}</td>
-                                        <td className="px-6 py-4 text-sm text-gray-600 text-center">{Number(item.quantity)}</td>
-                                        <td className="px-6 py-4 text-sm text-gray-600 text-center uppercase">{item.unit || '--'}</td>
-                                        <td className="px-6 py-4 text-sm text-gray-600 text-right">{formatCurrency(item.unitPrice)}</td>
-                                        <td className="px-6 py-4 text-sm text-rose-500 font-bold text-right">
+                                        <td className="px-3 sm:px-6 py-4 text-[10px] sm:text-xs text-gray-500 text-center font-mono font-bold tracking-tighter">{item.hsnSacCode || '--'}</td>
+                                        <td className="px-3 sm:px-6 py-4 text-xs sm:text-sm text-gray-600 text-center font-bold">{Number(item.quantity)}</td>
+                                        <td className="px-3 sm:px-6 py-4 text-[10px] sm:text-sm text-gray-600 text-center uppercase font-bold">{item.unit || '--'}</td>
+                                        <td className="px-3 sm:px-6 py-4 text-xs sm:text-sm text-gray-600 text-right font-bold">{formatCurrency(item.unitPrice)}</td>
+                                        <td className="px-3 sm:px-6 py-4 text-[10px] sm:text-sm text-rose-500 font-black italic text-right">
                                             {Number(item.discount) > 0 ? `${Number(item.discount)}%` : '--'}
                                         </td>
-                                        <td className="px-6 py-4 text-sm text-gray-900 font-bold text-right">
+                                        <td className="px-3 sm:px-6 py-4 text-xs sm:text-sm text-gray-900 font-black text-right">
                                             {formatCurrency(Number(item.quantity) * Number(item.unitPrice) * (1 - Number(item.discount || 0) / 100))}
                                         </td>
                                     </tr>
                                 ))}
                             </tbody>
-                            <tfoot className="bg-gray-50">
+                            <tfoot className="bg-gray-50/50">
                                 <tr>
-                                    <td colSpan={6} className="px-6 py-3 text-right text-sm font-medium text-gray-600">Subtotal:</td>
-                                    <td className="px-6 py-3 text-right text-sm font-medium text-gray-900">{formatCurrency(quotation.subtotal)}</td>
+                                    <td colSpan={6} className="px-3 sm:px-6 py-3 text-right text-[10px] sm:text-sm font-bold text-gray-500 uppercase tracking-widest leading-none">Subtotal:</td>
+                                    <td className="px-3 sm:px-6 py-3 text-right text-xs sm:text-sm font-black text-gray-900">{formatCurrency(quotation.subtotal)}</td>
                                 </tr>
                                 {/* Item Discounts */}
                                 {(() => {
@@ -371,12 +371,12 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
                                         return (
                                             <>
                                                 <tr>
-                                                    <td colSpan={6} className="px-6 py-2 text-right text-sm font-medium text-rose-600 italic">Item Discounts:</td>
-                                                    <td className="px-6 py-2 text-right text-sm font-medium text-rose-600">-{formatCurrency(itemDiscounts)}</td>
+                                                    <td colSpan={6} className="px-3 sm:px-6 py-2 text-right text-[10px] sm:text-xs font-bold text-rose-500 uppercase tracking-widest italic leading-none">Item Discounts:</td>
+                                                    <td className="px-3 sm:px-6 py-2 text-right text-xs sm:text-sm font-black text-rose-600">-{formatCurrency(itemDiscounts)}</td>
                                                 </tr>
                                                 <tr>
-                                                    <td colSpan={6} className="px-6 py-1 text-right text-xs font-black text-gray-900 uppercase tracking-tighter">Taxable Amount:</td>
-                                                    <td className="px-6 py-1 text-right text-xs font-black text-gray-900">{formatCurrency(Number(quotation.subtotal) - itemDiscounts)}</td>
+                                                    <td colSpan={6} className="px-3 sm:px-6 py-1 text-right text-[9px] sm:text-xs font-black text-gray-400 uppercase tracking-widest leading-none">Taxable Amount:</td>
+                                                    <td className="px-3 sm:px-6 py-1 text-right text-[10px] sm:text-xs font-black text-gray-900">{formatCurrency(Number(quotation.subtotal) - itemDiscounts)}</td>
                                                 </tr>
                                             </>
                                         );
@@ -408,15 +408,15 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
                                     return (
                                         <>
                                             <tr>
-                                                <td colSpan={6} className="px-6 py-3 text-right text-sm font-medium text-gray-600">Total Tax:</td>
-                                                <td className="px-6 py-3 text-right text-sm font-medium text-gray-900">{formatCurrency(quotation.tax)}</td>
+                                                <td colSpan={6} className="px-3 sm:px-6 py-3 text-right text-[10px] sm:text-sm font-bold text-gray-500 uppercase tracking-widest leading-none">Total Tax:</td>
+                                                <td className="px-3 sm:px-6 py-3 text-right text-xs sm:text-sm font-black text-gray-900">{formatCurrency(quotation.tax)}</td>
                                             </tr>
                                             {Object.entries(taxBreakdown).map(([key, amount]) => (
                                                 <tr key={key}>
-                                                    <td colSpan={6} className="px-6 py-1 text-right text-[11px] font-medium text-gray-500 uppercase tracking-wider pl-10">
-                                                        <span className="mr-8 border-r-2 border-gray-200 pr-2">{key}:</span>
+                                                    <td colSpan={6} className="px-3 sm:px-6 py-1 text-right text-[9px] sm:text-[10px] font-bold text-gray-400 uppercase tracking-tight pl-10 leading-none">
+                                                        <span className="mr-8 border-r-2 border-gray-100 pr-2 italic">{key}:</span>
                                                     </td>
-                                                    <td className="px-6 py-1 text-right text-xs font-medium text-gray-900 italic">{formatCurrency(amount as number)}</td>
+                                                    <td className="px-3 sm:px-6 py-1 text-right text-[10px] sm:text-xs font-bold text-gray-700 italic">{formatCurrency(amount as number)}</td>
                                                 </tr>
                                             ))}
                                         </>
@@ -424,13 +424,13 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
                                 })()}
                                 {Number(quotation.discount) > 0 && (
                                     <tr>
-                                        <td colSpan={6} className="px-6 py-3 text-right text-sm font-medium text-rose-600">Additional Discount:</td>
-                                        <td className="px-6 py-3 text-right text-sm font-medium text-rose-600">-{formatCurrency(quotation.discount)}</td>
+                                        <td colSpan={6} className="px-3 sm:px-6 py-3 text-right text-[10px] sm:text-sm font-bold text-rose-500 uppercase tracking-widest leading-none">Additional Discount:</td>
+                                        <td className="px-3 sm:px-6 py-3 text-right text-xs sm:text-sm font-black text-rose-600">-{formatCurrency(quotation.discount)}</td>
                                     </tr>
                                 )}
-                                <tr>
-                                    <td colSpan={6} className="px-6 py-3 text-right text-base font-bold text-gray-900">Total:</td>
-                                    <td className="px-6 py-3 text-right text-base font-bold text-green-600">{formatCurrency(quotation.total)}</td>
+                                <tr className="border-t-2 border-slate-900">
+                                    <td colSpan={6} className="px-3 sm:px-6 py-4 text-right text-xs sm:text-base font-black text-gray-900 uppercase tracking-widest">Total:</td>
+                                    <td className="px-3 sm:px-6 py-4 text-right text-sm sm:text-xl font-black text-emerald-600">{formatCurrency(quotation.total)}</td>
                                 </tr>
                             </tfoot>
                         </table>

@@ -419,7 +419,7 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                                         {...register('title', { required: true })}
                                         placeholder="Task Title"
                                         rows={1}
-                                        className="flex-1 text-xl md:text-2xl font-black text-slate-900 placeholder:text-slate-200 border-none focus:ring-0 p-0 bg-transparent leading-tight resize-none"
+                                        className="flex-1 text-base md:text-lg font-black text-slate-900 placeholder:text-slate-200 border-none focus:ring-0 p-0 bg-transparent leading-tight resize-none break-words"
                                         onInput={(e) => {
                                             const target = e.currentTarget;
                                             target.style.height = 'auto';
