@@ -8,8 +8,7 @@ export class AIService {
         const apiKey = process.env.GEMINI_API_KEY || process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY;
 
         if (!apiKey) {
-            console.warn("AI API Key missing. Falling back to mock logic.");
-            return this.mockGenerateTask(prompt);
+            throw new Error("AI API Key missing. Please configure GEMINI_API_KEY, OPENROUTER_API_KEY, or OPENAI_API_KEY.");
         }
 
         try {
@@ -19,7 +18,9 @@ The output should be a JSON object with:
 - "title": A concise, clear, and professional task title.
 - "description": A detailed Markdown-formatted description including Objective, Technical Requirements, and Acceptance Criteria.
 
-BE CRYSTAL CLEAR AND TECHNICAL. Return ONLY the JSON object.`;
+BE CRYSTAL CLEAR AND TECHNICAL. 
+The response (both title and description) MUST ALWAYS BE IN ENGLISH, even if the user's prompt is in another language (like Hindi).
+Return ONLY the JSON object.`;
 
             if (process.env.GEMINI_API_KEY) {
                 const response = await axios.post(
@@ -68,41 +69,10 @@ BE CRYSTAL CLEAR AND TECHNICAL. Return ONLY the JSON object.`;
             };
         } catch (error: any) {
             console.error("AI Generation Error:", error.response?.data || error.message);
-            return this.mockGenerateTask(prompt);
+            throw new Error("AI Generation failed. Please check logs for details.");
         }
     }
 
-    /**
-     * Enhanced Mock logic for when API key is missing.
-     */
-    private static mockGenerateTask(prompt: string): Promise<{ title: string, description: string }> {
-        if (prompt.toLowerCase().includes('center align') && prompt.toLowerCase().includes('crl')) {
-            return Promise.resolve({
-                title: "Center Align Units, Results, and Biological Ranges in CRL PDF Template",
-                description: `Update the **CRL PDF template** to ensure the following fields are **center aligned** in the generated PDF report:
-
-* Units
-* Results
-* Biological Ranges
-
-**Requirements:**
-1. Modify the **PDF template layout** so that the above three columns display their values with **center alignment**.
-2. The change should apply **only to the PDF output**, not to the web/UI view.
-3. Ensure the table layout remains properly formatted in the generated PDF.
-
-**Acceptance Criteria:**
-* Units column values are center aligned in the PDF.
-* Results column values are center aligned in the PDF.
-* Biological ranges column values are center aligned in the PDF.
-* No formatting or layout issues occur in the CRL PDF report after the update.`
-            });
-        }
-
-        return Promise.resolve({
-            title: `Task: ${prompt.substring(0, 50)}${prompt.length > 50 ? '...' : ''}`,
-            description: `**Objective:** ${prompt}\n\n**Technical Requirements:**\n- Implement the requested changes.\n- Ensure compatibility with existing modules.\n- Verify responsiveness and layout integrity.`
-        });
-    }
 
     /**
      * Rewrite a title/headline for better CTR.

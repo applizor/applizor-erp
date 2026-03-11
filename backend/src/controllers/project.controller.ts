@@ -450,7 +450,7 @@ export const updateProject = async (req: AuthRequest, res: Response) => {
         const {
             name, description, status,
             startDate, endDate, budget, isBillable,
-            tags, priority, currency
+            tags, priority, currency, settings
         } = req.body;
 
         const data: any = {};
@@ -462,6 +462,7 @@ export const updateProject = async (req: AuthRequest, res: Response) => {
         if (tags !== undefined) data.tags = tags;
         if (priority !== undefined) data.priority = priority;
         if (currency !== undefined) data.currency = currency;
+        if (settings !== undefined) data.settings = settings;
 
         // Correctly parse dates to Avoid Prisma 'premature end of input' or validation errors
         if (startDate !== undefined) {

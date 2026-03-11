@@ -13,12 +13,12 @@ import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext
 import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
 import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary';
 import { $generateHtmlFromNodes, $generateNodesFromDOM } from '@lexical/html';
-import { $getRoot, $insertNodes, $getSelection, SELECTION_CHANGE_COMMAND, FORMAT_TEXT_COMMAND, COMMAND_PRIORITY_CRITICAL, FORMAT_ELEMENT_COMMAND } from 'lexical';
+import { $getRoot, $insertNodes, $getSelection, SELECTION_CHANGE_COMMAND, FORMAT_TEXT_COMMAND, COMMAND_PRIORITY_CRITICAL, FORMAT_ELEMENT_COMMAND, $createParagraphNode, $createTextNode } from 'lexical';
 import { HeadingNode, QuoteNode, $createHeadingNode, $createQuoteNode } from '@lexical/rich-text';
 import { TableNode, TableCellNode, TableRowNode } from '@lexical/table';
 import { ListItemNode, ListNode } from '@lexical/list';
 import { LinkNode, AutoLinkNode } from '@lexical/link';
-import { TRANSFORMERS } from '@lexical/markdown';
+import { TRANSFORMERS, $convertFromMarkdownString } from '@lexical/markdown';
 import { CodeNode, CodeHighlightNode } from '@lexical/code';
 import { ImageNode } from './Editor/ImageNode';
 import { ImagePlugin } from './Editor/EditorPlugins';
@@ -233,15 +233,21 @@ function ContentSyncPlugin({ html }: { html: string }) {
     const lastHtmlRef = useRef(html);
 
     useEffect(() => {
-        // Only update if the external HTML is actually different from what we last sent/received
-        // This prevents cursor resets while the user is typing
         if (html !== lastHtmlRef.current) {
             lastHtmlRef.current = html;
             editor.update(() => {
-                const parser = new DOMParser();
-                const dom = parser.parseFromString(html || '', 'text/html');
-                const nodes = $generateNodesFromDOM(editor, dom);
-                $getRoot().clear().append(...nodes);
+                const currentHtml = $generateHtmlFromNodes(editor);
+                if (html === currentHtml) return;
+
+                // If it's a markdown-like string or plain text without HTML tags
+                if (html && !html.trim().startsWith('<') && !html.includes('</')) {
+                    $convertFromMarkdownString(html, TRANSFORMERS);
+                } else {
+                    const parser = new DOMParser();
+                    const dom = parser.parseFromString(html || '', 'text/html');
+                    const nodes = $generateNodesFromDOM(editor, dom);
+                    $getRoot().clear().append(...nodes);
+                }
             });
         }
     }, [editor, html]);
@@ -249,10 +255,7 @@ function ContentSyncPlugin({ html }: { html: string }) {
     return (
         <OnChangePlugin onChange={() => {
             editor.getEditorState().read(() => {
-                const currentHtml = $generateHtmlFromNodes(editor);
-                if (currentHtml !== lastHtmlRef.current) {
-                    lastHtmlRef.current = currentHtml;
-                }
+                lastHtmlRef.current = $generateHtmlFromNodes(editor);
             });
         }} />
     );
