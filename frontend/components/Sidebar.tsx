@@ -46,6 +46,14 @@ export default function Sidebar() {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isCollapsed, setIsCollapsed] = useState(false);
 
+    // Initial load for persistence
+    useEffect(() => {
+        const stored = localStorage.getItem('sidebar_is_collapsed');
+        if (stored !== null) {
+            setIsCollapsed(stored === 'true');
+        }
+    }, []);
+
     // This effect handles direct external control via a custom event if needed,
     // though we'll primarily use it locally for now.
     useEffect(() => {
@@ -126,9 +134,17 @@ export default function Sidebar() {
         { name: 'Subscription Plans', href: '/settings/subscription-plans', icon: CreditCard, category: 'Settings', module: 'Company' },
     ];
 
+    const [isHovered, setIsHovered] = useState(false);
+
+    const isExpanded = !isCollapsed || isHovered;
+
     const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
     const closeMobileMenu = () => setIsMobileMenuOpen(false);
-    const toggleSidebar = () => setIsCollapsed(!isCollapsed);
+    const toggleSidebar = () => {
+        const next = !isCollapsed;
+        setIsCollapsed(next);
+        localStorage.setItem('sidebar_is_collapsed', String(next));
+    };
 
     const { can } = usePermission();
 
@@ -209,20 +225,24 @@ export default function Sidebar() {
     return (
         <>
             {/* Sidebar Container */}
-            <div className={`
-                fixed inset-y-0 left-0 z-40 bg-slate-900 text-white transform transition-all duration-300 ease-in-out border-r border-slate-800/50 shadow-2xl flex flex-col
-                ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
-                md:translate-x-0 md:sticky md:top-0 md:h-screen
-                ${isCollapsed ? 'w-20' : 'w-64'}
-            `}>
+            <div 
+                className={`
+                    fixed inset-y-0 left-0 z-40 bg-slate-900 text-white transform transition-all duration-300 ease-in-out border-r border-slate-800/50 shadow-2xl flex flex-col
+                    ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+                    md:translate-x-0 md:sticky md:top-0 md:h-screen
+                    ${isExpanded ? 'w-64' : 'w-20'}
+                `}
+                onMouseEnter={() => setIsHovered(true)}
+                onMouseLeave={() => setIsHovered(false)}
+            >
 
                 {/* Brand Section */}
-                <div className={`h-16 flex items-center border-b border-slate-800/50 bg-brand-gradient transition-all duration-300 ${isCollapsed ? 'justify-center px-0' : 'px-6 gap-3'}`}>
+                <div className={`h-16 flex items-center border-b border-slate-800/50 bg-brand-gradient transition-all duration-300 ${!isExpanded ? 'justify-center px-0' : 'px-6 gap-3'}`}>
                     <div className="w-8 h-8 bg-white/10 backdrop-blur-md rounded-md flex items-center justify-center border border-white/10 flex-shrink-0">
                         <Building2 size={18} className="text-white" />
                     </div>
-                    {!isCollapsed && (
-                        <div className="overflow-hidden whitespace-nowrap">
+                    {isExpanded && (
+                        <div className="overflow-hidden whitespace-nowrap animate-fade-in-shimmer">
                             <h1 className="sidebar-logo-text text-sm">Applizor</h1>
                             <p className="text-[9px] font-black text-primary-300 uppercase tracking-[0.2em]">Softech ERP</p>
                         </div>
@@ -232,16 +252,16 @@ export default function Sidebar() {
                 {/* Navigation Section */}
                 <div className="flex-1 overflow-y-auto py-4 no-scrollbar">
                     {Object.entries(groupedNav).map(([category, items]) => (
-                        <div key={category} className={`mb-2 ${isCollapsed ? 'px-2' : 'px-3'}`}>
+                        <div key={category} className={`mb-2 ${!isExpanded ? 'px-2' : 'px-3'}`}>
 
                             {/* Category Header */}
                             {category !== 'Main' && (
-                                isCollapsed ? (
+                                !isExpanded ? (
                                     <div className="h-px bg-slate-800 mx-2 my-3" title={category} />
                                 ) : (
                                     <button
                                         onClick={() => toggleCategory(category)}
-                                        className="w-full flex items-center justify-between px-3 py-2 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1 hover:text-slate-300 transition-colors"
+                                        className="w-full flex items-center justify-between px-3 py-2 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1 hover:text-slate-300 transition-colors animate-fade-in-shimmer"
                                     >
                                         <span>{category}</span>
                                         {expandedCategories[category] ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
@@ -250,15 +270,15 @@ export default function Sidebar() {
                             )}
 
                             {/* When collapsed, Main category needs no header/separator if it's top of list */}
-                            {category === 'Main' && !isCollapsed && (
-                                <h3 className="px-3 py-2 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">
+                            {category === 'Main' && isExpanded && (
+                                <h3 className="px-3 py-2 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1 animate-fade-in-shimmer">
                                     {category}
                                 </h3>
                             )}
 
                             {/* Collapsible Content */}
                             <div className={`space-y-1 transition-all duration-300 ease-in-out overflow-hidden
-                                ${isCollapsed ? 'max-h-[2000px] opacity-100' : (category === 'Main' || expandedCategories[category] ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0')}
+                                ${!isExpanded ? 'max-h-[2000px] opacity-100' : (category === 'Main' || expandedCategories[category] ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0')}
                             `}>
                                 <nav className="space-y-1">
                                     {items.map((item) => {
@@ -270,20 +290,20 @@ export default function Sidebar() {
                                                 key={item.name}
                                                 href={item.href}
                                                 ref={isActive ? activeLinkRef : null}
-                                                title={isCollapsed ? item.name : undefined}
                                                 className={`
                                                     group flex items-center text-[11px] font-bold rounded-md transition-all duration-200 relative
-                                                    ${isCollapsed ? 'justify-center p-2' : 'px-4 py-2'}
+                                                    ${!isExpanded ? 'justify-center p-2' : 'px-4 py-2'}
                                                     ${isActive
                                                         ? 'bg-primary-600 text-white shadow-lg shadow-primary-600/20'
                                                         : 'text-slate-400 hover:text-white hover:bg-slate-800/50'}
                                                 `}
                                                 onClick={() => setIsMobileMenuOpen(false)}
                                             >
-                                                <item.icon className={`${isCollapsed ? 'mr-0' : 'mr-3'} h-4 w-4 flex-shrink-0 transition-transform group-hover:scale-110 ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-white'}`} />
-                                                {!isCollapsed && item.name}
+                                                <item.icon className={`${!isExpanded ? 'mr-0' : 'mr-3'} h-4 w-4 flex-shrink-0 transition-transform group-hover:scale-110 ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-white'}`} />
+                                                {isExpanded && <span className="animate-fade-in-shimmer whitespace-nowrap">{item.name}</span>}
+                                                
                                                 {isActive && (
-                                                    <div className={`absolute rounded-full bg-primary-300 animate-pulse ${isCollapsed ? 'bottom-1 w-1 h-1' : 'right-4 w-1 h-1'}`} />
+                                                    <div className={`absolute rounded-full bg-primary-300 animate-pulse ${!isExpanded ? 'bottom-1 w-1 h-1' : 'right-4 w-1 h-1'}`} />
                                                 )}
                                             </Link>
                                         );

@@ -237,13 +237,19 @@ export const deleteTask = async (req: AuthRequest, res: Response) => {
 
 export const getTasks = async (req: AuthRequest, res: Response) => {
     try {
-        const { projectId } = req.query;
+        const { projectId, sprintId, assigneeId, type, priority } = req.query;
         if (!projectId) return res.status(400).json({ error: 'Project ID required' });
 
         const scope = PermissionService.getPermissionScope(req.user, 'ProjectTask', 'read');
         const userId = req.user!.id;
 
         const where: any = { projectId: String(projectId) };
+
+        // Additional Filters from Query
+        if (sprintId && sprintId !== 'all') where.sprintId = String(sprintId);
+        if (assigneeId && assigneeId !== 'all') where.assignedToId = assigneeId === 'unassigned' ? null : String(assigneeId);
+        if (type && type !== 'all') where.type = String(type);
+        if (priority && priority !== 'all') where.priority = String(priority);
 
         // Apply Scope Filtering (if not 'all' access)
         if (!scope.all) {

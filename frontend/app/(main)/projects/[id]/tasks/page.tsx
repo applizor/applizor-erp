@@ -10,6 +10,7 @@ import {
     Filter, LayoutGrid, Users, Calendar, Clock, Copy, Edit2, Trash2, Link as LinkIcon, ListTree
 } from 'lucide-react';
 import TaskDetailModal from '@/components/tasks/TaskDetailModal';
+import { TaskFilterBar } from '@/components/tasks/TaskFilterBar';
 import BulkTimeLogModal from '@/components/hrms/timesheets/BulkTimeLogModal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import Portal from '@/components/ui/Portal';
@@ -44,7 +45,7 @@ export default function KanbanBoard() {
     const [tasks, setTasks] = useState<Task[]>([]);
     const [sprints, setSprints] = useState<any[]>([]);
     const [selectedSprintId, setSelectedSprintId] = useState<string>('all');
-    const [filters, setFilters] = useState({ assignee: '', type: '', search: '' });
+    const [filters, setFilters] = useState({ assigneeId: 'all', type: 'all', priority: 'all', search: '' });
     const [columns, setColumns] = useState<Record<string, Task[]>>({ todo: [], 'in-progress': [], review: [], done: [] });
     const toast = useToast();
     const { socket } = useSocket();
@@ -157,10 +158,12 @@ export default function KanbanBoard() {
     // Derived State: Distribute tasks into columns based on filters
     useEffect(() => {
         const filtered = tasks.filter(t => {
-            const matchAssignee = filters.assignee ? t.assignee?.id === filters.assignee : true;
-            const matchType = filters.type ? t.type === filters.type : true;
+            const matchAssignee = filters.assigneeId === 'all' ? true : 
+                                 (filters.assigneeId === 'unassigned' ? !t.assignee : (t.assignee?.id === filters.assigneeId));
+            const matchType = filters.type === 'all' ? true : t.type === filters.type;
+            const matchPriority = filters.priority === 'all' ? true : t.priority === filters.priority;
             const matchSearch = filters.search ? t.title.toLowerCase().includes(filters.search.toLowerCase()) : true;
-            return matchAssignee && matchType && matchSearch;
+            return matchAssignee && matchType && matchPriority && matchSearch;
         });
 
         const newCols: any = { todo: [], 'in-progress': [], review: [], done: [] };
@@ -270,45 +273,41 @@ export default function KanbanBoard() {
 
     return (
         <div className="h-[calc(100vh-140px)] flex flex-col animate-fade-in">
-            {/* Control Bar */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 px-1">
-                <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm">
-                        <LayoutGrid size={14} className="text-slate-400" />
-                        <select
-                            value={selectedSprintId}
-                            onChange={(e) => setSelectedSprintId(e.target.value)}
-                            className="bg-transparent border-none text-xs font-black uppercase tracking-widest text-slate-700 focus:ring-0 cursor-pointer outline-none"
-                        >
-                            <option value="all">All Issues</option>
-                            {sprints.map(s => (
-                                <option key={s.id} value={s.id}>{s.name}</option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div className="h-6 w-[1px] bg-slate-200 mx-1" />
-
-                    <div className="relative">
-                        <input
-                            placeholder="Filter tasks..."
-                            className="bg-white pl-8 pr-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold w-48 focus:ring-2 focus:ring-primary-100 outline-none transition-all"
-                            value={filters.search}
-                            onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-                        />
-                        <Filter size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                    </div>
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-3 px-1">
+                <div className="flex items-center gap-3 w-full md:w-auto">
+                    <CustomSelect
+                        value={selectedSprintId}
+                        onChange={(val) => setSelectedSprintId(val)}
+                        options={[
+                            { label: 'Select Sprint', value: 'all' },
+                            ...sprints.map(s => ({
+                                label: `${s.name} (${s.status})`,
+                                value: s.id
+                            }))
+                        ]}
+                        placeholder="Select Sprint"
+                        className="w-full md:w-64"
+                        portal={false}
+                        leftIcon={<LayoutGrid size={14} className="text-slate-400" />}
+                    />
                 </div>
 
                 {can('tasks', 'create') && (
                     <button
                         onClick={() => openTask('new')}
-                        className="btn-primary flex items-center gap-2 text-[10px]"
+                        className="btn-primary flex items-center gap-2 text-[10px] whitespace-nowrap"
                     >
                         <Plus size={14} /> New Issue
                     </button>
                 )}
             </div>
+
+            <TaskFilterBar 
+                filters={filters}
+                members={project?.members || []}
+                onFilterChange={(key, val) => setFilters(prev => ({ ...prev, [key]: val }))}
+                onClearFilters={() => setFilters({ assigneeId: 'all', type: 'all', priority: 'all', search: '' })}
+            />
 
             {/* Board Area */}
             <DragDropContext onDragEnd={onDragEnd}>

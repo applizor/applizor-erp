@@ -23,6 +23,7 @@ interface CustomSelectProps {
     className?: string;
     align?: 'left' | 'right';
     portal?: boolean;
+    leftIcon?: React.ReactNode;
 }
 
 export const CustomSelect: React.FC<CustomSelectProps> = ({
@@ -36,6 +37,8 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
     searchable = true,
     className = '',
     align = 'left',
+    portal = true,
+    leftIcon,
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -125,7 +128,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
                 `}
             >
                 <div className="flex items-center gap-2 truncate">
-                    {selectedOption?.icon && selectedOption.icon}
+                    {leftIcon && leftIcon}
                     <span className={!selectedOption ? 'text-slate-400 font-medium' : ''}>
                         {selectedOption ? selectedOption.label : placeholder}
                     </span>
