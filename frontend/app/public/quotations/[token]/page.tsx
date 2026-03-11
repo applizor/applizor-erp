@@ -179,8 +179,8 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
     const canRespond = !isAccepted && !isRejected;
 
     return (
-        <div className="min-h-screen bg-gray-50 py-8">
-            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="min-h-screen bg-gray-50 py-4 sm:py-8">
+            <div className="max-w-4xl mx-auto px-3 sm:px-6 lg:px-8">
                 {/* Status Banner */}
                 {isAccepted && (
                     <div className="mb-6 bg-green-50 border border-green-200 rounded-md p-4">
@@ -240,7 +240,7 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
                 {/* Quotation Document */}
                 <div className="bg-white shadow-lg rounded-md overflow-hidden border border-gray-200">
                     {/* Header */}
-                    <div className="px-8 py-10 border-b border-gray-200 flex justify-between items-start">
+                    <div className="px-4 sm:px-8 py-6 sm:py-10 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start gap-6">
                         <div>
                             {quotation.company?.logo ? (
                                 <img
@@ -265,8 +265,8 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
                                 {quotation.company?.phone && <> | {quotation.company.phone}</>}
                             </p>
                         </div>
-                        <div className="text-right">
-                            <h1 className="text-3xl font-bold text-gray-900">QUOTATION</h1>
+                        <div className="text-left sm:text-right w-full sm:w-auto">
+                            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">QUOTATION</h1>
                             <div className="mt-3 space-y-1 text-sm">
                                 <p><span className="font-medium">Number:</span> {quotation.quotationNumber}</p>
                                 <p><span className="font-medium">Date:</span> {new Date(quotation.quotationDate).toLocaleDateString()}</p>
@@ -285,7 +285,7 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
                     </div>
 
                     {/* Billed To */}
-                    <div className="px-8 py-6 border-b border-gray-200 bg-gray-50">
+                    <div className="px-4 sm:px-8 py-6 border-b border-gray-200 bg-gray-50">
                         <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Billed To</h3>
                         <div className="text-sm text-gray-900">
                             {quotation.lead && (
@@ -309,7 +309,7 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
 
                     {/* Title & Description */}
                     {(quotation.title || quotation.description) && (
-                        <div className="px-8 py-6 border-b border-gray-200 bg-amber-50">
+                        <div className="px-4 sm:px-8 py-6 border-b border-gray-200 bg-amber-50">
                             {quotation.title && (
                                 <h2 className="text-xl font-bold text-amber-900 mb-3">{quotation.title}</h2>
                             )}
@@ -323,7 +323,7 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
                     )}
 
                     {/* Items Table */}
-                    <div className="overflow-x-auto">
+                    <div className="ent-table-container">
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
@@ -438,7 +438,7 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
 
                     {/* Notes */}
                     {quotation.notes && (
-                        <div className="px-8 py-6 border-t border-gray-200 bg-gray-50">
+                        <div className="px-4 sm:px-8 py-6 border-t border-gray-200 bg-gray-50">
                             <h3 className="text-sm font-medium text-gray-900 mb-2">Terms and Conditions</h3>
                             <p className="text-sm text-gray-600 whitespace-pre-wrap">{quotation.notes}</p>
                         </div>
@@ -465,7 +465,7 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
 
                 {/* Accept Form */}
                 {showAcceptForm && canRespond && (
-                    <div className="mt-6 bg-white rounded-md shadow-lg p-8 border border-gray-200">
+                    <div className="mt-6 bg-white rounded-md shadow-lg p-4 sm:p-8 border border-gray-200">
                         <h2 className="text-xl font-bold text-gray-900 mb-6">Accept Quotation</h2>
                         <form onSubmit={handleAccept} className="space-y-6">
                             <div>
@@ -552,7 +552,7 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
 
                 {/* Reject Form */}
                 {showRejectForm && canRespond && (
-                    <div className="mt-6 bg-white rounded-md shadow-lg p-8 border border-gray-200">
+                    <div className="mt-6 bg-white rounded-md shadow-lg p-4 sm:p-8 border border-gray-200">
                         <h2 className="text-xl font-bold text-gray-900 mb-6">Decline Quotation</h2>
                         <form onSubmit={handleReject} className="space-y-6">
                             <div>
