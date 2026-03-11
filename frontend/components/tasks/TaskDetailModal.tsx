@@ -346,7 +346,7 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
     return (
         <Portal>
             <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex justify-center items-center overflow-hidden p-4 md:p-6 animate-fade-in text-left">
-                <div className="bg-white rounded-md shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col md:flex-row overflow-hidden border border-slate-200">
+                <div className="bg-white rounded-md shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col md:flex-row overflow-y-auto md:overflow-hidden border border-slate-200">
 
                     {/* Close Button */}
                     <button
@@ -357,8 +357,8 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                     </button>
 
                     {/* Left: Main Content (Scrollable) */}
-                    <div className="flex-1 flex flex-col h-full overflow-hidden bg-white">
-                        <div className="flex-1 overflow-y-auto p-8 md:p-10 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+                    <div className="flex-1 flex flex-col md:h-full md:overflow-hidden bg-white">
+                        <div className="flex-1 overflow-visible md:overflow-y-auto p-8 md:p-10 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
 
                             {/* Header Section */}
                             <div className="mb-8">
@@ -780,7 +780,7 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                     </div>
 
                     {/* Right: Meta Details Sidebar */}
-                    <div className="w-full md:w-80 bg-slate-50 border-l border-slate-200 p-6 flex flex-col gap-6 overflow-y-auto h-full shadow-[inset_4px_0_10px_-4px_rgba(0,0,0,0.02)]">
+                    <div className="w-full md:w-80 bg-slate-50 border-t md:border-t-0 md:border-l border-slate-200 p-6 flex flex-col gap-6 md:overflow-y-auto md:h-full shadow-[inset_4px_0_10px_-4px_rgba(0,0,0,0.02)]">
 
                         {/* STATUS */}
                         <div className="ent-card p-4 bg-white shadow-sm border border-slate-200">

@@ -169,10 +169,10 @@ export default function PortalTaskDetailModal({ taskId, onClose, onUpdate }: Por
     return (
         <Portal>
             <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-[100] flex justify-center items-center p-4 animate-fade-in">
-                <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col md:flex-row overflow-hidden animate-zoom-in border border-slate-200">
+                <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col md:flex-row overflow-y-auto md:overflow-hidden animate-zoom-in border border-slate-200">
 
                     {/* Left: Content */}
-                    <div className="flex-1 flex flex-col h-full overflow-hidden bg-white">
+                    <div className="flex-1 flex flex-col md:h-full md:overflow-hidden bg-white">
 
                         {/* Mobile Header / Close */}
                         <div className="md:hidden flex justify-between items-center p-4 border-b border-slate-100">
@@ -182,7 +182,7 @@ export default function PortalTaskDetailModal({ taskId, onClose, onUpdate }: Por
                             </button>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto p-8 relative custom-scrollbar">
+                        <div className="flex-1 overflow-visible md:overflow-y-auto p-8 relative custom-scrollbar">
 
                             {/* Header */}
                             <div className="mb-8">
@@ -391,7 +391,7 @@ export default function PortalTaskDetailModal({ taskId, onClose, onUpdate }: Por
                     </div>
 
                     {/* Right: History (Simplified Sidebar) */}
-                    <div className="hidden md:flex w-80 bg-slate-50 border-l border-slate-200 flex-col h-full">
+                    <div className="w-full md:w-80 bg-slate-50 border-t md:border-t-0 md:border-l border-slate-200 flex flex-col md:h-full">
                         <div className="h-14 border-b border-slate-200 flex items-center justify-between px-5 bg-white">
                             <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Activity History</span>
                             <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors p-1 hover:bg-slate-100 rounded-full">
@@ -399,7 +399,7 @@ export default function PortalTaskDetailModal({ taskId, onClose, onUpdate }: Por
                             </button>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto p-5 space-y-5 custom-scrollbar">
+                        <div className="flex-1 overflow-visible md:overflow-y-auto p-5 space-y-5 custom-scrollbar">
                             {history.length === 0 && (
                                 <div className="text-center py-10 opacity-50">
                                     <Clock size={24} className="mx-auto mb-2 text-slate-300" />
