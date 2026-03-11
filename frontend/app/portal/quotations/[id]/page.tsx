@@ -184,9 +184,9 @@ export default function QuotationDetails({ params }: { params: { id: string } })
                 <div className="flex-1 space-y-6">
                     <div className="ent-card p-0 overflow-hidden">
                         {/* Header */}
-                        <div className="p-6 border-b border-slate-100 flex justify-between items-start bg-slate-50/50">
+                        <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50/50">
                             <div>
-                                <h1 className="text-2xl font-black text-slate-900 tracking-tight uppercase">QUOTATION</h1>
+                                <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight uppercase">QUOTATION</h1>
                                 <p className="text-[10px] font-black text-slate-400 mt-1 uppercase tracking-widest leading-none">#{quotation.quotationNumber}</p>
                             </div>
                             <div className={`px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest border ${getStatusColor(quotation.status)}`}>
@@ -195,14 +195,14 @@ export default function QuotationDetails({ params }: { params: { id: string } })
                         </div>
 
                         {/* Details */}
-                        <div className="p-5 grid grid-cols-2 gap-8">
+                        <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
                             <div>
                                 <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 leading-none">Prepared For</h3>
                                 <p className="text-xs font-black text-slate-900 leading-none">{quotation.lead?.name || 'Client'}</p>
                                 <p className="text-[10px] text-slate-500 mt-1">{quotation.lead?.company || ''}</p>
                                 <p className="text-[10px] text-slate-400">{quotation.lead?.email || ''}</p>
                             </div>
-                            <div className="text-right">
+                            <div className="sm:text-right">
                                 <h3 className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 leading-none">Dates</h3>
                                 <p className="text-[11px] font-bold text-slate-700">
                                     <span className="text-slate-400 mr-2 uppercase text-[9px]">Date:</span>
@@ -272,7 +272,7 @@ export default function QuotationDetails({ params }: { params: { id: string } })
                         {/* Totals Section */}
                         <div className="p-6 bg-slate-50/30 border-t border-slate-100">
                             <div className="flex justify-end">
-                                <div className="w-64 space-y-2">
+                                <div className="w-full sm:w-64 space-y-2">
                                     <div className="flex justify-between items-center text-sm">
                                         <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Gross Subtotal:</span>
                                         <span className="text-xs font-black text-slate-900">{new Intl.NumberFormat(quotation.currency === 'INR' ? 'en-IN' : 'en-US', { style: 'currency', currency: quotation.currency || 'USD' }).format(Number(quotation.subtotal))}</span>
@@ -370,7 +370,7 @@ export default function QuotationDetails({ params }: { params: { id: string } })
                                             </div>
                                         </div>
 
-                                        <div className="grid grid-cols-2 gap-4">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                             <div className="space-y-1.5">
                                                 <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Full Name</label>
                                                 <input
@@ -442,7 +442,7 @@ export default function QuotationDetails({ params }: { params: { id: string } })
                                             </div>
                                         </div>
 
-                                        <div className="grid grid-cols-2 gap-4">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                             <div className="space-y-1.5">
                                                 <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Full Name</label>
                                                 <input
