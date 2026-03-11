@@ -6,8 +6,12 @@ import api from '@/lib/api';
 import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import ProjectAutomationRuleModal from '@/components/projects/ProjectAutomationRuleModal';
+import { useProjectPermissions } from '@/hooks/useProjectPermissions';
+import AccessDenied from '@/components/AccessDenied';
 
 export default function ProjectAutomationPage({ params }: { params: { id: string } }) {
+    const [project, setProject] = useState<any>(null);
+    const projectPerms = useProjectPermissions(project);
     const [rules, setRules] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -20,8 +24,12 @@ export default function ProjectAutomationPage({ params }: { params: { id: string
 
     const fetchRules = async () => {
         try {
-            const res = await api.get(`/projects/${params.id}/automation`);
-            setRules(res.data);
+            const [rulesRes, projectRes] = await Promise.all([
+                api.get(`/projects/${params.id}/automation`),
+                api.get(`/projects/${params.id}`)
+            ]);
+            setRules(rulesRes.data);
+            setProject(projectRes.data);
         } catch (error) {
             console.error(error);
         } finally {
@@ -71,6 +79,10 @@ export default function ProjectAutomationPage({ params }: { params: { id: string
     };
 
     if (loading) return <div className="p-12 flex justify-center"><LoadingSpinner /></div>;
+
+    if (!projectPerms.can('settings', 'edit')) {
+        return <AccessDenied />;
+    }
 
     return (
         <div className="max-w-5xl mx-auto px-4 md:px-0">

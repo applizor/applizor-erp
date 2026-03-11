@@ -5,9 +5,13 @@ import { DollarSign, TrendingDown, TrendingUp, Wallet, PieChart } from 'lucide-r
 import api from '@/lib/api';
 import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { useProjectPermissions } from '@/hooks/useProjectPermissions';
+import AccessDenied from '@/components/AccessDenied';
 
 export default function ProjectFinancials({ params }: { params: { id: string } }) {
     const toast = useToast();
+    const [project, setProject] = useState<any>(null);
+    const projectPerms = useProjectPermissions(project);
     const [stats, setStats] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
@@ -18,6 +22,7 @@ export default function ProjectFinancials({ params }: { params: { id: string } }
     const fetchFinancials = async () => {
         try {
             const res = await api.get(`/projects/${params.id}`);
+            setProject(res.data);
             const projectCurrency = res.data.currency || 'USD';
             if (res.data.stats && res.data.stats.financials) {
                 setStats({ ...res.data.stats.financials, currency: projectCurrency });
@@ -40,6 +45,10 @@ export default function ProjectFinancials({ params }: { params: { id: string } }
     };
 
     if (loading) return <div className="p-12"><LoadingSpinner /></div>;
+
+    if (!projectPerms.can('financials', 'view')) {
+        return <AccessDenied />;
+    }
 
     if (!stats) return <div>No financial data available.</div>;
 

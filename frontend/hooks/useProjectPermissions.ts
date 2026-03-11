@@ -1,7 +1,7 @@
 import { useMemo, useCallback } from 'react';
 import { useAuth } from '@/lib/auth';
 
-export type ProjectRole = 'manager' | 'member' | 'viewer';
+export type ProjectRole = 'manager' | 'lead' | 'member' | 'viewer';
 
 export type ProjectPermissionModule = 'tasks' | 'milestones' | 'financials' | 'settings' | 'team';
 export type ProjectPermissionAction = 'view' | 'create' | 'edit' | 'delete';
@@ -25,7 +25,7 @@ export const useProjectPermissions = (project: any) => {
             );
 
             if (memberRecord) {
-                effectiveRole = (memberRecord.role as ProjectRole) || 'member';
+                effectiveRole = (memberRecord.role?.toLowerCase() as ProjectRole) || 'member';
             } else {
                 effectiveRole = 'viewer';
             }
@@ -55,8 +55,12 @@ export const useProjectPermissions = (project: any) => {
     const can = useCallback((module: ProjectPermissionModule, action: ProjectPermissionAction): boolean => {
         if (!role || !permissions) return false;
 
-        // Managers always have full access
-        if (role === 'manager') return true;
+        // Global Admins always have full access
+        if (user?.roles?.some((r: any) => 
+            (typeof r === 'string' ? r.toLowerCase() : r.role?.name?.toLowerCase()) === 'admin'
+        )) {
+            return true;
+        }
 
         // Check specific permission
         const rolePermissions = (permissions as any)[role];

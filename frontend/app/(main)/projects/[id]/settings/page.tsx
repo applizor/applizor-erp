@@ -6,12 +6,15 @@ import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Save, AlertTriangle, Shield, Archive, Trash2, Bell, Briefcase, Calendar, DollarSign, Zap } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useProjectPermissions } from '@/hooks/useProjectPermissions';
+import AccessDenied from '@/components/AccessDenied';
 
 export default function ProjectSettingsPage({ params }: { params: { id: string } }) {
     const toast = useToast();
     const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [project, setProject] = useState<any>(null);
+    const projectPerms = useProjectPermissions(project);
     const [saving, setSaving] = useState(false);
     const [generalSaving, setGeneralSaving] = useState(false);
 
@@ -141,6 +144,10 @@ export default function ProjectSettingsPage({ params }: { params: { id: string }
     }
 
     if (loading) return <div className="p-12"><LoadingSpinner /></div>;
+
+    if (!projectPerms.can('settings', 'view')) {
+        return <AccessDenied />;
+    }
 
     return (
         <div className="space-y-8 max-w-5xl mx-auto">
