@@ -32,7 +32,7 @@ export default function PortalProjects() {
                 icon={Briefcase}
             />
 
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                 {projects.length === 0 ? (
                     <div className="col-span-full text-center py-12 bg-white rounded-lg border border-slate-200 border-dashed">
                         <Briefcase size={32} className="mx-auto text-slate-300 mb-2" />

@@ -114,32 +114,32 @@ export default function PortalProjectDetail({ params }: { params: { id: string }
     return (
         <div className="animate-fade-in flex flex-col h-[calc(100vh-100px)]">
             {/* Header / Breadcrumb */}
-            <div className="mb-6 flex justify-between items-end">
-                <div>
+            <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6">
+                <div className="flex-1 w-full">
                     <Link href="/portal/projects" className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-primary-600 transition-colors flex items-center gap-1 mb-2">
                         <ArrowLeft size={10} /> Back to Projects
                     </Link>
-                    <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+                    <h1 className="text-xl md:text-3xl font-black text-slate-900 tracking-tight flex flex-wrap items-center gap-2 md:gap-3">
                         {project.name}
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest translate-y-0.5 ${project.status === 'active' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-slate-50 text-slate-600 border border-slate-100'}`}>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest ${project.status === 'active' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-slate-50 text-slate-600 border border-slate-100'}`}>
                             {project.status === 'active' && <CheckCircle2 size={10} className="mr-1" />}
                             {project.status}
                         </span>
                     </h1>
-                    <p className="text-xs text-slate-500 mt-1 max-w-2xl">{project.description}</p>
+                    <p className="text-xs text-slate-500 mt-1.5 max-w-2xl leading-relaxed">{project.description}</p>
                 </div>
 
                 <button
                     onClick={() => setIsCreateModalOpen(true)}
-                    className="bg-slate-900 text-white px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider hover:bg-primary-600 transition-all shadow-lg shadow-primary-900/10 flex items-center gap-2 group"
+                    className="w-full sm:w-auto bg-slate-900 text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary-600 transition-all shadow-lg shadow-primary-900/10 flex items-center justify-center gap-2 group shrink-0"
                 >
-                    <Plus size={16} className="group-hover:rotate-90 transition-transform" />
+                    <Plus size={14} className="group-hover:rotate-90 transition-transform" />
                     Report Issue
                 </button>
             </div>
 
             {/* Project Overview Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
                 <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm">
                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Project Type</p>
                     <div className="flex items-center gap-2">
@@ -219,16 +219,16 @@ export default function PortalProjectDetail({ params }: { params: { id: string }
             </div>
 
             {/* Tabs */}
-            <div className="flex items-center gap-1 mb-4 border-b border-slate-100">
+            <div className="flex items-center gap-1 mb-6 border-b border-slate-100 overflow-x-auto whitespace-nowrap scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
                 <button
                     onClick={() => setActiveTab('board')}
-                    className={`px-4 py-3 text-xs font-bold uppercase tracking-wider border-b-2 transition-all ${activeTab === 'board' ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+                    className={`px-4 py-3 text-[10px] font-black uppercase tracking-widest border-b-2 transition-all ${activeTab === 'board' ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
                 >
                     Project Board
                 </button>
                 <button
                     onClick={() => setActiveTab('review')}
-                    className={`relative px-4 py-3 text-xs font-bold uppercase tracking-wider border-b-2 transition-all flex items-center gap-2 ${activeTab === 'review' ? 'border-amber-500 text-amber-700' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+                    className={`relative px-4 py-3 text-[10px] font-black uppercase tracking-widest border-b-2 transition-all flex items-center gap-2 ${activeTab === 'review' ? 'border-amber-500 text-amber-700' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
                 >
                     Ready for Review
                     {reviewCount > 0 && (
@@ -239,25 +239,25 @@ export default function PortalProjectDetail({ params }: { params: { id: string }
                 </button>
                 <button
                     onClick={() => setActiveTab('roadmap')}
-                    className={`px-4 py-3 text-xs font-bold uppercase tracking-wider border-b-2 transition-all ${activeTab === 'roadmap' ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+                    className={`px-4 py-3 text-[10px] font-black uppercase tracking-widest border-b-2 transition-all ${activeTab === 'roadmap' ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
                 >
                     Roadmap
                 </button>
                 <button
                     onClick={() => setActiveTab('files')}
-                    className={`px-4 py-3 text-xs font-bold uppercase tracking-wider border-b-2 transition-all ${activeTab === 'files' ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+                    className={`px-4 py-3 text-[10px] font-black uppercase tracking-widest border-b-2 transition-all ${activeTab === 'files' ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
                 >
                     Files
                 </button>
                 <button
                     onClick={() => setActiveTab('team')}
-                    className={`px-4 py-3 text-xs font-bold uppercase tracking-wider border-b-2 transition-all ${activeTab === 'team' ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+                    className={`px-4 py-3 text-[10px] font-black uppercase tracking-widest border-b-2 transition-all ${activeTab === 'team' ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
                 >
                     Team
                 </button>
                 <button
                     onClick={() => setActiveTab('financials')}
-                    className={`px-4 py-3 text-xs font-bold uppercase tracking-wider border-b-2 transition-all ${activeTab === 'financials' ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+                    className={`px-4 py-3 text-[10px] font-black uppercase tracking-widest border-b-2 transition-all ${activeTab === 'financials' ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
                 >
                     Financials
                 </button>
