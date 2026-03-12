@@ -35,10 +35,17 @@ export default function ProjectTimesheetPage({ params }: { params: { id: string 
 
     const fetchEmployees = async () => {
         try {
-            const res = await api.get('/employees');
-            setEmployees(res.data.employees || res.data || []);
+            const res = await api.get(`/projects/${params.id}`);
+            if (res.data && res.data.members) {
+                const projectEmployees = res.data.members.map((m: any) => ({
+                    id: m.employeeId,
+                    firstName: m.employee.firstName,
+                    lastName: m.employee.lastName
+                }));
+                setEmployees(projectEmployees);
+            }
         } catch (error) {
-            console.error('Failed to load employees', error);
+            console.error('Failed to load project members', error);
         }
     };
 

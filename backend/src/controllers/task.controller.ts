@@ -14,6 +14,55 @@ const notifyTeams = async (webhookUrl: string, message: string) => {
     // Implementation would use axios.post(webhookUrl, { text: message });
 };
 
+export const uploadTaskDocument = async (req: AuthRequest, res: Response) => {
+    try {
+        const { id } = req.params;
+        if (!req.files || !Array.isArray(req.files) || req.files.length === 0) {
+            return res.status(400).json({ error: 'No files provided' });
+        }
+
+        const task = await prisma.task.findUnique({
+            where: { id },
+            select: { id: true, projectId: true }
+        });
+
+        if (!task) return res.status(404).json({ error: 'Task not found' });
+
+        const scope = PermissionService.getPermissionScope(req.user, 'ProjectTask', 'update');
+        if (!scope.all && !scope.owned && !scope.added) {
+             return res.status(403).json({ error: 'Access denied: You do not have permission to update this task' });
+        }
+
+        const files = req.files as Express.Multer.File[];
+        const uploadedDocuments = await Promise.all(files.map(async (file) => {
+            const fileName = `tasks/${task.id}/${Date.now()}_${file.originalname.replace(/[^a-zA-Z0-9-_\.]/g, '_')}`;
+            const fileUrl = await StorageService.uploadFile(file.buffer, fileName, file.mimetype);
+
+            return prisma.document.create({
+                data: {
+                    project: { connect: { id: task.projectId } },
+                    task: { connect: { id: task.id } },
+                    name: file.originalname,
+                    type: 'task_attachment',
+                    filePath: fileUrl,
+                    fileSize: file.size,
+                    mimeType: file.mimetype,
+                    company: { connect: { id: req.user!.companyId } },
+                    employee: { connect: { id: req.user!.employeeId! } },
+                    uploadedBy: { connect: { id: req.user!.id } }
+                }
+            });
+        }));
+
+        NotificationService.emitProjectUpdate(task.projectId, 'TASK_UPDATED', task);
+
+        res.status(201).json(uploadedDocuments);
+    } catch (error) {
+        console.error("Upload Task Document Error:", error);
+        res.status(500).json({ error: 'Failed to upload document' });
+    }
+};
+
 export const createTask = async (req: AuthRequest, res: Response) => {
     try {
         const {

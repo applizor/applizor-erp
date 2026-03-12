@@ -112,6 +112,45 @@ export const getPortalTasks = async (req: ClientAuthRequest, res: Response) => {
     }
 };
 
+export const updatePortalTask = async (req: ClientAuthRequest, res: Response) => {
+    try {
+        const { id: taskId } = req.params;
+        const clientId = req.clientId!;
+        const { title, description } = req.body;
+
+        const task = await prisma.task.findUnique({
+            where: { id: taskId },
+            include: { project: true }
+        });
+
+        if (!task || task.project.clientId !== clientId) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        if (task.status !== 'todo') {
+            return res.status(400).json({ error: 'Tasks can only be modified when in to do status' });
+        }
+
+        const updated = await prisma.task.update({
+            where: { id: taskId },
+            data: {
+                title: title !== undefined ? title : task.title,
+                description: description !== undefined ? description : task.description
+            }
+        });
+
+        try {
+            const { NotificationService } = await import('../services/notification.service');
+            NotificationService.emitProjectUpdate(task.projectId, 'TASK_UPDATED', updated);
+        } catch(e) {}
+
+        res.json(updated);
+    } catch (error) {
+        console.error("Portal: Update Task Error", error);
+        res.status(500).json({ error: 'Failed to update task' });
+    }
+};
+
 export const getPortalProjectMembers = async (req: ClientAuthRequest, res: Response) => {
     try {
         const { projectId } = req.params;
@@ -143,6 +182,54 @@ export const getPortalProjectMembers = async (req: ClientAuthRequest, res: Respo
         res.json(users);
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch members' });
+    }
+};
+
+export const uploadPortalTaskDocument = async (req: ClientAuthRequest, res: Response) => {
+    try {
+        const { id } = req.params;
+        const clientId = req.clientId!;
+
+        if (!req.files || !Array.isArray(req.files) || req.files.length === 0) {
+            return res.status(400).json({ error: 'No files provided' });
+        }
+
+        const task = await prisma.task.findUnique({
+            where: { id },
+            include: { project: true }
+        });
+
+        if (!task || task.project.clientId !== clientId) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        const files = req.files as Express.Multer.File[];
+        const uploadedDocuments = await Promise.all(files.map(async (file) => {
+            const fileName = `tasks/${task.id}/${Date.now()}_${file.originalname.replace(/[^a-zA-Z0-9-_\.]/g, '_')}`;
+            const fileUrl = await StorageService.uploadFile(file.buffer, fileName, file.mimetype);
+
+            return prisma.document.create({
+                data: {
+                    project: { connect: { id: task.projectId } },
+                    task: { connect: { id: task.id } },
+                    name: file.originalname,
+                    type: 'task_attachment',
+                    filePath: fileUrl,
+                    fileSize: file.size,
+                    mimeType: file.mimetype,
+                    company: { connect: { id: req.client.companyId } },
+                    client: { connect: { id: clientId } }
+                }
+            });
+        }));
+
+        NotificationService.emitProjectUpdate(task.projectId, 'TASK_UPDATED', task);
+
+        res.status(201).json(uploadedDocuments);
+
+    } catch (error) {
+        console.error("Portal: Upload Task Document Error:", error);
+        res.status(500).json({ error: 'Failed to upload document' });
     }
 };
 

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Paperclip, Send, Clock, CheckCircle2, User, MessageSquare } from 'lucide-react';
+import { X, Paperclip, Send, Clock, CheckCircle2, User, MessageSquare, Loader2, Plus, Edit2, Check, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
 import api from '@/lib/api';
 import { getBaseUrl } from '@/lib/utils/url';
@@ -26,11 +26,20 @@ export default function PortalTaskDetailModal({ taskId, onClose, onUpdate }: Por
     const [replyTo, setReplyTo] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
     const toast = useToast();
+    const [sprints, setSprints] = useState<any[]>([]);
+    const [epics, setEpics] = useState<any[]>([]);
+    const [isRejecting, setIsRejecting] = useState(false);
+    const [rejectionReason, setRejectionReason] = useState('');
+    const [isUploadingDoc, setIsUploadingDoc] = useState(false);
+    const [isEditingTitle, setIsEditingTitle] = useState(false);
+    const [isEditingDesc, setIsEditingDesc] = useState(false);
+    const [editedTitle, setEditedTitle] = useState('');
+    const [editedDesc, setEditedDesc] = useState('');
     const { socket } = useSocket();
 
     const [members, setMembers] = useState<any[]>([]);
-    const [isRejecting, setIsRejecting] = useState(false);
-    const [rejectionReason, setRejectionReason] = useState('');
+    // const [isRejecting, setIsRejecting] = useState(false); // Duplicate, removed
+    // const [rejectionReason, setRejectionReason] = useState(''); // Duplicate, removed
 
     useEffect(() => {
         if (taskId) {
@@ -151,6 +160,61 @@ export default function PortalTaskDetailModal({ taskId, onClose, onUpdate }: Por
         }
     };
 
+    const handleDeleteAttachment = async (docId: string) => {
+        if (!window.confirm('Are you sure you want to delete this attachment?')) return;
+        try {
+            await api.delete(`/portal/documents/${docId}`);
+            toast.success('Attachment deleted');
+            fetchTaskDetails();
+        } catch (error) {
+            toast.error('Failed to delete attachment');
+        }
+    };
+
+    const handleUpdateTask = async () => {
+        try {
+            const updateData: any = {};
+            if (isEditingTitle) updateData.title = editedTitle;
+            if (isEditingDesc) updateData.description = editedDesc;
+
+            await api.put(`/portal/tasks/${taskId}`, updateData);
+            toast.success('Task updated successfully');
+            setIsEditingTitle(false);
+            setIsEditingDesc(false);
+            fetchTaskDetails();
+            onUpdate();
+        } catch (error) {
+            toast.error('Failed to update task');
+        }
+    };
+
+    const handleUploadExistingAttachments = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (!files || files.length === 0) return;
+
+        setIsUploadingDoc(true);
+        const formData = new FormData();
+        for (let i = 0; i < files.length; i++) {
+            formData.append('files', files[i]);
+        }
+
+        try {
+            await api.post(`/portal/tasks/${taskId}/documents`, formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+            });
+            toast.success('Files uploaded successfully');
+            fetchTaskDetails(); // Refresh task details to show new attachments
+        } catch (error) {
+            console.error('Error uploading files:', error);
+            toast.error('Failed to upload files');
+        } finally {
+            setIsUploadingDoc(false);
+            e.target.value = ''; // Clear the input field
+        }
+    };
+
     const fetchTaskDetails = async () => {
         try {
             const res = await api.get(`/portal/tasks/${taskId}`);
@@ -204,9 +268,39 @@ export default function PortalTaskDetailModal({ taskId, onClose, onUpdate }: Por
                                         #{task?.id?.split('-')[0].toUpperCase()}
                                     </span>
                                 </div>
-                                <h2 className="text-base md:text-lg font-black text-slate-900 leading-tight tracking-tight break-words">
-                                    {task?.title}
-                                </h2>
+                                {isEditingTitle ? (
+                                    <div className="flex gap-2">
+                                        <input
+                                            value={editedTitle}
+                                            onChange={(e) => setEditedTitle(e.target.value)}
+                                            className="ent-input text-lg font-black flex-1"
+                                        />
+                                        <button onClick={handleUpdateTask} className="p-2 bg-emerald-50 text-emerald-600 rounded-md hover:bg-emerald-100">
+                                            <Check size={18} />
+                                        </button>
+                                        <button onClick={() => setIsEditingTitle(false)} className="p-2 bg-slate-50 text-slate-400 rounded-md hover:bg-slate-100">
+                                            <X size={18} />
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-start justify-between gap-4 group">
+                                        <h2 className="text-base md:text-lg font-black text-slate-900 leading-tight tracking-tight break-words">
+                                            {task?.title}
+                                        </h2>
+                                        {task?.status === 'todo' && (
+                                            <button 
+                                                onClick={() => {
+                                                    setEditedTitle(task.title);
+                                                    setEditedDesc(task.description); // Sync current desc
+                                                    setIsEditingTitle(true);
+                                                }}
+                                                className="p-1 text-slate-400 hover:text-primary-600 opacity-0 group-hover:opacity-100 transition-all"
+                                            >
+                                                <Edit2 size={16} />
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
                                 <div className="flex items-center gap-4 mt-4 text-xs text-slate-500 font-medium">
                                     <span className="flex items-center gap-1.5">
                                         <Clock size={12} className="text-slate-400" />
@@ -223,8 +317,41 @@ export default function PortalTaskDetailModal({ taskId, onClose, onUpdate }: Por
 
                             {/* Description */}
                             <div className="mb-10 group">
-                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Description</h4>
-                                <div className="prose prose-sm max-w-none text-slate-700 bg-white p-0" dangerouslySetInnerHTML={{ __html: task?.description }} />
+                                <div className="flex items-center justify-between mb-3">
+                                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Description</h4>
+                                    {!isEditingDesc && task?.status === 'todo' && (
+                                        <button 
+                                            onClick={() => {
+                                                setEditedTitle(task.title); // Sync current title
+                                                setEditedDesc(task.description);
+                                                setIsEditingDesc(true);
+                                            }}
+                                            className="p-1 text-slate-400 hover:text-primary-600 opacity-0 group-hover:opacity-100 transition-all flex items-center gap-1 text-[10px] font-bold uppercase"
+                                        >
+                                            <Edit2 size={12} /> Edit
+                                        </button>
+                                    )}
+                                </div>
+                                {isEditingDesc ? (
+                                    <div className="space-y-4">
+                                        <div className="border border-slate-200 rounded-md overflow-hidden">
+                                            <RichTextEditor
+                                                value={editedDesc}
+                                                onChange={setEditedDesc}
+                                            />
+                                        </div>
+                                        <div className="flex justify-end gap-2">
+                                            <button onClick={() => setIsEditingDesc(false)} className="px-3 py-1.5 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-md">
+                                                Cancel
+                                            </button>
+                                            <button onClick={handleUpdateTask} className="px-3 py-1.5 text-xs font-bold bg-primary-900 text-white rounded-md hover:bg-primary-800 flex items-center gap-1.5">
+                                                <Check size={14} /> Save Changes
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="prose prose-sm max-w-none text-slate-700 bg-white p-0" dangerouslySetInnerHTML={{ __html: task?.description }} />
+                                )}
                             </div>
 
                             {/* Attachments (View Only) */}
@@ -235,37 +362,97 @@ export default function PortalTaskDetailModal({ taskId, onClose, onUpdate }: Por
                                     </h4>
                                     <div className="flex gap-3 flex-wrap">
                                         {task.documents.map((doc: any) => (
-                                            <button
-                                                key={doc.id}
-                                                onClick={async () => {
-                                                    try {
-                                                        const res = await api.get(`/portal/documents/${doc.id}/download`, {
-                                                            responseType: 'blob'
-                                                        });
-                                                        const url = window.URL.createObjectURL(new Blob([res.data]));
-                                                        const link = document.createElement('a');
-                                                        link.href = url;
-                                                        link.setAttribute('download', doc.name);
-                                                        document.body.appendChild(link);
-                                                        link.click();
-                                                        link.parentNode?.removeChild(link);
-                                                        window.URL.revokeObjectURL(url);
-                                                    } catch (error) {
-                                                        console.error('Download failed:', error);
-                                                        toast.error('Failed to download file');
-                                                    }
-                                                }}
-                                                className="flex items-center gap-3 px-3 py-2 bg-white border border-slate-200 rounded-lg hover:border-primary-400 hover:shadow-sm transition-all group no-underline min-w-[200px] text-left"
-                                            >
-                                                <div className="w-8 h-8 rounded bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 group-hover:text-primary-600 group-hover:bg-primary-50">
-                                                    <Paperclip size={14} />
-                                                </div>
-                                                <div className="overflow-hidden">
-                                                    <p className="text-xs font-bold text-slate-700 truncate">{doc.name}</p>
-                                                    <p className="text-[9px] font-bold text-slate-400 uppercase">{(doc.fileSize / 1024).toFixed(0)} KB</p>
-                                                </div>
-                                            </button>
+                                            <div key={doc.id} className="relative group/doc">
+                                                <button
+                                                    onClick={async () => {
+                                                        try {
+                                                            const res = await api.get(`/portal/documents/${doc.id}/download`, {
+                                                                responseType: 'blob'
+                                                            });
+                                                            const url = window.URL.createObjectURL(new Blob([res.data]));
+                                                            const link = document.createElement('a');
+                                                            link.href = url;
+                                                            link.setAttribute('download', doc.name);
+                                                            document.body.appendChild(link);
+                                                            link.click();
+                                                            link.parentNode?.removeChild(link);
+                                                            window.URL.revokeObjectURL(url);
+                                                        } catch (error) {
+                                                            console.error('Download failed:', error);
+                                                            toast.error('Failed to download file');
+                                                        }
+                                                    }}
+                                                    className="flex items-center gap-3 px-3 py-2 bg-white border border-slate-200 rounded-lg hover:border-primary-400 hover:shadow-sm transition-all group no-underline min-w-[200px] text-left"
+                                                >
+                                                    <div className="w-8 h-8 rounded bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 group-hover:text-primary-600 group-hover:bg-primary-50">
+                                                        <Paperclip size={14} />
+                                                    </div>
+                                                    <div className="overflow-hidden">
+                                                        <p className="text-xs font-bold text-slate-700 truncate">{doc.name}</p>
+                                                        <p className="text-[9px] font-bold text-slate-400 uppercase">{(doc.fileSize / 1024).toFixed(0)} KB</p>
+                                                    </div>
+                                                </button>
+                                                {task?.status === 'todo' && (
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleDeleteAttachment(doc.id);
+                                                        }}
+                                                        className="absolute -top-2 -right-2 w-6 h-6 bg-rose-50 text-rose-600 border border-rose-100 rounded-full flex items-center justify-center opacity-0 group-hover/doc:opacity-100 hover:bg-rose-100 transition-all shadow-sm z-10"
+                                                    >
+                                                        <Trash2 size={12} />
+                                                    </button>
+                                                )}
+                                            </div>
                                         ))}
+
+                                         {task?.status === 'todo' && (
+                                            <div className="relative flex items-center gap-2 px-3 py-2 bg-slate-50 border border-dashed border-slate-300 rounded-md hover:border-primary-300 hover:bg-primary-50/50 cursor-pointer overflow-hidden group">
+                                                <input
+                                                    type="file"
+                                                    multiple
+                                                    disabled={isUploadingDoc}
+                                                    onChange={handleUploadExistingAttachments}
+                                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                                                />
+                                                <div className="w-6 h-6 rounded bg-white border border-slate-200 flex items-center justify-center text-slate-400 group-hover:text-primary-600">
+                                                    {isUploadingDoc ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
+                                                </div>
+                                                <span className="text-[10px] font-bold text-slate-500 group-hover:text-primary-600">
+                                                    {isUploadingDoc ? 'Uploading...' : 'Add Files'}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                            
+                            {/* If no documents exist, we still want the add files button */}
+                            {(!task?.documents || task.documents.length === 0) && (
+                                <div className="mb-10">
+                                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                        <Paperclip size={12} /> Attachments
+                                    </h4>
+                                    <div className="flex gap-3 flex-wrap">
+                                        <p className="text-[10px] text-slate-400 italic">No attachments yet.</p>
+                                        
+                                        {task?.status === 'todo' && (
+                                            <div className="relative flex items-center gap-2 px-3 py-2 bg-slate-50 border border-dashed border-slate-300 rounded-md hover:border-primary-300 hover:bg-primary-50/50 cursor-pointer overflow-hidden group">
+                                                <input
+                                                    type="file"
+                                                    multiple
+                                                    disabled={isUploadingDoc}
+                                                    onChange={handleUploadExistingAttachments}
+                                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                                                />
+                                                <div className="w-6 h-6 rounded bg-white border border-slate-200 flex items-center justify-center text-slate-400 group-hover:text-primary-600">
+                                                    {isUploadingDoc ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
+                                                </div>
+                                                <span className="text-[10px] font-bold text-slate-500 group-hover:text-primary-600">
+                                                    {isUploadingDoc ? 'Uploading...' : 'Add Files'}
+                                                </span>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             )}

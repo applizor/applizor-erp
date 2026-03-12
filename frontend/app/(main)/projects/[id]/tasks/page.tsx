@@ -171,6 +171,10 @@ export default function KanbanBoard() {
             if (newCols[task.status]) newCols[task.status].push(task);
             else newCols['todo'].push(task);
         });
+
+        // Sort 'todo' column by createdAt descending (latest first) per user request
+        newCols['todo'].sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
         setColumns(newCols);
     }, [tasks, filters]);
 

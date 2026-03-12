@@ -1360,6 +1360,16 @@ export const deleteDocument = async (req: ClientAuthRequest, res: Response) => {
             return res.status(404).json({ error: 'Document not found or access denied' });
         }
 
+        // If document is linked to a task, restrict deletion to 'todo' status
+        if (document.taskId) {
+            const task = await prisma.task.findUnique({
+                where: { id: document.taskId }
+            });
+            if (task && task.status !== 'todo') {
+                return res.status(400).json({ error: 'Attachments can only be deleted when task is in to do status' });
+            }
+        }
+
         // Delete from storage
         await StorageService.deleteFile(document.filePath);
 

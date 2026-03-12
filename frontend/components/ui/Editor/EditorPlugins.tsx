@@ -3,6 +3,7 @@
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { $getSelection, $isRangeSelection, COMMAND_PRIORITY_LOW, PASTE_COMMAND } from 'lexical';
 import { useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import api from '@/lib/api';
 import { $createImageNode } from './ImageNode';
 import { useToast } from '@/hooks/useToast';
@@ -10,6 +11,8 @@ import { useToast } from '@/hooks/useToast';
 export function ImagePlugin() {
     const [editor] = useLexicalComposerContext();
     const toast = useToast();
+    const pathname = usePathname();
+    const isPortal = pathname?.startsWith('/portal');
 
     useEffect(() => {
         return editor.registerCommand(
@@ -71,8 +74,10 @@ export function ImagePlugin() {
             const formData = new FormData();
             formData.append('file', file);
 
+            const endpoint = isPortal ? '/portal/upload/editor-asset' : '/upload/editor-asset';
+
             // Show uploading toast or indicator?
-            const res = await api.post('/upload/editor-asset', formData, {
+            const res = await api.post(endpoint, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 
@@ -101,7 +106,9 @@ export function ImagePlugin() {
             const formData = new FormData();
             formData.append('file', file);
 
-            const res = await api.post('/upload/editor-asset', formData, {
+            const endpoint = isPortal ? '/portal/upload/editor-asset' : '/upload/editor-asset';
+
+            const res = await api.post(endpoint, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 

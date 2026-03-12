@@ -20,6 +20,7 @@ import {
     getPortalProjectDocuments,
     downloadPortalDocument
 } from '../controllers/portal.controller';
+import { uploadEditorAsset } from '../controllers/upload.controller';
 import { authenticateClient } from '../middleware/client.auth';
 
 const router = express.Router();
@@ -56,12 +57,16 @@ router.get('/documents/:id/download', authenticateClient, downloadPortalDocument
 import * as portalTaskController from '../controllers/portal.task.controller';
 import { upload } from '../middleware/upload';
 
+router.post('/upload/editor-asset', authenticateClient, upload.single('file'), uploadEditorAsset);
+
 router.get('/tasks', authenticateClient, portalTaskController.getPortalTasks);
 router.get('/tasks/:id', authenticateClient, portalTaskController.getPortalTaskDetails);
+router.put('/tasks/:id', authenticateClient, portalTaskController.updatePortalTask);
 router.get('/projects/:projectId/members', authenticateClient, portalTaskController.getPortalProjectMembers);
 router.post('/tasks', authenticateClient, upload.array('files'), portalTaskController.createPortalTask);
 router.get('/tasks/:id/comments', authenticateClient, portalTaskController.getPortalComments);
 router.post('/tasks/:id/comments', authenticateClient, portalTaskController.addPortalComment);
+router.post('/tasks/:id/documents', authenticateClient, upload.array('files'), portalTaskController.uploadPortalTaskDocument);
 router.put('/tasks/:id/status', authenticateClient, portalTaskController.updatePortalTaskStatus);
 router.get('/tasks/:id/history', authenticateClient, portalTaskController.getPortalTaskHistory);
 

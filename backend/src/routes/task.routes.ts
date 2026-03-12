@@ -15,6 +15,7 @@ router.post('/', checkPermission('ProjectTask', 'create'), upload.array('files')
 router.get('/:id', checkPermission('ProjectTask', 'read'), taskController.getTaskById);
 router.put('/:id', checkPermission('ProjectTask', 'update'), taskController.updateTask);
 router.delete('/:id', checkPermission('ProjectTask', 'delete'), taskController.deleteTask);
+router.post('/:id/documents', checkPermission('ProjectTask', 'update'), upload.array('files'), taskController.uploadTaskDocument);
 
 // Analysis
 router.get('/analysis/me', taskController.getMyTaskAnalysis);

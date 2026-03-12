@@ -58,6 +58,7 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
     const [history, setHistory] = useState<any[]>([]);
     const [activeTab, setActiveTab] = useState<'comments' | 'history' | 'worklog'>('comments');
     const [newComment, setNewComment] = useState('');
+    const [isUploadingDoc, setIsUploadingDoc] = useState(false);
     const [files, setFiles] = useState<File[]>([]);
     const toast = useToast();
     const [employees, setEmployees] = useState<any[]>([]);
@@ -343,6 +344,38 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
         }
     };
 
+    const handleDeleteAttachment = async (docId: string) => {
+        if (!window.confirm('Are you sure you want to delete this attachment?')) return;
+        try {
+            await api.delete(`/documents/${docId}`);
+            toast.success('Attachment deleted');
+            fetchTaskDetails();
+        } catch (error) {
+            toast.error('Failed to delete attachment');
+        }
+    };
+
+    const handleUploadExistingAttachments = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files || e.target.files.length === 0) return;
+        setIsUploadingDoc(true);
+        try {
+            const formData = new FormData();
+            Array.from(e.target.files).forEach(file => {
+                formData.append('files', file);
+            });
+            await api.post(`/tasks/${task?.id}/documents`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+            toast.success('Attachments uploaded successfully');
+            fetchTaskDetails(); // Refresh attachments
+        } catch (error) {
+            toast.error('Failed to upload attachments');
+        } finally {
+            setIsUploadingDoc(false);
+            if (e.target) e.target.value = ''; // Reset input
+        }
+    };
+
     return (
         <Portal>
             <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex justify-center items-center overflow-hidden p-0 md:p-6 animate-fade-in text-left">
@@ -539,26 +572,53 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                                     ) : (
                                         <div className="flex gap-3 flex-wrap">
                                             {task?.documents?.map((doc: any) => (
-                                                <a
-                                                    key={doc.id}
-                                                    href={`${getBaseUrl()}/${doc.filePath}`}
-                                                    target="_blank"
-                                                    className="flex items-center gap-3 px-3 py-2 bg-slate-50 border border-slate-200 rounded-md hover:border-primary-200 hover:bg-primary-50/50 transition-all group no-underline"
-                                                >
-                                                    <div className="w-6 h-6 rounded bg-white border border-slate-200 flex items-center justify-center text-slate-500 group-hover:text-primary-600">
-                                                        <Paperclip size={12} />
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-[10px] font-bold text-slate-700 truncate max-w-[150px]">{doc.name}</p>
-                                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">
-                                                            {(doc.fileSize / 1024).toFixed(0)} KB
-                                                        </p>
-                                                    </div>
-                                                </a>
+                                                <div key={doc.id} className="relative group/doc">
+                                                    <a
+                                                        href={doc.filePath.startsWith('http') ? doc.filePath : `${getBaseUrl()}/${doc.filePath}`}
+                                                        target="_blank"
+                                                        className="flex items-center gap-3 px-3 py-2 bg-slate-50 border border-slate-200 rounded-md hover:border-primary-200 hover:bg-primary-50/50 transition-all group no-underline"
+                                                    >
+                                                        <div className="w-6 h-6 rounded bg-white border border-slate-200 flex items-center justify-center text-slate-500 group-hover:text-primary-600">
+                                                            <Paperclip size={12} />
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-[10px] font-bold text-slate-700 truncate max-w-[150px]">{doc.name}</p>
+                                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">
+                                                                {(doc.fileSize / 1024).toFixed(0)} KB
+                                                            </p>
+                                                        </div>
+                                                    </a>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            e.stopPropagation();
+                                                            handleDeleteAttachment(doc.id);
+                                                        }}
+                                                        className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-rose-50 text-rose-600 border border-rose-100 rounded-full flex items-center justify-center opacity-0 group-hover/doc:opacity-100 hover:bg-rose-100 transition-all shadow-sm z-10"
+                                                    >
+                                                        <Trash2 size={10} />
+                                                    </button>
+                                                </div>
                                             ))}
                                             {(!task?.documents || task.documents.length === 0) && (
                                                 <p className="text-[10px] text-slate-400 italic">No attachments.</p>
                                             )}
+                                            
+                                            <div className="relative flex items-center gap-2 px-3 py-2 bg-slate-50 border border-dashed border-slate-300 rounded-md hover:border-primary-300 hover:bg-primary-50/50 cursor-pointer overflow-hidden group">
+                                                <input
+                                                    type="file"
+                                                    multiple
+                                                    disabled={isUploadingDoc}
+                                                    onChange={handleUploadExistingAttachments}
+                                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                                                />
+                                                <div className="w-6 h-6 rounded bg-white border border-slate-200 flex items-center justify-center text-slate-400 group-hover:text-primary-600">
+                                                    {isUploadingDoc ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
+                                                </div>
+                                                <span className="text-[10px] font-bold text-slate-500 group-hover:text-primary-600">
+                                                    {isUploadingDoc ? 'Uploading...' : 'Add Files'}
+                                                </span>
+                                            </div>
                                         </div>
                                     )}
                                 </div>
