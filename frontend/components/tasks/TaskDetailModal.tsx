@@ -1087,7 +1087,13 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                         {/* Metadata Box */}
                         {!isNew && task && (
                             <div className="mt-auto bg-slate-100 rounded-md p-3 space-y-1.5 border border-slate-200">
-                                <div className="flex justify-between text-[9px] font-bold text-slate-500 uppercase tracking-wide">
+                                <div className="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-wide">
+                                    <span>Reporter</span>
+                                    <span className="text-slate-900 font-black">
+                                        {task.creator ? `${task.creator.firstName} ${task.creator.lastName}` : (task.clientCreator?.name || 'System')}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between text-[9px] font-bold text-slate-500 uppercase tracking-wide border-t border-slate-200/50 pt-1.5 mt-1.5">
                                     <span>Created</span>
                                     <span className="font-mono">{new Date(task.createdAt).toLocaleDateString()}</span>
                                 </div>

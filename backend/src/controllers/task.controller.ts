@@ -379,6 +379,8 @@ export const getTaskById = async (req: AuthRequest, res: Response) => {
                     orderBy: { position: 'asc' }
                 },
                 parent: { select: { id: true, title: true } },
+                creator: { select: { id: true, firstName: true, lastName: true } },
+                clientCreator: { select: { id: true, name: true } },
                 documents: true,
                 activeTimers: {
                     include: {
