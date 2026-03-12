@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { MessageSquare, Heart, Smile, MoreHorizontal, Send, Trash2 } from 'lucide-react';
+import { MessageSquare, Heart, Smile, MoreHorizontal, Send, Trash2, Lock, EyeOff } from 'lucide-react';
 
 interface CommentItemProps {
     comment: any;
@@ -40,7 +40,7 @@ export default function CommentItem({ comment, onReply, onDelete, currentUserId,
     };
 
     return (
-        <div className={`relative flex gap-3 ${isReply ? 'ml-11 mt-1' : ''}`}>
+        <div className={`relative flex gap-3 ${isReply ? 'ml-11 mt-1' : ''} ${comment.isInternal ? 'opacity-95' : ''}`}>
             {/* Visual connector for replies */}
             {isReply && (
                 <div className="absolute -left-6 top-0 bottom-4 w-px bg-slate-200" />
@@ -50,13 +50,18 @@ export default function CommentItem({ comment, onReply, onDelete, currentUserId,
                 {authorName[0]}
             </div>
 
-            <div className="flex-1 space-y-2">
-                <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm hover:border-slate-300 transition-all relative group">
+            <div className={`flex-1 space-y-2`}>
+                <div className={`border rounded-lg p-3 shadow-sm transition-all relative group ${comment.isInternal ? 'bg-indigo-50/30 border-indigo-100 border-dashed hover:border-indigo-200' : 'bg-white border-slate-200 hover:border-slate-300'}`}>
                     <div className="flex items-center justify-between mb-1">
                         <div className="flex items-center gap-2">
                             <span className="text-[11px] font-black text-slate-900 leading-none">{authorName}</span>
                             <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-none">• {new Date(comment.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                             {isClient && <span className="bg-amber-100 text-amber-700 text-[8px] px-1 rounded font-black uppercase tracking-tighter">Client</span>}
+                            {comment.isInternal && (
+                                <span className="bg-indigo-600 text-white text-[7px] px-1.5 py-0.5 rounded flex items-center gap-1 font-black uppercase tracking-widest">
+                                    <Lock size={8} /> Internal
+                                </span>
+                            )}
                         </div>
                         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button className="text-slate-400 hover:text-rose-500 transition-colors"><Heart size={12} /></button>
@@ -81,10 +86,7 @@ export default function CommentItem({ comment, onReply, onDelete, currentUserId,
                         </div>
 
 
-                        {/* DEBUG INFO - REMOVE LATER */}
-                        <div className="text-[8px] text-red-500">
-                            {String(currentUserId)} vs {String(comment.userId)} ({isOwner ? 'MATCH' : 'NO'})
-                        </div>
+                        {/* Delete logic */}
 
                         {canDelete && (
                             <button

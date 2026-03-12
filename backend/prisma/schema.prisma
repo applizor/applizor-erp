@@ -603,6 +603,7 @@ model TaskComment {
   updatedAt DateTime      @updatedAt
   clientId  String?
   parentId  String?
+  isInternal Boolean       @default(false)
   client    Client?       @relation(fields: [clientId], references: [id])
   parent    TaskComment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
   replies   TaskComment[] @relation("CommentReplies")

@@ -249,7 +249,11 @@ export const getPortalTaskDetails = async (req: ClientAuthRequest, res: Response
                     where: { type: 'task_attachment' }
                 },
                 _count: {
-                    select: { comments: true }
+                    select: { 
+                        comments: {
+                            where: { isInternal: false }
+                        } 
+                    }
                 }
             }
         });
@@ -284,12 +288,25 @@ export const addPortalComment = async (req: ClientAuthRequest, res: Response) =>
             return res.status(403).json({ error: 'Access denied' });
         }
 
+        // Flatten logic: If parentId is provided, ensure it's the absolute root parent
+        let finalParentId = parentId || null;
+        if (finalParentId) {
+            const parentComment = await prisma.taskComment.findUnique({
+                where: { id: finalParentId },
+                select: { parentId: true }
+            });
+            if (parentComment && parentComment.parentId) {
+                finalParentId = parentComment.parentId;
+            }
+        }
+
         const comment = await prisma.taskComment.create({
             data: {
                 taskId: id,
                 content,
-                parentId: parentId || null,
-                clientId: clientId // Use new field
+                parentId: finalParentId,
+                clientId: clientId,
+                isInternal: false // Client comments are never internal
             },
             include: {
                 client: { select: { name: true } },
@@ -328,12 +345,14 @@ export const getPortalComments = async (req: ClientAuthRequest, res: Response) =
         const comments = await prisma.taskComment.findMany({
             where: {
                 taskId: id,
-                parentId: null // Only get top-level
+                parentId: null, // Only get top-level
+                isInternal: false // Hide internal comments from clients
             },
             include: {
                 user: { select: { firstName: true, lastName: true } },
                 client: { select: { name: true } },
                 replies: {
+                    where: { isInternal: false }, // Also filter internal replies
                     include: {
                         user: { select: { firstName: true, lastName: true } },
                         client: { select: { name: true } }
@@ -386,7 +405,8 @@ export const updatePortalTaskStatus = async (req: ClientAuthRequest, res: Respon
                 data: {
                     taskId: id,
                     content: `<strong>Changes Requested:</strong> ${reason}`,
-                    clientId: clientId
+                    clientId: clientId,
+                    isInternal: false
                 }
             });
 

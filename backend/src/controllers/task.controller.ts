@@ -38,6 +38,8 @@ export const uploadTaskDocument = async (req: AuthRequest, res: Response) => {
             const fileName = `tasks/${task.id}/${Date.now()}_${file.originalname.replace(/[^a-zA-Z0-9-_\.]/g, '_')}`;
             const fileUrl = await StorageService.uploadFile(file.buffer, fileName, file.mimetype);
 
+            const employeeId = req.user?.employee?.id;
+
             return prisma.document.create({
                 data: {
                     project: { connect: { id: task.projectId } },
@@ -48,7 +50,7 @@ export const uploadTaskDocument = async (req: AuthRequest, res: Response) => {
                     fileSize: file.size,
                     mimeType: file.mimetype,
                     company: { connect: { id: req.user!.companyId } },
-                    employee: { connect: { id: req.user!.employeeId! } },
+                    ...(employeeId ? { employee: { connect: { id: employeeId } } } : {}),
                     uploadedBy: { connect: { id: req.user!.id } }
                 }
             });
@@ -119,7 +121,7 @@ export const createTask = async (req: AuthRequest, res: Response) => {
                         fileSize: file.size,
                         mimeType: file.mimetype,
                         company: { connect: { id: req.user!.companyId } },
-                        employee: { connect: { id: req.user!.employeeId! } }
+                        ...(req.user?.employee?.id ? { employee: { connect: { id: req.user.employee.id } } } : {})
                     }
                 });
             }));
@@ -429,17 +431,31 @@ export const getTaskById = async (req: AuthRequest, res: Response) => {
 export const addComment = async (req: AuthRequest, res: Response) => {
     try {
         const { id } = req.params; // taskId
-        const { content, parentId } = req.body;
+        const { content, parentId, isInternal } = req.body;
+
+        // Flatten logic: If parentId is provided, ensure it's the absolute root parent
+        let finalParentId = parentId || null;
+        if (finalParentId) {
+            const parentComment = await prisma.taskComment.findUnique({
+                where: { id: finalParentId },
+                select: { parentId: true }
+            });
+            // If the parent already has a parent, use that grandparent (or higher)
+            if (parentComment && parentComment.parentId) {
+                finalParentId = parentComment.parentId;
+            }
+        }
 
         const comment = await prisma.taskComment.create({
             data: {
                 taskId: id,
                 content,
-                parentId: parentId || null,
+                parentId: finalParentId,
+                isInternal: isInternal === undefined ? true : !!isInternal, // Default to internal for admin-side
                 userId: req.user!.id
             },
             include: {
-                user: { select: { firstName: true, lastName: true, email: true } },
+                user: { select: { firstName: true, lastName: true } },
                 client: { select: { name: true, email: true } }
             }
         });

@@ -149,7 +149,7 @@ export default function PortalTaskDetailModal({ taskId, onClose, onUpdate }: Por
         try {
             await api.post(`/portal/tasks/${taskId}/comments`, {
                 content: newComment,
-                parentId: replyTo?.id || null
+                parentId: replyTo?.parentId || replyTo?.id || null
             });
             setNewComment('');
             setReplyTo(null);

@@ -13,7 +13,12 @@ export const uploadDocument = async (req: AuthRequest, res: Response) => {
             return res.status(400).json({ error: 'No file uploaded' });
         }
 
-        const fileName = `${type || 'document'}/${req.user!.employeeId!}/${Date.now()}_${file.originalname.replace(/[^a-zA-Z0-9-_\.]/g, '_')}`;
+        const employeeId = req.user?.employee?.id;
+        if (!employeeId) {
+            return res.status(400).json({ error: 'Employee record not found for this user' });
+        }
+
+        const fileName = `${type || 'document'}/${employeeId}/${Date.now()}_${file.originalname.replace(/[^a-zA-Z0-9-_\.]/g, '_')}`;
         const fileUrl = await StorageService.uploadFile(file.buffer, fileName, file.mimetype);
 
         const document = await prisma.document.create({
@@ -24,7 +29,7 @@ export const uploadDocument = async (req: AuthRequest, res: Response) => {
                 fileSize: file.size,
                 mimeType: file.mimetype,
                 company: { connect: { id: req.user!.companyId } },
-                employee: { connect: { id: req.user!.employeeId! } }, // Important: Link to employee
+                employee: { connect: { id: employeeId } }, // Important: Link to employee
                 uploadedBy: { connect: { id: (req.user as any).id } }
             }
         });
@@ -40,7 +45,7 @@ export const getMyDocuments = async (req: AuthRequest, res: Response) => {
     try {
         const documents = await prisma.document.findMany({
             where: {
-                employeeId: req.user!.employeeId,
+                employeeId: req.user?.employee?.id,
                 // Optional: Filter by specific types if needed, or get all
             },
             orderBy: { createdAt: 'desc' }
@@ -54,8 +59,9 @@ export const getMyDocuments = async (req: AuthRequest, res: Response) => {
 export const deleteDocument = async (req: AuthRequest, res: Response) => {
     try {
         const { id } = req.params;
+        const employeeId = req.user?.employee?.id;
         const document = await prisma.document.findFirst({
-            where: { id, employeeId: req.user!.employeeId }
+            where: { id, employeeId }
         });
 
         if (!document) {

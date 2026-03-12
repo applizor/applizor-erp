@@ -660,7 +660,7 @@ export const uploadProjectDocument = async (req: AuthRequest, res: Response) => 
 
         const fileUrl = await StorageService.uploadFile(req.file.buffer, fileName, req.file.mimetype);
 
-        const employeeId = req.user?.employeeId;
+        const employeeId = req.user?.employee?.id;
 
         const document = await prisma.document.create({
             data: {

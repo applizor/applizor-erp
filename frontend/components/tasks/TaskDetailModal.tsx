@@ -67,6 +67,18 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
     const [spentHours, setSpentHours] = useState(0);
     const [isLogModalOpen, setIsLogModalOpen] = useState(false);
     const [replyTo, setReplyTo] = useState<any>(null);
+    const [isInternalComment, setIsInternalComment] = useState(true);
+
+    // Auto-toggle internal status based on reply target
+    useEffect(() => {
+        if (replyTo && replyTo.clientId) {
+            // If replying to a client, default to PUBLIC (not internal)
+            setIsInternalComment(false);
+        } else {
+            // Fresh comment or replying to teammate, default to INTERNAL
+            setIsInternalComment(true);
+        }
+    }, [replyTo]);
 
     // Timer state
     const [timerActive, setTimerActive] = useState(false);
@@ -327,7 +339,8 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
         try {
             await api.post(`/tasks/${taskId}/comments`, {
                 content: newComment,
-                parentId: replyTo?.id || null
+                parentId: replyTo?.parentId || replyTo?.id || null, // Always reply to root or top-level
+                isInternal: isInternalComment
             });
             setNewComment('');
             setReplyTo(null);
@@ -340,8 +353,12 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
-            setFiles(Array.from(e.target.files));
+            setFiles(prev => [...prev, ...Array.from(e.target.files!)]);
         }
+    };
+
+    const removeFile = (index: number) => {
+        setFiles(prev => prev.filter((_, i) => i !== index));
     };
 
     const handleDeleteAttachment = async (docId: string) => {
@@ -558,16 +575,36 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                                     </h4>
 
                                     {isNew ? (
-                                        <div className="border border-dashed border-slate-300 rounded-md p-8 text-center hover:bg-slate-50 hover:border-slate-400 transition-all cursor-pointer group relative">
-                                            <input type="file" multiple id="file-upload" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onChange={handleFileChange} />
-                                            <div className="flex flex-col items-center gap-2 pointer-events-none">
-                                                <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center group-hover:bg-white group-hover:shadow-sm transition-all text-slate-400">
-                                                    <Paperclip size={18} />
+                                        <div className="space-y-3">
+                                            <div className="border border-dashed border-slate-300 rounded-md p-8 text-center hover:bg-slate-50 hover:border-slate-400 transition-all cursor-pointer group relative">
+                                                <input type="file" multiple id="file-upload" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onChange={handleFileChange} />
+                                                <div className="flex flex-col items-center gap-2 pointer-events-none">
+                                                    <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center group-hover:bg-white group-hover:shadow-sm transition-all text-slate-400">
+                                                        <Paperclip size={18} />
+                                                    </div>
+                                                    <span className="text-xs font-bold text-slate-500">
+                                                        Drop files here or click to upload
+                                                    </span>
                                                 </div>
-                                                <span className="text-xs font-bold text-slate-500">
-                                                    {files.length > 0 ? `${files.length} files attached` : 'Drop files here or click to upload'}
-                                                </span>
                                             </div>
+
+                                            {files.length > 0 && (
+                                                <div className="flex flex-wrap gap-2">
+                                                    {files.map((file, idx) => (
+                                                        <div key={idx} className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-md group/file">
+                                                            <Paperclip size={10} className="text-slate-400" />
+                                                            <span className="text-[10px] font-bold text-slate-700 truncate max-w-[120px]">{file.name}</span>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => removeFile(idx)}
+                                                                className="text-slate-300 hover:text-rose-500 transition-colors"
+                                                            >
+                                                                <X size={10} />
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     ) : (
                                         <div className="flex gap-3 flex-wrap">
@@ -792,13 +829,34 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                                                     />
                                                 </div>
                                                 <div className="bg-slate-50/50 px-4 py-3 flex justify-end border-t border-slate-100">
-                                                    <button
-                                                        onClick={postComment}
-                                                        disabled={!newComment.trim()}
-                                                        className="btn-primary text-[10px] flex items-center gap-2"
-                                                    >
-                                                        {replyTo ? 'Post Reply' : 'Post Comment'} <Send size={12} />
-                                                    </button>
+                                                    <div className="flex items-center gap-4">
+                                                        <label className="flex items-center gap-2 cursor-pointer group/toggle">
+                                                            <div className={`w-8 h-4 rounded-full p-0.5 transition-all duration-300 ${isInternalComment ? 'bg-primary-600' : 'bg-slate-200'}`}>
+                                                                <div className={`w-3 h-3 bg-white rounded-full shadow-sm transition-transform duration-300 ${isInternalComment ? 'translate-x-4' : 'translate-x-0'}`} />
+                                                            </div>
+                                                            <input
+                                                                type="checkbox"
+                                                                className="hidden"
+                                                                checked={isInternalComment}
+                                                                onChange={(e) => setIsInternalComment(e.target.checked)}
+                                                            />
+                                                            <div className="flex flex-col">
+                                                                <span className={`text-[9px] font-black uppercase tracking-wider transition-colors ${isInternalComment ? 'text-primary-700' : 'text-slate-400 group-hover/toggle:text-slate-600'}`}>
+                                                                    Internal Discussion
+                                                                </span>
+                                                                <span className="text-[7px] text-slate-400 font-bold uppercase tracking-widest leading-none">
+                                                                    {isInternalComment ? 'Hidden from client' : 'Visible to client'}
+                                                                </span>
+                                                            </div>
+                                                        </label>
+                                                        <button
+                                                            onClick={postComment}
+                                                            disabled={!newComment.trim()}
+                                                            className="btn-primary text-[10px] flex items-center gap-2"
+                                                        >
+                                                            {replyTo ? 'Post Reply' : 'Post Comment'} <Send size={12} />
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </>
