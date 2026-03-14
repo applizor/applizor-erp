@@ -548,14 +548,45 @@ export const approveTimesheets = async (req: AuthRequest, res: Response) => {
         const { ids } = req.body;
 
         // Manager Check
-        if (!PermissionService.hasBasicPermission(user, 'Timesheet', 'update')) {
-            return res.status(403).json({ error: 'Access denied: No approve rights' });
+        const hasGlobalApprovePermission = PermissionService.hasBasicPermission(user, 'Timesheet', 'update');
+        
+        const timesheets = await prisma.timesheet.findMany({
+            where: {
+                id: { in: ids },
+                status: 'submitted'
+            }
+        });
+
+        if (timesheets.length === 0) {
+            return res.status(404).json({ error: 'No submitted timesheets found' });
+        }
+
+        // Project Manager Check for those without global permission
+        if (!hasGlobalApprovePermission) {
+            const employee = await prisma.employee.findUnique({ where: { userId: user.id } });
+            if (!employee) return res.status(403).json({ error: 'Access denied: No employee profile' });
+
+            for (const ts of timesheets) {
+                if (!ts.projectId) return res.status(403).json({ error: 'Access denied: Timesheet not linked to project' });
+                
+                const membership = await prisma.projectMember.findUnique({
+                    where: {
+                        projectId_employeeId: {
+                            projectId: ts.projectId,
+                            employeeId: employee.id
+                        }
+                    }
+                });
+
+                if (!membership || (membership.role !== 'manager' && membership.role !== 'admin')) {
+                    return res.status(403).json({ error: `Access denied: You are not a manager for project ${ts.projectId}` });
+                }
+            }
         }
 
         const result = await prisma.timesheet.updateMany({
             where: {
-                id: { in: ids },
-                status: 'submitted'
+                id: { in: timesheets.map(t => t.id) }
             },
             data: {
                 status: 'approved',
@@ -578,14 +609,45 @@ export const rejectTimesheets = async (req: AuthRequest, res: Response) => {
         if (!reason) return res.status(400).json({ error: 'Rejection reason is required' });
 
         // Manager Check
-        if (!PermissionService.hasBasicPermission(user, 'Timesheet', 'update')) {
-            return res.status(403).json({ error: 'Access denied: No reject rights' });
+        const hasGlobalRejectPermission = PermissionService.hasBasicPermission(user, 'Timesheet', 'update');
+
+        const timesheets = await prisma.timesheet.findMany({
+            where: {
+                id: { in: ids },
+                status: 'submitted'
+            }
+        });
+
+        if (timesheets.length === 0) {
+            return res.status(404).json({ error: 'No submitted timesheets found' });
+        }
+
+        // Project Manager Check for those without global permission
+        if (!hasGlobalRejectPermission) {
+            const employee = await prisma.employee.findUnique({ where: { userId: user.id } });
+            if (!employee) return res.status(403).json({ error: 'Access denied: No employee profile' });
+
+            for (const ts of timesheets) {
+                if (!ts.projectId) return res.status(403).json({ error: 'Access denied: Timesheet not linked to project' });
+
+                const membership = await prisma.projectMember.findUnique({
+                    where: {
+                        projectId_employeeId: {
+                            projectId: ts.projectId,
+                            employeeId: employee.id
+                        }
+                    }
+                });
+
+                if (!membership || (membership.role !== 'manager' && membership.role !== 'admin')) {
+                    return res.status(403).json({ error: `Access denied: You are not a manager for project ${ts.projectId}` });
+                }
+            }
         }
 
         const result = await prisma.timesheet.updateMany({
             where: {
-                id: { in: ids },
-                status: 'submitted'
+                id: { in: timesheets.map(t => t.id) }
             },
             data: {
                 status: 'rejected',

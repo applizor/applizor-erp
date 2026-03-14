@@ -175,8 +175,9 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
         // Permission Scoping
         const scope = PermissionService.getPermissionScope(req.user, 'ProjectTask', 'update');
         const userId = req.user!.id;
+        const isPM = await PermissionService.isProjectManager(userId, oldTask.projectId);
 
-        if (!scope.all) {
+        if (!scope.all && !isPM) {
             const isAssigned = oldTask.assignedToId === userId;
             const isCreator = oldTask.createdById === userId;
 
@@ -262,8 +263,9 @@ export const deleteTask = async (req: AuthRequest, res: Response) => {
         // Permission Scoping
         const scope = PermissionService.getPermissionScope(req.user, 'ProjectTask', 'delete');
         const userId = req.user!.id;
+        const isPM = await PermissionService.isProjectManager(userId, task.projectId);
 
-        if (!scope.all) {
+        if (!scope.all && !isPM) {
             const isAssigned = task.assignedToId === userId;
             const isCreator = task.createdById === userId;
 
@@ -293,6 +295,7 @@ export const getTasks = async (req: AuthRequest, res: Response) => {
 
         const scope = PermissionService.getPermissionScope(req.user, 'ProjectTask', 'read');
         const userId = req.user!.id;
+        const isPM = await PermissionService.isProjectManager(userId, String(projectId));
 
         const where: any = { projectId: String(projectId) };
 
@@ -302,8 +305,8 @@ export const getTasks = async (req: AuthRequest, res: Response) => {
         if (type && type !== 'all') where.type = String(type);
         if (priority && priority !== 'all') where.priority = String(priority);
 
-        // Apply Scope Filtering (if not 'all' access)
-        if (!scope.all) {
+        // Apply Scope Filtering (if not 'all' access AND not a PM)
+        if (!scope.all && !isPM) {
             const orConditions: any[] = [];
 
             if (scope.owned) {
@@ -408,17 +411,20 @@ export const getTaskById = async (req: AuthRequest, res: Response) => {
 
         if (!task) return res.status(404).json({ error: 'Task not found' });
 
-        // Enforce same scope visibility check for individual task access
+        // Enforce same scope visibility check for individual task access (Admin or PM bypass)
         if (!scope.all) {
-            const isAssigned = task.assignedToId === userId;
-            const isUnassigned = task.assignedToId === null;
-            const isCreator = task.createdById === userId;
+            const isPM = await PermissionService.isProjectManager(userId, task.projectId);
+            if (!isPM) {
+                const isAssigned = task.assignedToId === userId;
+                const isUnassigned = task.assignedToId === null;
+                const isCreator = task.createdById === userId;
 
-            const canSeeByOwned = scope.owned && (isAssigned || isUnassigned);
-            const canSeeByAdded = scope.added && isCreator;
+                const canSeeByOwned = scope.owned && (isAssigned || isUnassigned);
+                const canSeeByAdded = scope.added && isCreator;
 
-            if (!canSeeByOwned && !canSeeByAdded) {
-                return res.status(403).json({ error: 'Access denied: You do not have permission to view this task' });
+                if (!canSeeByOwned && !canSeeByAdded) {
+                    return res.status(403).json({ error: 'Access denied: You do not have permission to view this task' });
+                }
             }
         }
 

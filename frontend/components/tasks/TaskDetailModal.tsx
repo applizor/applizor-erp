@@ -281,7 +281,8 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
             // Fix: Map assignedToId (DB) to assigneeId (Form)
             reset({
                 ...res.data,
-                assigneeId: res.data.assignedToId || ''
+                assigneeId: res.data.assignedToId || '',
+                dueDate: res.data.dueDate ? new Date(res.data.dueDate).toISOString().split('T')[0] : ''
             });
         } catch (error) {
             toast.error('Failed to load task details');
@@ -1000,6 +1001,16 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                                     {...register('storyPoints')}
                                     className="w-full bg-white border border-slate-200 rounded-md px-3 py-2 text-[11px] font-bold text-slate-700 outline-none focus:border-primary-500 transition-colors"
                                     placeholder="0"
+                                />
+                            </div>
+
+                            {/* Due Date */}
+                            <div>
+                                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Due Date</label>
+                                <input
+                                    type="date"
+                                    {...register('dueDate')}
+                                    className="w-full bg-white border border-slate-200 rounded-md px-3 py-2 text-[11px] font-bold text-slate-700 outline-none focus:border-primary-500 transition-colors"
                                 />
                             </div>
 

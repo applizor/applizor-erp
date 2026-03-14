@@ -14,10 +14,11 @@ import { usePermission } from '@/hooks/usePermission';
 
 export default function ProjectTimesheetPage({ params }: { params: { id: string } }) {
     const { error: showError, success: showSuccess } = useToast();
-    const { can } = usePermission();
+    const { can, user } = usePermission();
     const [timesheets, setTimesheets] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [processing, setProcessing] = useState<string | null>(null);
+    const [isProjectManager, setIsProjectManager] = useState(false);
 
     // Filters
     const [showFilters, setShowFilters] = useState(false);
@@ -43,6 +44,12 @@ export default function ProjectTimesheetPage({ params }: { params: { id: string 
                     lastName: m.employee.lastName
                 }));
                 setEmployees(projectEmployees);
+
+                // Check if current user is manager
+                const currentUserEmployee = res.data.members.find((m: any) => m.employee?.userId === user?.id);
+                if (currentUserEmployee && (currentUserEmployee.role === 'manager' || currentUserEmployee.role === 'admin')) {
+                    setIsProjectManager(true);
+                }
             }
         } catch (error) {
             console.error('Failed to load project members', error);
@@ -261,7 +268,7 @@ export default function ProjectTimesheetPage({ params }: { params: { id: string 
                                             {entry.description || '-'}
                                         </td>
                                         <td className="px-5 py-4 text-right">
-                                            {entry.status === 'pending' && can('Timesheet', 'update') && (
+                                            {entry.status === 'submitted' && (can('Timesheet', 'update') || isProjectManager) && (
                                                 <div className="flex items-center justify-end gap-2">
                                                     <Button
                                                         size="sm"

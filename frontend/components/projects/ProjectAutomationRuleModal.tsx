@@ -119,7 +119,23 @@ export default function ProjectAutomationRuleModal({ projectId, rule, onClose, o
 
                             <CustomSelect
                                 value={triggerType}
-                                onChange={(val) => setTriggerType(val)}
+                                onChange={(val) => {
+                                    setTriggerType(val);
+                                    // Auto-select sensible defaults for each trigger
+                                    if (val === 'TASK_REMINDER') {
+                                        setTriggerConfig({ daysBefore: 1 });
+                                        setActionConfig({ ...actionConfig, recipient: 'assignee', useTemplate: 'reminder' });
+                                    } else if (val === 'TASK_ASSIGNED') {
+                                        setActionConfig({ ...actionConfig, recipient: 'assignee', useTemplate: 'assigned' });
+                                    } else if (val === 'TASK_CREATED') {
+                                        setActionConfig({ ...actionConfig, useTemplate: 'created' });
+                                    } else if (val === 'TASK_STATUS_CHANGE') {
+                                        setTriggerConfig({ from: '*', to: 'done' });
+                                        setActionConfig({ ...actionConfig, useTemplate: 'status' });
+                                    } else if (val === 'MENTION_FOUND') {
+                                        setActionConfig({ ...actionConfig, recipient: 'mentions', useTemplate: 'mention' });
+                                    }
+                                }}
                                 options={[
                                     { label: 'Task Created', value: 'TASK_CREATED' },
                                     { label: 'Task Status Changed', value: 'TASK_STATUS_CHANGE' },
@@ -278,7 +294,8 @@ export default function ProjectAutomationRuleModal({ projectId, rule, onClose, o
                                             { label: 'Standard Mention Template', value: 'mention' },
                                             { label: 'Task Assignment Template', value: 'assigned' },
                                             { label: 'New Task Template', value: 'created' },
-                                            { label: 'Status Update Template', value: 'status' }
+                                            { label: 'Status Update Template', value: 'status' },
+                                            { label: '⏰ Task Reminder Template', value: 'reminder' }
                                         ]}
                                         className="w-full"
                                     />

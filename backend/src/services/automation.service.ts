@@ -64,6 +64,7 @@ export class AutomationService {
             case 'TASK_CREATED':
             case 'COMMENT_ADDED':
             case 'MENTION_FOUND':
+            case 'TASK_REMINDER':
                 return true;
 
             case 'TASK_ASSIGNED':
@@ -114,10 +115,16 @@ export class AutomationService {
                     await notifyNewTask(email, { title: payload.taskTitle, description: '', priority: 'medium', type: 'task' }, project);
                 } else if (config.useTemplate === 'status') {
                     await notifyTaskUpdated({ firstName: payload.assigneeName || 'User', email: email }, { title: payload.taskTitle, id: payload.taskId, status: payload.newStatus || 'Updated' }, project, [`Status changed to ${payload.newStatus}`]);
-                } else if (rule.triggerType === 'TASK_REMINDER') {
-                    // Custom reminder logic: payload should have daysRemaining
-                    const daysRemaining = (payload as any).daysRemaining || 0;
-                    await (require('./email.service')).notifyTaskReminder(email, { title: payload.taskTitle, id: payload.taskId, priority: (payload as any).priority || 'Medium', status: payload.newStatus || 'To Do', dueDate: (payload as any).dueDate }, project, daysRemaining);
+                } else if (config.useTemplate === 'reminder' || rule.triggerType === 'TASK_REMINDER') {
+                    // Reminder template — uses notifyTaskReminder with daysRemaining from payload
+                    const daysRemaining = (payload as any).daysRemaining ?? 0;
+                    const { notifyTaskReminder } = require('./email.service');
+                    await notifyTaskReminder(
+                        email,
+                        { title: payload.taskTitle, id: payload.taskId, priority: (payload as any).priority || 'medium', status: payload.newStatus || 'todo', dueDate: (payload as any).dueDate },
+                        project,
+                        daysRemaining
+                    );
                 } else {
                     await sendEmail(email, config.subject || `Update: ${payload.taskTitle}`, config.body || `Task ${payload.taskTitle} has been updated.`);
                 }
