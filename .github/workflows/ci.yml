@@ -58,8 +58,8 @@ jobs:
             git reset --hard origin/main
           fi
           
-          echo "🧹 Freed up RAM..."
-          sudo docker system prune -af --volumes || true
+          echo "🧹 Safely cleaning up old dangling images..."
+          sudo docker image prune -f || true
 
           # 3. Docker Orchestration
           echo "📦 Starting Docker build..."
@@ -84,19 +84,8 @@ jobs:
           done
           
           # 4. Database Migrations
-          echo "🔄 Running migrations (Safe for data)..."
-          if ! sudo docker compose -f docker-compose.prod.yml exec -T backend npx prisma migrate deploy; then
-            echo "⚠️ Migration conflict detected. Syncing history..."
-            MIGRATIONS=(
-              "20260218190518_add_company_off_days"
-              "20260219153640_add_payroll_accounting_fields"
-              "20260219184312_add_advanced_pm_hierarchy"
-            )
-            for m in "${MIGRATIONS[@]}"; do
-              sudo docker compose -f docker-compose.prod.yml exec -T backend npx prisma migrate resolve --applied "$m" || true
-            done
-            sudo docker compose -f docker-compose.prod.yml exec -T backend npx prisma migrate deploy
-          fi
+          echo "🔄 Running migrations..."
+          sudo docker compose -f docker-compose.prod.yml exec -T backend npx prisma migrate deploy
           
           # 5. Finalize Permissions: Give control back to the 'admin' user
           echo "🔐 Final permission sweep for admin user..."
