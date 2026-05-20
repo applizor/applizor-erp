@@ -24,7 +24,7 @@ export class PermissionService {
 
         // Super Admin Bypass
         const isSuperAdmin = user.roles?.some((r: any) =>
-            r.role.name === 'Super Admin' || r.role.name === 'Admin' || r.role.isSystem
+            ['Super Admin', 'Admin', 'Administrator'].includes(r.role.name)
         );
         if (isSuperAdmin) return true;
 
@@ -60,7 +60,7 @@ export class PermissionService {
 
         // Super Admin
         const isSuperAdmin = user.roles.some((r: any) =>
-            r.role.name === 'Super Admin' || r.role.name === 'Admin' || r.role.isSystem // Assuming isSystem check fix
+            ['Super Admin', 'Admin', 'Administrator'].includes(r.role.name)
         );
         if (isSuperAdmin) return { all: true, owned: true, added: true };
 

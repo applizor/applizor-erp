@@ -1,4 +1,5 @@
 import { useAuth, User } from '@/lib/auth';
+import { useCallback } from 'react';
 
 export type PermissionAction = 'create' | 'read' | 'update' | 'delete';
 export type PermissionModule =
@@ -33,12 +34,20 @@ export type PermissionModule =
     | 'Document'
     | 'Accounting'
     | 'NewsCMS'
-    | 'Policy';
+    | 'Policy'
+    | 'Certificate'
+    | 'CertificateTemplate'
+    | 'Student'
+    | 'Course'
+    | 'CourseEnrollment'
+    | 'OnlineClass'
+    | 'Lecture'
+    | 'Exam';
 
 export const usePermission = () => {
     const { user } = useAuth();
 
-    const can = (module: PermissionModule | string, action: PermissionAction): boolean => {
+    const can = useCallback((module: PermissionModule | string, action: PermissionAction): boolean => {
         if (!user) return false;
 
         // Admin override
@@ -63,10 +72,10 @@ export const usePermission = () => {
 
         // 'none' means strictly no access
         return level !== 'none' && level !== undefined;
-    };
+    }, [user]);
 
     // Helper for specific scopes if needed in UI (e.g. show "My" vs "All")
-    const getScope = (module: PermissionModule | string, action: PermissionAction): 'all' | 'added' | 'owned' | 'none' => {
+    const getScope = useCallback((module: PermissionModule | string, action: PermissionAction): 'all' | 'added' | 'owned' | 'none' => {
         if (!user || !user.permissions || !user.permissions[module]) return 'none';
 
         // Admin override - implicitly 'all'
@@ -83,7 +92,7 @@ export const usePermission = () => {
             case 'delete': level = perm.deleteLevel; break;
         }
         return level as any;
-    };
+    }, [user]);
 
     return { can, getScope, user };
 };

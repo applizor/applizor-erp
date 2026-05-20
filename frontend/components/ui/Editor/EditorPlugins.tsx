@@ -18,6 +18,16 @@ export function ImagePlugin() {
         return editor.registerCommand(
             PASTE_COMMAND,
             (event: ClipboardEvent) => {
+                const types = event.clipboardData?.types || [];
+                const hasHtml = types.includes('text/html');
+                const hasRtf = types.includes('text/rtf');
+
+                // If clipboard has HTML or RTF content (e.g. copied from Word, Web browser, or Google Docs),
+                // do not hijack the paste event to prevent blocking the text/formatting content paste.
+                if (hasHtml || hasRtf) {
+                    return false;
+                }
+
                 const items = event.clipboardData?.items;
                 if (!items) return false;
 

@@ -13,7 +13,9 @@ export const SYSTEM_MODULES = [
     'Document',
     'Project', 'ProjectTask', // Added Project modules
     'Timesheet', // Phase 9
-    'Holiday', 'Contract', 'Accounting', 'NewsCMS', 'Policy'
+    'Holiday', 'Contract', 'Accounting', 'NewsCMS', 'Policy',
+    'Certificate', 'CertificateTemplate', // Certificate System
+    'Student', 'Course', 'CourseEnrollment', 'OnlineClass', 'Lecture', 'Exam', // LMS Modules
 ];
 
 const ACCESS_LEVELS = ['none', 'all', 'added', 'owned', 'added_owned']; // "added_owned" matches "Added & Owned"
@@ -185,6 +187,13 @@ export const updateRole = async (req: AuthRequest, res: Response) => {
 
         const { id } = req.params;
         const { name, description, permissions } = req.body;
+
+        // Block modifying system roles
+        const existingRole = await prisma.role.findUnique({ where: { id } });
+        if (!existingRole) return res.status(404).json({ error: 'Role not found' });
+        if (existingRole.isSystem) {
+            return res.status(400).json({ error: 'System roles cannot be modified' });
+        }
 
         const role = await prisma.role.update({
             where: { id },

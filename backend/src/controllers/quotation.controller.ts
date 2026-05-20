@@ -39,10 +39,52 @@ export const createQuotation = async (req: AuthRequest, res: Response) => {
         } = req.body;
 
         // Generate quotation number
-        const count = await prisma.quotation.count({
-            where: { companyId: user.companyId }
+        const currentYear = new Date().getFullYear();
+        const prefix = `QUO-${currentYear}-`;
+
+        const lastQuotation = await prisma.quotation.findFirst({
+            where: {
+                companyId: user.companyId,
+                quotationNumber: {
+                    startsWith: prefix
+                }
+            },
+            orderBy: {
+                quotationNumber: 'desc'
+            }
         });
-        const quotationNumber = `QUO-${new Date().getFullYear()}-${String(count + 1).padStart(4, '0')}`;
+
+        let nextNumber = 1;
+        if (lastQuotation && lastQuotation.quotationNumber) {
+            const parts = lastQuotation.quotationNumber.split('-');
+            if (parts.length === 3) {
+                const lastSeq = parseInt(parts[2], 10);
+                if (!isNaN(lastSeq)) {
+                    nextNumber = lastSeq + 1;
+                }
+            }
+        }
+
+        let quotationNumber = `${prefix}${String(nextNumber).padStart(4, '0')}`;
+
+        // Safety verification loop to prevent unique constraint conflicts
+        let isUnique = false;
+        let attempts = 0;
+        while (!isUnique && attempts < 100) {
+            const existingCount = await prisma.quotation.count({
+                where: {
+                    companyId: user.companyId,
+                    quotationNumber
+                }
+            });
+            if (existingCount === 0) {
+                isUnique = true;
+            } else {
+                nextNumber++;
+                quotationNumber = `${prefix}${String(nextNumber).padStart(4, '0')}`;
+                attempts++;
+            }
+        }
 
         const taxRates = await prisma.taxRate.findMany({
             where: {

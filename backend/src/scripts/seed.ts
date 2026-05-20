@@ -69,6 +69,25 @@ async function main() {
         console.log('✅ Employee role created');
     }
 
+    // Student Role
+    let studentRole = await prisma.role.findUnique({ where: { name: 'Student' } });
+    if (!studentRole) {
+        studentRole = await prisma.role.create({
+            data: {
+                name: 'Student',
+                isSystem: true,
+                description: 'Static Student Role (System Protected)'
+            }
+        });
+        console.log('✅ Student role created');
+    } else {
+        await prisma.role.update({
+            where: { id: studentRole.id },
+            data: { isSystem: true }
+        });
+    }
+
+
     // 3. Create Departments
     console.log('Creating departments...');
     const depts = [
@@ -517,6 +536,39 @@ async function main() {
         });
     }
     console.log(`✅ Employee permissions synced (${EMPLOYEE_PERMISSIONS.length} modules)`);
+
+    // Student Permissions
+    const STUDENT_PERMISSIONS = [
+        { module: 'Dashboard', readLevel: 'all' },
+        { module: 'Student', readLevel: 'owned' },
+        { module: 'Course', readLevel: 'all' },
+        { module: 'CourseEnrollment', readLevel: 'owned' },
+        { module: 'OnlineClass', readLevel: 'owned' },
+        { module: 'Certificate', readLevel: 'owned' }
+    ];
+
+    for (const perm of STUDENT_PERMISSIONS) {
+        await prisma.rolePermission.upsert({
+            where: { roleId_module: { roleId: studentRole.id, module: perm.module } },
+            update: {
+                createLevel: 'none',
+                readLevel: perm.readLevel || 'none',
+                updateLevel: 'none',
+                deleteLevel: 'none'
+            },
+            create: {
+                roleId: studentRole.id,
+                module: perm.module,
+                createLevel: 'none',
+                readLevel: perm.readLevel || 'none',
+                updateLevel: 'none',
+                deleteLevel: 'none'
+            }
+        });
+    }
+    console.log(`✅ Student permissions synced (${STUDENT_PERMISSIONS.length} modules)`);
+
+
 
     console.log('\n🎉 Seeding completed successfully!\n');
     console.log('📋 Login Credentials:');

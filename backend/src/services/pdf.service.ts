@@ -681,8 +681,10 @@ export class PDFService {
                     <div style="display: flex; flex-direction: column; align-items: flex-end;">
                         <div style="font-size: 11px; font-weight: bold; color: #374151; margin-bottom: 5px;">For ${data.company.name}</div>
                         <img src="${digitalSignatureBase64}" style="max-height: 50px; margin-bottom: 8px;">
-                        <div style="font-size: 10px; font-weight: bold; text-transform: uppercase; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 5px; width: 150px; text-align: center;">
-                            Authorized Signatory
+                        <div style="font-size: 10px; font-weight: bold; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 5px; width: 180px; text-align: center; line-height: 1.4;">
+                            Arun Kumar Vishwakarma<br/>
+                            <span style="font-size: 8px; font-weight: normal; color: #6b7280; text-transform: none;">Founder & Managing Partner</span><br/>
+                            <span style="font-size: 8px; text-transform: uppercase;">Authorized Signatory</span>
                         </div>
                     </div>
                     ` : ''}
@@ -696,8 +698,10 @@ export class PDFService {
         <div style="display: inline-block; text-align: center;">
             <div style="font-size: 11px; font-weight: bold; color: #374151; margin-bottom: 5px; text-align: right;">For ${data.company.name}</div>
             <img src="${digitalSignatureBase64}" style="max-height: 60px; display: block; margin-bottom: 5px;">
-            <div style="font-size: 10px; font-weight: bold; text-transform: uppercase; color: #666; border-top: 1px solid #eee; padding-top: 5px;">
-                Authorized Signatory
+            <div style="font-size: 10px; font-weight: bold; color: #666; border-top: 1px solid #eee; padding-top: 5px; line-height: 1.4;">
+                Arun Kumar Vishwakarma<br/>
+                <span style="font-size: 8px; font-weight: normal; color: #666; text-transform: none;">Founder & Managing Partner</span><br/>
+                <span style="font-size: 8px; text-transform: uppercase;">Authorized Signatory</span>
             </div>
         </div>
     </div>
@@ -875,7 +879,7 @@ export class PDFService {
 
         // 2. Wrap in Standard Layout if not present
         if (!processedHtml.includes('<html')) {
-            const backgroundCSS = this.getBackgroundCSS(data.company, data.useLetterhead);
+            const backgroundCSS = await this.getBackgroundCSS(data.company, data.useLetterhead);
             processedHtml = `
             <!DOCTYPE html>
             <html>
@@ -902,12 +906,12 @@ export class PDFService {
         return contentPdf;
     }
 
-    private static generateContractHTML(data: any): string {
-        const logoBase64 = this.getImageBase64(data.company.logo);
-        const signatureBase64 = this.getImageBase64(data.company.digitalSignature);
-        const clientSignatureBase64 = this.getImageBase64(data.clientSignature);
-        const companyAuthSignatureBase64 = this.getImageBase64(data.companySignature);
-        const backgroundCSS = this.getBackgroundCSS(data.company, !!data.useLetterhead);
+    private static async generateContractHTML(data: any): Promise<string> {
+        const logoBase64 = await this.getImageBase64(data.company.logo);
+        const signatureBase64 = await this.getImageBase64(data.company.digitalSignature);
+        const clientSignatureBase64 = await this.getImageBase64(data.clientSignature);
+        const companyAuthSignatureBase64 = await this.getImageBase64(data.companySignature);
+        const backgroundCSS = await this.getBackgroundCSS(data.company, !!data.useLetterhead);
 
 
         const formatDate = (date: any) => {
@@ -1086,8 +1090,15 @@ ${(!hasEmbeddedCompanySig || !hasEmbeddedClientSig) ? `
             ${(signatureBase64 || companyAuthSignatureBase64) ? `<img src="${signatureBase64 || companyAuthSignatureBase64}" class="sign-img">` : ''}
         </div>
         <div class="sign-label">For ${data.company.name}</div>
-        <div style="font-size: 11px; color: #666; margin-top: 5px;">
-            ${data.companySignedAt ? `Digitally Signed by Authorized Signatory<br>Date: ${new Date(data.companySignedAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}` : 'Authorized Signatory'}
+        <div style="font-size: 11px; color: #666; margin-top: 5px; line-height: 1.4;">
+            <div style="font-weight: bold; color: #333; font-size: 11px;">Arun Kumar Vishwakarma</div>
+            <div style="font-size: 9px; color: #666;">Founder & Managing Partner</div>
+            ${data.companySignedAt ? `
+                <div style="font-size: 9px; text-transform: uppercase; font-weight: bold; margin-top: 2px;">Digitally Signed by Authorized Signatory</div>
+                <div style="font-size: 9px; color: #888;">Date: ${new Date(data.companySignedAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+            ` : `
+                <div style="font-size: 9px; text-transform: uppercase; font-weight: bold; margin-top: 2px;">Authorized Signatory</div>
+            `}
         </div>
     </div>
 
@@ -1111,7 +1122,7 @@ ${(!hasEmbeddedCompanySig || !hasEmbeddedClientSig) ? `
     }
 
     static async generateContractPDF(data: any): Promise<Buffer> {
-        const html = this.generateContractHTML(data);
+        const html = await this.generateContractHTML(data);
         const contentPdf = await this.convertHTMLToPDF(html);
         if (data.useLetterhead) {
             return this.overlayBackdrop(contentPdf, data.company.letterhead, data.company.continuationSheet);
@@ -1122,7 +1133,7 @@ ${(!hasEmbeddedCompanySig || !hasEmbeddedClientSig) ? `
     /**
      * Generate HTML template for Payslips
      */
-    private static generatePayslipHTML(data: any, company: any, useLetterhead: boolean): string {
+    private static async generatePayslipHTML(data: any, company: any, useLetterhead: boolean): Promise<string> {
         const formatCurrency = (amount: number) => {
             return new Intl.NumberFormat(company.currency === 'USD' ? 'en-US' : 'en-IN', {
                 style: 'currency',
@@ -1138,7 +1149,7 @@ ${(!hasEmbeddedCompanySig || !hasEmbeddedClientSig) ? `
             });
         };
 
-        const css = this.getBackgroundCSS(company, useLetterhead);
+        const css = await this.getBackgroundCSS(company, useLetterhead);
 
         const earnings = Object.entries(data.earningsBreakdown || {}).map(([key, val]) => ({ name: key, amount: Number(val) }));
         const deductions = Object.entries(data.deductionsBreakdown || {}).map(([key, val]) => ({ name: key, amount: Number(val) }));
@@ -1273,7 +1284,7 @@ ${(!hasEmbeddedCompanySig || !hasEmbeddedClientSig) ? `
 
     public static async generatePayslip(payroll: any, company: any): Promise<Buffer> {
         const useLetterhead = !!company.letterhead;
-        const html = this.generatePayslipHTML(payroll, company, useLetterhead);
+        const html = await this.generatePayslipHTML(payroll, company, useLetterhead);
         const contentPdf = await this.convertHTMLToPDF(html);
 
         if (useLetterhead) {

@@ -320,8 +320,7 @@ export default function TimesheetsPage() {
                                                     <div className="flex items-center gap-2">
                                                         <Badge variant={
                                                             entry.status === 'approved' ? 'success' :
-                                                            entry.status === 'submitted' ? 'warning' :
-                                                            entry.status === 'rejected' ? 'danger' : 'secondary'
+                                                            entry.status === 'rejected' ? 'destructive' : 'secondary'
                                                         } className="text-[10px] px-2 py-0">
                                                             {entry.status}
                                                         </Badge>

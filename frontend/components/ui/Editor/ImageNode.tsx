@@ -9,7 +9,6 @@ import {
     LexicalEditor,
     DOMConversionMap,
     DOMConversionOutput,
-    DOMConversionUtil,
 } from 'lexical';
 import React, { Suspense } from 'react';
 

@@ -34,7 +34,8 @@ import {
     CalendarDays,
     Scale,
     Newspaper,
-    CheckSquare
+    CheckSquare,
+    Award
 } from 'lucide-react';
 import { auth, useAuth } from '@/lib/auth';
 import { useState, useEffect, useRef } from 'react';
@@ -87,6 +88,7 @@ export default function Sidebar() {
         { name: 'All Attendance', href: '/hrms/admin', icon: Users, category: 'HRMS', module: 'Attendance' },
         { name: 'Leave Types', href: '/hrms/leaves/types', icon: Layers, category: 'HRMS', module: 'LeaveType', action: 'update' },
         { name: 'HR Policies', href: '/hrms/policies', icon: BookOpen, category: 'HRMS', module: 'Policy' },
+        { name: 'Certificates', href: '/hrms/certificates', icon: Award, category: 'HRMS', module: 'Certificate' },
         { name: 'Roles & Permissions', href: '/settings/roles', icon: ShieldCheck, category: 'Settings', module: 'Role' },
 
         // Recruitment
@@ -129,6 +131,13 @@ export default function Sidebar() {
         { name: 'Documents', href: '/documents', icon: FileText, category: 'Operations', module: 'Document' },
         { name: 'Helpdesk', href: '/helpdesk', icon: LifeBuoy, category: 'Operations', module: 'Ticket' },
 
+        // LMS (Learning Management)
+        { name: 'Students', href: '/lms/students', icon: Users, category: 'LMS', module: 'Student' },
+        { name: 'Courses', href: '/lms/courses', icon: BookOpen, category: 'LMS', module: 'Course' },
+        { name: 'Class Enrollments', href: '/lms/enrollments', icon: FileText, category: 'LMS', module: 'CourseEnrollment' },
+        { name: 'Online Classes', href: '/lms/classes', icon: CalendarDays, category: 'LMS', module: 'OnlineClass' },
+        { name: 'LMS Certificates', href: '/hrms/certificates', icon: Award, category: 'LMS', module: 'Certificate' },
+
         // Settings
         { name: 'Company Settings', href: '/settings/company', icon: Briefcase, category: 'Settings', module: 'Company' },
         { name: 'Subscription Plans', href: '/settings/subscription-plans', icon: CreditCard, category: 'Settings', module: 'Company' },
@@ -147,39 +156,55 @@ export default function Sidebar() {
     };
 
     const { can } = usePermission();
+    const isStudent = user?.roles?.some(r => r.toLowerCase() === 'student');
 
     // Filter navigation based on permissions
-    const filteredNavigation = navigation.filter(item => {
-        if (!user) return false;
-        if (item.name === 'Dashboard') return true;
-        if (!item.module && !(item as any).role) return true;
+    const filteredNavigation = navigation
+        .map(item => {
+            if (isStudent && item.name === 'Courses') {
+                return { ...item, name: 'My Courses' };
+            }
+            if (isStudent && item.name === 'LMS Certificates') {
+                return { ...item, name: 'My Certificates' };
+            }
+            return item;
+        })
+        .filter(item => {
+            if (!user) return false;
 
-        const isAdmin = user.roles?.some(r => r.toLowerCase() === 'admin' || r.toLowerCase() === 'administrator');
+            if (isStudent) {
+                return ['Dashboard', 'My Courses', 'Online Classes', 'My Certificates'].includes(item.name);
+            }
 
-        if ((item as any).role && !user.roles?.includes((item as any).role) && !isAdmin) {
-            return false;
-        }
+            if (item.name === 'Dashboard') return true;
+            if (!item.module && !(item as any).role) return true;
 
-        if (item.module) {
-            const moduleName = item.module;
-            const requiredAction = (item as any).action || 'read';
+            const isAdmin = user.roles?.some(r => r.toLowerCase() === 'admin' || r.toLowerCase() === 'administrator');
 
-            if (!can(moduleName, requiredAction)) {
+            if ((item as any).role && !user.roles?.includes((item as any).role) && !isAdmin) {
                 return false;
             }
 
-            if (item.name === 'All Attendance') {
-                const perm = user?.permissions?.[moduleName];
-                if (perm?.readLevel === 'owned') return false;
-            }
+            if (item.module) {
+                const moduleName = item.module;
+                const requiredAction = (item as any).action || 'read';
 
-            if (item.name === 'Leave Approvals') {
-                const perm = user?.permissions?.[moduleName];
-                if (perm?.updateLevel === 'owned' || perm?.updateLevel === 'none') return false;
+                if (!can(moduleName, requiredAction)) {
+                    return false;
+                }
+
+                if (item.name === 'All Attendance') {
+                    const perm = user?.permissions?.[moduleName];
+                    if (perm?.readLevel === 'owned') return false;
+                }
+
+                if (item.name === 'Leave Approvals') {
+                    const perm = user?.permissions?.[moduleName];
+                    if (perm?.updateLevel === 'owned' || perm?.updateLevel === 'none') return false;
+                }
             }
-        }
-        return true;
-    });
+            return true;
+        });
 
     const groupedNav = filteredNavigation.reduce((acc, item: any) => {
         if (!acc[item.category]) acc[item.category] = [];

@@ -2,13 +2,13 @@ import { PDFService } from '@/services/pdf.service';
 
 describe('PDFService', () => {
     describe('getBackgroundCSS', () => {
-        it('should return simple margins if useLetterhead is false', () => {
-            const css = PDFService.getBackgroundCSS({}, false);
+        it('should return simple margins if useLetterhead is false', async () => {
+            const css = await PDFService.getBackgroundCSS({}, false);
             expect(css).toContain('@page { margin: 40px; }');
             expect(css).not.toContain('background-image');
         });
 
-        it('should generate correct margins and background for Letterhead mode', () => {
+        it('should generate correct margins and background for Letterhead mode', async () => {
             const company = {
                 pdfMarginTop: 150,
                 pdfContinuationTop: 100,
@@ -19,7 +19,7 @@ describe('PDFService', () => {
                 continuationSheet: 'http://example.com/cs.jpg'
             };
 
-            const css = PDFService.getBackgroundCSS(company, true);
+            const css = await PDFService.getBackgroundCSS(company, true);
 
             // First Page
             expect(css).toContain('margin-top: 150px;');
@@ -30,12 +30,12 @@ describe('PDFService', () => {
             expect(css).toContain("background-image: url('http://example.com/cs.jpg')");
         });
 
-        it('should handle undefined continuation sheet gracefully', () => {
+        it('should handle undefined continuation sheet gracefully', async () => {
             const company = {
                 letterhead: 'http://example.com/lh.jpg',
             };
 
-            const css = PDFService.getBackgroundCSS(company, true);
+            const css = await PDFService.getBackgroundCSS(company, true);
 
             // Continuation page (standard margins, no bg)
             // Default constants: Top 80, Right 40, Bottom 80, Left 40
@@ -43,7 +43,6 @@ describe('PDFService', () => {
             expect(css).toContain("background-image: url('http://example.com/lh.jpg')"); // First page has it
             // Continuation rules shouldn't have background if undefined
             // Note: Our service logic adds blank string if undefined?
-            // "continuationBase64 ? ... : ''" -> logic checks out.
         });
     });
 });

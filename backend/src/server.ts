@@ -246,6 +246,25 @@ app.use('/api/notifications', notificationRoutes);
 import subscriptionPlanRoutes from './routes/subscription-plan.routes';
 app.use('/api/subscription-plans', subscriptionPlanRoutes);
 
+// Certificate Routes
+import certificateRoutes from './routes/certificate.routes';
+app.use('/api/certificates', certificateRoutes);
+
+// LMS (Academy) Routes
+import studentRoutes from './routes/student.routes';
+import courseRoutes from './routes/course.routes';
+import enrollmentRoutes from './routes/enrollment.routes';
+import classRoutes from './routes/class.routes';
+import lectureRoutes from './routes/lecture.routes';
+import examRoutes from './routes/exam.routes';
+
+app.use('/api/lms/students', studentRoutes);
+app.use('/api/lms/courses', courseRoutes);
+app.use('/api/lms/enrollments', enrollmentRoutes);
+app.use('/api/lms/classes', classRoutes);
+app.use('/api/lms/lectures', lectureRoutes);
+app.use('/api/lms/exams', examRoutes);
+
 // AI Routes
 app.use('/api/ai', aiRoutes);
 

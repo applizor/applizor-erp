@@ -90,7 +90,7 @@ export const previewDocument = async (req: AuthRequest, res: Response) => {
 
         if (template.content) {
             let processedHtml = template.content;
-            const companySignatureBase64 = PDFService.getImageBase64(data.company?.digitalSignature);
+            const companySignatureBase64 = await PDFService.getImageBase64(data.company?.digitalSignature);
 
             const replacements: Record<string, string> = {
                 '[DATE]': new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }),

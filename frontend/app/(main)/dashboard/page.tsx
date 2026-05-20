@@ -34,18 +34,18 @@ import {
 import { usePermission } from '@/hooks/usePermission';
 import { useToast } from '@/hooks/useToast';
 import { useConfirm } from '@/hooks/useConfirm';
+import StudentDashboard from '@/components/dashboard/StudentDashboard';
 
 export default function DashboardPage() {
   const { can, user } = usePermission();
   const [loading, setLoading] = useState(true);
   const toast = useToast();
 
-  // We can determine view based on 'Accounting.read' permission
+  const isStudent = user?.roles?.some((r: string) => r.toLowerCase() === 'student');
   // Admin view requires ability to read accounting data
   const isAdminView = can('Accounting', 'read');
 
   useEffect(() => {
-    // Simulate initial loading to ensure permissions are ready
     if (user) {
       setLoading(false);
     }
@@ -57,7 +57,7 @@ export default function DashboardPage() {
 
   return (
     <div className="animate-fade-in pb-20 px-2 lg:px-4">
-      {isAdminView ? <AdminDashboard /> : <EmployeeDashboard />}
+      {isStudent ? <StudentDashboard /> : isAdminView ? <AdminDashboard /> : <EmployeeDashboard />}
     </div>
   );
 }

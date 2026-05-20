@@ -29,6 +29,15 @@ async function main() {
     });
     console.log('✅ Admin Role created');
 
+    const studentRole = await prisma.role.create({
+        data: {
+            name: 'Student',
+            description: 'Static Student Role (System Protected)',
+            isSystem: true
+        }
+    });
+    console.log('✅ Student Role created');
+
     // 3. Create Admin User
     const hashedPassword = await bcrypt.hash('password123', 10);
     const adminUser = await prisma.user.create({
