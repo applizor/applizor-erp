@@ -16,7 +16,7 @@ export const getLectures = async (req: AuthRequest, res: Response) => {
         }
 
         // Check if student
-        const isStudent = user.roles?.some(r => r.role?.name.toLowerCase() === 'student');
+        const isStudent = user.roles?.some((r: any) => r.role?.name.toLowerCase() === 'student');
         let studentId = '';
 
         if (isStudent) {

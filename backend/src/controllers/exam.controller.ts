@@ -16,7 +16,7 @@ export const getExams = async (req: AuthRequest, res: Response) => {
             return res.status(401).json({ error: 'Unauthorized' });
         }
 
-        const isStudent = user.roles?.some(r => r.role?.name.toLowerCase() === 'student');
+        const isStudent = user.roles?.some((r: any) => r.role?.name.toLowerCase() === 'student');
 
         if (isStudent) {
             // Find student
@@ -72,7 +72,7 @@ export const getExam = async (req: AuthRequest, res: Response) => {
             return res.status(401).json({ error: 'Unauthorized' });
         }
 
-        const isStudent = user.roles?.some(r => r.role?.name.toLowerCase() === 'student');
+        const isStudent = user.roles?.some((r: any) => r.role?.name.toLowerCase() === 'student');
         let studentId = '';
 
         if (isStudent) {
