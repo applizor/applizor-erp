@@ -15,6 +15,7 @@ import clientCategoryRoutes from './routes/clientCategory.routes';
 // import leadRoutes from './routes/lead.routes'; // This import is removed as it's duplicated by the CRM leadRoutes
 import paymentRoutes from './routes/payment.routes';
 import aiRoutes from './routes/ai.routes';
+import aiSystemRoutes from './routes/ai-system.routes';
 
 // Load environment variables
 const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env.development';
@@ -267,6 +268,7 @@ app.use('/api/lms/exams', examRoutes);
 
 // AI Routes
 app.use('/api/ai', aiRoutes);
+app.use('/api/ai-system', aiSystemRoutes);
 
 
 // Scheduler
