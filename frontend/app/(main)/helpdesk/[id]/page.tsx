@@ -82,13 +82,13 @@ export default function TicketDetailPage() {
                     {/* Actions */}
                     <div className="flex gap-2">
                         {ticket.status !== 'resolved' && (
-                            <Button size="sm" variant="outline" onClick={() => handleStatusChange('resolved')} className="gap-2">
+                            <Button variant="outline" onClick={() => handleStatusChange('resolved')} className="gap-2">
                                 <CheckCircle2 size={14} className="text-emerald-500" />
                                 Mark Resolved
                             </Button>
                         )}
                         {ticket.status === 'resolved' && (
-                            <Button size="sm" variant="outline" onClick={() => handleStatusChange('open')} className="gap-2">
+                            <Button variant="outline" onClick={() => handleStatusChange('open')} className="gap-2">
                                 <AlertCircle size={14} className="text-blue-500" />
                                 Re-open
                             </Button>

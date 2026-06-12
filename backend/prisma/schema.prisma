@@ -27,7 +27,6 @@ model User {
   uploadedDocuments  Document[]      @relation("DocumentUploader")
   createdEmployees   Employee[]      @relation("EmployeeCreator")
   employee           Employee?
-  student            Student?
   assignedLeads      Lead[]          @relation("LeadAssignee")
   createdLeads       Lead[]          @relation("LeadCreator")
   createdPolicies    Policy[]
@@ -130,8 +129,6 @@ model Company {
   bankAccountNumber  String?
   bankIfscCode       String?
   bankBranch         String?
-  accountingLockDate DateTime?
-  offDays            String?             @default("Saturday, Sunday")
   assets             Asset[]
   auditLogs          AuditLog[]
   branches           Branch[]
@@ -147,8 +144,6 @@ model Company {
   employees          Employee[]
   invoices           Invoice[]
   jobOpenings        JobOpening[]
-  performanceReviews PerformanceReview[]
-  okrs               OKR[]
   journalEntries     JournalEntry[]
   leads              Lead[]
   accounts           LedgerAccount[]
@@ -156,28 +151,18 @@ model Company {
   projects           Project[]
   quotations         Quotation[]
   salaryComponents   SalaryComponent[]
-  salaryTemplates    SalaryTemplate[]
   salesTargets       SalesTarget[]
   shifts             Shift[]
   statutoryConfig    StatutoryConfig?
   subscriptions      Subscription[]
-  subscriptionPlans  SubscriptionPlan[] // New Relation
   taxRates           TaxRate[]
   tickets            Ticket[]
   unitTypes          UnitType[]
   users              User[]
-  quotationTemplates    QuotationTemplate[]
-  certificateTemplates  CertificateTemplate[]
-  certificates          Certificate[]
-  students              Student[]
-  courses               Course[]
-  courseEnrollments     CourseEnrollment[]
-  onlineClasses         OnlineClass[]
-  lectures              Lecture[]
-  exams                 Exam[]
-  aiMemories            AiMemory[]
-  aiApprovals           AiApproval[]
-  aiLogs                AiLog[]
+  quotationTemplates QuotationTemplate[]
+  aiAgents           AiAgent[]
+  aiTasks            AiTask[]
+  aiApprovals        AiApproval[]
 
   @@index([name])
 }
@@ -524,11 +509,13 @@ model Project {
   company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
   members         ProjectMember[]
   notes           ProjectNote[]
-  activeTimers    ActiveTimer[]
-  epics           Epic[]
   sprints         Sprint[]
   tasks           Task[]
   timesheets      Timesheet[]
+  activeTimers    ActiveTimer[]
+  projectMemory   ProjectMemory?
+  decisionMemories DecisionMemory[]
+  timelineMemories TimelineMemory[]
 
   @@index([companyId])
   @@index([clientId])
@@ -579,7 +566,8 @@ model Task {
   assignee        User?         @relation("TaskAssignee", fields: [assignedToId], references: [id])
   creator         User?         @relation("TaskCreator", fields: [createdById], references: [id])
   clientCreator   Client?       @relation("ClientTaskCreator", fields: [createdClientId], references: [id])
-  epic            Epic?         @relation(fields: [epicId], references: [id], onDelete: SetNull)
+  epic            Task?         @relation("EpicTasks", fields: [epicId], references: [id])
+  tasksInEpic     Task[]        @relation("EpicTasks")
   milestone       Milestone?    @relation(fields: [milestoneId], references: [id])
   parent          Task?         @relation("SubTasks", fields: [parentId], references: [id])
   subtasks        Task[]        @relation("SubTasks")
@@ -614,7 +602,6 @@ model TaskComment {
   updatedAt DateTime      @updatedAt
   clientId  String?
   parentId  String?
-  isInternal Boolean       @default(false)
   client    Client?       @relation(fields: [clientId], references: [id])
   parent    TaskComment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
   replies   TaskComment[] @relation("CommentReplies")
@@ -692,21 +679,6 @@ model Sprint {
 
   @@index([projectId])
   @@index([status])
-}
-
-model Epic {
-  id          String   @id @default(uuid())
-  projectId   String
-  title       String
-  description String?
-  color       String?  @default("#64748b")
-  status      String   @default("todo")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  tasks       Task[]
-
-  @@index([projectId])
 }
 
 model TaskWatcher {
@@ -874,8 +846,6 @@ model Employee {
   shiftId                String?
   salary                 Decimal?                 @db.Decimal(12, 2)
   salaryStructure        Json?
-  workLocation           String?                  @default("Head Office")
-  ptState                String?                  // State for Professional Tax (e.g. "Maharashtra")
   status                 String                   @default("active")
   createdAt              DateTime                 @default(now())
   updatedAt              DateTime                 @updatedAt
@@ -903,16 +873,11 @@ model Employee {
   leaveAccruals          LeaveAccrual[]
   leaveRequests          LeaveRequest[]
   payrolls               Payroll[]
-  taxDeclarations        TaxDeclaration[]
   projectMemberships     ProjectMember[]
   salesTargets           SalesTarget[]
   shiftRosters           ShiftRoster[]
   timesheets             Timesheet[]
   activeTimers           ActiveTimer[]
-  performanceReviews     PerformanceReview[]
-  okrs                   OKR[]
-  exitDetail             ExitDetail?
-  certificates           Certificate[]
 
   @@unique([companyId, employeeId])
   @@index([companyId])
@@ -934,7 +899,6 @@ model Attendance {
   updatedAt  DateTime  @updatedAt
   employee   Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
-  @@unique([employeeId, date])
   @@index([employeeId, date])
   @@index([employeeId])
   @@index([date])
@@ -1129,48 +1093,16 @@ model SalaryComponent {
   companyId          String
   name               String
   type               String
-  calculationType    String                    @default("flat") // "flat", "percentage", "formula"
+  calculationType    String
   defaultValue       Decimal                   @default(0) @db.Decimal(12, 2)
   isActive           Boolean                   @default(true)
-  isTaxable          Boolean                   @default(true)
-  ledgerAccountId    String?
-  ledgerAccount      LedgerAccount?            @relation(fields: [ledgerAccountId], references: [id])
   createdAt          DateTime                  @default(now())
   updatedAt          DateTime                  @updatedAt
+  isTaxable          Boolean                   @default(true)
   employeeComponents EmployeeSalaryComponent[]
-  templateComponents SalaryTemplateComponent[]
   company            Company                   @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId])
-  @@index([ledgerAccountId])
-}
-
-model SalaryTemplate {
-  id          String                    @id @default(uuid())
-  companyId   String
-  name        String
-  description String?
-  isActive    Boolean                   @default(true)
-  components  SalaryTemplateComponent[]
-  structures  EmployeeSalaryStructure[]
-  company     Company                   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  createdAt   DateTime                  @default(now())
-  updatedAt   DateTime                  @updatedAt
-
-  @@unique([companyId, name])
-}
-
-model SalaryTemplateComponent {
-  id              String          @id @default(uuid())
-  templateId      String
-  componentId     String
-  calculationType String          @default("flat")
-  value           Decimal         @db.Decimal(12, 2) // Fixed amount or Percentage
-  formula         String? // Advanced e.g. "Basic * 0.50"
-  template        SalaryTemplate  @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  component       SalaryComponent @relation(fields: [componentId], references: [id])
-
-  @@unique([templateId, componentId])
 }
 
 model StatutoryConfig {
@@ -1183,54 +1115,15 @@ model StatutoryConfig {
   esiEmployerRate        Decimal  @default(3.25) @db.Decimal(5, 3)
   esiGrossLimit          Decimal  @default(21000.0) @db.Decimal(12, 2)
   professionalTaxEnabled Boolean  @default(true)
-  ptSlabs                Json?
   tdsEnabled             Boolean  @default(true)
-  
-  // Accounting Mapping
-  salaryPayableAccountId String?
-  pfPayableAccountId     String?
-  ptPayableAccountId     String?
-  tdsPayableAccountId    String?
-  
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
   company                Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
 }
 
-model TaxDeclaration {
-  id            String          @id @default(uuid())
-  employeeId    String
-  financialYear String // e.g. "2025-26"
-  regime        String          @default("new") // "old", "new"
-  status        String          @default("draft") // "draft", "submitted", "approved", "rejected"
-  totalAmount   Decimal         @default(0) @db.Decimal(12, 2)
-  investments   TaxInvestment[]
-  employee      Employee        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-
-  @@unique([employeeId, financialYear])
-}
-
-model TaxInvestment {
-  id              String         @id @default(uuid())
-  declarationId   String
-  section         String // e.g. "80C", "80D", "HRA"
-  componentName   String // e.g. "LIC", "PPF", "Medical Insurance"
-  declaredAmount  Decimal        @db.Decimal(12, 2)
-  approvedAmount  Decimal?       @db.Decimal(12, 2)
-  proofUrl        String?
-  status          String         @default("pending") // "pending", "approved", "rejected"
-  rejectionReason String?
-  declaration     TaxDeclaration @relation(fields: [declarationId], references: [id], onDelete: Cascade)
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-}
-
 model EmployeeSalaryStructure {
   id            String                    @id @default(uuid())
   employeeId    String                    @unique
-  templateId    String?
   netSalary     Decimal                   @db.Decimal(12, 2)
   ctc           Decimal                   @db.Decimal(12, 2)
   effectiveDate DateTime                  @default(now())
@@ -1238,7 +1131,6 @@ model EmployeeSalaryStructure {
   updatedAt     DateTime                  @updatedAt
   components    EmployeeSalaryComponent[]
   employee      Employee                  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  template      SalaryTemplate?           @relation(fields: [templateId], references: [id], onDelete: SetNull)
 }
 
 model EmployeeSalaryComponent {
@@ -1319,7 +1211,6 @@ model Invoice {
   publicExpiresAt    DateTime?
   publicToken        String?           @unique
   viewCount          Int               @default(0)
-  includeBankDetails Boolean           @default(true)
   documents          Document[]
   client             Client            @relation(fields: [clientId], references: [id])
   company            Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -1458,24 +1349,22 @@ model SalesTarget {
 }
 
 model Subscription {
-  id               String            @id @default(uuid())
-  companyId        String
-  clientId         String
-  name             String
-  plan             String
-  planId           String?
-  amount           Decimal           @db.Decimal(12, 2)
-  billingCycle     String            @default("monthly")
-  startDate        DateTime          @db.Date
-  endDate          DateTime?         @db.Date
-  status           String            @default("active")
-  nextBillingDate  DateTime?
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  currency         String            @default("INR")
-  client           Client            @relation(fields: [clientId], references: [id])
-  company          Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  subscriptionPlan SubscriptionPlan? @relation(fields: [planId], references: [id])
+  id              String    @id @default(uuid())
+  companyId       String
+  clientId        String
+  name            String
+  plan            String
+  amount          Decimal   @db.Decimal(12, 2)
+  billingCycle    String    @default("monthly")
+  startDate       DateTime  @db.Date
+  endDate         DateTime? @db.Date
+  status          String    @default("active")
+  nextBillingDate DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  currency        String    @default("INR")
+  client          Client    @relation(fields: [clientId], references: [id])
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId])
   @@index([clientId])
@@ -1556,14 +1445,11 @@ model JobOpening {
   status       String      @default("open")
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
-  isPublic     Boolean     @default(false)
-  publicId     String?     @unique
   candidates   Candidate[]
   company      Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId])
   @@index([status])
-  @@index([publicId])
 }
 
 model Candidate {
@@ -1579,12 +1465,10 @@ model Candidate {
   currentStage String?
   notes        String?
   rating       Float?
-  parsedData   Json?
-  tags         String[]     @default([])
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
   company      Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  jobOpening   JobOpening?  @relation(fields: [jobOpeningId], references: [id], onDelete: Cascade)
+  jobOpening   JobOpening?  @relation(fields: [jobOpeningId], references: [id])
   interviews   Interview[]
   offerLetter  OfferLetter?
 
@@ -1695,9 +1579,8 @@ model LedgerAccount {
   isActive     Boolean            @default(true)
   createdAt    DateTime           @default(now())
   updatedAt    DateTime           @updatedAt
-  journalLines     JournalEntryLine[]
-  salaryComponents SalaryComponent[]
-  company          Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  journalLines JournalEntryLine[]
+  company      Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -1818,7 +1701,6 @@ model Policy {
   description   String?
   category      String?
   fileUrl       String?
-  status        String   @default("DRAFT")
   effectiveDate DateTime @default(now())
   isActive      Boolean  @default(true)
   createdBy     String?
@@ -1897,402 +1779,92 @@ model DocumentTemplate {
   @@index([companyId])
 }
 
-model PerformanceReview {
-  id         String   @id @default(uuid())
-  companyId  String
-  employeeId String
-  reviewerId String
-  reviewDate DateTime
-  rating     Float?
-  feedback   String?
-  goals      Json?
-  status     String   @default("draft")
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  @@index([companyId])
-  @@index([employeeId])
-}
-
-model OKR {
-  id          String      @id @default(uuid())
-  companyId   String
-  employeeId  String?
-  title       String
-  description String?
-  startDate   DateTime
-  endDate     DateTime
-  progress    Float       @default(0)
-  status      String      @default("active")
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  employee    Employee?   @relation(fields: [employeeId], references: [id])
-  company     Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  keyResults  KeyResult[]
-
-  @@index([companyId])
-  @@index([employeeId])
-}
-
-model KeyResult {
-  id           String   @id @default(uuid())
-  okrId        String
-  title        String
-  targetValue  Float
-  startValue   Float    @default(0)
-  currentValue Float    @default(0)
-  unit         String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  okr          OKR      @relation(fields: [okrId], references: [id], onDelete: Cascade)
-
-  @@index([okrId])
-}
-
-model ExitDetail {
-  id                  String   @id @default(uuid())
-  employeeId          String   @unique
-  resignationDate     DateTime
-  lastWorkingDay      DateTime
-  reason              String?
-  fnfStatus           String   @default("pending")
-  assetRecoveryStatus String   @default("pending")
-  clearanceDetails    Json?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-  employee            Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-
-  @@index([employeeId])
-}
-
-// Subscription Plan Model (Restored - needed for billing)
-model SubscriptionPlan {
-  id        String   @id @default(uuid())
-  companyId String
-  name      String // e.g. "Basic", "Pro", "Enterprise"
-  code      String // e.g. "basic_monthly"
-  price     Decimal  @db.Decimal(10, 2)
-  currency  String   @default("USD")
-  interval  String   @default("monthly") // monthly, yearly
-  features  Json? // List of features for UI display
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  subscriptions Subscription[]
-
-  @@unique([companyId, code])
-  @@index([companyId])
-}
-
-// ─── Certificate System ───────────────────────────────────────────────────────
-
-model CertificateTemplate {
-  id           String        @id @default(uuid())
-  companyId    String
-  name         String        // e.g. "Course Completion Certificate"
-  type         String        // course | internship | experience | custom
-  content      String        // HTML template with {{variables}}
-  variables    String[]      @default([]) // e.g. ["employee_name", "course_name"]
-  isActive     Boolean       @default(true)
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  certificates Certificate[]
-
-  @@index([companyId])
-  @@index([type])
-  @@map("certificate_templates")
-}
-
-model Certificate {
-  id             String               @id @default(uuid())
-  companyId      String
-  certificateNo  String               @unique // CERT-2026-0001
-  type           String               // course | internship | experience | custom
-  recipientType  String               @default("employee") // employee | candidate | student
-  employeeId     String?
-  candidateId    String?
-  studentId      String?
-  templateId     String?
-  title          String
-  issuedDate     DateTime             @db.Date
-  expiryDate     DateTime?            @db.Date
-  // Course certificate fields
-  courseName     String?
-  duration       String?              // e.g. "3 months"
-  grade          String?              // e.g. "Distinction"
-  score          String?              // e.g. "92%"
-  // Internship certificate fields
-  internshipRole String?
-  guideName      String?
-  projectName    String?
-  // Experience letter fields
-  department     String?
-  designation    String?
-  // Generic
-  customFields   Json?                // extra free-form key-value fields
-  status         String               @default("draft") // draft | issued | revoked
-  pdfPath        String?
-  issuedById     String?
-  remarks        String?
-  emailSentAt    DateTime?
-  createdAt      DateTime             @default(now())
-  updatedAt      DateTime             @updatedAt
-  company        Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  employee       Employee?            @relation(fields: [employeeId], references: [id], onDelete: SetNull)
-  student        Student?             @relation(fields: [studentId], references: [id], onDelete: SetNull)
-  template       CertificateTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
-
-  @@index([companyId])
-  @@index([type])
-  @@index([employeeId])
-  @@index([candidateId])
-  @@index([studentId])
-  @@index([certificateNo])
-  @@index([status])
-  @@index([issuedDate])
-  @@map("certificates")
-}
-
-// ─── LMS (Academy) System ───────────────────────────────────────────────────
-
-model Student {
-  id              String             @id @default(uuid())
-  companyId       String
-  userId          String?            @unique
-  studentId       String             // Roll number or register ID
-  firstName       String
-  lastName        String
-  email           String
-  phone           String?
-  dateOfBirth     DateTime?          @db.Date
-  status          String             @default("active") // active | inactive | suspended
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
-  company         Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  user            User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
-  enrollments     CourseEnrollment[]
-  certificates    Certificate[]
-  lectureProgress LectureProgress[]
-  examSubmissions ExamSubmission[]
-
-  @@unique([companyId, studentId])
-  @@index([companyId])
-  @@index([studentId])
-  @@index([email])
-  @@map("students")
-}
-
-model Course {
-  id          String             @id @default(uuid())
-  companyId   String
-  courseCode  String             // e.g. "JS-101"
-  title       String
-  description String?
-  duration    String?            // e.g. "3 months"
-  syllabus    String?
-  fees        Decimal?           @db.Decimal(12, 2)
-  isActive    Boolean            @default(true)
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
-  company     Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  enrollments CourseEnrollment[]
-  classes     OnlineClass[]
-  lectures    Lecture[]
-  exams       Exam[]
-
-  @@unique([companyId, courseCode])
-  @@index([companyId])
-  @@index([courseCode])
-  @@map("courses")
-}
-
-model CourseEnrollment {
-  id             String    @id @default(uuid())
-  companyId      String
-  studentId      String
-  courseId       String
-  enrollmentDate DateTime  @default(now()) @db.Date
-  completionDate DateTime? @db.Date
-  status         String    @default("active") // active | completed | dropped
-  progress       Float     @default(0.0)
-  grade          String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  company        Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  student        Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  course         Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
-
-  @@unique([studentId, courseId])
-  @@index([companyId])
-  @@index([studentId])
-  @@index([courseId])
-  @@map("course_enrollments")
-}
-
-model OnlineClass {
+model AiAgent {
   id          String   @id @default(uuid())
-  companyId   String
-  courseId    String
-  title       String
+  name        String
+  role        String
+  department  String
+  status      String   @default("active") // active, disabled, offline
+  model       String   @default("gemini-2.5-flash")
+  permissions Json?    // Array of allowed modules
   description String?
-  schedule    DateTime
-  meetingUrl  String?
-  status      String   @default("scheduled") // scheduled | ongoing | completed | cancelled
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
-
-  @@index([companyId])
-  @@index([courseId])
-  @@index([schedule])
-  @@map("online_classes")
+  companyId   String?
+  company     Company? @relation(fields: [companyId], references: [id])
+  tasks       AiTask[]
 }
 
-model Lecture {
-  id          String            @id @default(uuid())
-  companyId   String
-  courseId    String
+model AiTask {
+  id          String   @id @default(uuid())
   title       String
   description String?
-  videoUrl    String?           // Pre-recorded video link (YouTube, Vimeo, etc.)
-  content     String?           // Rich text content / description
-  order       Int               @default(0)
-  isActive    Boolean           @default(true)
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  company     Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  course      Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  progress    LectureProgress[]
-
-  @@index([companyId])
-  @@index([courseId])
-  @@map("lectures")
-}
-
-model LectureProgress {
-  id          String    @id @default(uuid())
-  studentId   String
-  lectureId   String
-  completed   Boolean   @default(false)
-  completedAt DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  student     Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  lecture     Lecture   @relation(fields: [lectureId], references: [id], onDelete: Cascade)
-
-  @@unique([studentId, lectureId])
-  @@index([studentId])
-  @@index([lectureId])
-  @@map("lecture_progress")
-}
-
-model Exam {
-  id           String           @id @default(uuid())
-  companyId    String
-  courseId     String
-  title        String
-  description  String?
-  passingScore Float            @default(60.0) // Percentage (0-100)
-  isActive     Boolean          @default(true)
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
-  company      Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  course       Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  questions    ExamQuestion[]
-  submissions  ExamSubmission[]
-
-  @@index([companyId])
-  @@index([courseId])
-  @@map("exams")
-}
-
-model ExamQuestion {
-  id            String   @id @default(uuid())
-  examId        String
-  questionText  String
-  options       Json     // Array of option strings: e.g. ["Option A", "Option B"]
-  correctOption Int      // Index of correct option (0-indexed)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  exam          Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
-
-  @@index([examId])
-  @@map("exam_questions")
-}
-
-model ExamSubmission {
-  id        String   @id @default(uuid())
-  studentId String
-  examId    String
-  score     Float    // Score earned as percentage (0-100)
-  passed    Boolean  @default(false)
-  answers   Json     // Map of questionId -> selectedOptionIndex (e.g. {"q1": 0})
-  createdAt DateTime @default(now())
-  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  exam      Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
-
-  @@index([studentId])
-  @@index([examId])
-  @@map("exam_submissions")
-}
-
-model AiMemory {
-  id          String   @id @default(uuid())
-  companyId   String
-  key         String
-  value       String   @db.Text
-  category    String   // e.g. "project", "wiki", "client", "system"
-  referenceId String?  // Optional relation key (e.g. project ID or client ID)
+  agentId     String
+  status      String   @default("todo") // todo, in_progress, qa, completed
+  priority    String   @default("medium")
+  projectId   String?
+  assignedTo  String?  // References Employee or User id
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-
-  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  @@unique([companyId, key, category])
-  @@index([companyId])
-  @@index([category])
-  @@map("ai_memories")
+  companyId   String?
+  company     Company? @relation(fields: [companyId], references: [id])
+  agent       AiAgent  @relation(fields: [agentId], references: [id])
 }
 
 model AiApproval {
   id          String   @id @default(uuid())
-  companyId   String
   title       String
-  description String?  @db.Text
-  agentName   String   // e.g. "SalesAgent", "ChiefOfStaff"
-  type        String   // e.g. "QUOTATION", "CONTRACT", "RELEASE", "PROPOSAL"
-  status      String   @default("PENDING") // PENDING, APPROVED, REJECTED
-  payload     Json     // Dynamic JSON containing proposal, quotation, or release details
-  referenceId String?  // ID of related entity in ERP if applicable
-  comments    String?  @db.Text
+  description String?
+  type        String   // release, quotation, budget, structure_change
+  status      String   @default("pending") // pending, approved, rejected
+  requestedBy String   // Agent name/id
+  approvedBy  String?  // CEO user id
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-
-  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  @@index([companyId])
-  @@index([status])
-  @@map("ai_approvals")
+  companyId   String?
+  company     Company? @relation(fields: [companyId], references: [id])
 }
 
-model AiLog {
+// Memory Engine Models
+model ProjectMemory {
+  id        String   @id @default(uuid())
+  projectId String   @unique
+  data      Json     // Contains architecture, APIs, folder structure, etc.
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model DecisionMemory {
   id          String   @id @default(uuid())
-  companyId   String
-  agentName   String
-  action      String
-  details     Json?
-  status      String   // SUCCESS, FAILED, RUNNING
+  projectId   String
+  decision    String
+  reason      String
+  ownerId     String
   createdAt   DateTime @default(now())
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
 
-  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+model TimelineMemory {
+  id        String   @id @default(uuid())
+  projectId String
+  event     String
+  type      String   // release, incident, change, request
+  createdAt DateTime @default(now())
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
 
-  @@index([companyId])
-  @@index([agentName])
-  @@map("ai_logs")
+model ConversationMemory {
+  id          String   @id @default(uuid())
+  channelId   String   // Teams channel, WhatsApp number, or email thread
+  channelType String   // teams, whatsapp, email, telegram
+  messages    Json     // Chronological array of chat interactions
+  updatedAt   DateTime @updatedAt
+}
+
+model KnowledgeGraph {
+  id        String   @id @default(uuid())
+  nodes     Json     // Vertices of semantic relationships
+  edges     Json     // Connections between vertices
+  updatedAt DateTime @updatedAt
 }
