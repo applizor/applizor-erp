@@ -130,7 +130,7 @@ export const updateAiTaskStatus = async (req: AuthRequest, res: Response) => {
 
 export const createApproval = async (req: AuthRequest, res: Response) => {
     try {
-        const { title, description, type, requestedBy } = req.body;
+        const { title, description, type, requestedBy, payload, referenceId } = req.body;
         const companyId = req.user!.companyId;
 
         const approval = await prisma.aiApproval.create({
@@ -138,7 +138,9 @@ export const createApproval = async (req: AuthRequest, res: Response) => {
                 title,
                 description,
                 type,
-                requestedBy,
+                agentName: requestedBy || 'System',
+                payload: payload || {},
+                referenceId,
                 companyId
             }
         });
@@ -166,14 +168,16 @@ export const getApprovals = async (req: AuthRequest, res: Response) => {
 export const handleApproval = async (req: AuthRequest, res: Response) => {
     try {
         const { id } = req.params;
-        const { status } = req.body; // approved, rejected
-        const userId = req.userId!;
+        const { status, comments } = req.body; // approved, rejected
+        
+        // Ensure status is uppercase to match schema ('APPROVED', 'REJECTED')
+        const normalizedStatus = status ? status.toUpperCase() : 'APPROVED';
 
         const approval = await prisma.aiApproval.update({
             where: { id },
             data: {
-                status,
-                approvedBy: userId
+                status: normalizedStatus,
+                comments
             }
         });
         res.json(approval);

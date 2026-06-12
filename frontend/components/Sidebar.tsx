@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
     LayoutDashboard,
+    Cpu,
     LineChart,
     FileText,
     CreditCard,
@@ -32,6 +33,10 @@ import {
     BookOpen,
     LifeBuoy,
     CalendarDays,
+    Scale,
+    Newspaper,
+    CheckSquare,
+    Award,
     Brain,
     Bot,
     Terminal
@@ -46,6 +51,22 @@ export default function Sidebar() {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isCollapsed, setIsCollapsed] = useState(false);
 
+    // Initial load for persistence
+    useEffect(() => {
+        const stored = localStorage.getItem('sidebar_is_collapsed');
+        if (stored !== null) {
+            setIsCollapsed(stored === 'true');
+        }
+    }, []);
+
+    // This effect handles direct external control via a custom event if needed,
+    // though we'll primarily use it locally for now.
+    useEffect(() => {
+        const handleOpenMobileMenu = () => setIsMobileMenuOpen(true);
+        window.addEventListener('open-mobile-menu', handleOpenMobileMenu);
+        return () => window.removeEventListener('open-mobile-menu', handleOpenMobileMenu);
+    }, []);
+
     // State for expanded categories
     const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
         'Main': true // Main always open by default
@@ -55,6 +76,7 @@ export default function Sidebar() {
 
     const navigation = [
         { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, category: 'Main' },
+        { name: 'AI Control Center', href: '/ai-agents', icon: Cpu, category: 'Main' },
 
         // HRMS (People)
         { name: 'Employees', href: '/hrms/employees', icon: Users, category: 'HRMS', module: 'Employee' },
@@ -71,6 +93,7 @@ export default function Sidebar() {
         { name: 'All Attendance', href: '/hrms/admin', icon: Users, category: 'HRMS', module: 'Attendance' },
         { name: 'Leave Types', href: '/hrms/leaves/types', icon: Layers, category: 'HRMS', module: 'LeaveType', action: 'update' },
         { name: 'HR Policies', href: '/hrms/policies', icon: BookOpen, category: 'HRMS', module: 'Policy' },
+        { name: 'Certificates', href: '/hrms/certificates', icon: Award, category: 'HRMS', module: 'Certificate' },
         { name: 'Roles & Permissions', href: '/settings/roles', icon: ShieldCheck, category: 'Settings', module: 'Role' },
 
         // Recruitment
@@ -78,7 +101,7 @@ export default function Sidebar() {
         { name: 'Candidates', href: '/recruitment/candidates', icon: Users, category: 'Recruitment', module: 'Recruitment' },
         { name: 'Interviews', href: '/recruitment/interviews', icon: UserCircle, category: 'Recruitment', module: 'Recruitment' },
         { name: 'Kanban Board', href: '/recruitment/board', icon: LayoutDashboard, category: 'Recruitment', module: 'RecruitmentBoard' },
-        { name: 'Doc Templates', href: '/recruitment/templates', icon: Copy, category: 'Recruitment', module: 'DocumentTemplate' },
+        { name: 'Email Templates', href: '/recruitment/templates', icon: FileText, category: 'Recruitment', module: 'Recruitment', permissions: [{ module: 'Recruitment', action: 'read' }] },
 
         // CRM (Sales)
         { name: 'Leads', href: '/leads', icon: LineChart, category: 'CRM', module: 'Lead' },
@@ -90,11 +113,21 @@ export default function Sidebar() {
         // Finance & Payroll
         { name: 'Invoices', href: '/invoices', icon: FileText, category: 'Finance & Payroll', module: 'Invoice' },
         { name: 'Payroll Cycles', href: '/payroll/run', icon: Banknote, category: 'Finance & Payroll', module: 'Payroll' },
+        { name: 'Statutory Config', href: '/payroll/config', icon: ShieldCheck, category: 'Finance & Payroll', module: 'Payroll' },
         { name: 'My Payslips', href: '/payroll/my-payslips', icon: FileSpreadsheet, category: 'Finance & Payroll', module: 'Payroll', action: 'read' },
         { name: 'Salary Units', href: '/payroll/components', icon: Layers, category: 'Finance & Payroll', module: 'SalaryComponent' },
         { name: 'Structure Admin', href: '/payroll/structure', icon: Edit, category: 'Finance & Payroll', module: 'SalaryStructure' },
+        { name: 'Bulk Assignment', href: '/payroll/structure/bulk', icon: CheckSquare, category: 'Finance & Payroll', module: 'SalaryStructure' },
+        { name: 'Salary Templates', href: '/payroll/templates', icon: Copy, category: 'Finance & Payroll', module: 'SalaryStructure' },
         { name: 'Payroll Ledger', href: '/payroll/payslips', icon: FileSpreadsheet, category: 'Finance & Payroll', module: 'Payroll' },
-        { name: 'Accounting', href: '/accounting', icon: Activity, category: 'Finance & Payroll', module: 'Invoice' },
+
+        // Accounting
+        { name: 'Chart of Accounts', href: '/accounting/chart-of-accounts', icon: BookOpen, category: 'Finance & Payroll', module: 'Accounting' },
+        { name: 'Journal Entries', href: '/accounting/journal', icon: FileText, category: 'Finance & Payroll', module: 'Accounting' },
+        { name: 'Trial Balance', href: '/accounting/reports/trial-balance', icon: Scale, category: 'Finance & Payroll', module: 'Accounting' },
+        { name: 'Balance Sheet', href: '/accounting/reports/balance-sheet', icon: Building2, category: 'Finance & Payroll', module: 'Accounting' },
+        { name: 'Profit & Loss', href: '/accounting/reports/profit-loss', icon: LineChart, category: 'Finance & Payroll', module: 'Accounting' },
+        { name: 'GST Summary', href: '/accounting/reports/gst-summary', icon: FileText, category: 'Finance & Payroll', module: 'Accounting' },
 
         // Ops & Docs
         { name: 'Projects', href: '/projects', icon: LayoutDashboard, category: 'Operations', module: 'Project' },
@@ -103,6 +136,13 @@ export default function Sidebar() {
         { name: 'Documents', href: '/documents', icon: FileText, category: 'Operations', module: 'Document' },
         { name: 'Helpdesk', href: '/helpdesk', icon: LifeBuoy, category: 'Operations', module: 'Ticket' },
 
+        // LMS (Learning Management)
+        { name: 'Students', href: '/lms/students', icon: Users, category: 'LMS', module: 'Student' },
+        { name: 'Courses', href: '/lms/courses', icon: BookOpen, category: 'LMS', module: 'Course' },
+        { name: 'Class Enrollments', href: '/lms/enrollments', icon: FileText, category: 'LMS', module: 'CourseEnrollment' },
+        { name: 'Online Classes', href: '/lms/classes', icon: CalendarDays, category: 'LMS', module: 'OnlineClass' },
+        { name: 'LMS Certificates', href: '/hrms/certificates', icon: Award, category: 'LMS', module: 'Certificate' },
+
         // AI Center
         { name: 'Command Console', href: '/ai-center/dashboard', icon: Terminal, category: 'AI Center' },
         { name: 'Agent Registry', href: '/ai-center/agents', icon: Bot, category: 'AI Center' },
@@ -110,45 +150,71 @@ export default function Sidebar() {
 
         // Settings
         { name: 'Company Settings', href: '/settings/company', icon: Briefcase, category: 'Settings', module: 'Company' },
+        { name: 'Subscription Plans', href: '/settings/subscription-plans', icon: CreditCard, category: 'Settings', module: 'Company' },
     ];
 
+    const [isHovered, setIsHovered] = useState(false);
+
+    const isExpanded = !isCollapsed || isHovered;
+
     const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
-    const toggleSidebar = () => setIsCollapsed(!isCollapsed);
+    const closeMobileMenu = () => setIsMobileMenuOpen(false);
+    const toggleSidebar = () => {
+        const next = !isCollapsed;
+        setIsCollapsed(next);
+        localStorage.setItem('sidebar_is_collapsed', String(next));
+    };
 
     const { can } = usePermission();
+    const isStudent = user?.roles?.some(r => r.toLowerCase() === 'student');
 
     // Filter navigation based on permissions
-    const filteredNavigation = navigation.filter(item => {
-        if (!user) return false;
-        if (item.name === 'Dashboard') return true;
-        if (!item.module && !(item as any).role) return true;
+    const filteredNavigation = navigation
+        .map(item => {
+            if (isStudent && item.name === 'Courses') {
+                return { ...item, name: 'My Courses' };
+            }
+            if (isStudent && item.name === 'LMS Certificates') {
+                return { ...item, name: 'My Certificates' };
+            }
+            return item;
+        })
+        .filter(item => {
+            if (!user) return false;
 
-        const isAdmin = user.roles?.some(r => r.toLowerCase() === 'admin' || r.toLowerCase() === 'administrator');
+            if (isStudent) {
+                return ['Dashboard', 'My Courses', 'Online Classes', 'My Certificates'].includes(item.name);
+            }
 
-        if ((item as any).role && !user.roles?.includes((item as any).role) && !isAdmin) {
-            return false;
-        }
+            if (item.name === 'Dashboard') return true;
+            if (!item.module && !(item as any).role) return true;
 
-        if (item.module) {
-            const moduleName = item.module;
-            const requiredAction = (item as any).action || 'read';
+            const isAdmin = user.roles?.some(r => r.toLowerCase() === 'admin' || r.toLowerCase() === 'administrator');
 
-            if (!can(moduleName, requiredAction)) {
+            if ((item as any).role && !user.roles?.includes((item as any).role) && !isAdmin) {
                 return false;
             }
 
-            if (item.name === 'All Attendance') {
-                const perm = user?.permissions?.[moduleName];
-                if (perm?.readLevel === 'owned') return false;
-            }
+            if (item.module) {
+                const moduleName = item.module;
+                const requiredAction = (item as any).action || 'read';
 
-            if (item.name === 'Leave Approvals') {
-                const perm = user?.permissions?.[moduleName];
-                if (perm?.updateLevel === 'owned' || perm?.updateLevel === 'none') return false;
+                if (!can(moduleName, requiredAction)) {
+                    return false;
+                }
+
+                if (item.name === 'All Attendance') {
+                    const perm = user?.permissions?.[moduleName];
+                    if (perm?.readLevel === 'owned') return false;
+                }
+
+                if (item.name === 'Leave Approvals') {
+                    const perm = user?.permissions?.[moduleName];
+                    if (perm?.updateLevel === 'owned' || perm?.updateLevel === 'none') return false;
+                }
             }
-        }
-        return true;
-    });
+            return true;
+        });
 
     const groupedNav = filteredNavigation.reduce((acc, item: any) => {
         if (!acc[item.category]) acc[item.category] = [];
@@ -193,34 +259,25 @@ export default function Sidebar() {
 
     return (
         <>
-            {/* Mobile Header */}
-            <div className="md:hidden bg-white/80 backdrop-blur-md border-b border-slate-100 p-4 flex justify-between items-center fixed w-full z-30 top-0">
-                <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-primary-600 rounded-md flex items-center justify-center">
-                        <Building2 size={18} className="text-white" />
-                    </div>
-                    <span className="sidebar-logo-text !text-primary-900">Applizor</span>
-                </div>
-                <button onClick={toggleMobileMenu} className="p-2 text-slate-600 hover:bg-slate-50 rounded-md transition-colors">
-                    <Menu size={24} />
-                </button>
-            </div>
-
             {/* Sidebar Container */}
-            <div className={`
-                fixed inset-y-0 left-0 z-40 bg-slate-900 text-white transform transition-all duration-300 ease-in-out border-r border-slate-800/50 shadow-2xl flex flex-col
-                ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
-                md:translate-x-0 md:sticky md:top-0 md:h-screen
-                ${isCollapsed ? 'w-20' : 'w-64'}
-            `}>
+            <div 
+                className={`
+                    fixed inset-y-0 left-0 z-40 bg-slate-900 text-white transform transition-all duration-300 ease-in-out border-r border-slate-800/50 shadow-2xl flex flex-col
+                    ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+                    md:translate-x-0 md:sticky md:top-0 md:h-screen
+                    ${isExpanded ? 'w-64' : 'w-20'}
+                `}
+                onMouseEnter={() => setIsHovered(true)}
+                onMouseLeave={() => setIsHovered(false)}
+            >
 
                 {/* Brand Section */}
-                <div className={`h-16 flex items-center border-b border-slate-800/50 bg-brand-gradient transition-all duration-300 ${isCollapsed ? 'justify-center px-0' : 'px-6 gap-3'}`}>
+                <div className={`h-16 flex items-center border-b border-slate-800/50 bg-brand-gradient transition-all duration-300 ${!isExpanded ? 'justify-center px-0' : 'px-6 gap-3'}`}>
                     <div className="w-8 h-8 bg-white/10 backdrop-blur-md rounded-md flex items-center justify-center border border-white/10 flex-shrink-0">
                         <Building2 size={18} className="text-white" />
                     </div>
-                    {!isCollapsed && (
-                        <div className="overflow-hidden whitespace-nowrap">
+                    {isExpanded && (
+                        <div className="overflow-hidden whitespace-nowrap animate-fade-in-shimmer">
                             <h1 className="sidebar-logo-text text-sm">Applizor</h1>
                             <p className="text-[9px] font-black text-primary-300 uppercase tracking-[0.2em]">Softech ERP</p>
                         </div>
@@ -230,16 +287,16 @@ export default function Sidebar() {
                 {/* Navigation Section */}
                 <div className="flex-1 overflow-y-auto py-4 no-scrollbar">
                     {Object.entries(groupedNav).map(([category, items]) => (
-                        <div key={category} className={`mb-2 ${isCollapsed ? 'px-2' : 'px-3'}`}>
+                        <div key={category} className={`mb-2 ${!isExpanded ? 'px-2' : 'px-3'}`}>
 
                             {/* Category Header */}
                             {category !== 'Main' && (
-                                isCollapsed ? (
+                                !isExpanded ? (
                                     <div className="h-px bg-slate-800 mx-2 my-3" title={category} />
                                 ) : (
                                     <button
                                         onClick={() => toggleCategory(category)}
-                                        className="w-full flex items-center justify-between px-3 py-2 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1 hover:text-slate-300 transition-colors"
+                                        className="w-full flex items-center justify-between px-3 py-2 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1 hover:text-slate-300 transition-colors animate-fade-in-shimmer"
                                     >
                                         <span>{category}</span>
                                         {expandedCategories[category] ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
@@ -248,15 +305,15 @@ export default function Sidebar() {
                             )}
 
                             {/* When collapsed, Main category needs no header/separator if it's top of list */}
-                            {category === 'Main' && !isCollapsed && (
-                                <h3 className="px-3 py-2 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">
+                            {category === 'Main' && isExpanded && (
+                                <h3 className="px-3 py-2 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1 animate-fade-in-shimmer">
                                     {category}
                                 </h3>
                             )}
 
                             {/* Collapsible Content */}
                             <div className={`space-y-1 transition-all duration-300 ease-in-out overflow-hidden
-                                ${isCollapsed ? 'max-h-[2000px] opacity-100' : (category === 'Main' || expandedCategories[category] ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0')}
+                                ${!isExpanded ? 'max-h-[2000px] opacity-100' : (category === 'Main' || expandedCategories[category] ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0')}
                             `}>
                                 <nav className="space-y-1">
                                     {items.map((item) => {
@@ -268,20 +325,20 @@ export default function Sidebar() {
                                                 key={item.name}
                                                 href={item.href}
                                                 ref={isActive ? activeLinkRef : null}
-                                                title={isCollapsed ? item.name : undefined}
                                                 className={`
                                                     group flex items-center text-[11px] font-bold rounded-md transition-all duration-200 relative
-                                                    ${isCollapsed ? 'justify-center p-2' : 'px-4 py-2'}
+                                                    ${!isExpanded ? 'justify-center p-2' : 'px-4 py-2'}
                                                     ${isActive
                                                         ? 'bg-primary-600 text-white shadow-lg shadow-primary-600/20'
                                                         : 'text-slate-400 hover:text-white hover:bg-slate-800/50'}
                                                 `}
                                                 onClick={() => setIsMobileMenuOpen(false)}
                                             >
-                                                <item.icon className={`${isCollapsed ? 'mr-0' : 'mr-3'} h-4 w-4 flex-shrink-0 transition-transform group-hover:scale-110 ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-white'}`} />
-                                                {!isCollapsed && item.name}
+                                                <item.icon className={`${!isExpanded ? 'mr-0' : 'mr-3'} h-4 w-4 flex-shrink-0 transition-transform group-hover:scale-110 ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-white'}`} />
+                                                {isExpanded && <span className="animate-fade-in-shimmer whitespace-nowrap">{item.name}</span>}
+                                                
                                                 {isActive && (
-                                                    <div className={`absolute rounded-full bg-primary-300 animate-pulse ${isCollapsed ? 'bottom-1 w-1 h-1' : 'right-4 w-1 h-1'}`} />
+                                                    <div className={`absolute rounded-full bg-primary-300 animate-pulse ${!isExpanded ? 'bottom-1 w-1 h-1' : 'right-4 w-1 h-1'}`} />
                                                 )}
                                             </Link>
                                         );

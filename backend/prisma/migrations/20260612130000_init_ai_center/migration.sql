@@ -33,22 +33,6 @@ CREATE TABLE "AiTask" (
 );
 
 -- CreateTable
-CREATE TABLE "AiApproval" (
-    "id" TEXT NOT NULL,
-    "title" TEXT NOT NULL,
-    "description" TEXT,
-    "type" TEXT NOT NULL,
-    "status" TEXT NOT NULL DEFAULT 'pending',
-    "requestedBy" TEXT NOT NULL,
-    "approvedBy" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-    "companyId" TEXT,
-
-    CONSTRAINT "AiApproval_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
 CREATE TABLE "ProjectMemory" (
     "id" TEXT NOT NULL,
     "projectId" TEXT NOT NULL,
@@ -114,9 +98,6 @@ ALTER TABLE "AiTask" ADD CONSTRAINT "AiTask_companyId_fkey" FOREIGN KEY ("compan
 
 -- AddForeignKey
 ALTER TABLE "AiTask" ADD CONSTRAINT "AiTask_agentId_fkey" FOREIGN KEY ("agentId") REFERENCES "AiAgent"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "AiApproval" ADD CONSTRAINT "AiApproval_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "ProjectMemory" ADD CONSTRAINT "ProjectMemory_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE ON UPDATE CASCADE;

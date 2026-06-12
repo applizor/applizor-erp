@@ -329,7 +329,7 @@ export default function CoursesPage() {
                                     </span>
                                 </div>
                                 <h3 className="text-sm font-black text-gray-900 tracking-tight leading-tight mb-2 group-hover:text-primary-900 transition-colors">{course.title}</h3>
-                                <p className="text-[11px] text-gray-500 line-clamp-3 mb-4">{stripHtml(course.description) || 'No description provided'}</p>
+                                <p className="text-[11px] text-gray-500 line-clamp-3 mb-4">{stripHtml(course.description || '') || 'No description provided'}</p>
                             </div>
 
                             <div>

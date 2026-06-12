@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import http from 'http';
+import path from 'path';
+import fs from 'fs';
 import { initSocket } from './socket';
 
 // Routes
@@ -12,27 +14,81 @@ import clientRoutes from './routes/client.routes';
 import clientCategoryRoutes from './routes/clientCategory.routes';
 // import leadRoutes from './routes/lead.routes'; // This import is removed as it's duplicated by the CRM leadRoutes
 import paymentRoutes from './routes/payment.routes';
+import aiRoutes from './routes/ai.routes';
+import aiSystemRoutes from './routes/ai-system.routes';
 
+// Load environment variables
+const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env.development';
+dotenv.config({ path: path.resolve(process.cwd(), envFile) });
+// Fallback to .env if specific file not found
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: function (origin, callback) {
+    const allowedOrigins = [
+      process.env.FRONTEND_URL || 'http://localhost:3000',
+      'http://localhost:3001'
+    ];
+
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+
+    const isAllowedLocalhost = origin.includes('localhost:3000') || origin.includes('localhost:3001');
+    const isDevTunnel = origin.endsWith('.devtunnels.ms');
+    const isLocalIP = /^http:\/\/(\d{1,3}\.){3}\d{1,3}(:\d+)?$/.test(origin);
+
+    if (allowedOrigins.indexOf(origin) !== -1 || isAllowedLocalhost || isDevTunnel || isLocalIP) {
+      callback(null, true);
+    } else {
+      console.warn(`Blocked by CORS: ${origin}`);
+      callback(null, true); // Temporarily allow while debugging or use explicit deny
+      // callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+}));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Serve static files
 // Server Entry Point - Updated
-import path from 'path';
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
+const uploadsDirs = [
+  path.join(process.cwd(), 'uploads'),
+  path.join(process.cwd(), 'uploads', 'letterheads'),
+  path.join(process.cwd(), 'uploads', 'documents'),
+  path.join(process.cwd(), 'uploads', 'temp')
+];
+
+uploadsDirs.forEach(dir => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+    console.log(`Created directory: ${dir}`);
+  }
+});
+
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads'), {
+  setHeaders: (res, path, stat) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+
+    // Explicitly set content type for PDF if express.static misses it
+    if (path.endsWith('.pdf')) {
+      res.set('Content-Type', 'application/pdf');
+    }
+  }
+}));
 
 // Health check
 app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
     message: 'Applizor ERP Backend API is running',
+    directories: uploadsDirs.map(d => ({ path: d, exists: fs.existsSync(d) })),
     timestamp: new Date().toISOString()
   });
 });
@@ -101,6 +157,10 @@ app.use('/api/employees', employeeRoutes);
 import recruitmentRoutes from './routes/recruitment.routes';
 app.use('/api/recruitment', recruitmentRoutes);
 
+// Performance & Exit Routes
+import performanceRoutes from './routes/performance.routes';
+app.use('/api/performance', performanceRoutes);
+
 // Attendance & Leave Routes
 import attendanceLeaveRoutes from './routes/attendance-leave.routes';
 import shiftRosterRoutes from './routes/shift-roster.routes';
@@ -130,19 +190,27 @@ app.use('/api/document-templates', documentTemplateRoutes);
 // Payroll Routes
 import salaryComponentRoutes from './routes/salary-component.routes';
 import salaryStructureRoutes from './routes/salary-structure.routes';
-// import payrollRoutes from './routes/payroll.routes';
+import payrollRoutes from './routes/payroll.routes';
 import accountingRoutes from './routes/accounting.routes';
 
 app.use('/api/payroll/components', salaryComponentRoutes);
 app.use('/api/payroll/structure', salaryStructureRoutes);
-// app.use('/api/payroll', payrollRoutes);
+app.use('/api/payroll', payrollRoutes);
+
+// Sales Routes
+import salesRoutes from './routes/sales.routes';
+app.use('/api/sales', salesRoutes);
 
 // ... other routes
 app.use('/api/accounting', accountingRoutes);
 
 // Automation/Debug Routes
 import automationRoutes from './routes/automation.routes';
+import uploadRoutes from './routes/upload.routes';
+import portalUploadRoutes from './routes/portal.upload.routes';
 app.use('/api/automation', automationRoutes);
+app.use('/api/upload', uploadRoutes);
+app.use('/api/portal/upload', portalUploadRoutes);
 
 // New HRMS Module Routes
 import policyRoutes from './routes/policy.routes';
@@ -171,9 +239,37 @@ app.use('/api/timesheets', timesheetRoutes);
 import settingsRoutes from './routes/settings.routes';
 app.use('/api/settings', settingsRoutes);
 
-// AI Center Routes
-import aiRoutes from './routes/ai.routes';
+// Notification Routes
+import notificationRoutes from './routes/notification.routes';
+app.use('/api/notifications', notificationRoutes);
+
+// Subscription Plan Routes
+import subscriptionPlanRoutes from './routes/subscription-plan.routes';
+app.use('/api/subscription-plans', subscriptionPlanRoutes);
+
+// Certificate Routes
+import certificateRoutes from './routes/certificate.routes';
+app.use('/api/certificates', certificateRoutes);
+
+// LMS (Academy) Routes
+import studentRoutes from './routes/student.routes';
+import courseRoutes from './routes/course.routes';
+import enrollmentRoutes from './routes/enrollment.routes';
+import classRoutes from './routes/class.routes';
+import lectureRoutes from './routes/lecture.routes';
+import examRoutes from './routes/exam.routes';
+
+app.use('/api/lms/students', studentRoutes);
+app.use('/api/lms/courses', courseRoutes);
+app.use('/api/lms/enrollments', enrollmentRoutes);
+app.use('/api/lms/classes', classRoutes);
+app.use('/api/lms/lectures', lectureRoutes);
+app.use('/api/lms/exams', examRoutes);
+
+// AI Routes
 app.use('/api/ai', aiRoutes);
+app.use('/api/ai-system', aiSystemRoutes);
+
 
 // Scheduler
 import { SchedulerService } from './services/scheduler.service';
