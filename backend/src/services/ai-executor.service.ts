@@ -1,17 +1,33 @@
 import fs from 'fs';
+import path from 'path';
 import prisma from '../prisma/client';
 import { GeminiService } from './gemini.service';
 
 export class AiExecutorService {
-    private static companyProfilePath = 'f:\\applizor-ai-company-os\\config\\company_profile.md';
+    private static resolvePath(filename: string): string {
+        const winPath = path.join('f:\\applizor-ai-company-os\\config', filename);
+        if (fs.existsSync(winPath)) {
+            return winPath;
+        }
+        const relativePath = path.join(process.cwd(), 'config', filename);
+        if (fs.existsSync(relativePath)) {
+            return relativePath;
+        }
+        const parentPath = path.join(process.cwd(), '..', 'config', filename);
+        if (fs.existsSync(parentPath)) {
+            return parentPath;
+        }
+        return relativePath;
+    }
 
     /**
      * Load company profile grounding context
      */
     private static getCompanyProfile(): string {
         try {
-            if (fs.existsSync(this.companyProfilePath)) {
-                return fs.readFileSync(this.companyProfilePath, 'utf8');
+            const profilePath = this.resolvePath('company_profile.md');
+            if (fs.existsSync(profilePath)) {
+                return fs.readFileSync(profilePath, 'utf8');
             }
         } catch (error) {
             console.error('Error loading company profile for context:', error);

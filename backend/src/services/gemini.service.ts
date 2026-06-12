@@ -5,28 +5,45 @@ import axios from 'axios';
 export class GeminiService {
     private static keys: string[] = [];
     private static currentKeyIndex = 0;
-    private static keysFilePath = 'f:\\applizor-ai-company-os\\config\\keys.json';
 
     private static models: string[] = [];
     private static currentModelIndex = 0;
-    private static modelsFilePath = 'f:\\applizor-ai-company-os\\config\\models.json';
+
+    private static resolvePath(filename: string): string {
+        const winPath = path.join('f:\\applizor-ai-company-os\\config', filename);
+        if (fs.existsSync(winPath)) {
+            return winPath;
+        }
+        const relativePath = path.join(process.cwd(), 'config', filename);
+        if (fs.existsSync(relativePath)) {
+            return relativePath;
+        }
+        const parentPath = path.join(process.cwd(), '..', 'config', filename);
+        if (fs.existsSync(parentPath)) {
+            return parentPath;
+        }
+        return relativePath;
+    }
 
     /**
      * Load keys dynamically from the configuration folder
      */
     private static loadKeys() {
         try {
-            if (fs.existsSync(this.keysFilePath)) {
-                const content = fs.readFileSync(this.keysFilePath, 'utf8');
+            const keysPath = this.resolvePath('keys.json');
+            if (fs.existsSync(keysPath)) {
+                const content = fs.readFileSync(keysPath, 'utf8');
                 this.keys = JSON.parse(content);
             }
         } catch (error) {
             console.error('Error loading Gemini API keys:', error);
         }
 
-        // Fallback to process.env if file is empty
+        // Fallback to environment variables if file is empty or missing
         if (!this.keys || this.keys.length === 0) {
-            if (process.env.GEMINI_API_KEY) {
+            if (process.env.GEMINI_API_KEYS) {
+                this.keys = process.env.GEMINI_API_KEYS.split(',').map(k => k.trim());
+            } else if (process.env.GEMINI_API_KEY) {
                 this.keys = [process.env.GEMINI_API_KEY];
             } else {
                 this.keys = [];
@@ -39,8 +56,9 @@ export class GeminiService {
      */
     private static loadModels() {
         try {
-            if (fs.existsSync(this.modelsFilePath)) {
-                const content = fs.readFileSync(this.modelsFilePath, 'utf8');
+            const modelsPath = this.resolvePath('models.json');
+            if (fs.existsSync(modelsPath)) {
+                const content = fs.readFileSync(modelsPath, 'utf8');
                 this.models = JSON.parse(content);
             }
         } catch (error) {
