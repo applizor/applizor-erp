@@ -6,6 +6,7 @@ export interface ConversationMessage {
     sender: string;
     content: string;
     timestamp: Date;
+    projectId?: string;
     channelId?: string;
     teamId?: string;
     attachments?: any[];
@@ -25,14 +26,14 @@ export class ConversationMemoryService {
                 data: {
                     source: msg.source,
                     externalId: msg.externalId,
-                    sender: msg.sender,
-                    content: msg.content,
-                    timestamp: msg.timestamp,
-                    projectId: links.projectId,
-                    taskId: links.taskId,
+                    channelId: msg.channelId || 'unknown',
+                    channelType: 'generic', // Default
+                    projectId: links.projectId || msg.projectId,
                     clientId: links.clientId,
+                    taskId: links.taskId,
+                    timestamp: msg.timestamp,
+                    messages: [msg.content], // Initializing the array
                     metadata: {
-                        channelId: msg.channelId,
                         teamId: msg.teamId,
                         attachments: msg.attachments
                     }
@@ -83,7 +84,6 @@ export class ConversationMemoryService {
 
     /**
      * Simple pattern matcher to detect Project, Task or Client IDs in text.
-     * In a real scenario, this would use more complex Regex or AI analysis.
      */
     private static detectEntityLinks(content: string) {
         const links = {
@@ -92,7 +92,6 @@ export class ConversationMemoryService {
             clientId: null as string | null
         };
 
-        // Example: Detects patterns like PRJ-123, TSK-456, CLI-789
         const projectMatch = content.match(/PRJ-\d+/);
         const taskMatch = content.match(/TSK-\d+/);
         const clientMatch = content.match(/CLI-\d+/);

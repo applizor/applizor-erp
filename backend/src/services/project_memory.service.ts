@@ -11,19 +11,11 @@ export class ProjectMemoryService {
         try {
             console.log(`Building Project Memory for Project: ${projectId}...`);
 
-            // 1. Scan Project Structure
             const structure = this.scanRepository(projectRootPath);
-
-            // 2. Scan Database Schema
             const dbSchema = this.scanDatabaseSchema(projectRootPath);
-
-            // 3. Scan APIs (Routes)
             const apiEndpoints = this.scanAPIs(projectRootPath);
-
-            // 4. Analyze Architecture
             const architecture = this.analyzeArchitecture(structure, apiEndpoints);
 
-            // 5. Combine into a Memory Object
             const projectMemory = {
                 structure,
                 dbSchema,
@@ -33,16 +25,15 @@ export class ProjectMemoryService {
                 version: '1.0'
             };
 
-            // 6. Store in ERP (assuming project_memory table exists as per Phase 1 requirements)
             await prisma.projectMemory.upsert({
                 where: { projectId },
                 update: { 
-                    data: JSON.stringify(projectMemory),
+                    data: projectMemory,
                     updatedAt: new Date() 
                 },
                 create: { 
                     projectId, 
-                    data: JSON.stringify(projectMemory),
+                    data: projectMemory,
                     createdAt: new Date(),
                     updatedAt: new Date() 
                 }
@@ -100,7 +91,6 @@ export class ProjectMemoryService {
             const files = fs.readdirSync(routesPath).filter(f => f.endsWith('.ts') || f.endsWith('.js'));
             files.forEach(file => {
                 const content = fs.readFileSync(path.join(routesPath, file), 'utf8');
-                // Simple regex to find route definitions like router.get('/path', ...)
                 const matches = content.match(/\.(get|post|put|delete|patch)\(['"]([^'"]+)['"]/g);
                 if (matches) {
                     matches.forEach(m => endpoints.push(`${file}: ${m}`));

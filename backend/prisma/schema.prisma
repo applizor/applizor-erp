@@ -2372,6 +2372,7 @@ model TimelineMemory {
 
 model ConversationMemory {
   id          String   @id @default(uuid())
+  externalId  String?  // To link with external platform IDs
   channelId   String   // Teams channel, WhatsApp number, or email thread
   channelType String   // teams, whatsapp, email, telegram
   source      String   // teams, whatsapp, email, erp
