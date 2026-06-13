@@ -9,7 +9,8 @@ import {
     updateApproval,
     getLogs,
     createLog,
-    processClientRequest
+    processClientRequest,
+    getDashboardStats
 } from '../controllers/ai-system.controller';
 
 const router = Router();
@@ -30,5 +31,6 @@ router.post('/logs', combinedAuth, createLog);
 
 // Company OS Orchestration Route
 router.post('/process-request', combinedAuth, processClientRequest);
+router.get('/stats', combinedAuth, getDashboardStats);
 
 export default router;

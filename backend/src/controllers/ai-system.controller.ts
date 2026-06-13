@@ -2,6 +2,29 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import prisma from '../prisma/client';
 import { CompanyOSCoordinator } from '../services/company_os.coordinator';
+import { WorkloadService } from '../services/workload.service';
+
+export const getDashboardStats = async (req: AuthRequest, res: Response) => {
+    try {
+        const totalAgents = await prisma.aiAgent.count();
+        const pendingApprovals = await prisma.aiApproval.count({ where: { status: 'pending' } });
+        const allWorkloads = await WorkloadService.getAllEmployeeWorkloads(req.user?.companyId || '');
+        const highWorkloadCount = allWorkloads.filter(w => w.score >= 80).length;
+        const recentTasks = await prisma.task.findMany({
+            where: { description: { contains: 'BA Analysis' } },
+            take: 5,
+            orderBy: { createdAt: 'desc' }
+        });
+        res.status(200).json({
+            success: true,
+            stats: { totalAgents, pendingApprovals, highWorkloadCount, recentTasks }
+        });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message || 'Failed to fetch dashboard stats' });
+    }
+};
+
+// ==========================================
 
 // ==========================================
 // AI Memory Management
