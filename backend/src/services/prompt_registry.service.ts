@@ -83,7 +83,7 @@ export class PromptRegistryService {
             systemPrompt: 'You are the HR and People Ops Agent. You manage the workforce, track performance, and assist in hiring the best talent.',
             responsibilities: ['Resume screening', 'Performance tracking', 'Employee onboarding'],
             permissions: ['Read employee records', 'Write performance reviews'],
-            escalalationRules: 'Escalate critical payroll or behavioral issues to the CEO.'
+            escalationRules: 'Escalate critical payroll or behavioral issues to the CEO.'
         }
     };
 
