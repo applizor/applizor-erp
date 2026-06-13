@@ -1,134 +1,118 @@
+import prisma from '../prisma/client';
+import { VerificationService } from './verification.service';
 import axios from 'axios';
 
 export class AIService {
     /**
-     * Generate a structured, developer-friendly task from a user prompt using LLM.
+     * Generic method to generate text from a prompt using Gemini.
      */
-    static async generateTask(prompt: string): Promise<{ title: string, description: string }> {
-        const apiKey = process.env.GEMINI_API_KEY || process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY;
-
-        if (!apiKey) {
-            throw new Error("AI API Key missing. Please configure GEMINI_API_KEY, OPENROUTER_API_KEY, or OPENAI_API_KEY.");
-        }
-
+    static async generateText(prompt: string) {
         try {
-            const systemPrompt = `You are an expert Senior Technical Project Manager. 
-Your goal is to take a raw user prompt and turn it into a high-quality, developer-friendly task.
-The output should be a JSON object with:
-- "title": A concise, clear, and professional task title.
-- "description": A detailed Markdown-formatted description including Objective, Technical Requirements, and Acceptance Criteria.
+            const response = await axios.post('https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=' + process.env.GEMINI_API_KEY, {
+                contents: [{ parts: [{ text: prompt }] }]
+            });
 
-BE CRYSTAL CLEAR AND TECHNICAL. 
-The response (both title and description) MUST ALWAYS BE IN ENGLISH, even if the user's prompt is in another language (like Hindi).
-Return ONLY the JSON object.`;
+            const text = response.data.candidates[0].content.parts[0].text;
+            // Remove markdown code blocks if present
+            return text.replace(/```json|```/g, '').trim();
+        } catch (error: any) {
+            console.error(`AI generateText Error: ${error}`);
+            throw new Error('Failed to generate AI text response');
+        }
+    }
 
-            if (process.env.GEMINI_API_KEY) {
-                const response = await axios.post(
-                    `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${process.env.GEMINI_API_KEY}`,
-                    {
-                        contents: [{
-                            parts: [{
-                                text: `${systemPrompt}\n\nUser Prompt: ${prompt}`
-                            }]
-                        }]
-                    }
-                );
+    static async generateTask(details: any) {
+        const prompt = `Generate a professional task description for: ${details.title}. Details: ${details.description}`;
+        return this.generateText(prompt);
+    }
 
-                if (!response.data.candidates || response.data.candidates.length === 0) {
-                    // Check if it was blocked by safety filters
-                    const promptFeedback = response.data.promptFeedback;
-                    if (promptFeedback?.blockReason) {
-                        throw new Error(`AI Request blocked by safety filter: ${promptFeedback.blockReason}`);
-                    }
-                    throw new Error("AI returned no results. This might be due to content filters.");
-                }
+    static async rewriteHeadline(headline: string) {
+        const prompt = `Rewrite this headline to be more professional and catchy: ${headline}`;
+        return this.generateText(prompt);
+    }
 
-                const candidate = response.data.candidates[0];
-                if (candidate.finishReason === 'SAFETY') {
-                    throw new Error("AI output was blocked by safety filters. Please try rephrasing your prompt.");
-                }
+    static async generateSEOMetadata(pageContent: string) {
+        const prompt = `Generate SEO meta title and description for this content: ${pageContent}. Return JSON.`;
+        return this.generateText(prompt);
+    }
 
-                const text = candidate.content?.parts?.[0]?.text;
-                if (!text) {
-                    throw new Error("AI returned empty content parts.");
-                }
+    static async generateSummary(text: string) {
+        const prompt = `Summarize the following text concisely: ${text}`;
+        return this.generateText(prompt);
+    }
 
-                // Gemini sometimes wraps JSON in markdown blocks
-                let result;
-                try {
-                    const jsonMatch = text.match(/\{[\s\S]*\}/);
-                    result = JSON.parse(jsonMatch ? jsonMatch[0] : text);
-                } catch (parseError) {
-                    console.error("Failed to parse Gemini JSON:", text);
-                    throw new Error("Failed to parse AI response. The model may have returned malformed content.");
-                }
+    // --- Verified Action Layer (Chief of Staff Verification) ---
 
-                return {
-                    title: result.title || "New Task",
-                    description: result.description || "No description generated."
-                };
-            }
-
-            // Fallback to OpenRouter/OpenAI logic
-            const response = await axios.post('https://openrouter.ai/api/v1/chat/completions', {
-                model: "openai/gpt-3.5-turbo",
-                messages: [
-                    { role: "system", content: systemPrompt },
-                    { role: "user", content: prompt }
-                ],
-                response_format: { type: "json_object" }
-            }, {
-                headers: {
-                    'Authorization': `Bearer ${apiKey}`,
-                    'Content-Type': 'application/json'
+    /**
+     * Creates a task in the ERP and verifies its existence.
+     * This prevents the AI from hallucinating a successful task creation.
+     */
+    static async createVerifiedTask(taskData: any, userId: string) {
+        try {
+            const task = await prisma.task.create({
+                data: {
+                    ...taskData,
+                    createdById: userId
                 }
             });
 
-            const content = response.data.choices[0].message.content;
-            const result = JSON.parse(content);
+            const verification = await VerificationService.verifyAction('TASK_CREATED', { taskId: task.id });
+            
+            if (!verification.success) {
+                throw new Error(`Verification Failed: ${verification.message}`);
+            }
 
             return {
-                title: result.title || "New Task",
-                description: result.description || "No description generated."
+                success: true,
+                task,
+                message: verification.message
             };
         } catch (error: any) {
-            const detail = error.response?.data || error.message;
-            console.error("AI Generation Error Details:", JSON.stringify(detail, null, 2));
-            
-            let errorMessage = "AI Generation failed";
-            if (error.response?.data?.error?.message) {
-                errorMessage += `: ${error.response.data.error.message}`;
-            } else if (typeof detail === 'string') {
-                errorMessage += `: ${detail}`;
-            } else {
-                errorMessage += `. Check server logs for full details.`;
-            }
-            
-            throw new Error(errorMessage);
+            return {
+                success: false,
+                error: error.message || 'Failed to create verified task',
+                message: 'Action failed verification.'
+            };
         }
     }
 
-
     /**
-     * Rewrite a title/headline for better CTR.
+     * Assigns a task to an employee and verifies the assignment.
      */
-    static async rewriteHeadline(title: string): Promise<string> {
-        return `${title} [AI Optimized]`;
+    static async assignVerifiedTask(taskId: string, employeeId: string) {
+        try {
+            await prisma.task.update({
+                where: { id: taskId },
+                data: { assignedToId: employeeId }
+            });
+
+            const verification = await VerificationService.verifyAction('TASK_ASSIGNED', { taskId, employeeId });
+
+            if (!verification.success) {
+                throw new Error(`Verification Failed: ${verification.message}`);
+            }
+
+            return {
+                success: true,
+                message: verification.message
+            };
+        } catch (error: any) {
+            return {
+                success: false,
+                error: error.message || 'Failed to assign verified task',
+                message: 'Action failed verification.'
+            };
+        }
     }
 
     /**
-     * Generate meta description and SEO keywords based on content.
+     * Verifies the existence of a resource (Employee or Project) before AI proceeds.
      */
-    static async generateSEOMetadata(content: string): Promise<{ metaDescription: string, focusKeywords: string }> {
-        const desc = content.substring(0, 160).trim() + "...";
-        const keywords = "erp, cms, news";
-        return { metaDescription: desc, focusKeywords: keywords };
-    }
-
-    /**
-     * Generate a summary for long articles.
-     */
-    static async generateSummary(content: string): Promise<string> {
-        return content.substring(0, 300) + "... (Summarized by AI)";
+    static async verifyResource(type: 'EMPLOYEE' | 'PROJECT', id: string) {
+        const action = type === 'EMPLOYEE' ? 'EMPLOYEE_VERIFIED' : 'PROJECT_VERIFIED';
+        const params = type === 'EMPLOYEE' ? { employeeId: id } : { projectId: id };
+        
+        const verification = await VerificationService.verifyAction(action, params);
+        return verification;
     }
 }

@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import prisma from '../prisma/client';
+import { CompanyOSCoordinator } from '../services/company_os.coordinator';
 
 // ==========================================
 // AI Memory Management
@@ -232,5 +233,40 @@ export const createLog = async (req: AuthRequest, res: Response) => {
     } catch (error: any) {
         console.error('createLog Error:', error);
         res.status(500).json({ error: error.message || 'Failed to create AI log' });
+    }
+};
+
+// ==========================================
+// Company OS Orchestration
+// ==========================================
+
+export const processClientRequest = async (req: AuthRequest, res: Response) => {
+    try {
+        const { message, context } = req.body;
+        const userId = req.user!.id;
+
+        if (!message) {
+            return res.status(400).json({ error: 'Client message is required' });
+        }
+
+        const result = await CompanyOSCoordinator.processClientRequest(
+            message, 
+            context || 'General Project', 
+            userId
+        );
+
+        if (!result.success) {
+            return res.status(400).json({ 
+                success: false, 
+                stage: result.stage, 
+                error: result.error,
+                analysis: result.analysis 
+            });
+        }
+
+        res.status(200).json(result);
+    } catch (error: any) {
+        console.error('processClientRequest Error:', error);
+        res.status(500).json({ error: error.message || 'Internal server error during orchestration' });
     }
 };

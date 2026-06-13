@@ -8,7 +8,8 @@ import {
     createApproval,
     updateApproval,
     getLogs,
-    createLog
+    createLog,
+    processClientRequest
 } from '../controllers/ai-system.controller';
 
 const router = Router();
@@ -26,5 +27,8 @@ router.put('/approvals/:id', combinedAuth, updateApproval);
 // AI Activity Logging Routes
 router.get('/logs', combinedAuth, getLogs);
 router.post('/logs', combinedAuth, createLog);
+
+// Company OS Orchestration Route
+router.post('/process-request', combinedAuth, processClientRequest);
 
 export default router;

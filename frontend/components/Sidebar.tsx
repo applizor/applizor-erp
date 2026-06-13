@@ -76,7 +76,6 @@ export default function Sidebar() {
 
     const navigation = [
         { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, category: 'Main' },
-        { name: 'AI Control Center', href: '/ai-agents', icon: Cpu, category: 'Main' },
 
         // HRMS (People)
         { name: 'Employees', href: '/hrms/employees', icon: Users, category: 'HRMS', module: 'Employee' },
