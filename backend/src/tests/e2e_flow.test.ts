@@ -17,26 +17,29 @@ export class E2EFlowTest {
             const baResult = await BAService.analyzeClientMessage(clientMessage, clientContext);
             if (!baResult.success) throw new Error(`BA failed: ${baResult.error}`);
             const analysis = baResult.analysis;
-            console.log('✅ Analysis Complete:', analysis.summary);
-            console.log(`   Module: ${analysis.affectedModule} | Priority: ${analysis.priority} | Skills: ${analysis.requiredSkills.join(', ')}`);
+            console.log('✅ Analysis Complete:', analysis?.summary || 'No summary available');
+            console.log(`   Module: ${analysis?.affectedModule || 'N/A'} | Priority: ${analysis?.priority || 'N/A'} | Skills: ${analysis?.requiredSkills?.join(', ') || 'None'}`);
 
             // STEP 2: ERP Task Creation
             console.log('\nStep 2: Creating ERP Task...');
             const taskData = {
-                title: `Implement ${analysis.affectedModule} feature: ${analysis.summary}`,
+                title: `Implement ${analysis?.affectedModule || 'Module'} feature: ${analysis?.summary || 'Task'}`,
                 description: `Client Request: ${clientMessage}. Analysis: ${JSON.stringify(analysis)}`,
-                priority: analysis.priority.toLowerCase(),
+                priority: (analysis?.priority || 'medium').toLowerCase(),
                 status: 'todo',
-                projectId: 'PRJ-001' // Use a real ID from your DB for production test
+                projectId: 'PRJ-001'
             };
             const taskResult = await AIService.createVerifiedTask(taskData, adminUserId);
-            if (!taskResult.success) throw new Error(`Task creation failed: ${taskResult.error}`);
-            const taskId = taskResult.task.id;
+            if (!taskResult.success || !taskResult.task) throw new Error(`Task creation failed: ${taskResult.error}`);
+            const taskId = taskResult.task!.id;
             console.log(`✅ Task Created & Verified in ERP: ${taskId}`);
 
             // STEP 3: Assignment Recommendation
             console.log('\nStep 3: Recommending Assignee...');
-            const recResult = await AssignmentService.recommendAssignee(analysis.requiredSkills, analysis.affectedModule);
+            const recResult = await AssignmentService.recommendAssignee(
+                analysis?.requiredSkills || [], 
+                analysis?.affectedModule || 'General'
+            );
             if (!recResult.success) throw new Error(`Recommendation failed: ${recResult.message}`);
             const assigneeId = recResult.recommendation!.employeeId;
             console.log(`✅ Recommended: ${recResult.recommendation!.name} | Reason: ${recResult.recommendation!.reason}`);

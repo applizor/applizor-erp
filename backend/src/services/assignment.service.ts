@@ -9,21 +9,22 @@ export class AssignmentService {
      */
     static async recommendAssignee(requiredSkills: string[], taskType: string) {
         try {
-            // 1. Find all active employees who have at least one of the required skills
-            // The 'skills' field is stored as JSON in the database.
-            const candidates = await prisma.employee.findMany({
-                where: {
-                    status: 'active',
-                    skills: {
-                        hasSome: requiredSkills
-                    }
-                },
+            // 1. Find all active employees
+            const employees = await prisma.employee.findMany({
+                where: { status: 'active' },
                 select: {
                     id: true,
                     firstName: true,
                     lastName: true,
-                    positionId: true
+                    positionId: true,
+                    skills: true
                 }
+            });
+
+            // Manually filter employees who have at least one of the required skills
+            const candidates = employees.filter(emp => {
+                const empSkills = (emp.skills as string[]) || [];
+                return requiredSkills.some(skill => empSkills.includes(skill));
             });
 
             if (candidates.length === 0) {

@@ -37,12 +37,12 @@ export class ProjectMemoryService {
             await prisma.projectMemory.upsert({
                 where: { projectId },
                 update: { 
-                    content: JSON.stringify(projectMemory),
+                    data: JSON.stringify(projectMemory),
                     updatedAt: new Date() 
                 },
                 create: { 
                     projectId, 
-                    content: JSON.stringify(projectMemory),
+                    data: JSON.stringify(projectMemory),
                     createdAt: new Date(),
                     updatedAt: new Date() 
                 }

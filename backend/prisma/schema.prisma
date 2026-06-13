@@ -2309,11 +2309,14 @@ model AiLog {
 model AiAgent {
   id          String   @id @default(uuid())
   name        String
-  role        String
+  role        String   @unique
   department  String
   status      String   @default("active") // active, disabled, offline
   model       String   @default("gemini-2.5-flash")
-  permissions Json?    // Array of allowed modules
+  systemPrompt String?  @db.Text
+  responsibilities Json?
+  permissions Json?
+  escalationRules String? @db.Text
   description String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -2371,7 +2374,13 @@ model ConversationMemory {
   id          String   @id @default(uuid())
   channelId   String   // Teams channel, WhatsApp number, or email thread
   channelType String   // teams, whatsapp, email, telegram
+  source      String   // teams, whatsapp, email, erp
+  projectId   String?
+  clientId    String?
+  taskId      String?
+  timestamp   DateTime @default(now())
   messages    Json     // Chronological array of chat interactions
+  metadata    Json?
   updatedAt   DateTime @updatedAt
 }
 

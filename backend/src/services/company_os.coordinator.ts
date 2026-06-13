@@ -24,6 +24,9 @@ export class CompanyOSCoordinator {
                 };
             }
             const analysis = baResult.analysis;
+            if (!analysis) {
+                return { success: false, stage: 'BUSINESS_ANALYSIS', error: 'Analysis result was empty' };
+            }
             console.log(`✅ Analysis complete. Module: ${analysis.affectedModule}, Priority: ${analysis.priority}`);
 
             // STEP 2: Task Creation & Verification
@@ -38,12 +41,12 @@ export class CompanyOSCoordinator {
             };
             
             const taskResult = await AIService.createVerifiedTask(taskData, userId);
-            if (!taskResult.success) {
+            if (!taskResult.success || !taskResult.task) {
                 return { 
                     success: false, 
                     stage: 'TASK_CREATION', 
-                    error: taskResult.error,
-                    analysis // Return analysis so we don't lose it
+                    error: taskResult.error || 'Task creation failed or returned no task',
+                    analysis 
                 };
             }
             const taskId = taskResult.task.id;
