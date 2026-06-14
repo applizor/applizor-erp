@@ -92,7 +92,6 @@ export default function CommandConsolePage() {
         setLoading(true);
 
         try {
-            // Check if it's a special launched request
             if (textToSend.toLowerCase().startsWith('process:')) {
                 const cleanMessage = textToSend.replace(/^process:\s*/i, '');
                 const res = await api.post('/ai-system/process-request', { 
@@ -116,7 +115,6 @@ export default function CommandConsolePage() {
                 };
                 setMessages(prev => [...prev, assistantMsg]);
             }
-
             loadSystemStats();
         } catch (err: any) {
             console.error('Execution failed:', err);
@@ -129,6 +127,27 @@ export default function CommandConsolePage() {
         } finally {
             setLoading(false);
         }
+    };
+
+    const parseInlineMarkdown = (text: string) => {
+        const boldRegex = /\\*\\*(.*?)\\*\\*/g;
+        const parts: (string | JSX.Element)[] = [];
+        let lastIndex = 0;
+        let match;
+
+        while ((match = boldRegex.exec(text)) !== null) {
+            if (match.index > lastIndex) {
+                parts.push(text.substring(lastIndex, match.index));
+            }
+            parts.push(<strong key={match.index} className="font-bold text-slate-800">{match[1]}</strong>);
+            lastIndex = boldRegex.lastIndex;
+        }
+
+        if (lastIndex < text.length) {
+            parts.push(text.substring(lastIndex));
+        }
+
+        return parts.length > 0 ? parts : text;
     };
 
     const renderContent = (text: string) => {
@@ -167,28 +186,7 @@ export default function CommandConsolePage() {
                     {parseInlineMarkdown(line)}
                 </p>
             );
-        }).filter(el => el !== null);
-    };
-
-    const parseInlineMarkdown = (text: string) => {
-        const boldRegex = /\\*\\*(.*?)\\*\\*/g;
-        const parts = [];
-        let lastIndex = 0;
-        let match;
-
-        while ((match = boldRegex.exec(text)) !== null) {
-            if (match.index > lastIndex) {
-                parts.push(text.substring(lastIndex, match.index));
-            }
-            parts.push(<strong key={match.index} className="font-bold text-slate-800">{match[1]}</strong>);
-            lastIndex = boldRegex.lastIndex;
-        }
-
-        if (lastIndex < text.length) {
-            parts.push(text.substring(lastIndex));
-        }
-
-        return parts.length > 0 ? parts : text;
+        });
     };
 
     return (
@@ -366,7 +364,7 @@ export default function CommandConsolePage() {
                         </div>
                         <div className="flex items-center gap-1.5">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                            <span>SSL Data Encryption Active</span>
+                            <span>SSL Data Encryption Active</span>,
                         </div>
                         <div className="flex items-center gap-1.5">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
