@@ -107,7 +107,7 @@ app.use('/api/leads', leadRoutes);
 
 app.use('/api/payments', paymentRoutes);
 
-import quotationRoutes from './routes/quotation.//routes';
+import quotationRoutes from './routes/quotation.routes';
 import quotationTemplateRoutes from './routes/quotation-template.routes';
 app.use('/api/quotations', quotationRoutes);
 app.use('/api/quotation-templates', quotationTemplateRoutes);
