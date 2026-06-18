@@ -24,7 +24,10 @@ export function EditProjectModal({ isOpen, onClose, project, onUpdate }: EditPro
         endDate: '',
         budget: '',
         currency: 'INR',
-        description: ''
+        description: '',
+        gitRepoUrl: '',
+        systemPath: '',
+        gitBranch: 'main'
     });
 
     useEffect(() => {
@@ -36,7 +39,10 @@ export function EditProjectModal({ isOpen, onClose, project, onUpdate }: EditPro
                 endDate: project.endDate ? new Date(project.endDate).toISOString().split('T')[0] : '',
                 budget: project.budget || '',
                 currency: project.currency || 'INR',
-                description: project.description || ''
+                description: project.description || '',
+                gitRepoUrl: project.gitRepoUrl || '',
+                systemPath: project.systemPath || '',
+                gitBranch: project.gitBranch || 'main'
             });
         }
     }, [project, isOpen]);
@@ -150,6 +156,44 @@ export function EditProjectModal({ isOpen, onClose, project, onUpdate }: EditPro
                                 onChange={e => setFormData({ ...formData, endDate: e.target.value })}
                             />
                         </div>
+                    </div>
+
+                    {/* Git Repository Configuration */}
+                    <div className="md:col-span-2 border-t border-gray-100 pt-4 mt-2">
+                        <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wider mb-3">Repository & Local Path</h3>
+                    </div>
+
+                    <div className="md:col-span-2 ent-form-group">
+                        <label className="ent-label">Git Repository URL</label>
+                        <input
+                            type="text"
+                            className="ent-input"
+                            value={formData.gitRepoUrl}
+                            onChange={e => setFormData({ ...formData, gitRepoUrl: e.target.value })}
+                            placeholder="https://github.com/username/repo"
+                        />
+                    </div>
+
+                    <div className="ent-form-group">
+                        <label className="ent-label">Local System Path (C:/path/to/repo)</label>
+                        <input
+                            type="text"
+                            className="ent-input"
+                            value={formData.systemPath}
+                            onChange={e => setFormData({ ...formData, systemPath: e.target.value })}
+                            placeholder="e.g. F:/Repositories/repo"
+                        />
+                    </div>
+
+                    <div className="ent-form-group">
+                        <label className="ent-label">Git Branch</label>
+                        <input
+                            type="text"
+                            className="ent-input"
+                            value={formData.gitBranch}
+                            onChange={e => setFormData({ ...formData, gitBranch: e.target.value })}
+                            placeholder="e.g. main"
+                        />
                     </div>
 
                     <div className="md:col-span-2 ent-form-group">

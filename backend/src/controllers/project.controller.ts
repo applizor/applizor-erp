@@ -18,7 +18,8 @@ export const createProject = async (req: AuthRequest, res: Response) => {
             name, description, clientId, status,
             startDate, endDate, budget, isBillable,
             tags, priority, currency,
-            type, portalConfig // New fields
+            type, portalConfig, // New fields
+            gitRepoUrl, systemPath, gitBranch
         } = req.body;
 
         // Check if creator has an employee record
@@ -37,6 +38,9 @@ export const createProject = async (req: AuthRequest, res: Response) => {
             isBillable: isBillable ?? true,
             tags: tags || [],
             priority: priority || 'medium',
+            gitRepoUrl,
+            systemPath,
+            gitBranch: gitBranch || 'main',
             settings: type === 'news_cms' ? { type: 'news_cms' } : undefined
         };
 
@@ -450,7 +454,8 @@ export const updateProject = async (req: AuthRequest, res: Response) => {
         const {
             name, description, status,
             startDate, endDate, budget, isBillable,
-            tags, priority, currency, settings
+            tags, priority, currency, settings,
+            gitRepoUrl, systemPath, gitBranch
         } = req.body;
 
         const data: any = {};
@@ -463,6 +468,9 @@ export const updateProject = async (req: AuthRequest, res: Response) => {
         if (priority !== undefined) data.priority = priority;
         if (currency !== undefined) data.currency = currency;
         if (settings !== undefined) data.settings = settings;
+        if (gitRepoUrl !== undefined) data.gitRepoUrl = gitRepoUrl;
+        if (systemPath !== undefined) data.systemPath = systemPath;
+        if (gitBranch !== undefined) data.gitBranch = gitBranch;
 
         // Correctly parse dates to Avoid Prisma 'premature end of input' or validation errors
         if (startDate !== undefined) {

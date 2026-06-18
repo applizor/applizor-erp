@@ -228,3 +228,4 @@ server.listen(PORT, () => {
   console.log(`🤝 Recruitment API: http://localhost:${PORT}/api/recruitment`);
   // Removed AI routes
 });
+

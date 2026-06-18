@@ -517,6 +517,9 @@ model Project {
   tags            String[]         @default([])
   settings        Json?
   currency        String           @default("INR")
+  gitRepoUrl      String?
+  systemPath      String?
+  gitBranch       String?          @default("main")
   automationRules AutomationRule[]
   contracts       Contract[]
   documents       Document[]
