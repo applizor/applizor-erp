@@ -192,7 +192,14 @@ export const updateRole = async (req: AuthRequest, res: Response) => {
         const existingRole = await prisma.role.findUnique({ where: { id } });
         if (!existingRole) return res.status(404).json({ error: 'Role not found' });
         if (existingRole.isSystem) {
-            return res.status(400).json({ error: 'System roles cannot be modified' });
+            const isSuperAdmin = req.user.roles?.some((ur: any) => 
+                ur.role.name === 'Admin' || 
+                ur.role.name === 'Super Admin' || 
+                ur.role.name === 'ChiefOfStaff'
+            );
+            if (!isSuperAdmin) {
+                return res.status(400).json({ error: 'System roles cannot be modified except by administrators' });
+            }
         }
 
         const role = await prisma.role.update({
