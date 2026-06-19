@@ -252,20 +252,16 @@ const AGENT_ROLES: AgentRoleDef[] = [
 async function main() {
     console.log('🌱 Seeding Agent Roles & Permissions...');
 
-    // Get default company
-    let company = await prisma.company.findFirst();
+    // Get the CEO's original company — Applizor Softech LLP
+    const APPLIZOR_COMPANY_ID = 'b81a0e3f-9301-43f7-a633-6db7e5fa54b0';
+    const company = await prisma.company.findUnique({
+        where: { id: APPLIZOR_COMPANY_ID }
+    });
     if (!company) {
-        company = await prisma.company.create({
-            data: {
-                name: 'Applizor Tech',
-                email: 'admin@applizor.com',
-                country: 'India',
-                currency: 'USD',
-                isActive: true
-            }
-        });
-        console.log('Created default company:', company.id);
+        console.error(`❌ FATAL: CEO company (${APPLIZOR_COMPANY_ID}) not found in database! Aborting seed to prevent creating a ghost company.`);
+        process.exit(1);
     }
+    console.log(`✅ Using CEO company: "${company.name}" (${company.id})`);
 
     const hashedPassword = await bcrypt.hash('password123', 10);
 
