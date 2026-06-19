@@ -86,12 +86,14 @@ export default function GlobalTasksPage() {
                     
                     setSprints(sprintsRes.data || []);
                     if (projRes.data?.members) {
-                        setProjectMembers(projRes.data.members.map((m: any) => ({
-                            id: m.employeeId,
-                            userId: m.employee.userId,
-                            firstName: m.employee.firstName,
-                            lastName: m.employee.lastName
-                        })));
+                        setProjectMembers(projRes.data.members
+                            .filter((m: any) => m && m.employee)
+                            .map((m: any) => ({
+                                id: m.employeeId,
+                                userId: m.employee.userId,
+                                firstName: m.employee.firstName,
+                                lastName: m.employee.lastName
+                            })));
                     } else {
                         setProjectMembers([]);
                     }

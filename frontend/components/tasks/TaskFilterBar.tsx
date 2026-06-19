@@ -22,10 +22,16 @@ export function TaskFilterBar({ filters, onFilterChange, onClearFilters, members
     const assigneeOptions = [
         { label: 'Assignee: All', value: 'all' },
         { label: 'Unassigned', value: 'unassigned' },
-        ...members.map(m => ({
-            label: `${m.employee.firstName} ${m.employee.lastName}`,
-            value: m.employee.userId
-        }))
+        ...members.filter(Boolean).map(m => {
+            const emp = m.employee || m;
+            const firstName = emp.firstName || '';
+            const lastName = emp.lastName || '';
+            const userId = emp.userId || '';
+            return {
+                label: `${firstName} ${lastName}`.trim() || 'Unknown Member',
+                value: userId
+            };
+        })
     ];
 
     const typeOptions = [
