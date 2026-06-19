@@ -162,6 +162,7 @@ model Company {
   statutoryConfig    StatutoryConfig?
   subscriptions      Subscription[]
   subscriptionPlans  SubscriptionPlan[] // New Relation
+  services           Service[]
   taxRates           TaxRate[]
   tickets            Ticket[]
   unitTypes          UnitType[]
@@ -1979,21 +1980,44 @@ model ExitDetail {
 model SubscriptionPlan {
   id        String   @id @default(uuid())
   companyId String
+  serviceId String?
   name      String // e.g. "Basic", "Pro", "Enterprise"
   code      String // e.g. "basic_monthly"
   price     Decimal  @db.Decimal(10, 2)
   currency  String   @default("USD")
   interval  String   @default("monthly") // monthly, yearly
+  planType  String   @default("SaaS") // SaaS, One-time
   features  Json? // List of features for UI display
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  service       Service?       @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   subscriptions Subscription[]
 
   @@unique([companyId, code])
   @@index([companyId])
+}
+
+// Company Service model (to categorize pricing & products)
+model Service {
+  id          String             @id @default(uuid())
+  companyId   String
+  name        String             // e.g. "Core Retail ERP", "AI SEO"
+  code        String             // e.g. "core_retail_erp", "ai_seo"
+  category    String             @default("SaaS") // e.g. "SaaS", "Marketing", "Custom Development"
+  description String?
+  isActive    Boolean            @default(true)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  company     Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  plans       SubscriptionPlan[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@index([category])
 }
 
 // ─── Certificate System ───────────────────────────────────────────────────────

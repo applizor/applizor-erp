@@ -150,6 +150,7 @@ export default function Sidebar() {
         // Settings
         { name: 'Company Settings', href: '/settings/company', icon: Briefcase, category: 'Settings', module: 'Company' },
         { name: 'Subscription Plans', href: '/settings/subscription-plans', icon: CreditCard, category: 'Settings', module: 'Company' },
+        { name: 'Services', href: '/settings/services', icon: Briefcase, category: 'Settings', module: 'Company' },
     ];
 
     const [isHovered, setIsHovered] = useState(false);

@@ -15,6 +15,14 @@ export const getPlans = async (req: AuthRequest, res: Response) => {
                 companyId,
                 isActive: true
             },
+            include: {
+                service: {
+                    select: {
+                        name: true,
+                        category: true
+                    }
+                }
+            },
             orderBy: {
                 price: 'asc'
             }
@@ -37,7 +45,7 @@ export const createPlan = async (req: AuthRequest, res: Response) => {
             return res.status(401).json({ error: 'Unauthorized' });
         }
 
-        const { name, code, price, currency, interval, features } = req.body;
+        const { name, code, price, currency, interval, features, serviceId, planType } = req.body;
 
         // Generate code if not provided
         const planCode = code || name.toLowerCase().replace(/[^a-z0-9]+/g, '_');
@@ -50,7 +58,9 @@ export const createPlan = async (req: AuthRequest, res: Response) => {
                 price: parseFloat(price),
                 currency: currency || 'INR', // Default to INR based on user request
                 interval: interval || 'monthly',
-                features: features || []
+                features: features || [],
+                serviceId: serviceId || null,
+                planType: planType || 'SaaS'
             }
         });
 
@@ -66,7 +76,7 @@ export const updatePlan = async (req: AuthRequest, res: Response) => {
         const { id } = req.params;
         const companyId = req.user?.companyId;
 
-        const { name, code, price, currency, interval, features, isActive } = req.body;
+        const { name, code, price, currency, interval, features, isActive, serviceId, planType } = req.body;
 
         const plan = await prisma.subscriptionPlan.update({
             where: {
@@ -76,11 +86,13 @@ export const updatePlan = async (req: AuthRequest, res: Response) => {
             data: {
                 name,
                 code,
-                price,
+                price: parseFloat(price),
                 currency,
                 interval,
                 features,
-                isActive
+                isActive,
+                serviceId: serviceId || null,
+                planType: planType || 'SaaS'
             }
         });
 

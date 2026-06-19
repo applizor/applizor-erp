@@ -191,6 +191,9 @@ app.use('/api/notifications', notificationRoutes);
 import subscriptionPlanRoutes from './routes/subscription-plan.routes';
 app.use('/api/subscription-plans', subscriptionPlanRoutes);
 
+import serviceRoutes from './routes/service.routes';
+app.use('/api/services', serviceRoutes);
+
 import certificateRoutes from './routes/certificate.routes';
 app.use('/api/certificates', certificateRoutes);
 

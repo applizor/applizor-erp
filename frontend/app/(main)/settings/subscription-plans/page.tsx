@@ -23,6 +23,9 @@ export default function SubscriptionPlansPage() {
     const [currency, setCurrency] = useState('INR');
     const [interval, setInterval] = useState('monthly');
     const [features, setFeatures] = useState('');
+    const [services, setServices] = useState<any[]>([]);
+    const [serviceId, setServiceId] = useState('');
+    const [planType, setPlanType] = useState('SaaS');
 
     const fetchPlans = async () => {
         try {
@@ -36,8 +39,18 @@ export default function SubscriptionPlansPage() {
         }
     };
 
+    const fetchServices = async () => {
+        try {
+            const res = await api.get('/services');
+            setServices(res.data || []);
+        } catch (error) {
+            console.error('Failed to load services:', error);
+        }
+    };
+
     useEffect(() => {
         fetchPlans();
+        fetchServices();
     }, []);
 
     const resetForm = () => {
@@ -47,6 +60,8 @@ export default function SubscriptionPlansPage() {
         setCurrency('INR');
         setInterval('monthly');
         setFeatures('');
+        setServiceId('');
+        setPlanType('SaaS');
         setEditingPlan(null);
     };
 
@@ -58,6 +73,8 @@ export default function SubscriptionPlansPage() {
         setCurrency(plan.currency || 'INR');
         setInterval(plan.interval);
         setFeatures(plan.features?.join(', ') || '');
+        setServiceId(plan.serviceId || '');
+        setPlanType(plan.planType || 'SaaS');
         setIsModalOpen(true);
     };
 
@@ -70,7 +87,9 @@ export default function SubscriptionPlansPage() {
                 price: parseFloat(price),
                 currency,
                 interval,
-                features: features.split(',').map(f => f.trim()).filter(f => f)
+                features: features.split(',').map(f => f.trim()).filter(f => f),
+                serviceId: serviceId || null,
+                planType
             };
 
             if (editingPlan) {
@@ -103,8 +122,8 @@ export default function SubscriptionPlansPage() {
         <div className="space-y-6">
             <div className="flex justify-between items-center bg-white p-5 rounded-md border border-gray-200 shadow-sm">
                 <div>
-                    <h1 className="text-lg font-black text-gray-900 uppercase">Subscription Plans</h1>
-                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">Manage News CMS Billing Plans</p>
+                    <h1 className="text-lg font-black text-gray-900 uppercase">Subscription & Setup Plans</h1>
+                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">Manage company subscription packages and setup fees</p>
                 </div>
                 <button
                     onClick={() => { resetForm(); setIsModalOpen(true); }}
@@ -125,7 +144,17 @@ export default function SubscriptionPlansPage() {
                             <div className="flex justify-between items-start mb-4">
                                 <div>
                                     <h3 className="text-sm font-black uppercase text-gray-900">{plan.name}</h3>
-                                    <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest">{plan.code}</p>
+                                    <div className="flex flex-wrap gap-1.5 mt-1">
+                                        <span className="text-[9px] text-slate-400 font-black uppercase tracking-widest">{plan.code}</span>
+                                        {plan.service && (
+                                            <span className="text-[8px] bg-slate-100 text-slate-600 font-extrabold uppercase px-1.5 rounded">
+                                                {plan.service.name} ({plan.service.category})
+                                            </span>
+                                        )}
+                                        <span className={`text-[8px] font-extrabold uppercase px-1.5 rounded ${plan.planType === 'One-time' ? 'bg-amber-50 text-amber-600 border border-amber-200' : 'bg-primary-50 text-primary-600 border border-primary-100'}`}>
+                                            {plan.planType || 'SaaS'}
+                                        </span>
+                                    </div>
                                 </div>
                                 <div className="flex gap-2">
                                     <button onClick={() => handleEdit(plan)} className="p-1.5 text-slate-400 hover:text-primary-600 transition-colors">
@@ -207,6 +236,30 @@ export default function SubscriptionPlansPage() {
                                         { label: 'Yearly', value: 'yearly' }
                                     ]}
                                 />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="ent-form-group">
+                                    <CustomSelect
+                                        label="Linked Product/Service"
+                                        value={serviceId}
+                                        onChange={setServiceId}
+                                        options={[
+                                            { label: '-- Select Service --', value: '' },
+                                            ...services.map(s => ({ label: `${s.name} (${s.category})`, value: s.id }))
+                                        ]}
+                                    />
+                                </div>
+                                <div className="ent-form-group">
+                                    <CustomSelect
+                                        label="Plan Type"
+                                        value={planType}
+                                        onChange={setPlanType}
+                                        options={[
+                                            { label: 'SaaS (Recurring)', value: 'SaaS' },
+                                            { label: 'One-time (Setup/Other)', value: 'One-time' }
+                                        ]}
+                                    />
+                                </div>
                             </div>
                             <div className="ent-form-group">
                                 <label className="ent-label">Features (Comma separated)</label>
