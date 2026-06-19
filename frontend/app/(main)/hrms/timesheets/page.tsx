@@ -112,6 +112,42 @@ export default function TimesheetsPage() {
 
     const totalHours = timesheets.reduce((acc, curr) => acc + Number(curr.hours), 0);
 
+    const exportToCSV = () => {
+        if (timesheets.length === 0) {
+            showError('No timesheets to export');
+            return;
+        }
+
+        const headers = ['Date', 'Employee Name', 'Employee Email', 'Project', 'Task', 'Hours', 'Status', 'Description', 'Billable'];
+        const rows = timesheets.map(t => [
+            format(new Date(t.date), 'yyyy-MM-dd'),
+            `${t.employee?.firstName || ''} ${t.employee?.lastName || ''}`.trim(),
+            t.employee?.email || '',
+            t.project?.name || 'General / Ad-hoc',
+            t.task?.title || '',
+            Number(t.hours).toFixed(2),
+            t.status || 'draft',
+            t.description || '',
+            t.isBillable ? 'Yes' : 'No'
+        ]);
+
+        const csvContent = [
+            headers.join(','),
+            ...rows.map(row => row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(','))
+        ].join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', `timesheets_${format(new Date(), 'yyyyMMdd_HHmmss')}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        success('Timesheet exported successfully');
+    };
+
     return (
         <PermissionGuard module="Timesheet" action="read">
             <div className="space-y-6">
@@ -147,9 +183,14 @@ export default function TimesheetsPage() {
                                 <Button variant="ghost" size="sm" onClick={() => setSelectedIds([])} disabled={isProcessing}>Cancel</Button>
                             </div>
                         ) : (
-                            <Button onClick={() => setIsLogModalOpen(true)}>
-                                <Plus size={16} className="mr-2" /> Log Time
-                            </Button>
+                            <div className="flex gap-2">
+                                <Button variant="outline" onClick={exportToCSV}>
+                                    Export CSV
+                                </Button>
+                                <Button onClick={() => setIsLogModalOpen(true)}>
+                                    <Plus size={16} className="mr-2" /> Log Time
+                                </Button>
+                            </div>
                         )}
                     </div>
                 </div>

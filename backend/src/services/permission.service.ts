@@ -151,6 +151,15 @@ export class PermissionService {
         const employee = await prisma.employee.findUnique({ where: { userId } });
         if (!employee) return false;
 
+        // 2.5 Check if it is the default General & Ad-hoc Operations project
+        const project = await prisma.project.findUnique({
+            where: { id: projectId },
+            select: { name: true, companyId: true }
+        });
+        if (project && project.name === 'General & Ad-hoc Operations' && project.companyId === employee.companyId) {
+            return true;
+        }
+
         // 3. Project Member Check
         const membership = await prisma.projectMember.findUnique({
             where: { projectId_employeeId: { projectId, employeeId: employee.id } }

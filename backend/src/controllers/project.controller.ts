@@ -130,14 +130,19 @@ export const getProjects = async (req: AuthRequest, res: Response) => {
             });
 
             if (employee) {
-                // If user is an employee, show projects where they are a member
-                where.members = {
-                    some: {
-                        employeeId: employee.id
+                where.OR = [
+                    {
+                        members: {
+                            some: {
+                                employeeId: employee.id
+                            }
+                        }
+                    },
+                    {
+                        name: 'General & Ad-hoc Operations'
                     }
-                };
+                ];
             } else {
-                // If user is NOT an employee (and doesn't have 'all' access), they see nothing
                 return res.json([]);
             }
         }

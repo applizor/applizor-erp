@@ -73,13 +73,35 @@ export const createTask = async (req: AuthRequest, res: Response) => {
             storyPoints, parentId, epicId, sprintId, startDate, position
         } = req.body;
 
+        let finalProjectId = projectId;
+        if (!finalProjectId) {
+            const companyId = req.user!.companyId;
+            let generalProj = await prisma.project.findFirst({
+                where: {
+                    name: 'General & Ad-hoc Operations',
+                    companyId
+                }
+            });
+            if (!generalProj) {
+                generalProj = await prisma.project.create({
+                    data: {
+                        name: 'General & Ad-hoc Operations',
+                        description: 'System project for general tasks and ad-hoc operations.',
+                        status: 'active',
+                        companyId
+                    }
+                });
+            }
+            finalProjectId = generalProj.id;
+        }
+
         // Verify Project Access
-        const hasAccess = await PermissionService.checkProjectAccess(req.user!.id, projectId, 'edit');
+        const hasAccess = await PermissionService.checkProjectAccess(req.user!.id, finalProjectId, 'edit');
         if (!hasAccess) return res.status(403).json({ error: 'Insufficient permissions' });
 
         const task = await prisma.task.create({
             data: {
-                projectId,
+                projectId: finalProjectId,
                 title,
                 description,
                 status: status || 'todo',
@@ -113,7 +135,7 @@ export const createTask = async (req: AuthRequest, res: Response) => {
 
                 return prisma.document.create({
                     data: {
-                        project: { connect: { id: projectId } },
+                        project: { connect: { id: finalProjectId } },
                         task: { connect: { id: task.id } },
                         name: file.originalname,
                         type: 'task_attachment',
@@ -128,9 +150,9 @@ export const createTask = async (req: AuthRequest, res: Response) => {
         }
 
         // Evaluate Automation Rules
-        AutomationService.evaluateRules(projectId, 'TASK_CREATED', {
+        AutomationService.evaluateRules(finalProjectId, 'TASK_CREATED', {
             taskId: task.id,
-            projectId,
+            projectId: finalProjectId,
             taskTitle: title,
             assigneeId: assigneeId || undefined,
             assigneeEmail: task.assignee?.email || undefined,
@@ -140,7 +162,7 @@ export const createTask = async (req: AuthRequest, res: Response) => {
         }).catch(err => console.error('Automation error:', err));
 
         // Real-time Update
-        NotificationService.emitProjectUpdate(projectId, 'TASK_CREATED', task);
+        NotificationService.emitProjectUpdate(finalProjectId, 'TASK_CREATED', task);
 
         res.status(201).json(task);
     } catch (error) {
@@ -291,13 +313,17 @@ export const deleteTask = async (req: AuthRequest, res: Response) => {
 export const getTasks = async (req: AuthRequest, res: Response) => {
     try {
         const { projectId, sprintId, assigneeId, type, priority } = req.query;
-        if (!projectId) return res.status(400).json({ error: 'Project ID required' });
 
         const scope = PermissionService.getPermissionScope(req.user, 'ProjectTask', 'read');
         const userId = req.user!.id;
-        const isPM = await PermissionService.isProjectManager(userId, String(projectId));
 
-        const where: any = { projectId: String(projectId) };
+        const where: any = {
+            project: { companyId: req.user!.companyId }
+        };
+
+        if (projectId) {
+            where.projectId = String(projectId);
+        }
 
         // Additional Filters from Query
         if (sprintId && sprintId !== 'all') where.sprintId = String(sprintId);
@@ -305,33 +331,95 @@ export const getTasks = async (req: AuthRequest, res: Response) => {
         if (type && type !== 'all') where.type = String(type);
         if (priority && priority !== 'all') where.priority = String(priority);
 
-        // Apply Scope Filtering (if not 'all' access AND not a PM)
-        if (!scope.all && !isPM) {
-            const orConditions: any[] = [];
+        // Apply Scope Filtering (if not 'all' access)
+        if (!scope.all) {
+            const employee = await prisma.employee.findUnique({
+                where: { userId }
+            });
 
-            if (scope.owned) {
-                // Show items assigned to user OR unassigned (as per client request for visibility)
-                orConditions.push({ assignedToId: userId });
-                orConditions.push({ assignedToId: null });
-            }
+            if (employee) {
+                // Find all projects where this employee is a member/manager
+                const memberProjects = await prisma.projectMember.findMany({
+                    where: { employeeId: employee.id },
+                    select: { projectId: true, role: true }
+                });
 
-            if (scope.added) {
-                orConditions.push({ createdById: userId });
-            }
+                const memberProjectIds = memberProjects.map(m => m.projectId);
+                const pmProjectIds = memberProjects.filter(m => ['manager', 'admin'].includes(m.role)).map(m => m.projectId);
 
-            // If no OR conditions, it means they shouldn't see anything or we default to none
-            if (orConditions.length > 0) {
-                where.AND = [
-                    { projectId: String(projectId) },
-                    { OR: orConditions }
-                ];
-                // We overwrite our simple 'where' with this complex one
-                // But wait, the complex one already includes projectId.
-                // It's cleaner to just build the whole where object.
+                // Get general project ID if it exists
+                const generalProject = await prisma.project.findFirst({
+                    where: { name: 'General & Ad-hoc Operations', companyId: req.user!.companyId },
+                    select: { id: true }
+                });
+                const generalProjectId = generalProject?.id;
+
+                if (projectId) {
+                    const targetProjectId = String(projectId);
+                    const isPM = pmProjectIds.includes(targetProjectId);
+                    const isMember = memberProjectIds.includes(targetProjectId);
+                    const isGeneral = generalProjectId === targetProjectId;
+
+                    if (isPM || isGeneral) {
+                        // PMs and anyone on General project have full access to view tasks
+                    } else if (isMember) {
+                        const orConditions: any[] = [];
+                        if (scope.owned) {
+                            orConditions.push({ assignedToId: userId });
+                            orConditions.push({ assignedToId: null });
+                        }
+                        if (scope.added) {
+                            orConditions.push({ createdById: userId });
+                        }
+                        if (orConditions.length > 0) {
+                            where.OR = orConditions;
+                        } else {
+                            return res.json([]);
+                        }
+                    } else {
+                        // Not a member and not PM of this project -> show nothing
+                        return res.json([]);
+                    }
+                } else {
+                    // Global workspace query:
+                    // Show tasks from projects where employee is PM/Admin, OR
+                    // Show tasks from the General Project, OR
+                    // Show tasks in projects they are a member of and fit their scope
+                    const projectConditions: any[] = [];
+
+                    if (pmProjectIds.length > 0) {
+                        projectConditions.push({ projectId: { in: pmProjectIds } });
+                    }
+
+                    if (generalProjectId) {
+                        projectConditions.push({ projectId: generalProjectId });
+                    }
+
+                    const nonPmProjectIds = memberProjectIds.filter(id => !pmProjectIds.includes(id));
+                    if (nonPmProjectIds.length > 0) {
+                        const memberConditions: any[] = [];
+                        if (scope.owned) {
+                            memberConditions.push({ assignedToId: userId });
+                            memberConditions.push({ assignedToId: null });
+                        }
+                        if (scope.added) {
+                            memberConditions.push({ createdById: userId });
+                        }
+                        if (memberConditions.length > 0) {
+                            projectConditions.push({
+                                projectId: { in: nonPmProjectIds },
+                                OR: memberConditions
+                            });
+                        }
+                    }
+
+                    if (projectConditions.length > 0) {
+                        where.OR = projectConditions;
+                    } else {
+                        return res.json([]);
+                    }
+                }
             } else {
-                // Fallback: strictly show nothing if they have no scope but passed checkPermission
-                // This happens if level is 'none' but somehow middleware allowed it? 
-                //Middleware shouldn't allow 'none', but safety first.
                 return res.json([]);
             }
         }

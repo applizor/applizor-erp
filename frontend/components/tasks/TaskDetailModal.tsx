@@ -18,7 +18,7 @@ import { useSocket } from '@/contexts/SocketContext';
 
 interface TaskDetailModalProps {
     taskId: string | null;
-    projectId: string; // Needed for new task creation to know context
+    projectId?: string; // Optional context
     onClose: () => void;
     onUpdate: () => void;
 }
@@ -69,6 +69,17 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
     const [replyTo, setReplyTo] = useState<any>(null);
     const [isInternalComment, setIsInternalComment] = useState(true);
 
+    const [activeProjectId, setActiveProjectId] = useState<string>(projectId || '');
+    const [globalProjects, setGlobalProjects] = useState<any[]>([]);
+
+    useEffect(() => {
+        if (!projectId) {
+            api.get('/projects').then(res => {
+                setGlobalProjects(res.data || []);
+            }).catch(console.error);
+        }
+    }, [projectId]);
+
     // Auto-toggle internal status based on reply target
     useEffect(() => {
         if (replyTo && replyTo.clientId) {
@@ -105,8 +116,6 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
     };
 
     useEffect(() => {
-        fetchProjectMembers();
-        fetchSprintsAndEpics();
         if (!isNew && taskId) {
             fetchTaskDetails();
             fetchComments();
@@ -115,6 +124,17 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
             syncTimerWithServer();
         }
     }, [taskId]);
+
+    useEffect(() => {
+        if (activeProjectId) {
+            fetchProjectMembers(activeProjectId);
+            fetchSprintsAndEpics(activeProjectId);
+        } else {
+            setEmployees([]);
+            setSprints([]);
+            setEpics([]);
+        }
+    }, [activeProjectId]);
 
     useEffect(() => {
         const handleGlobalKeyDown = (e: KeyboardEvent) => {
@@ -194,7 +214,7 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
     const toggleTimer = async () => {
         try {
             if (!timerActive) {
-                const res = await api.post('/timesheets/timer/start', { projectId, taskId });
+                const res = await api.post('/timesheets/timer/start', { projectId: activeProjectId, taskId });
                 setTimerActive(true);
                 setActiveTimerId(res.data.id);
                 setTimerStartTime(new Date(res.data.startTime).getTime());
@@ -242,21 +262,21 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
         return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
     };
 
-    const fetchSprintsAndEpics = async () => {
+    const fetchSprintsAndEpics = async (projId: string) => {
         try {
             const [sprintsRes, epicsRes] = await Promise.all([
-                api.get(`/projects/${projectId}/sprints`),
-                api.get(`/projects/${projectId}/epics`)
+                api.get(`/projects/${projId}/sprints`),
+                api.get(`/projects/${projId}/epics`)
             ]);
             setSprints(sprintsRes.data);
             setEpics(epicsRes.data);
         } catch (error) { console.error(error); }
     };
 
-    const fetchProjectMembers = async () => {
+    const fetchProjectMembers = async (projId: string) => {
         try {
             // Fetch project details to get members
-            const res = await api.get(`/projects/${projectId}`);
+            const res = await api.get(`/projects/${projId}`);
             if (res.data && res.data.members) {
                 // Map project members to a flat list for the dropdown
                 const members = res.data.members.map((m: any) => ({
@@ -278,6 +298,9 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
         try {
             const res = await api.get(`/tasks/${taskId}`);
             setTask(res.data);
+            if (res.data.projectId) {
+                setActiveProjectId(res.data.projectId);
+            }
             // Fix: Map assignedToId (DB) to assigneeId (Form)
             reset({
                 ...res.data,
@@ -311,7 +334,7 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
             Object.keys(data).forEach(key => {
                 if (data[key] !== null && data[key] !== undefined) formData.append(key, data[key]);
             });
-            formData.append('projectId', projectId as string);
+            formData.append('projectId', activeProjectId || '');
 
             files.forEach(file => {
                 formData.append('files', file);
@@ -321,7 +344,7 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                 await api.post('/tasks', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
                 toast.success('Task created successfully');
             } else {
-                await api.put(`/tasks/${taskId}`, { ...data, projectId }); // Update doesn't support files yet in simple flow, strictly text
+                await api.put(`/tasks/${taskId}`, { ...data, projectId: activeProjectId }); // Update doesn't support files yet in simple flow, strictly text
                 toast.success('Task updated');
                 // For files in edit mode, usually separate endpoint or complex logic. 
                 // MVP: Only upload on creation or separate "Upload" button
@@ -697,7 +720,7 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                                                         <span
                                                             onClick={() => {
                                                                 onClose();
-                                                                window.location.href = `/projects/${projectId}/tasks?taskId=${sub.id}`;
+                                                                window.location.href = `/projects/${activeProjectId}/tasks?taskId=${sub.id}`;
                                                             }}
                                                             className={`text-xs font-bold cursor-pointer hover:text-primary-600 transition-colors truncate ${sub.status === 'done' ? 'text-slate-400 line-through' : 'text-slate-700'}`}
                                                         >
@@ -728,7 +751,7 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                                                             e.currentTarget.value = '';
                                                             try {
                                                                 await api.post('/tasks', {
-                                                                    projectId,
+                                                                    projectId: activeProjectId,
                                                                     parentId: taskId,
                                                                     title,
                                                                     type: 'task',
@@ -903,7 +926,7 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                                     {/* WORK LOG TAB */}
                                     {activeTab === 'worklog' && (
                                         <div className="mb-8 py-4 px-1">
-                                            <TaskTimesheetList taskId={taskId!} projectId={projectId} />
+                                             <TaskTimesheetList taskId={taskId!} projectId={activeProjectId} />
                                         </div>
                                     )}
                                 </div>
@@ -913,6 +936,24 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
 
                     {/* Right: Meta Details Sidebar */}
                     <div className="w-full md:w-80 bg-slate-50 border-t md:border-t-0 md:border-l border-slate-200 p-6 flex flex-col gap-6 md:overflow-y-auto md:h-full shadow-[inset_4px_0_10px_-4px_rgba(0,0,0,0.02)]">
+
+                        {/* PROJECT SELECTION */}
+                        {!projectId && (
+                            <div className="ent-card p-4 bg-white shadow-sm border border-slate-200">
+                                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2">Project</label>
+                                <CustomSelect
+                                    value={activeProjectId}
+                                    onChange={(val) => {
+                                        setActiveProjectId(val);
+                                    }}
+                                    options={[
+                                        { label: 'General & Ad-hoc Operations', value: '' },
+                                        ...globalProjects.map(p => ({ label: p.name, value: p.id }))
+                                    ]}
+                                    className="w-full"
+                                />
+                            </div>
+                        )}
 
                         {/* STATUS */}
                         <div className="ent-card p-4 bg-white shadow-sm border border-slate-200">
@@ -1134,7 +1175,7 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                 open={isLogModalOpen}
                 onClose={() => setIsLogModalOpen(false)}
                 defaultEntry={{
-                    projectId,
+                    projectId: activeProjectId,
                     taskId: taskId ?? undefined,
                     hours: timerActive ? undefined : (accumulatedSeconds > 0 ? (accumulatedSeconds / 3600).toFixed(2) : undefined)
                 }}
