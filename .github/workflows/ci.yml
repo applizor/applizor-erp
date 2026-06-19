@@ -87,6 +87,10 @@ jobs:
           echo "🔄 Running migrations..."
           sudo docker compose -f docker-compose.prod.yml exec -T backend npx prisma migrate deploy
           
+          # 4b. Seeding Agent Roles
+          echo "🌱 Seeding agent roles and permissions..."
+          sudo docker compose -f docker-compose.prod.yml exec -T backend node dist/src/scripts/seed_agent_roles.js
+          
           # 5. Finalize Permissions: Give control back to the 'admin' user
           echo "🔐 Final permission sweep for admin user..."
           sudo chown -R admin:admin $TARGET_DIR
