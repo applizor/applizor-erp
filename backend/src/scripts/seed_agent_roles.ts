@@ -348,6 +348,24 @@ async function main() {
         console.log(`✅ Successfully seeded role and mapped user for: ${agent.name}`);
     }
 
+    // Cleanup ghost company "Applizor Tech" on production to remove any accidentally created company and its data
+    console.log('🧹 Checking for ghost company "Applizor Tech" to clean up...');
+    const ghostCompanies = await prisma.company.findMany({
+        where: {
+            name: 'Applizor Tech'
+        }
+    });
+
+    for (const ghost of ghostCompanies) {
+        if (ghost.id !== APPLIZOR_COMPANY_ID) {
+            console.log(`🧹 Found ghost company "${ghost.name}" with ID: ${ghost.id}. Cleaning up...`);
+            await prisma.company.delete({
+                where: { id: ghost.id }
+            });
+            console.log(`✅ Deleted ghost company "${ghost.name}" (${ghost.id})`);
+        }
+    }
+
     console.log('🎉 Seeding Agent Roles & Permissions Complete!');
 }
 
