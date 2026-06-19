@@ -438,9 +438,17 @@ async function main() {
 
     const SYSTEM_MODULES = [
         'Dashboard', 'Company', 'User', 'Role',
-        'Client', 'Lead', 'Invoice', 'Payment', 'Subscription',
-        'Department', 'Position', 'Employee', 'Attendance', 'Leave', 'LeaveType', 'LeaveBalance', 'Shift', 'ShiftRoster', 'Payroll', 'Asset', 'Holiday',
-        'Recruitment', 'Document', 'SalaryComponent'
+        'Client', 'Lead', 'LeadActivity', 'Quotation', 'QuotationTemplate', 'Invoice', 'Payment', 'Subscription', 'Service',
+        'Department', 'Position', 'Employee', 'Attendance', 'Leave', 'LeaveType', 'LeaveBalance', 'Shift', 'ShiftRoster', 'Payroll', 'Asset',
+        'SalaryComponent', 'SalaryStructure', // New Payroll Modules
+        'Recruitment', 'RecruitmentBoard',
+        'Performance', 'OKR', // Phase B & C
+        'Document',
+        'Project', 'ProjectTask', // Added Project modules
+        'Timesheet', // Phase 9
+        'Holiday', 'Contract', 'Accounting', 'NewsCMS', 'Policy',
+        'Certificate', 'CertificateTemplate', // Certificate System
+        'Student', 'Course', 'CourseEnrollment', 'OnlineClass', 'Lecture', 'Exam', // LMS Modules
     ];
 
     // Admin Permissions - Full Access

@@ -5,7 +5,7 @@ import { PermissionService } from '../services/permission.service';
 
 export const SYSTEM_MODULES = [
     'Dashboard', 'Company', 'User', 'Role',
-    'Client', 'Lead', 'LeadActivity', 'Quotation', 'QuotationTemplate', 'Invoice', 'Payment', 'Subscription',
+    'Client', 'Lead', 'LeadActivity', 'Quotation', 'QuotationTemplate', 'Invoice', 'Payment', 'Subscription', 'Service',
     'Department', 'Position', 'Employee', 'Attendance', 'Leave', 'LeaveType', 'LeaveBalance', 'Shift', 'ShiftRoster', 'Payroll', 'Asset',
     'SalaryComponent', 'SalaryStructure', // New Payroll Modules
     'Recruitment', 'RecruitmentBoard',

@@ -15,6 +15,7 @@ export type PermissionModule =
     | 'Invoice'
     | 'Payment'
     | 'Subscription'
+    | 'Service'
     | 'Department'
     | 'Position'
     | 'Employee'
