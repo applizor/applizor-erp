@@ -148,10 +148,12 @@ app.use('/api/document-templates', documentTemplateRoutes);
 import salaryComponentRoutes from './routes/salary-component.routes';
 import salaryStructureRoutes from './routes/salary-structure.routes';
 import payrollRoutes from './routes/payroll.routes';
+import taxDeclarationRoutes from './routes/tax-declaration.routes';
 import accountingRoutes from './routes/accounting.routes';
 app.use('/api/payroll/components', salaryComponentRoutes);
 app.use('/api/payroll/structure', salaryStructureRoutes);
 app.use('/api/payroll', payrollRoutes);
+app.use('/api/tax-declarations', taxDeclarationRoutes);
 
 import salesRoutes from './routes/sales.routes';
 app.use('/api/sales', salesRoutes);
