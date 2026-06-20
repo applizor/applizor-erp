@@ -13,8 +13,8 @@ import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext
 import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
 import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary';
 import { $generateHtmlFromNodes, $generateNodesFromDOM } from '@lexical/html';
-import { $getRoot, $insertNodes, $getSelection, COMMAND_PRIORITY_CRITICAL, FORMAT_TEXT_COMMAND, SELECTION_CHANGE_COMMAND, ParagraphNode, TextNode } from 'lexical';
-import { HeadingNode, QuoteNode } from '@lexical/rich-text';
+import { $getRoot, $insertNodes, $getSelection, COMMAND_PRIORITY_CRITICAL, FORMAT_TEXT_COMMAND, SELECTION_CHANGE_COMMAND, ParagraphNode, TextNode, FORMAT_ELEMENT_COMMAND } from 'lexical';
+import { HeadingNode, QuoteNode, $createHeadingNode, $createQuoteNode } from '@lexical/rich-text';
 import { TableNode, TableCellNode, TableRowNode } from '@lexical/table';
 import { ListItemNode, ListNode } from '@lexical/list';
 import { LinkNode, AutoLinkNode } from '@lexical/link';
@@ -22,8 +22,9 @@ import { TRANSFORMERS } from '@lexical/markdown';
 import { CodeNode, CodeHighlightNode } from '@lexical/code';
 import { ImageNode } from './Editor/ImageNode';
 import { ImagePlugin } from './Editor/EditorPlugins';
-import { Copy, Bold, Italic, Underline as UnderlineIcon, Undo, Redo, FileText, Layout } from 'lucide-react';
+import { Copy, Bold, Italic, Underline as UnderlineIcon, Undo, Redo, FileText, Layout, ChevronDown, Type, Palette, Highlighter, AlignLeft, AlignCenter, AlignRight, Heading1, Heading2, Quote } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
+import { $patchStyleText } from '@lexical/selection';
 
 // --- THEME ---
 const theme = {
@@ -111,6 +112,18 @@ const PagedRichTextEditor = forwardRef(({
         { label: 'Client Name', value: '[CLIENT_NAME]' },
         { label: 'Client Company', value: '[CLIENT_COMPANY]' },
         { label: 'Company Name', value: '[COMPANY_NAME]' },
+        { label: 'Employee Name', value: '[EMPLOYEE_NAME]' },
+        { label: 'Employee Code', value: '[EMPLOYEE_CODE]' },
+        { label: 'Employee Email', value: '[EMPLOYEE_EMAIL]' },
+        { label: 'Employee Phone', value: '[EMPLOYEE_PHONE]' },
+        { label: 'Designation', value: '[DESIGNATION]' },
+        { label: 'Department', value: '[DEPARTMENT]' },
+        { label: 'Joining Date', value: '[JOINING_DATE]' },
+        { label: 'Exit Date', value: '[EXIT_DATE]' },
+        { label: 'Date of Birth', value: '[DATE_OF_BIRTH]' },
+        { label: 'Gender', value: '[GENDER]' },
+        { label: 'Company Logo', value: '[COMPANY_LOGO]' },
+        { label: 'Authorized Signatory', value: '[AUTHORIZED_SIGNATORY_SIGNATURE]' }
     ];
 
     const copyToClipboard = (text: string) => {
@@ -302,19 +315,158 @@ function VariableButton({ v, onCopy }: { v: any, onCopy: any }) {
 
 const Toolbar = () => {
     const [editor] = useLexicalComposerContext();
+    const [fontSizeOpen, setFontSizeOpen] = useState(false);
+    const [textColorOpen, setTextColorOpen] = useState(false);
+    const [bgColorOpen, setBgColorOpen] = useState(false);
+
+    const fontSizes = ['12px', '14px', '16px', '18px', '20px', '24px', '28px', '32px', '36px', '48px'];
+    const textColors = [
+        '#000000', '#475569', '#ef4444', '#f97316',
+        '#eab308', '#22c55e', '#3b82f6', '#a855f7'
+    ];
+    const bgColors = [
+        'transparent', '#f1f5f9', '#fee2e2', '#ffedd5',
+        '#fef9c3', '#dcfce7', '#dbeafe', '#f3e8ff'
+    ];
+
     const format = (cmd: any) => editor.dispatchCommand(FORMAT_TEXT_COMMAND, cmd);
+    const align = (cmd: any) => editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, cmd);
+
+    const applyStyle = (styles: Record<string, string>) => {
+        editor.update(() => {
+            const selection = $getSelection();
+            if (selection) {
+                $patchStyleText(selection, styles);
+            }
+        });
+        setFontSizeOpen(false);
+        setTextColorOpen(false);
+        setBgColorOpen(false);
+    };
 
     return (
-        <div className="w-[210mm] flex items-center gap-1 p-2 bg-white border border-slate-200 rounded-t-xl mb-0 sticky top-0 z-20 shadow-sm">
-            <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => format('bold')} className="p-2 rounded hover:bg-slate-100 text-slate-600 transition-all"><Bold size={16} strokeWidth={2.5} /></button>
-            <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => format('italic')} className="p-2 rounded hover:bg-slate-100 text-slate-600 transition-all"><Italic size={16} strokeWidth={2.5} /></button>
-            <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => format('underline')} className="p-2 rounded hover:bg-slate-100 text-slate-600 transition-all"><UnderlineIcon size={16} strokeWidth={2.5} /></button>
-            <div className="w-px h-6 bg-slate-200 mx-2" />
-            <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => editor.dispatchCommand(Undo as any, undefined)} className="p-2 rounded hover:bg-slate-100 text-slate-400 transition-all"><Undo size={16} /></button>
-            <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => editor.dispatchCommand(Redo as any, undefined)} className="p-2 rounded hover:bg-slate-100 text-slate-400 transition-all"><Redo size={16} /></button>
+        <div className="w-[210mm] flex flex-wrap items-center gap-1 p-2 bg-white border border-slate-200 rounded-t-xl mb-0 sticky top-0 z-20 shadow-sm">
+            <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => format('bold')} className="p-2 rounded hover:bg-slate-100 text-slate-600 transition-all" title="Bold"><Bold size={16} strokeWidth={2.5} /></button>
+            <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => format('italic')} className="p-2 rounded hover:bg-slate-100 text-slate-600 transition-all" title="Italic"><Italic size={16} strokeWidth={2.5} /></button>
+            <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => format('underline')} className="p-2 rounded hover:bg-slate-100 text-slate-600 transition-all" title="Underline"><UnderlineIcon size={16} strokeWidth={2.5} /></button>
+            
+            <div className="w-px h-6 bg-slate-200 mx-1" />
+
+            <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => editor.update(() => { const selection = $getSelection(); if (selection) $insertNodes([$createHeadingNode('h1')]) })} className="p-2 rounded hover:bg-slate-100 text-slate-600 transition-all" title="Heading 1"><Heading1 size={16} strokeWidth={2.5} /></button>
+            <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => editor.update(() => { const selection = $getSelection(); if (selection) $insertNodes([$createHeadingNode('h2')]) })} className="p-2 rounded hover:bg-slate-100 text-slate-600 transition-all" title="Heading 2"><Heading2 size={16} strokeWidth={2.5} /></button>
+            <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => editor.update(() => { const selection = $getSelection(); if (selection) $insertNodes([$createQuoteNode()]) })} className="p-2 rounded hover:bg-slate-100 text-slate-600 transition-all" title="Quote"><Quote size={16} strokeWidth={2.5} /></button>
+
+            <div className="w-px h-6 bg-slate-200 mx-1" />
+
+            <div className="flex items-center relative">
+                {/* Font Size Selector */}
+                <div className="relative">
+                    <button
+                        type="button"
+                        onClick={() => { setFontSizeOpen(!fontSizeOpen); setTextColorOpen(false); setBgColorOpen(false); }}
+                        className="p-2 rounded transition-all text-slate-600 hover:bg-slate-100 flex items-center gap-0.5"
+                        title="Font Size"
+                    >
+                        <Type size={16} strokeWidth={2.5} />
+                        <ChevronDown size={10} />
+                    </button>
+                    {fontSizeOpen && (
+                        <>
+                            <div className="fixed inset-0 z-40" onClick={() => setFontSizeOpen(false)} />
+                            <div className="absolute left-0 mt-1 bg-white border border-slate-200 rounded shadow-lg z-50 py-1 w-24 max-h-48 overflow-y-auto">
+                                {fontSizes.map(size => (
+                                    <button
+                                        key={size}
+                                        type="button"
+                                        onClick={() => applyStyle({ 'font-size': size })}
+                                        className="w-full text-left px-3 py-1 text-xs hover:bg-slate-100 font-medium text-slate-700"
+                                    >
+                                        {size}
+                                    </button>
+                                ))}
+                            </div>
+                        </>
+                    )}
+                </div>
+
+                {/* Text Color Selector */}
+                <div className="relative">
+                    <button
+                        type="button"
+                        onClick={() => { setTextColorOpen(!textColorOpen); setFontSizeOpen(false); setBgColorOpen(false); }}
+                        className="p-2 rounded transition-all text-slate-600 hover:bg-slate-100 flex items-center gap-0.5"
+                        title="Text Color"
+                    >
+                        <Palette size={16} strokeWidth={2.5} />
+                        <ChevronDown size={10} />
+                    </button>
+                    {textColorOpen && (
+                        <>
+                            <div className="fixed inset-0 z-40" onClick={() => setTextColorOpen(false)} />
+                            <div className="absolute left-0 mt-1 bg-white border border-slate-200 rounded shadow-lg z-50 p-2 w-32 grid grid-cols-4 gap-1">
+                                {textColors.map(color => (
+                                    <button
+                                        key={color}
+                                        type="button"
+                                        onClick={() => applyStyle({ 'color': color })}
+                                        className="w-6 h-6 rounded border border-slate-200 shadow-sm cursor-pointer"
+                                        style={{ backgroundColor: color }}
+                                        title={color}
+                                    />
+                                ))}
+                            </div>
+                        </>
+                    )}
+                </div>
+
+                {/* Highlight/Bg Color Selector */}
+                <div className="relative">
+                    <button
+                        type="button"
+                        onClick={() => { setBgColorOpen(!bgColorOpen); setFontSizeOpen(false); setTextColorOpen(false); }}
+                        className="p-2 rounded transition-all text-slate-600 hover:bg-slate-100 flex items-center gap-0.5"
+                        title="Highlight Color"
+                    >
+                        <Highlighter size={16} strokeWidth={2.5} />
+                        <ChevronDown size={10} />
+                    </button>
+                    {bgColorOpen && (
+                        <>
+                            <div className="fixed inset-0 z-40" onClick={() => setBgColorOpen(false)} />
+                            <div className="absolute left-0 mt-1 bg-white border border-slate-200 rounded shadow-lg z-50 p-2 w-32 grid grid-cols-4 gap-1">
+                                {bgColors.map(color => (
+                                    <button
+                                        key={color}
+                                        type="button"
+                                        onClick={() => applyStyle({ 'background-color': color })}
+                                        className="w-6 h-6 rounded border border-slate-200 shadow-sm cursor-pointer relative"
+                                        style={{ backgroundColor: color }}
+                                        title={color === 'transparent' ? 'No Highlight' : color}
+                                    >
+                                        {color === 'transparent' && (
+                                            <div className="absolute inset-0 flex items-center justify-center text-[10px] font-black text-slate-400">X</div>
+                                        )}
+                                    </button>
+                                ))}
+                            </div>
+                        </>
+                    )}
+                </div>
+            </div>
+
+            <div className="w-px h-6 bg-slate-200 mx-1" />
+
+            <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => align('left')} className="p-2 rounded hover:bg-slate-100 text-slate-600 transition-all" title="Align Left"><AlignLeft size={16} /></button>
+            <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => align('center')} className="p-2 rounded hover:bg-slate-100 text-slate-600 transition-all" title="Align Center"><AlignCenter size={16} /></button>
+            <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => align('right')} className="p-2 rounded hover:bg-slate-100 text-slate-600 transition-all" title="Align Right"><AlignRight size={16} /></button>
+
+            <div className="w-px h-6 bg-slate-200 mx-1" />
+
+            <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => editor.dispatchCommand(Undo as any, undefined)} className="p-2 rounded hover:bg-slate-100 text-slate-400 transition-all" title="Undo"><Undo size={16} /></button>
+            <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => editor.dispatchCommand(Redo as any, undefined)} className="p-2 rounded hover:bg-slate-100 text-slate-400 transition-all" title="Redo"><Redo size={16} /></button>
         </div>
     );
-}
+};
 
 function InitialContentPlugin({ html }: { html: string }) {
     const [editor] = useLexicalComposerContext();

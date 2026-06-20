@@ -894,6 +894,7 @@ model Employee {
   noticePeriodEndDate    DateTime?
   noticePeriodStartDate  DateTime?
   probationEndDate       DateTime?
+  exitDate               DateTime?
   skills                 Json?
   slackMemberId          String?
   probationProcessed     Boolean                  @default(false)

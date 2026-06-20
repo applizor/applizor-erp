@@ -91,6 +91,7 @@ export const previewDocument = async (req: AuthRequest, res: Response) => {
         if (template.content) {
             let processedHtml = template.content;
             const companySignatureBase64 = await PDFService.getImageBase64(data.company?.digitalSignature);
+            const companyLogoBase64 = await PDFService.getImageBase64(data.company?.logo);
 
             const replacements: Record<string, string> = {
                 '[DATE]': new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }),
@@ -102,10 +103,24 @@ export const previewDocument = async (req: AuthRequest, res: Response) => {
                 '[DESIGNATION]': data.employee?.position?.title || '',
                 '[DEPARTMENT]': data.employee?.department?.name || '',
                 '[JOINING_DATE]': data.employee?.joiningDate ? new Date(data.employee.joiningDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : '',
+                '[EXIT_DATE]': data.employee?.exitDate ? new Date(data.employee.exitDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : '',
                 '[SALARY]': data.employee?.salary ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: data.company?.currency || 'INR' }).format(Number(data.employee.salary)) : '',
                 '[CTC_ANNUAL]': data.employee?.salary ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: data.company?.currency || 'INR' }).format(Number(data.employee.salary)) : '',
                 '[SIGNATURE]': companySignatureBase64 ? `<img src="${companySignatureBase64}" style="max-height: 60px; display: block;" />` : '[SIGNATURE]',
                 '[COMPANY_SIGNATURE]': companySignatureBase64 ? `<img src="${companySignatureBase64}" style="max-height: 60px; display: block;" />` : '[COMPANY_SIGNATURE]',
+                '[AUTHORIZED_SIGNATORY_SIGNATURE]': companySignatureBase64 ? `<img src="${companySignatureBase64}" style="max-height: 60px; display: block;" />` : '[AUTHORIZED_SIGNATORY_SIGNATURE]',
+                '[EMPLOYEE_EMAIL]': data.employee?.email || '',
+                '[EMPLOYEE_PHONE]': data.employee?.phone || '',
+                '[GENDER]': data.employee?.gender || '',
+                '[DATE_OF_BIRTH]': data.employee?.dateOfBirth ? new Date(data.employee.dateOfBirth).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : '',
+                '[COMPANY_LOGO]': companyLogoBase64 ? `<img src="${companyLogoBase64}" style="max-height: 60px; display: block;" />` : '[COMPANY_LOGO]',
+                '[BLOOD_GROUP]': data.employee?.bloodGroup || '',
+                '[MARITAL_STATUS]': data.employee?.maritalStatus || '',
+                '[CURRENT_ADDRESS]': data.employee?.currentAddress || '',
+                '[PERMANENT_ADDRESS]': data.employee?.permanentAddress || '',
+                '[EMPLOYEE_STATUS]': data.employee?.status || '',
+                '[WORK_LOCATION]': data.employee?.workLocation || '',
+                '[EMPLOYMENT_TYPE]': data.employee?.employmentType || '',
             };
 
             Object.entries(replacements).forEach(([key, value]) => {
@@ -478,20 +493,6 @@ export const generateInstantDocument = async (req: AuthRequest, res: Response) =
         // Let's prepend recipient block to the content if it's not a template.
 
         let finalContent = content;
-        // Prepend Header Info
-        const headerHtml = `
-            <div style="margin-bottom: 20px;">
-                <strong>To,</strong><br>
-                <strong>${recipientName}</strong><br>
-                ${designation}<br>
-                Date: ${new Date(date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
-            </div>
-            <div style="margin-bottom: 20px; font-weight: bold; text-decoration: underline;">
-                Subject: ${subject}
-            </div>
-        `;
-
-        finalContent = headerHtml + finalContent;
 
         const pdfBuffer = await PDFService.generateGenericPDF(finalContent, data);
 

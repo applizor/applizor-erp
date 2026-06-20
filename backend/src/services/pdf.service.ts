@@ -854,6 +854,9 @@ export class PDFService {
         // 1. Process Variables
         let processedHtml = templateHtml;
 
+        const companySignatureBase64 = await this.getImageBase64(data.company?.digitalSignature);
+        const companyLogoBase64 = await this.getImageBase64(data.company?.logo);
+
         // Common Replacements
         const replacements: Record<string, string> = {
             '[DATE]': new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }),
@@ -865,10 +868,24 @@ export class PDFService {
             '[DESIGNATION]': data.employee?.position?.title || '',
             '[DEPARTMENT]': data.employee?.department?.name || '',
             '[JOINING_DATE]': data.employee?.dateOfJoining ? new Date(data.employee.dateOfJoining).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : '',
+            '[EXIT_DATE]': data.employee?.exitDate ? new Date(data.employee.exitDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : '',
             '[SALARY]': data.employee?.salary ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: data.company?.currency || 'INR' }).format(Number(data.employee.salary)) : '',
             '[CTC_ANNUAL]': data.employee?.salary ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: data.company?.currency || 'INR' }).format(Number(data.employee.salary)) : '',
-            '[SIGNATURE]': data.company?.digitalSignature ? `<img src="${data.company.digitalSignature}" style="max-height: 60px; display: block;" alt="Authorized Signatory" />` : '',
-            '[COMPANY_SIGNATURE]': data.company?.digitalSignature ? `<img src="${data.company.digitalSignature}" style="max-height: 60px; display: block;" alt="Authorized Signatory" />` : '',
+            '[SIGNATURE]': companySignatureBase64 ? `<img src="${companySignatureBase64}" style="max-height: 60px; display: block;" alt="Authorized Signatory" />` : '',
+            '[COMPANY_SIGNATURE]': companySignatureBase64 ? `<img src="${companySignatureBase64}" style="max-height: 60px; display: block;" alt="Authorized Signatory" />` : '',
+            '[AUTHORIZED_SIGNATORY_SIGNATURE]': companySignatureBase64 ? `<img src="${companySignatureBase64}" style="max-height: 60px; display: block;" alt="Authorized Signatory" />` : '',
+            '[EMPLOYEE_EMAIL]': data.employee?.email || '',
+            '[EMPLOYEE_PHONE]': data.employee?.phone || '',
+            '[GENDER]': data.employee?.gender || '',
+            '[DATE_OF_BIRTH]': data.employee?.dateOfBirth ? new Date(data.employee.dateOfBirth).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : '',
+            '[COMPANY_LOGO]': companyLogoBase64 ? `<img src="${companyLogoBase64}" style="max-height: 60px; display: block;" alt="Company Logo" />` : '',
+            '[BLOOD_GROUP]': data.employee?.bloodGroup || '',
+            '[MARITAL_STATUS]': data.employee?.maritalStatus || '',
+            '[CURRENT_ADDRESS]': data.employee?.currentAddress || '',
+            '[PERMANENT_ADDRESS]': data.employee?.permanentAddress || '',
+            '[EMPLOYEE_STATUS]': data.employee?.status || '',
+            '[WORK_LOCATION]': data.employee?.workLocation || '',
+            '[EMPLOYMENT_TYPE]': data.employee?.employmentType || '',
         };
 
         // Apply replacements

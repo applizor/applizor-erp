@@ -37,7 +37,8 @@ export const createEmployee = async (req: AuthRequest, res: Response) => {
             bankName, accountNumber, ifscCode, panNumber, aadhaarNumber,
             // New Fields from Screenshot Request
             hourlyRate, employmentType, skills, slackMemberId,
-            probationEndDate, noticePeriodStartDate, noticePeriodEndDate
+            probationEndDate, noticePeriodStartDate, noticePeriodEndDate,
+            exitDate
         } = req.body;
 
         if (!firstName || !lastName || !email || !dateOfJoining) {
@@ -145,6 +146,7 @@ export const createEmployee = async (req: AuthRequest, res: Response) => {
                     probationEndDate: probationEndDate ? new Date(probationEndDate) : undefined,
                     noticePeriodStartDate: noticePeriodStartDate ? new Date(noticePeriodStartDate) : undefined,
                     noticePeriodEndDate: noticePeriodEndDate ? new Date(noticePeriodEndDate) : undefined,
+                    exitDate: exitDate ? new Date(exitDate) : undefined,
                 },
             });
 
@@ -287,7 +289,8 @@ export const updateEmployee = async (req: AuthRequest, res: Response) => {
             bankName, accountNumber, ifscCode, panNumber, aadhaarNumber,
             hourlyRate, employmentType, skills, slackMemberId,
             probationEndDate, noticePeriodStartDate, noticePeriodEndDate,
-            password, roleId, createAccount, portalActive
+            password, roleId, createAccount, portalActive,
+            exitDate
         } = req.body;
 
         const employee = await prisma.employee.update({
@@ -314,6 +317,7 @@ export const updateEmployee = async (req: AuthRequest, res: Response) => {
                 probationEndDate: probationEndDate ? new Date(probationEndDate) : null,
                 noticePeriodStartDate: noticePeriodStartDate ? new Date(noticePeriodStartDate) : null,
                 noticePeriodEndDate: noticePeriodEndDate ? new Date(noticePeriodEndDate) : null,
+                exitDate: exitDate ? new Date(exitDate) : null,
             },
         });
 
@@ -436,6 +440,14 @@ export const getEmployees = async (req: AuthRequest, res: Response) => {
         const whereClause: any = {
             companyId: companyId
         };
+
+        const { departmentId, status } = req.query;
+        if (departmentId && typeof departmentId === 'string' && departmentId !== '') {
+            whereClause.departmentId = departmentId;
+        }
+        if (status && typeof status === 'string' && status !== '') {
+            whereClause.status = status;
+        }
 
         // --- SCOPE BASED FILTERING ---
         const scopeFilter = await PermissionService.getScopedWhereClause(

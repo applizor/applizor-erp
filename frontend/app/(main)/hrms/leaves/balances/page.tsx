@@ -17,6 +17,7 @@ export default function AllBalancesPage() {
         departmentId: '',
         year: new Date().getFullYear()
     });
+    const [searchQuery, setSearchQuery] = useState('');
 
     useEffect(() => {
         loadData();
@@ -70,6 +71,8 @@ export default function AllBalancesPage() {
                         <input
                             type="text"
                             placeholder="Filter by name..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
                             className="pl-9 pr-3 py-1.5 text-xs border border-gray-200 rounded focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none w-64"
                         />
                     </div>
@@ -84,7 +87,14 @@ export default function AllBalancesPage() {
             </div>
 
             <div className="space-y-4">
-                {Object.values(groupedBalances).map((group: any) => (
+                {Object.values(groupedBalances)
+                    .filter((group: any) => {
+                        const fullName = `${group.employee?.firstName || ''} ${group.employee?.lastName || ''}`.toLowerCase();
+                        const code = (group.employee?.employeeId || '').toLowerCase();
+                        const query = searchQuery.toLowerCase();
+                        return fullName.includes(query) || code.includes(query);
+                    })
+                    .map((group: any) => (
                     <div key={group.employee.id} className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
                         <div className="bg-gray-50/50 p-3 flex items-center justify-between border-b border-gray-200">
                             <div className="flex items-center gap-3">
@@ -113,7 +123,12 @@ export default function AllBalancesPage() {
                     </div>
                 ))}
 
-                {Object.keys(groupedBalances).length === 0 && (
+                {Object.values(groupedBalances).filter((group: any) => {
+                    const fullName = `${group.employee?.firstName || ''} ${group.employee?.lastName || ''}`.toLowerCase();
+                    const code = (group.employee?.employeeId || '').toLowerCase();
+                    const query = searchQuery.toLowerCase();
+                    return fullName.includes(query) || code.includes(query);
+                }).length === 0 && (
                     <div className="text-center py-16 bg-white rounded-lg border-2 border-dashed border-gray-100 italic text-gray-400 text-sm">
                         No balances found for the current selection.
                     </div>

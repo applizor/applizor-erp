@@ -28,6 +28,7 @@ export default function EmployeesPage() {
         departmentId: '',
         status: ''
     });
+    const [searchQuery, setSearchQuery] = useState('');
 
     useEffect(() => {
         checkAccessAndRedirect();
@@ -103,6 +104,15 @@ export default function EmployeesPage() {
         }
     };
 
+    const filteredEmployees = employees.filter((emp) => {
+        const query = searchQuery.toLowerCase();
+        const fullName = `${emp.firstName || ''} ${emp.lastName || ''}`.toLowerCase();
+        const code = (emp.employeeId || '').toLowerCase();
+        const dept = (emp.department?.name || '').toLowerCase();
+        const pos = (emp.position?.title || '').toLowerCase();
+        return fullName.includes(query) || code.includes(query) || dept.includes(query) || pos.includes(query);
+    });
+
     if (redirecting) {
         return (
             <div className="flex items-center justify-center p-24">
@@ -128,6 +138,8 @@ export default function EmployeesPage() {
                             <input
                                 type="text"
                                 placeholder="QUERY RESOURCE..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
                                 className="ent-input w-full pl-9 py-1.5 text-[10px] font-black tracking-widest"
                             />
                         </div>
@@ -181,14 +193,14 @@ export default function EmployeesPage() {
 
             {loading ? (
                 <EmployeeListSkeleton />
-            ) : employees.length === 0 ? (
+            ) : filteredEmployees.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-24 bg-gray-50/30 rounded-md border border-dashed border-gray-200">
                     <Users className="w-8 h-8 text-gray-300 mb-3" />
                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Zero Resources Detected in Lifecycle</p>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {employees.map((emp) => (
+                    {filteredEmployees.map((emp) => (
                         <div key={emp.id} className="ent-card group relative p-4 bg-white hover:border-primary-200 hover:shadow-lg transition-all">
                             {/* Identifier Protocol */}
                             <div className="absolute top-2 right-2 flex flex-col items-end gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">

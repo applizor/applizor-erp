@@ -51,7 +51,8 @@ export default function NewEmployeePage() {
         skills: '',
         probationEndDate: '',
         noticePeriodStartDate: '',
-        noticePeriodEndDate: ''
+        noticePeriodEndDate: '',
+        exitDate: ''
     });
 
     if (user && !can('Employee', 'create')) {
@@ -119,6 +120,7 @@ export default function NewEmployeePage() {
                 probationEndDate: formData.probationEndDate || undefined,
                 noticePeriodStartDate: formData.noticePeriodStartDate || undefined,
                 noticePeriodEndDate: formData.noticePeriodEndDate || undefined,
+                exitDate: formData.exitDate || undefined,
                 skills: formData.skills ? formData.skills.split(',').map(s => s.trim()) : undefined,
             };
 
@@ -210,6 +212,10 @@ export default function NewEmployeePage() {
                                     ]}
                                     className={inputClass}
                                 />
+                            </div>
+                            <div className="ent-form-group">
+                                <label className={labelClass}>Exit Date</label>
+                                <input type="date" value={formData.exitDate} onChange={(e) => setFormData({ ...formData, exitDate: e.target.value })} className={inputClass} />
                             </div>
                         </div>
 

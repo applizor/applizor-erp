@@ -26,8 +26,10 @@ import {
     Bold, Italic, Underline as UnderlineIcon,
     List as ListIcon, ListOrdered, Link as LinkIcon,
     Table as TableIcon, Undo, Redo, MessageSquare,
-    AlignLeft, AlignCenter, AlignRight, Heading1, Heading2, Quote, Subscript, Superscript
+    AlignLeft, AlignCenter, AlignRight, Heading1, Heading2, Quote, Subscript, Superscript,
+    ChevronDown, Type, Palette, Highlighter
 } from 'lucide-react';
+import { $patchStyleText } from '@lexical/selection';
 
 // --- THEME & NODES ---
 const theme = {
@@ -77,6 +79,31 @@ const EDITOR_NODES = [
 const Toolbar = ({ onPost }: { onPost?: () => void }) => {
     const [editor] = useLexicalComposerContext();
     const [activeFormats, setActiveFormats] = useState<string[]>([]);
+    const [fontSizeOpen, setFontSizeOpen] = useState(false);
+    const [textColorOpen, setTextColorOpen] = useState(false);
+    const [bgColorOpen, setBgColorOpen] = useState(false);
+
+    const fontSizes = ['12px', '14px', '16px', '18px', '20px', '24px', '28px', '32px', '36px', '48px'];
+    const textColors = [
+        '#000000', '#475569', '#ef4444', '#f97316',
+        '#eab308', '#22c55e', '#3b82f6', '#a855f7'
+    ];
+    const bgColors = [
+        'transparent', '#f1f5f9', '#fee2e2', '#ffedd5',
+        '#fef9c3', '#dcfce7', '#dbeafe', '#f3e8ff'
+    ];
+
+    const applyStyle = (styles: Record<string, string>) => {
+        editor.update(() => {
+            const selection = $getSelection();
+            if (selection) {
+                $patchStyleText(selection, styles);
+            }
+        });
+        setFontSizeOpen(false);
+        setTextColorOpen(false);
+        setBgColorOpen(false);
+    };
 
     const updateToolbar = useCallback(() => {
         const selection = $getSelection();
@@ -128,6 +155,104 @@ const Toolbar = ({ onPost }: { onPost?: () => void }) => {
                 <ToolbarBtn onClick={() => editor.update(() => { const selection = $getSelection(); if (selection) $insertNodes([$createHeadingNode('h1')]) })} icon={Heading1} title="Heading 1" />
                 <ToolbarBtn onClick={() => editor.update(() => { const selection = $getSelection(); if (selection) $insertNodes([$createHeadingNode('h2')]) })} icon={Heading2} title="Heading 2" />
                 <ToolbarBtn onClick={() => editor.update(() => { const selection = $getSelection(); if (selection) $insertNodes([$createQuoteNode()]) })} icon={Quote} title="Quote" />
+            </div>
+
+            <Divider />
+
+            <div className="flex items-center gap-0.5 relative">
+                {/* Font Size Selector */}
+                <div className="relative">
+                    <button
+                        type="button"
+                        onClick={() => { setFontSizeOpen(!fontSizeOpen); setTextColorOpen(false); setBgColorOpen(false); }}
+                        className="p-1.5 rounded transition-all text-slate-500 hover:bg-slate-100 hover:text-slate-900 flex items-center gap-1"
+                        title="Font Size"
+                    >
+                        <Type size={15} />
+                        <ChevronDown size={10} />
+                    </button>
+                    {fontSizeOpen && (
+                        <>
+                            <div className="fixed inset-0 z-40" onClick={() => setFontSizeOpen(false)} />
+                            <div className="absolute left-0 mt-1 bg-white border border-slate-200 rounded shadow-lg z-50 py-1 w-24 max-h-48 overflow-y-auto">
+                                {fontSizes.map(size => (
+                                    <button
+                                        key={size}
+                                        type="button"
+                                        onClick={() => applyStyle({ 'font-size': size })}
+                                        className="w-full text-left px-3 py-1 text-xs hover:bg-slate-100 font-medium text-slate-700"
+                                    >
+                                        {size}
+                                    </button>
+                                ))}
+                            </div>
+                        </>
+                    )}
+                </div>
+
+                {/* Text Color Selector */}
+                <div className="relative">
+                    <button
+                        type="button"
+                        onClick={() => { setTextColorOpen(!textColorOpen); setFontSizeOpen(false); setBgColorOpen(false); }}
+                        className="p-1.5 rounded transition-all text-slate-500 hover:bg-slate-100 hover:text-slate-900 flex items-center gap-1"
+                        title="Text Color"
+                    >
+                        <Palette size={15} />
+                        <ChevronDown size={10} />
+                    </button>
+                    {textColorOpen && (
+                        <>
+                            <div className="fixed inset-0 z-40" onClick={() => setTextColorOpen(false)} />
+                            <div className="absolute left-0 mt-1 bg-white border border-slate-200 rounded shadow-lg z-50 p-2 w-32 grid grid-cols-4 gap-1">
+                                {textColors.map(color => (
+                                    <button
+                                        key={color}
+                                        type="button"
+                                        onClick={() => applyStyle({ 'color': color })}
+                                        className="w-6 h-6 rounded border border-slate-200 shadow-sm cursor-pointer"
+                                        style={{ backgroundColor: color }}
+                                        title={color}
+                                    />
+                                ))}
+                            </div>
+                        </>
+                    )}
+                </div>
+
+                {/* Highlight/Bg Color Selector */}
+                <div className="relative">
+                    <button
+                        type="button"
+                        onClick={() => { setBgColorOpen(!bgColorOpen); setFontSizeOpen(false); setTextColorOpen(false); }}
+                        className="p-1.5 rounded transition-all text-slate-500 hover:bg-slate-100 hover:text-slate-900 flex items-center gap-1"
+                        title="Highlight Color"
+                    >
+                        <Highlighter size={15} />
+                        <ChevronDown size={10} />
+                    </button>
+                    {bgColorOpen && (
+                        <>
+                            <div className="fixed inset-0 z-40" onClick={() => setBgColorOpen(false)} />
+                            <div className="absolute left-0 mt-1 bg-white border border-slate-200 rounded shadow-lg z-50 p-2 w-32 grid grid-cols-4 gap-1">
+                                {bgColors.map(color => (
+                                    <button
+                                        key={color}
+                                        type="button"
+                                        onClick={() => applyStyle({ 'background-color': color })}
+                                        className="w-6 h-6 rounded border border-slate-200 shadow-sm cursor-pointer relative"
+                                        style={{ backgroundColor: color }}
+                                        title={color === 'transparent' ? 'No Highlight' : color}
+                                    >
+                                        {color === 'transparent' && (
+                                            <div className="absolute inset-0 flex items-center justify-center text-[10px] font-black text-slate-400">X</div>
+                                        )}
+                                    </button>
+                                ))}
+                            </div>
+                        </>
+                    )}
+                </div>
             </div>
 
             <Divider />

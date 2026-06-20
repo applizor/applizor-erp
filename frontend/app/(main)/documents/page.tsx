@@ -14,9 +14,35 @@ import RichTextEditor from '@/components/ui/RichTextEditor';
 
 // Variable Groups for Templates
 const VARIABLE_GROUPS = {
-    'Employee Details': ['EMPLOYEE_NAME', 'EMPLOYEE_CODE', 'DESIGNATION', 'DEPARTMENT', 'JOINING_DATE', 'ADDRESS'],
+    'Employee Details': [
+        'EMPLOYEE_NAME', 
+        'EMPLOYEE_CODE', 
+        'EMPLOYEE_EMAIL', 
+        'EMPLOYEE_PHONE', 
+        'DESIGNATION', 
+        'DEPARTMENT', 
+        'JOINING_DATE', 
+        'EXIT_DATE', 
+        'DATE_OF_BIRTH', 
+        'GENDER', 
+        'BLOOD_GROUP', 
+        'MARITAL_STATUS', 
+        'CURRENT_ADDRESS', 
+        'PERMANENT_ADDRESS', 
+        'EMPLOYEE_STATUS', 
+        'WORK_LOCATION', 
+        'EMPLOYMENT_TYPE'
+    ],
     'Financials': ['SALARY', 'BASIC_SALARY', 'HRA', 'ALLOWANCES', 'CTC_ANNUAL'],
-    'Company Info': ['COMPANY_NAME', 'COMPANY_ADDRESS', 'COMPANY_PHONE', 'DATE', 'HR_MANAGER']
+    'Company Info': [
+        'COMPANY_NAME', 
+        'COMPANY_ADDRESS', 
+        'COMPANY_PHONE', 
+        'COMPANY_LOGO',
+        'DATE', 
+        'HR_MANAGER',
+        'AUTHORIZED_SIGNATORY_SIGNATURE'
+    ]
 };
 
 import { useConfirm } from '@/context/ConfirmationContext';

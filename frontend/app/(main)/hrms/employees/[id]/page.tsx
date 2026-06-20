@@ -156,6 +156,7 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
                 probationEndDate: emp.probationEndDate ? new Date(emp.probationEndDate).toISOString().split('T')[0] : '',
                 noticePeriodStartDate: emp.noticePeriodStartDate ? new Date(emp.noticePeriodStartDate).toISOString().split('T')[0] : '',
                 noticePeriodEndDate: emp.noticePeriodEndDate ? new Date(emp.noticePeriodEndDate).toISOString().split('T')[0] : '',
+                exitDate: emp.exitDate ? new Date(emp.exitDate).toISOString().split('T')[0] : '',
                 // Portal Access Fields
                 createAccount: !!emp.userId,
                 portalActive: emp.user?.isActive ?? true,
@@ -786,6 +787,10 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
                                                                 onChange={(val) => setFormData({ ...formData, status: val })}
                                                                 className="w-full"
                                                             />
+                                                        </div>
+                                                        <div className="ent-form-group">
+                                                            <label className="ent-label">Exit Date</label>
+                                                            <input type="date" disabled={!isEditing} value={formData.exitDate || ''} onChange={(e) => setFormData({ ...formData, exitDate: e.target.value })} className="ent-input disabled:bg-slate-50/50" />
                                                         </div>
                                                         {/* Restored Personal Fields */}
                                                         <div className="ent-form-group">
