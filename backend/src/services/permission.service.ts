@@ -31,17 +31,23 @@ export class PermissionService {
         // Check Roles
         for (const userRole of user.roles) {
             const perms = userRole.role.permissions || [];
-            const modulePerm = perms.find((p: any) => p.module === module);
+            
+            const targetModules = [module];
+            if (module === 'DocumentTemplate') targetModules.push('Document');
+            else if (module === 'QuotationTemplate') targetModules.push('Quotation');
+            else if (module === 'CertificateTemplate') targetModules.push('Certificate');
 
-            if (modulePerm) {
+            const hasAccess = perms.some((p: any) => {
+                if (!targetModules.includes(p.module)) return false;
                 let level = 'none';
-                if (action === 'create') level = modulePerm.createLevel;
-                if (action === 'read') level = modulePerm.readLevel;
-                if (action === 'update') level = modulePerm.updateLevel;
-                if (action === 'delete') level = modulePerm.deleteLevel;
+                if (action === 'create') level = p.createLevel;
+                if (action === 'read') level = p.readLevel;
+                if (action === 'update') level = p.updateLevel;
+                if (action === 'delete') level = p.deleteLevel;
+                return level && level !== 'none';
+            });
 
-                if (level && level !== 'none') return true;
-            }
+            if (hasAccess) return true;
         }
 
         return false;
@@ -66,19 +72,26 @@ export class PermissionService {
 
         user.roles.forEach((ur: any) => {
             const perms = ur.role.permissions || [];
-            const p = perms.find((perm: any) => perm.module === module);
-            if (p) {
-                let level = 'none';
-                if (action === 'create') level = p.createLevel;
-                if (action === 'read') level = p.readLevel;
-                if (action === 'update') level = p.updateLevel;
-                if (action === 'delete') level = p.deleteLevel;
+            
+            const targetModules = [module];
+            if (module === 'DocumentTemplate') targetModules.push('Document');
+            else if (module === 'QuotationTemplate') targetModules.push('Quotation');
+            else if (module === 'CertificateTemplate') targetModules.push('Certificate');
 
-                if (level === 'all') canViewAll = true;
-                if (level === 'both' || level === 'added_owned') { canViewOwned = true; canViewAdded = true; }
-                if (level === 'owned') canViewOwned = true;
-                if (level === 'added') canViewAdded = true;
-            }
+            perms.forEach((p: any) => {
+                if (targetModules.includes(p.module)) {
+                    let level = 'none';
+                    if (action === 'create') level = p.createLevel;
+                    if (action === 'read') level = p.readLevel;
+                    if (action === 'update') level = p.updateLevel;
+                    if (action === 'delete') level = p.deleteLevel;
+
+                    if (level === 'all') canViewAll = true;
+                    if (level === 'both' || level === 'added_owned') { canViewOwned = true; canViewAdded = true; }
+                    if (level === 'owned') canViewOwned = true;
+                    if (level === 'added') canViewAdded = true;
+                }
+            });
         });
 
         return { all: canViewAll, owned: canViewOwned, added: canViewAdded };

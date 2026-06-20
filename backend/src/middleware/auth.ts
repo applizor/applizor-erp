@@ -75,23 +75,10 @@ export const authenticate = async (
 
 export const checkPermission = (module: string, action: string) => {
   return async (req: AuthRequest, res: Response, next: NextFunction) => {
-    // ... (Keep existing checkPermission logic or update if needed)
-    // For now, let's keep the existing checkPermission function as is from the previous file content
-    // but we need to copy it here to complete the file replacement.
-
     try {
       const user = req.user;
 
       if (!user) return res.status(401).json({ error: 'User not authenticated' });
-
-      // Basic check - improve based on Matrix structure
-      // The matrix structure is role -> permissions -> [ { module, createLevel, ... } ]
-
-      // This existing checkPermission logic seems to expect a different structure:
-      // p.permission.module === module && p.permission.action === action
-      // BUT our schema has rolePermission with createLevel, readLevel etc.
-
-      // Let's UPDATE it to match the schema:
 
       // Map 'action' (create, read, update, delete) to the level field
       let levelField = '';
@@ -104,9 +91,19 @@ export const checkPermission = (module: string, action: string) => {
         return next();
       }
 
+      // Fallback hierarchy for submodules/template modules to parent modules
+      const targetModules = [module];
+      if (module === 'DocumentTemplate') {
+        targetModules.push('Document');
+      } else if (module === 'QuotationTemplate') {
+        targetModules.push('Quotation');
+      } else if (module === 'CertificateTemplate') {
+        targetModules.push('Certificate');
+      }
+
       const hasPermission = user.roles.some((userRole: any) =>
         userRole.role.permissions.some((p: any) =>
-          p.module === module &&
+          targetModules.includes(p.module) &&
           p[levelField] &&
           p[levelField] !== 'none'
         )

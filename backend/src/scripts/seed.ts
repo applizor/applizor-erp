@@ -443,7 +443,7 @@ async function main() {
         'SalaryComponent', 'SalaryStructure', // New Payroll Modules
         'Recruitment', 'RecruitmentBoard',
         'Performance', 'OKR', // Phase B & C
-        'Document',
+        'Document', 'DocumentTemplate',
         'Project', 'ProjectTask', // Added Project modules
         'Timesheet', // Phase 9
         'Holiday', 'Contract', 'Accounting', 'NewsCMS', 'Policy',

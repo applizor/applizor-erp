@@ -10,7 +10,7 @@ const SYSTEM_MODULES = [
     'SalaryComponent', 'SalaryStructure',
     'Recruitment', 'RecruitmentBoard',
     'Performance', 'OKR',
-    'Document',
+    'Document', 'DocumentTemplate',
     'Project', 'ProjectTask',
     'Timesheet',
     'Holiday', 'Contract', 'Accounting', 'NewsCMS', 'Policy',
