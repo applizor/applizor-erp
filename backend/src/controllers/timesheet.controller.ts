@@ -20,16 +20,16 @@ export const createTimeEntry = async (req: AuthRequest, res: Response) => {
         if (!employeeId) return res.status(400).json({ error: 'Employee profile not found' });
 
         // Validation
-        if (!projectId || !date || !hours) {
-            return res.status(400).json({ error: 'Project, Date, and Hours are required' });
+        if (!date || !hours) {
+            return res.status(400).json({ error: 'Date and Hours are required' });
         }
 
         const timesheet = await prisma.timesheet.create({
             data: {
                 companyId: user.companyId,
                 employeeId,
-                projectId,
-                taskId,
+                projectId: projectId || null,
+                taskId: taskId || null,
                 date: new Date(date),
                 startTime: startTime ? new Date(startTime) : null,
                 endTime: endTime ? new Date(endTime) : null,
@@ -40,7 +40,7 @@ export const createTimeEntry = async (req: AuthRequest, res: Response) => {
         });
 
         // Real-time Update (Refresh Task spent hours)
-        if (taskId) {
+        if (taskId && projectId) {
             const { NotificationService } = await import('../services/notification.service');
             NotificationService.emitProjectUpdate(projectId, 'TASK_UPDATED', { id: taskId, projectId });
         }
@@ -67,8 +67,8 @@ export const bulkCreateTimeEntries = async (req: AuthRequest, res: Response) => 
         const { projectId, date, entries } = req.body;
 
         // Validation
-        if (!projectId || !date || !Array.isArray(entries) || entries.length === 0) {
-            return res.status(400).json({ error: 'Project, Date, and at least one Entry are required' });
+        if (!date || !Array.isArray(entries) || entries.length === 0) {
+            return res.status(400).json({ error: 'Date and at least one Entry are required' });
         }
 
         const employeeId = user.employee?.id;
@@ -83,7 +83,7 @@ export const bulkCreateTimeEntries = async (req: AuthRequest, res: Response) => 
                     data: {
                         companyId: user.companyId,
                         employeeId,
-                        projectId,
+                        projectId: projectId || null,
                         taskId: entry.taskId || null,
                         date: new Date(date),
                         hours: Number(entry.hours),
@@ -96,7 +96,7 @@ export const bulkCreateTimeEntries = async (req: AuthRequest, res: Response) => 
 
         // Real-time Update (Refresh Task spent hours)
         const taskIds = [...new Set(entries.map((e: any) => e.taskId).filter(Boolean))];
-        if (taskIds.length > 0) {
+        if (taskIds.length > 0 && projectId) {
             const { NotificationService } = await import('../services/notification.service');
             taskIds.forEach(id => {
                 NotificationService.emitProjectUpdate(projectId, 'TASK_UPDATED', { id, projectId });
