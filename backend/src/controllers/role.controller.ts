@@ -266,3 +266,32 @@ export const getRoleDetails = async (req: AuthRequest, res: Response) => {
         res.status(500).json({ error: 'Failed to fetch role' });
     }
 };
+
+export const deleteRole = async (req: AuthRequest, res: Response) => {
+    try {
+        const userId = req.userId;
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+        if (!PermissionService.hasBasicPermission(req.user, 'Role', 'delete')) {
+            return res.status(403).json({ error: 'Access denied: No delete rights for Role' });
+        }
+
+        const { id } = req.params;
+
+        // Block deleting system roles
+        const existingRole = await prisma.role.findUnique({ where: { id } });
+        if (!existingRole) return res.status(404).json({ error: 'Role not found' });
+        if (existingRole.isSystem) {
+            return res.status(400).json({ error: 'System roles cannot be deleted' });
+        }
+
+        await prisma.role.delete({
+            where: { id },
+        });
+
+        res.json({ message: 'Role deleted successfully' });
+    } catch (error: any) {
+        console.error('Delete role error:', error);
+        res.status(500).json({ error: 'Failed to delete role', details: error.message });
+    }
+};

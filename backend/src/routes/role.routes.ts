@@ -5,7 +5,8 @@ import {
     updateRole,
     getPermissions,
     syncPermissions,
-    getRoleDetails
+    getRoleDetails,
+    deleteRole
 } from '../controllers/role.controller';
 import { authenticate } from '../middleware/auth';
 
@@ -17,5 +18,6 @@ router.get('/permissions', authenticate, getPermissions);
 router.post('/sync-permissions', authenticate, syncPermissions);
 router.get('/:id', authenticate, getRoleDetails);
 router.put('/:id', authenticate, updateRole);
+router.delete('/:id', authenticate, deleteRole);
 
 export default router;
