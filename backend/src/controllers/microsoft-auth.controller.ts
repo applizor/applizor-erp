@@ -72,7 +72,7 @@ export const handleCallback = async (req: Request, res: Response) => {
         params.append('grant_type', 'authorization_code');
         // Azure AD Public Clients (SPA/Native) strictly forbid client_secret.
         // We only append it if explicitly configured as a confidential client.
-        if (clientSecret && process.env.MICROSOFT_CONFIDENTIAL_CLIENT === 'true') {
+        if (clientSecret) {
             params.append('client_secret', clientSecret);
         }
         params.append('code_verifier', state as string);
