@@ -31,6 +31,8 @@ export const sendGenericEmail = async (req: Request, res: Response) => {
              });
         }
 
+        const resolvedFrom = from || process.env.EMAIL_INFO || process.env.EMAIL_FROM || process.env.SMTP_USER || 'not-configured';
+
         const info = await sendEmail(
             to,
             subject,
@@ -42,7 +44,22 @@ export const sendGenericEmail = async (req: Request, res: Response) => {
             isHtml
         );
 
-        return res.status(200).json({ success: true, message: 'Email sent successfully', info });
+        const messageId = (info as any)?.messageId;
+        if (!messageId || String(messageId).startsWith('mock-')) {
+            return res.status(502).json({
+                success: false,
+                error: 'Email transport failed — message was NOT delivered',
+                details: 'SMTP/Microsoft Graph rejected or is not configured on the server'
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: 'Email sent successfully',
+            from: resolvedFrom,
+            to,
+            messageId: (info as any)?.messageId || messageId
+        });
     } catch (error: any) {
         console.error('Email API Error:', error);
         return res.status(500).json({ error: 'Failed to send email', details: error.message });

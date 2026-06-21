@@ -326,10 +326,7 @@ export const sendEmail = async (
     } catch (error: any) {
         console.error('❌ Error sending email:', error.response?.data || error.message);
         if (error.stack) console.error(error.stack);
-
-        // Fallback to mock behavior
-        console.log('⚠️ Email sending failed. Falling back to MOCK mode.');
-        return { messageId: `mock-${Date.now()}` };
+        throw error;
     }
 };
 
