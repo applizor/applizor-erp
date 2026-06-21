@@ -284,23 +284,42 @@ const getBaseTemplate = (
 </html>`;
 };
 
-export const sendEmail = async (to: string, subject: string, html: string, attachments?: any[], fromOverride?: string) => {
+export const sendEmail = async (
+    to: string | string[], 
+    subject: string, 
+    content: string, 
+    attachments?: any[], 
+    fromOverride?: string,
+    cc?: string | string[],
+    bcc?: string | string[],
+    isHtml: boolean = true
+) => {
     try {
         // MICROSOFT GRAPH PATH
         if (process.env.SMTP_SERVICE_PROVIDER === 'MICROSOFT') {
-            return await sendViaMicrosoftGraph(to, subject, html, attachments, fromOverride);
+            // Note: Graph API helper below might need update for CC/BCC if strictly required by client, but SMTP is primary.
+            return await sendViaMicrosoftGraph(to.toString(), subject, content, attachments, fromOverride);
         }
 
         // GMAIL / SMTP PATH
         if (!transporter) throw new Error('SMTP Transporter not initialized');
 
-        const info = await transporter.sendMail({
-            from: `"${process.env.COMPANY_NAME || 'Applizor ERP'}" <${process.env.SMTP_USER}>`,
+        const mailOptions: any = {
+            from: fromOverride ? fromOverride : `"${process.env.COMPANY_NAME || 'Applizor ERP'}" <${process.env.SMTP_USER}>`,
             to,
+            cc,
+            bcc,
             subject,
-            html,
             attachments
-        });
+        };
+
+        if (isHtml) {
+            mailOptions.html = content;
+        } else {
+            mailOptions.text = content;
+        }
+
+        const info = await transporter.sendMail(mailOptions);
         console.log('Message sent: %s', info.messageId);
         return info;
 

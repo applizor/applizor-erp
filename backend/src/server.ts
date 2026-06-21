@@ -190,6 +190,9 @@ app.use('/api/settings', settingsRoutes);
 import notificationRoutes from './routes/notification.routes';
 app.use('/api/notifications', notificationRoutes);
 
+import emailRoutes from './routes/email.routes';
+app.use('/api/emails', emailRoutes);
+
 import subscriptionPlanRoutes from './routes/subscription-plan.routes';
 app.use('/api/subscription-plans', subscriptionPlanRoutes);
 
@@ -211,6 +214,15 @@ app.use('/api/lms/enrollments', enrollmentRoutes);
 app.use('/api/lms/classes', classRoutes);
 app.use('/api/lms/lectures', lectureRoutes);
 app.use('/api/lms/exams', examRoutes);
+
+app.get('/api/system/docs', (req, res) => {
+  const swaggerFile = path.join(process.cwd(), 'src', 'swagger.json');
+  if (fs.existsSync(swaggerFile)) {
+    res.sendFile(swaggerFile);
+  } else {
+    res.status(404).json({ error: 'API Documentation not generated yet. Please run node swagger.js in the ERP backend.' });
+  }
+});
 
 import { SchedulerService } from './services/scheduler.service';
 SchedulerService.init();
