@@ -5,7 +5,7 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "node swagger.js && npx prisma generate && tsx watch src/server.ts",
-    "build": "node swagger.js && tsc",
+    "build": "node swagger.js && tsc && node -e \"require('fs').copyFileSync('src/swagger.json','dist/swagger.json')\" && node -e \"require('fs').copyFileSync('src/swagger.json','dist/src/swagger.json')\"",
     "start": "node dist/server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",

@@ -215,12 +215,29 @@ app.use('/api/lms/classes', classRoutes);
 app.use('/api/lms/lectures', lectureRoutes);
 app.use('/api/lms/exams', examRoutes);
 
+function resolveSwaggerDocPath(): string | null {
+  const candidates = [
+    path.join(__dirname, 'swagger.json'),           // dist/src/swagger.json (if copied alongside compiled server)
+    path.join(__dirname, '..', 'swagger.json'),     // dist/swagger.json (production Docker layout)
+    path.join(process.cwd(), 'src', 'swagger.json'), // local dev (tsx/ts-node)
+    path.join(process.cwd(), 'dist', 'swagger.json'),
+  ];
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return null;
+}
+
 app.get('/api/system/docs', (req, res) => {
-  const swaggerFile = path.join(process.cwd(), 'src', 'swagger.json');
-  if (fs.existsSync(swaggerFile)) {
+  const swaggerFile = resolveSwaggerDocPath();
+  if (swaggerFile) {
+    res.setHeader('Content-Type', 'application/json');
     res.sendFile(swaggerFile);
   } else {
-    res.status(404).json({ error: 'API Documentation not generated yet. Please run node swagger.js in the ERP backend.' });
+    res.status(503).json({
+      error: 'API documentation file not found on server. Run "node swagger.js" during build/deploy.',
+      hint: 'Expected swagger.json in dist/ or src/ directory.',
+    });
   }
 });
 

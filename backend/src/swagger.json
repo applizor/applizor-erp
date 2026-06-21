@@ -42,12 +42,15 @@
     "/api/system/docs": {
       "get": {
         "description": "",
+        "produces": [
+          "application/json'); res.sendFile(swaggerFile); } else { res.status(503).json({ error: 'API documentation file not found on server. Run \"node swagger.js\" during build/deploy."
+        ],
         "responses": {
           "200": {
             "description": "OK"
           },
-          "404": {
-            "description": "Not Found"
+          "503": {
+            "description": "Service Unavailable"
           }
         }
       }
