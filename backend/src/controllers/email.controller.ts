@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { sendEmail } from '../services/email.service';
 
+/** Generic email API — uses the same sendEmail service as invoice/quotation/notifications */
 export const sendGenericEmail = async (req: Request, res: Response) => {
     try {
         const { to, cc, bcc, subject, body, from, isHtml = true } = req.body;
@@ -9,9 +10,6 @@ export const sendGenericEmail = async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'to, subject, and body are required' });
         }
 
-        // Attachments can be sent via multer if needed, but for simple AI integration,
-        // we'll accept base64 or file paths in the body (if supported), or just no attachments for now unless passed.
-        // If files are uploaded via multipart/form-data:
         const attachments: any[] = [];
         if (req.files && Array.isArray(req.files)) {
             req.files.forEach(file => {
@@ -21,24 +19,25 @@ export const sendGenericEmail = async (req: Request, res: Response) => {
                 });
             });
         } else if (req.body.attachments && Array.isArray(req.body.attachments)) {
-             req.body.attachments.forEach((att: any) => {
+            req.body.attachments.forEach((att: any) => {
                 attachments.push({
                     filename: att.filename,
                     content: att.content,
                     path: att.path,
                     contentType: att.contentType
                 });
-             });
+            });
         }
 
-        const resolvedFrom = from || process.env.EMAIL_INFO || process.env.EMAIL_FROM || process.env.SMTP_USER || 'not-configured';
+        // Same sender as invoice emails (EMAIL_ACCOUNTS shared mailbox)
+        const resolvedFrom = from || process.env.EMAIL_ACCOUNTS || process.env.EMAIL_INFO || process.env.EMAIL_FROM || process.env.SMTP_USER;
 
         const info = await sendEmail(
             to,
             subject,
             body,
             attachments.length > 0 ? attachments : undefined,
-            from,
+            resolvedFrom,
             cc,
             bcc,
             isHtml
@@ -56,12 +55,16 @@ export const sendGenericEmail = async (req: Request, res: Response) => {
         return res.status(200).json({
             success: true,
             message: 'Email sent successfully',
-            from: resolvedFrom,
+            from: (info as any)?.from || resolvedFrom,
             to,
-            messageId: (info as any)?.messageId || messageId
+            messageId
         });
     } catch (error: any) {
-        console.error('Email API Error:', error);
-        return res.status(500).json({ error: 'Failed to send email', details: error.message });
+        console.error('Email API Error:', error.response?.data || error.message || error);
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to send email',
+            details: error.response?.data?.error?.message || error.message
+        });
     }
 };

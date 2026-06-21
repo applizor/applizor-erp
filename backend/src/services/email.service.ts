@@ -33,20 +33,32 @@ const getMicrosoftAccessToken = async () => {
     }
 };
 
+const getDefaultFromAddress = (fromOverride?: string): string => {
+    return fromOverride
+        || process.env.EMAIL_ACCOUNTS
+        || process.env.EMAIL_INFO
+        || process.env.EMAIL_FROM
+        || process.env.SMTP_USER
+        || '';
+};
+
 const sendViaMicrosoftGraph = async (to: string, subject: string, html: string, attachments: any[] = [], fromOverride?: string) => {
     const accessToken = await getMicrosoftAccessToken();
     if (!accessToken) {
         throw new Error('Could not retrieve access token for Microsoft Graph');
     }
 
-    const fromAddress = fromOverride || process.env.EMAIL_INFO || process.env.EMAIL_FROM || process.env.SMTP_USER;
+    const fromAddress = getDefaultFromAddress(fromOverride);
+    if (!fromAddress) {
+        throw new Error('No sender email configured (set EMAIL_ACCOUNTS or EMAIL_FROM in server env)');
+    }
 
     // Convert Attachments to Graph API Format (Base64)
     const graphAttachments = attachments.map(att => ({
         '@odata.type': '#microsoft.graph.fileAttachment',
         name: att.filename,
-        contentBytes: att.content.toString('base64'),
-        contentType: 'application/pdf' // Assuming PDF for now, but could be dynamic
+        contentBytes: Buffer.isBuffer(att.content) ? att.content.toString('base64') : Buffer.from(att.content).toString('base64'),
+        contentType: att.contentType || 'application/octet-stream'
     }));
 
     const emailData = {
@@ -59,8 +71,6 @@ const sendViaMicrosoftGraph = async (to: string, subject: string, html: string, 
             toRecipients: [
                 { emailAddress: { address: to } }
             ],
-            // Graph API /me/sendMail uses the authenticated user by default.
-            // If "Send As" permissions are set, we can specify 'from'. 
             from: {
                 emailAddress: { address: fromAddress }
             },
@@ -69,19 +79,29 @@ const sendViaMicrosoftGraph = async (to: string, subject: string, html: string, 
         saveToSentItems: "true"
     };
 
-    // Use /me/sendMail endpoint 
-    // (Ensure the authenticated user has "Send As" rights for shared mailboxes)
+    const headers = {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+    };
+
     try {
-        await axios.post('https://graph.microsoft.com/v1.0/me/sendMail', emailData, {
-            headers: {
-                'Authorization': `Bearer ${accessToken}`,
-                'Content-Type': 'application/json'
-            }
-        });
+        await axios.post('https://graph.microsoft.com/v1.0/me/sendMail', emailData, { headers });
         console.log(`✅ Email sent via Microsoft Graph API from ${fromAddress} to ${to}`);
-        return { messageId: `graph-${Date.now()}` };
+        return { messageId: `graph-${Date.now()}`, from: fromAddress };
     } catch (error: any) {
-        console.error('❌ Graph API Send Failed:', error.response?.data || error.message);
+        console.warn('❌ Graph API /me/sendMail failed, retrying shared mailbox endpoint...', error.response?.data?.error?.message || error.message);
+
+        // Retry using shared mailbox endpoint (same as invoice/quotation test script)
+        if (fromAddress) {
+            try {
+                await axios.post(`https://graph.microsoft.com/v1.0/users/${encodeURIComponent(fromAddress)}/sendMail`, emailData, { headers });
+                console.log(`✅ Email sent via Graph shared mailbox ${fromAddress} to ${to}`);
+                return { messageId: `graph-shared-${Date.now()}`, from: fromAddress };
+            } catch (retryErr: any) {
+                console.error('❌ Graph API shared mailbox send failed:', retryErr.response?.data || retryErr.message);
+                throw retryErr;
+            }
+        }
         throw error;
     }
 };
@@ -305,7 +325,9 @@ export const sendEmail = async (
         if (!transporter) throw new Error('SMTP Transporter not initialized');
 
         const mailOptions: any = {
-            from: fromOverride ? fromOverride : `"${process.env.COMPANY_NAME || 'Applizor ERP'}" <${process.env.SMTP_USER}>`,
+            from: fromOverride
+                ? `"${process.env.COMPANY_NAME || 'Applizor ERP'}" <${fromOverride}>`
+                : `"${process.env.COMPANY_NAME || 'Applizor ERP'}" <${getDefaultFromAddress()}>`,
             to,
             cc,
             bcc,
