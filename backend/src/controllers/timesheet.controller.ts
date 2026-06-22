@@ -152,7 +152,7 @@ export const getTimesheets = async (req: AuthRequest, res: Response) => {
             include: {
                 project: { select: { id: true, name: true } },
                 task: { select: { id: true, title: true } },
-                employee: { select: { id: true, firstName: true, lastName: true } }
+                employee: { select: { id: true, firstName: true, lastName: true, email: true } }
             },
             orderBy: { date: 'desc' }
         });

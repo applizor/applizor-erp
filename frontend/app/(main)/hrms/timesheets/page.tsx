@@ -2,15 +2,17 @@
 
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { Calendar as CalendarIcon, List, Filter, Plus, Clock, Search, CheckCircle2, XCircle, Send, CheckSquare, Square } from 'lucide-react';
+import { Calendar as CalendarIcon, List, Filter, Plus, Clock, Search, CheckCircle2, XCircle, Send, CheckSquare, Square, FileText, X, AlertCircle } from 'lucide-react';
 import api from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import BulkTimeLogModal from '@/components/hrms/timesheets/BulkTimeLogModal';
+import TimesheetDetailModal from '@/components/hrms/timesheets/TimesheetDetailModal';
 import { PermissionGuard } from '@/components/PermissionGuard';
 import { useToast } from '@/hooks/useToast';
 import { usePermission } from '@/hooks/usePermission';
 import { CustomSelect } from '@/components/ui/CustomSelect';
 import { Badge } from '@/components/ui/Badge';
+import { Dialog } from '@/components/ui/Dialog';
 
 export default function TimesheetsPage() {
     const { success, error: showError } = useToast();
@@ -22,8 +24,16 @@ export default function TimesheetsPage() {
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [isProcessing, setIsProcessing] = useState(false);
 
+    // Detail Modal
+    const [detailEntry, setDetailEntry] = useState<any>(null);
+
+    // Reject Dialog
+    const [showRejectDialog, setShowRejectDialog] = useState(false);
+    const [rejectReason, setRejectReason] = useState('');
+
     // Filters
     const [showFilters, setShowFilters] = useState(false);
+    const [filterSearch, setFilterSearch] = useState('');
     const [filterProject, setFilterProject] = useState('');
     const [filterEmployee, setFilterEmployee] = useState('');
     const [filterStartDate, setFilterStartDate] = useState('');
@@ -73,18 +83,22 @@ export default function TimesheetsPage() {
 
     const handleBulkAction = async (action: 'submit' | 'approve' | 'reject') => {
         if (selectedIds.length === 0) return;
-        
+
+        if (action === 'reject') {
+            setShowRejectDialog(true);
+            return;
+        }
+
+        await executeBulkAction(action);
+    };
+
+    const executeBulkAction = async (action: 'submit' | 'approve' | 'reject', reason?: string) => {
         try {
             setIsProcessing(true);
             const endpoint = action === 'submit' ? '/timesheets/submit' : (action === 'approve' ? '/timesheets/approve' : '/timesheets/reject');
-            
+
             const payload: any = { ids: selectedIds };
-            if (action === 'reject') {
-                const reason = prompt('Please enter rejection reason:');
-                if (!reason) {
-                    setIsProcessing(false);
-                    return;
-                }
+            if (action === 'reject' && reason) {
                 payload.reason = reason;
             }
 
@@ -96,6 +110,16 @@ export default function TimesheetsPage() {
         } finally {
             setIsProcessing(false);
         }
+    };
+
+    const handleRejectConfirm = () => {
+        if (!rejectReason.trim()) {
+            showError('Rejection reason is required');
+            return;
+        }
+        executeBulkAction('reject', rejectReason);
+        setShowRejectDialog(false);
+        setRejectReason('');
     };
 
     const toggleSelectAll = () => {
@@ -112,14 +136,24 @@ export default function TimesheetsPage() {
 
     const totalHours = timesheets.reduce((acc, curr) => acc + Number(curr.hours), 0);
 
+    const filteredTimesheets = filterSearch
+        ? timesheets.filter(t =>
+            (t.description || '').toLowerCase().includes(filterSearch.toLowerCase()) ||
+            (t.employee?.firstName || '').toLowerCase().includes(filterSearch.toLowerCase()) ||
+            (t.employee?.lastName || '').toLowerCase().includes(filterSearch.toLowerCase()) ||
+            (t.project?.name || '').toLowerCase().includes(filterSearch.toLowerCase()) ||
+            (t.task?.title || '').toLowerCase().includes(filterSearch.toLowerCase())
+        )
+        : timesheets;
+
     const exportToCSV = () => {
-        if (timesheets.length === 0) {
+        if (filteredTimesheets.length === 0) {
             showError('No timesheets to export');
             return;
         }
 
         const headers = ['Date', 'Employee Name', 'Employee Email', 'Project', 'Task', 'Hours', 'Status', 'Description', 'Billable'];
-        const rows = timesheets.map(t => [
+        const rows = filteredTimesheets.map(t => [
             format(new Date(t.date), 'yyyy-MM-dd'),
             `${t.employee?.firstName || ''} ${t.employee?.lastName || ''}`.trim(),
             t.employee?.email || '',
@@ -127,13 +161,13 @@ export default function TimesheetsPage() {
             t.task?.title || '',
             Number(t.hours).toFixed(2),
             t.status || 'draft',
-            t.description || '',
+            (t.description || '').replace(/"/g, '""'),
             t.isBillable ? 'Yes' : 'No'
         ]);
 
         const csvContent = [
             headers.join(','),
-            ...rows.map(row => row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(','))
+            ...rows.map(row => row.map(val => `"${String(val)}"`).join(','))
         ].join('\n');
 
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -203,9 +237,19 @@ export default function TimesheetsPage() {
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                                 <input
                                     type="text"
-                                    placeholder="Search description..."
-                                    className="pl-9 pr-4 py-2 bg-slate-50 border-none rounded-lg text-sm font-medium focus:ring-2 focus:ring-primary-500 w-64"
+                                    placeholder="Search description, employee, project..."
+                                    value={filterSearch}
+                                    onChange={(e) => setFilterSearch(e.target.value)}
+                                    className="pl-9 pr-4 py-2 bg-slate-50 border-none rounded-lg text-sm font-medium focus:ring-2 focus:ring-primary-500 w-72"
                                 />
+                                {filterSearch && (
+                                    <button
+                                        onClick={() => setFilterSearch('')}
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                                    >
+                                        <X size={14} />
+                                    </button>
+                                )}
                             </div>
                             <Button 
                                 variant={showFilters ? 'secondary' : 'ghost'} 
@@ -293,11 +337,22 @@ export default function TimesheetsPage() {
                         </div>
                     )}
                 </div>
+
                 {/* Content */}
                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden min-h-[400px]">
                     {loading ? (
                         <div className="flex items-center justify-center h-64">
                             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+                        </div>
+                    ) : filteredTimesheets.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center h-64 text-slate-400">
+                            <Clock size={48} className="mb-4 text-slate-300" />
+                            <p className="text-lg font-bold text-slate-500">No timesheets found</p>
+                            <p className="text-sm mt-1">
+                                {filterSearch || filterProject || filterEmployee || filterStatus ? 
+                                    'Try adjusting your filters or search term.' : 
+                                    'Click "Log Time" to create your first entry.'}
+                            </p>
                         </div>
                     ) : (
                         <div className="ent-table-container">
@@ -317,9 +372,13 @@ export default function TimesheetsPage() {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
-                                    {timesheets.map((entry) => (
-                                         <tr key={entry.id} className={`hover:bg-slate-50 transition-colors ${selectedIds.includes(entry.id) ? 'bg-primary-50/30' : ''}`}>
-                                            <td className="px-4 py-4 text-center">
+                                    {filteredTimesheets.map((entry) => (
+                                        <tr 
+                                            key={entry.id} 
+                                            className={`hover:bg-slate-50 transition-colors cursor-pointer ${selectedIds.includes(entry.id) ? 'bg-primary-50/30' : ''}`}
+                                            onClick={() => setDetailEntry(entry)}
+                                        >
+                                            <td className="px-4 py-4 text-center" onClick={(e) => e.stopPropagation()}>
                                                 <button onClick={() => toggleSelect(entry.id)} className={`transition-colors ${selectedIds.includes(entry.id) ? 'text-primary-600' : 'text-slate-300'}`}>
                                                     {selectedIds.includes(entry.id) ? <CheckSquare size={16} /> : <Square size={16} />}
                                                 </button>
@@ -347,7 +406,7 @@ export default function TimesheetsPage() {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex flex-col">
-                                                    <span className="font-bold text-slate-800">{entry.project?.name}</span>
+                                                    <span className="font-bold text-slate-800">{entry.project?.name || 'No Project'}</span>
                                                     <span className="text-xs text-slate-500">{entry.task?.title || '-'}</span>
                                                 </div>
                                             </td>
@@ -392,6 +451,48 @@ export default function TimesheetsPage() {
                     fetchTimesheets();
                 }}
             />
+
+            <TimesheetDetailModal
+                isOpen={!!detailEntry}
+                onClose={() => setDetailEntry(null)}
+                entry={detailEntry}
+            />
+
+            {/* Reject Dialog */}
+            <Dialog isOpen={showRejectDialog} onClose={() => { setShowRejectDialog(false); setRejectReason(''); }} title="Reject Timesheets" maxWidth="sm">
+                <div className="space-y-4">
+                    <div className="flex items-start gap-3 p-3 bg-rose-50 rounded-lg border border-rose-200">
+                        <AlertCircle size={16} className="text-rose-500 mt-0.5 shrink-0" />
+                        <p className="text-sm text-rose-700">
+                            You are about to reject <strong>{selectedIds.length}</strong> timesheet(s). Please provide a reason.
+                        </p>
+                    </div>
+                    <div>
+                        <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block mb-1.5">Rejection Reason *</label>
+                        <textarea
+                            value={rejectReason}
+                            onChange={(e) => setRejectReason(e.target.value)}
+                            placeholder="Enter the reason for rejection..."
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-rose-500 focus:border-rose-500 resize-none"
+                            rows={4}
+                            autoFocus
+                        />
+                    </div>
+                    <div className="flex justify-end gap-2 pt-2">
+                        <Button variant="secondary" onClick={() => { setShowRejectDialog(false); setRejectReason(''); }}>
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleRejectConfirm}
+                            disabled={!rejectReason.trim() || isProcessing}
+                            isLoading={isProcessing}
+                            className="bg-rose-600 hover:bg-rose-700"
+                        >
+                            <XCircle size={14} className="mr-2" /> Reject Timesheets
+                        </Button>
+                    </div>
+                </div>
+            </Dialog>
         </PermissionGuard>
     );
 }
