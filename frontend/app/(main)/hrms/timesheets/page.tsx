@@ -123,7 +123,7 @@ export default function TimesheetsPage() {
             format(new Date(t.date), 'yyyy-MM-dd'),
             `${t.employee?.firstName || ''} ${t.employee?.lastName || ''}`.trim(),
             t.employee?.email || '',
-            t.project?.name || 'General / Ad-hoc',
+            t.project?.name || 'No Project',
             t.task?.title || '',
             Number(t.hours).toFixed(2),
             t.status || 'draft',

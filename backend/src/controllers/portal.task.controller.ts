@@ -123,7 +123,7 @@ export const updatePortalTask = async (req: ClientAuthRequest, res: Response) =>
             include: { project: true }
         });
 
-        if (!task || task.project.clientId !== clientId) {
+        if (!task || !task.project || task.project!.clientId !== clientId) {
             return res.status(403).json({ error: 'Access denied' });
         }
 
@@ -139,11 +139,8 @@ export const updatePortalTask = async (req: ClientAuthRequest, res: Response) =>
             }
         });
 
-        try {
-            const { NotificationService } = await import('../services/notification.service');
-            NotificationService.emitProjectUpdate(task.projectId, 'TASK_UPDATED', updated);
-        } catch(e) {}
-
+        // Notify Team
+        NotificationService.emitProjectUpdate(task.projectId!, 'TASK_UPDATED', updated);
         res.json(updated);
     } catch (error) {
         console.error("Portal: Update Task Error", error);
@@ -199,7 +196,7 @@ export const uploadPortalTaskDocument = async (req: ClientAuthRequest, res: Resp
             include: { project: true }
         });
 
-        if (!task || task.project.clientId !== clientId) {
+        if (!task || task.project!.clientId !== clientId) {
             return res.status(403).json({ error: 'Access denied' });
         }
 
@@ -210,7 +207,7 @@ export const uploadPortalTaskDocument = async (req: ClientAuthRequest, res: Resp
 
             return prisma.document.create({
                 data: {
-                    project: { connect: { id: task.projectId } },
+                    project: { connect: { id: task.projectId! } },
                     task: { connect: { id: task.id } },
                     name: file.originalname,
                     type: 'task_attachment',
@@ -223,7 +220,7 @@ export const uploadPortalTaskDocument = async (req: ClientAuthRequest, res: Resp
             });
         }));
 
-        NotificationService.emitProjectUpdate(task.projectId, 'TASK_UPDATED', task);
+        NotificationService.emitProjectUpdate(task.projectId!, 'TASK_UPDATED', task);
 
         res.status(201).json(uploadedDocuments);
 
@@ -261,7 +258,7 @@ export const getPortalTaskDetails = async (req: ClientAuthRequest, res: Response
         if (!task) return res.status(404).json({ error: 'Task not found' });
 
         // Security Check: Task must belong to a project assigned to this client
-        if (task.project.clientId !== clientId) {
+        if (task.project!.clientId !== clientId) {
             return res.status(403).json({ error: 'Access denied' });
         }
 
@@ -284,7 +281,7 @@ export const addPortalComment = async (req: ClientAuthRequest, res: Response) =>
             include: { project: true }
         });
 
-        if (!task || task.project.clientId !== clientId) {
+        if (!task || task.project!.clientId !== clientId) {
             return res.status(403).json({ error: 'Access denied' });
         }
 
@@ -315,11 +312,11 @@ export const addPortalComment = async (req: ClientAuthRequest, res: Response) =>
         });
 
         // Notify Team
-        NotificationService.emitProjectUpdate(task.projectId, 'COMMENT_ADDED', { taskId: id, comment });
+        NotificationService.emitProjectUpdate(task.projectId!, 'COMMENT_ADDED', { taskId: id, comment });
 
         // Handle Mentions (Client mentioning Team)
         const commenterName = `${req.client!.name} (Client)`;
-        NotificationService.handleMentions(content, commenterName, task, task.project, task.project.companyId);
+        NotificationService.handleMentions(content, commenterName, task, task.project, task.project!.companyId);
 
         res.status(201).json(comment);
     } catch (error) {
@@ -338,7 +335,7 @@ export const getPortalComments = async (req: ClientAuthRequest, res: Response) =
             include: { project: true }
         });
 
-        if (!task || task.project.clientId !== clientId) {
+        if (!task || task.project!.clientId !== clientId) {
             return res.status(403).json({ error: 'Access denied' });
         }
 
@@ -387,7 +384,7 @@ export const updatePortalTaskStatus = async (req: ClientAuthRequest, res: Respon
             }
         });
 
-        if (!task || task.project.clientId !== clientId) {
+        if (!task || task.project!.clientId !== clientId) {
             return res.status(403).json({ error: 'Access denied' });
         }
 
@@ -422,13 +419,13 @@ export const updatePortalTaskStatus = async (req: ClientAuthRequest, res: Respon
         const newStatus = action === 'approve' ? 'done' : 'in-progress';
 
         // Real-time Update
-        NotificationService.emitProjectUpdate(task.projectId, 'TASK_UPDATED', { ...task, status: newStatus });
+        NotificationService.emitProjectUpdate(task.projectId!, 'TASK_UPDATED', { ...task, status: newStatus });
 
         // Trigger Automation
         if (task.status !== newStatus) {
-            AutomationService.evaluateRules(task.projectId, 'TASK_STATUS_CHANGE', {
+            AutomationService.evaluateRules(task.projectId!, 'TASK_STATUS_CHANGE', {
                 taskId: id,
-                projectId: task.projectId,
+                projectId: task.projectId!,
                 oldStatus: task.status,
                 newStatus: newStatus,
                 taskTitle: task.title,
@@ -464,7 +461,7 @@ export const getPortalTaskHistory = async (req: ClientAuthRequest, res: Response
             include: { project: true }
         });
 
-        if (!task || task.project.clientId !== clientId) {
+        if (!task || task.project!.clientId !== clientId) {
             return res.status(403).json({ error: 'Access denied' });
         }
 

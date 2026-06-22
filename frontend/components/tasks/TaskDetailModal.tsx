@@ -947,7 +947,7 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                                         setActiveProjectId(val);
                                     }}
                                     options={[
-                                        { label: 'General & Ad-hoc Operations', value: '' },
+                                        { label: 'No Project', value: '' },
                                         ...globalProjects.map(p => ({ label: p.name, value: p.id }))
                                     ]}
                                     className="w-full"

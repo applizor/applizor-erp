@@ -40,23 +40,27 @@ export const uploadTaskDocument = async (req: AuthRequest, res: Response) => {
 
             const employeeId = req.user?.employee?.id;
 
-            return prisma.document.create({
-                data: {
-                    project: { connect: { id: task.projectId } },
-                    task: { connect: { id: task.id } },
-                    name: file.originalname,
-                    type: 'task_attachment',
-                    filePath: fileUrl,
-                    fileSize: file.size,
-                    mimeType: file.mimetype,
-                    company: { connect: { id: req.user!.companyId } },
-                    ...(employeeId ? { employee: { connect: { id: employeeId } } } : {}),
-                    uploadedBy: { connect: { id: req.user!.id } }
-                }
-            });
+            const documentData: any = {
+                task: { connect: { id: task.id } },
+                name: file.originalname,
+                type: 'task_attachment',
+                filePath: fileUrl,
+                fileSize: file.size,
+                mimeType: file.mimetype,
+                company: { connect: { id: req.user!.companyId } },
+                ...(employeeId ? { employee: { connect: { id: employeeId } } } : {}),
+                uploadedBy: { connect: { id: req.user!.id } }
+            };
+            if (task.projectId) {
+                documentData.project = { connect: { id: task.projectId } };
+            }
+
+            return prisma.document.create({ data: documentData });
         }));
 
-        NotificationService.emitProjectUpdate(task.projectId, 'TASK_UPDATED', task);
+        if (task.projectId) {
+            NotificationService.emitProjectUpdate(task.projectId, 'TASK_UPDATED', task);
+        }
 
         res.status(201).json(uploadedDocuments);
     } catch (error) {
@@ -73,39 +77,20 @@ export const createTask = async (req: AuthRequest, res: Response) => {
             storyPoints, parentId, epicId, sprintId, startDate, position
         } = req.body;
 
-        let finalProjectId = projectId;
-        if (!finalProjectId) {
-            const companyId = req.user!.companyId;
-            let generalProj = await prisma.project.findFirst({
-                where: {
-                    name: 'General & Ad-hoc Operations',
-                    companyId
-                }
-            });
-            if (!generalProj) {
-                generalProj = await prisma.project.create({
-                    data: {
-                        name: 'General & Ad-hoc Operations',
-                        description: 'System project for general tasks and ad-hoc operations.',
-                        status: 'active',
-                        companyId
-                    }
-                });
-            }
-            finalProjectId = generalProj.id;
-        }
-
         // Verify Project Access - allow if user has ProjectTask create permission OR project access
         const taskCreateScope = PermissionService.getPermissionScope(req.user, 'ProjectTask', 'create');
-        const hasProjectAccess = await PermissionService.checkProjectAccess(req.user!.id, finalProjectId, 'edit');
-        
-        if (!taskCreateScope.all && !taskCreateScope.owned && !taskCreateScope.added && !hasProjectAccess) {
+        if (projectId) {
+            const hasProjectAccess = await PermissionService.checkProjectAccess(req.user!.id, projectId, 'edit');
+            if (!taskCreateScope.all && !taskCreateScope.owned && !taskCreateScope.added && !hasProjectAccess) {
+                return res.status(403).json({ error: 'Insufficient permissions' });
+            }
+        } else if (!taskCreateScope.all && !taskCreateScope.owned && !taskCreateScope.added) {
             return res.status(403).json({ error: 'Insufficient permissions' });
         }
 
         const task = await prisma.task.create({
             data: {
-                projectId: finalProjectId,
+                projectId: projectId || null,
                 title,
                 description,
                 status: status || 'todo',
@@ -137,36 +122,42 @@ export const createTask = async (req: AuthRequest, res: Response) => {
                 const fileName = `tasks/${task.id}/${Date.now()}_${file.originalname.replace(/[^a-zA-Z0-9-_\.]/g, '_')}`;
                 const fileUrl = await StorageService.uploadFile(file.buffer, fileName, file.mimetype);
 
+                const documentData: any = {
+                    task: { connect: { id: task.id } },
+                    name: file.originalname,
+                    type: 'task_attachment',
+                    filePath: fileUrl,
+                    fileSize: file.size,
+                    mimeType: file.mimetype,
+                    company: { connect: { id: req.user!.companyId } },
+                    ...(req.user?.employee?.id ? { employee: { connect: { id: req.user.employee.id } } } : {})
+                };
+                if (task.projectId) {
+                    documentData.project = { connect: { id: task.projectId } };
+                }
+
                 return prisma.document.create({
-                    data: {
-                        project: { connect: { id: finalProjectId } },
-                        task: { connect: { id: task.id } },
-                        name: file.originalname,
-                        type: 'task_attachment',
-                        filePath: fileUrl,
-                        fileSize: file.size,
-                        mimeType: file.mimetype,
-                        company: { connect: { id: req.user!.companyId } },
-                        ...(req.user?.employee?.id ? { employee: { connect: { id: req.user.employee.id } } } : {})
-                    }
+                    data: documentData
                 });
             }));
         }
 
         // Evaluate Automation Rules
-        AutomationService.evaluateRules(finalProjectId, 'TASK_CREATED', {
-            taskId: task.id,
-            projectId: finalProjectId,
-            taskTitle: title,
-            assigneeId: assigneeId || undefined,
-            assigneeEmail: task.assignee?.email || undefined,
-            assigneeName: task.assignee ? `${task.assignee.firstName} ${task.assignee.lastName}` : undefined,
-            companyId: req.user!.companyId,
-            newStatus: status || 'todo'
-        }).catch(err => console.error('Automation error:', err));
+        if (task.projectId) {
+            AutomationService.evaluateRules(task.projectId, 'TASK_CREATED', {
+                taskId: task.id,
+                projectId: task.projectId,
+                taskTitle: title,
+                assigneeId: assigneeId || undefined,
+                assigneeEmail: task.assignee?.email || undefined,
+                assigneeName: task.assignee ? `${task.assignee.firstName} ${task.assignee.lastName}` : undefined,
+                companyId: req.user!.companyId,
+                newStatus: status || 'todo'
+            }).catch(err => console.error('Automation error:', err));
 
-        // Real-time Update
-        NotificationService.emitProjectUpdate(finalProjectId, 'TASK_CREATED', task);
+            // Real-time Update
+            NotificationService.emitProjectUpdate(task.projectId, 'TASK_CREATED', task);
+        }
 
         res.status(201).json(task);
     } catch (error) {
@@ -201,14 +192,14 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
         // Permission Scoping
         const scope = PermissionService.getPermissionScope(req.user, 'ProjectTask', 'update');
         const userId = req.user!.id;
-        const isPM = await PermissionService.isProjectManager(userId, oldTask.projectId);
+        const isPM = oldTask.projectId ? await PermissionService.isProjectManager(userId, oldTask.projectId) : false;
 
         if (!scope.all && !isPM) {
             const isAssigned = oldTask.assignedToId === userId;
             const isCreator = oldTask.createdById === userId;
 
-            const canEditOwned = scope.owned && isAssigned;
-            const canEditAdded = scope.added && isCreator;
+            const canEditOwned = scope.owned && (isAssigned || !oldTask.projectId);
+            const canEditAdded = scope.added && (isCreator || !oldTask.projectId);
 
             if (!canEditOwned && !canEditAdded) {
                 return res.status(403).json({ error: 'Access denied: You do not have permission to update this task' });
@@ -242,33 +233,39 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
 
         // Trigger Automation (Status Change)
         if (oldTask && oldTask.status !== task.status) {
-            AutomationService.evaluateRules(task.projectId, 'TASK_STATUS_CHANGE', {
-                taskId: task.id,
-                projectId: task.projectId,
-                oldStatus: oldTask.status,
-                newStatus: task.status,
-                taskTitle: task.title,
-                assigneeEmail: task.assignee?.email || undefined,
-                companyId: req.user!.companyId
-            }).catch(err => console.error('Status change automation error:', err));
+            if (task.projectId) {
+                AutomationService.evaluateRules(task.projectId, 'TASK_STATUS_CHANGE', {
+                    taskId: task.id,
+                    projectId: task.projectId,
+                    oldStatus: oldTask.status,
+                    newStatus: task.status,
+                    taskTitle: task.title,
+                    assigneeEmail: task.assignee?.email || undefined,
+                    companyId: req.user!.companyId
+                }).catch(err => console.error('Status change automation error:', err));
+            }
         }
 
         // Trigger Automation (Assignee Change)
         if (oldTask && oldTask.assignedToId !== task.assignedToId) {
-            AutomationService.evaluateRules(task.projectId, 'TASK_ASSIGNED', {
-                taskId: task.id,
-                projectId: task.projectId,
-                taskTitle: task.title,
-                assigneeId: task.assignedToId || undefined,
-                oldAssigneeId: oldTask.assignedToId || undefined,
-                assigneeEmail: task.assignee?.email || undefined,
-                assigneeName: task.assignee ? `${task.assignee.firstName} ${task.assignee.lastName}` : undefined,
-                companyId: req.user!.companyId
-            }).catch(err => console.error('Assignee change automation error:', err));
+            if (task.projectId) {
+                AutomationService.evaluateRules(task.projectId, 'TASK_ASSIGNED', {
+                    taskId: task.id,
+                    projectId: task.projectId,
+                    taskTitle: task.title,
+                    assigneeId: task.assignedToId || undefined,
+                    oldAssigneeId: oldTask.assignedToId || undefined,
+                    assigneeEmail: task.assignee?.email || undefined,
+                    assigneeName: task.assignee ? `${task.assignee.firstName} ${task.assignee.lastName}` : undefined,
+                    companyId: req.user!.companyId
+                }).catch(err => console.error('Assignee change automation error:', err));
+            }
         }
 
         // Real-time Update
-        NotificationService.emitProjectUpdate(task.projectId, 'TASK_UPDATED', task);
+        if (task.projectId) {
+            NotificationService.emitProjectUpdate(task.projectId, 'TASK_UPDATED', task);
+        }
 
         res.json(task);
     } catch (error) {
@@ -289,14 +286,14 @@ export const deleteTask = async (req: AuthRequest, res: Response) => {
         // Permission Scoping
         const scope = PermissionService.getPermissionScope(req.user, 'ProjectTask', 'delete');
         const userId = req.user!.id;
-        const isPM = await PermissionService.isProjectManager(userId, task.projectId);
+        const isPM = task.projectId ? await PermissionService.isProjectManager(userId, task.projectId) : false;
 
         if (!scope.all && !isPM) {
             const isAssigned = task.assignedToId === userId;
             const isCreator = task.createdById === userId;
 
-            const canDeleteOwned = scope.owned && isAssigned;
-            const canDeleteAdded = scope.added && isCreator;
+            const canDeleteOwned = scope.owned && (isAssigned || !task.projectId);
+            const canDeleteAdded = scope.added && (isCreator || !task.projectId);
 
             if (!canDeleteOwned && !canDeleteAdded) {
                 return res.status(403).json({ error: 'Access denied: You do not have permission to delete this task' });
@@ -306,7 +303,9 @@ export const deleteTask = async (req: AuthRequest, res: Response) => {
         await prisma.task.delete({ where: { id } });
 
         // Real-time Update
-        NotificationService.emitProjectUpdate(task.projectId, 'TASK_DELETED', { id, projectId: task.projectId });
+        if (task.projectId) {
+            NotificationService.emitProjectUpdate(task.projectId, 'TASK_DELETED', { id, projectId: task.projectId });
+        }
 
         res.json({ message: 'Task deleted' });
     } catch (error) {
@@ -321,9 +320,13 @@ export const getTasks = async (req: AuthRequest, res: Response) => {
         const scope = PermissionService.getPermissionScope(req.user, 'ProjectTask', 'read');
         const userId = req.user!.id;
 
-        const where: any = {
-            project: { companyId: req.user!.companyId }
-        };
+        const companyId = req.user!.companyId;
+
+        const where: any = {};
+        const companyUserIds = (await prisma.user.findMany({
+            where: { companyId },
+            select: { id: true }
+        })).map(u => u.id);
 
         if (projectId) {
             where.projectId = String(projectId);
@@ -336,7 +339,12 @@ export const getTasks = async (req: AuthRequest, res: Response) => {
         if (priority && priority !== 'all') where.priority = String(priority);
 
         // Apply Scope Filtering (if not 'all' access)
-        if (!scope.all) {
+        if (scope.all) {
+            where.OR = [
+                { project: { companyId } },
+                { projectId: null, createdById: { in: companyUserIds } }
+            ];
+        } else {
             const employee = await prisma.employee.findUnique({
                 where: { userId }
             });
@@ -351,21 +359,13 @@ export const getTasks = async (req: AuthRequest, res: Response) => {
                 const memberProjectIds = memberProjects.map(m => m.projectId);
                 const pmProjectIds = memberProjects.filter(m => ['manager', 'admin'].includes(m.role)).map(m => m.projectId);
 
-                // Get general project ID if it exists
-                const generalProject = await prisma.project.findFirst({
-                    where: { name: 'General & Ad-hoc Operations', companyId: req.user!.companyId },
-                    select: { id: true }
-                });
-                const generalProjectId = generalProject?.id;
-
                 if (projectId) {
                     const targetProjectId = String(projectId);
                     const isPM = pmProjectIds.includes(targetProjectId);
                     const isMember = memberProjectIds.includes(targetProjectId);
-                    const isGeneral = generalProjectId === targetProjectId;
 
-                    if (isPM || isGeneral) {
-                        // PMs and anyone on General project have full access to view tasks
+                    if (isPM) {
+                        // PMs have full access to view tasks
                     } else if (isMember) {
                         const orConditions: any[] = [];
                         if (scope.owned) {
@@ -387,16 +387,12 @@ export const getTasks = async (req: AuthRequest, res: Response) => {
                 } else {
                     // Global workspace query:
                     // Show tasks from projects where employee is PM/Admin, OR
-                    // Show tasks from the General Project, OR
-                    // Show tasks in projects they are a member of and fit their scope
+                    // Show tasks in projects they are a member of and fit their scope, OR
+                    // Show tasks without projects that fit their scope
                     const projectConditions: any[] = [];
 
                     if (pmProjectIds.length > 0) {
                         projectConditions.push({ projectId: { in: pmProjectIds } });
-                    }
-
-                    if (generalProjectId) {
-                        projectConditions.push({ projectId: generalProjectId });
                     }
 
                     const nonPmProjectIds = memberProjectIds.filter(id => !pmProjectIds.includes(id));
@@ -415,6 +411,22 @@ export const getTasks = async (req: AuthRequest, res: Response) => {
                                 OR: memberConditions
                             });
                         }
+                    }
+
+                    // Tasks without projects: show tasks created by company users matching their scope
+                    const noProjectConditions: any[] = [];
+                    if (scope.owned) {
+                        noProjectConditions.push({ assignedToId: userId });
+                    }
+                    if (scope.added) {
+                        noProjectConditions.push({ createdById: userId });
+                    }
+                    if (noProjectConditions.length > 0) {
+                        projectConditions.push({
+                            projectId: null,
+                            createdById: { in: companyUserIds },
+                            OR: noProjectConditions
+                        });
                     }
 
                     if (projectConditions.length > 0) {
@@ -505,7 +517,7 @@ export const getTaskById = async (req: AuthRequest, res: Response) => {
 
         // Enforce same scope visibility check for individual task access (Admin or PM bypass)
         if (!scope.all) {
-            const isPM = await PermissionService.isProjectManager(userId, task.projectId);
+            const isPM = task.projectId ? await PermissionService.isProjectManager(userId, task.projectId) : false;
             if (!isPM) {
                 const isAssigned = task.assignedToId === userId;
                 const isUnassigned = task.assignedToId === null;
@@ -566,11 +578,13 @@ export const addComment = async (req: AuthRequest, res: Response) => {
         });
 
         if (task) {
-            NotificationService.emitProjectUpdate(task.projectId, 'COMMENT_ADDED', { taskId: id, comment });
+            if (task.projectId) {
+                NotificationService.emitProjectUpdate(task.projectId, 'COMMENT_ADDED', { taskId: id, comment });
+            }
 
             // Handle Mentions
             const commenterName = `${(req.user as any).firstName} ${(req.user as any).lastName}`;
-            NotificationService.handleMentions(content, commenterName, task, task.project, (req.user as any).companyId);
+            NotificationService.handleMentions(content, commenterName, task, task.project ?? undefined, (req.user as any).companyId);
         }
 
         res.status(201).json(comment);
@@ -646,7 +660,7 @@ export const deleteTaskComment = async (req: AuthRequest, res: Response) => {
 
         // Emit Real-time Event
         const task = await prisma.task.findUnique({ where: { id }, select: { projectId: true } });
-        if (task) {
+        if (task && task.projectId) {
             NotificationService.emitProjectUpdate(task.projectId, 'COMMENT_DELETED', { taskId: id, commentId });
         }
 

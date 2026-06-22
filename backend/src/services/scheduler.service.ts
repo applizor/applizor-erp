@@ -180,12 +180,12 @@ export class SchedulerService {
                 for (const task of tasks) {
                     await AutomationService.executeAction(rule, {
                         taskId: task.id,
-                        projectId: task.projectId,
+                        projectId: task.projectId!,
                         taskTitle: task.title,
                         assigneeEmail: task.assignee?.email || undefined,
                         assigneeName: task.assignee?.firstName || 'User',
                         assigneeId: task.assignee?.id || undefined,
-                        companyId: task.project.companyId,
+                        companyId: task.project!.companyId,
                         newStatus: task.status,
                         // Custom reminder data
                         daysRemaining: daysBefore,

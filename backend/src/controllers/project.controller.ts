@@ -130,18 +130,11 @@ export const getProjects = async (req: AuthRequest, res: Response) => {
             });
 
             if (employee) {
-                where.OR = [
-                    {
-                        members: {
-                            some: {
-                                employeeId: employee.id
-                            }
-                        }
-                    },
-                    {
-                        name: 'General & Ad-hoc Operations'
+                where.members = {
+                    some: {
+                        employeeId: employee.id
                     }
-                ];
+                };
             } else {
                 return res.json([]);
             }
