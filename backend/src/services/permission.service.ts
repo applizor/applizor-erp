@@ -181,7 +181,7 @@ export class PermissionService {
         if (!membership) return false;
 
         if (action === 'view') return true;
-        if (action === 'edit') return ['manager', 'admin', 'member'].includes(membership.role); // Added 'member'
+        if (action === 'edit') return ['manager', 'admin', 'lead', 'member'].includes(membership.role);
         if (action === 'delete') return membership.role === 'manager';
 
         return false;

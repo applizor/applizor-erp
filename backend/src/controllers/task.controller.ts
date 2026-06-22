@@ -95,9 +95,13 @@ export const createTask = async (req: AuthRequest, res: Response) => {
             finalProjectId = generalProj.id;
         }
 
-        // Verify Project Access
-        const hasAccess = await PermissionService.checkProjectAccess(req.user!.id, finalProjectId, 'edit');
-        if (!hasAccess) return res.status(403).json({ error: 'Insufficient permissions' });
+        // Verify Project Access - allow if user has ProjectTask create permission OR project access
+        const taskCreateScope = PermissionService.getPermissionScope(req.user, 'ProjectTask', 'create');
+        const hasProjectAccess = await PermissionService.checkProjectAccess(req.user!.id, finalProjectId, 'edit');
+        
+        if (!taskCreateScope.all && !taskCreateScope.owned && !taskCreateScope.added && !hasProjectAccess) {
+            return res.status(403).json({ error: 'Insufficient permissions' });
+        }
 
         const task = await prisma.task.create({
             data: {
