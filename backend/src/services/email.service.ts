@@ -35,7 +35,6 @@ const getMicrosoftAccessToken = async () => {
 
 const getDefaultFromAddress = (fromOverride?: string): string => {
     return fromOverride
-        || process.env.EMAIL_ACCOUNTS
         || process.env.EMAIL_INFO
         || process.env.EMAIL_FROM
         || process.env.SMTP_USER
@@ -142,6 +141,24 @@ const getCompanyName = async (companyId?: string) => {
     });
 
     return defaultCompany?.name || process.env.COMPANY_NAME || 'Applizor Softech LLP';
+};
+
+// Helper to get company email
+const getCompanyEmail = async (companyId?: string) => {
+    if (companyId) {
+        const company = await prisma.company.findUnique({
+            where: { id: companyId },
+            select: { email: true }
+        });
+        if (company?.email) return company.email;
+    }
+
+    // Fallback
+    const defaultCompany = await prisma.company.findFirst({
+        select: { email: true }
+    });
+
+    return defaultCompany?.email || process.env.EMAIL_FROM || process.env.SMTP_USER;
 };
 
 // ─── SHARED STYLES ──────────────────────────────────────────────────────────
@@ -639,6 +656,7 @@ export const sendQuotationReminder = async (quotationData: any, publicUrl: strin
 
 export const notifyTaskAssigned = async (to: string, task: any, project: any) => {
     const companyName = await getCompanyName(project.companyId);
+    const companyEmail = await getCompanyEmail(project.companyId);
     const subject = `You've been assigned: ${task.title} — ${companyName}`;
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const taskUrl = `${frontendUrl}/projects/${project.id}/tasks?taskId=${task.id}`;
@@ -663,11 +681,12 @@ export const notifyTaskAssigned = async (to: string, task: any, project: any) =>
         heroLabel: 'Task Assigned',
         heroSub: project.name
     });
-    return sendEmail(to, subject, html);
+    return sendEmail(to, subject, html, undefined, companyEmail);
 };
 
 export const notifyTaskUpdated = async (assignee: any, task: any, project: any, changes: string[]) => {
     const companyName = await getCompanyName(project.companyId);
+    const companyEmail = await getCompanyEmail(project.companyId);
     const subject = `Task Updated: ${task.title} — ${companyName}`;
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const taskUrl = `${frontendUrl}/projects/${project.id}/tasks?taskId=${task.id}`;
@@ -690,7 +709,7 @@ export const notifyTaskUpdated = async (assignee: any, task: any, project: any, 
         heroLabel: 'Task Update',
         heroSub: project.name
     });
-    return sendEmail(assignee.email, subject, html);
+    return sendEmail(assignee.email, subject, html, undefined, companyEmail);
 };
 
 export const notifyNewTask = async (to: string, task: any, project: any) => {
