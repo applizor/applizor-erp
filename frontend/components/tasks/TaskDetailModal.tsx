@@ -130,7 +130,7 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
             fetchProjectMembers(activeProjectId);
             fetchSprintsAndEpics(activeProjectId);
         } else {
-            setEmployees([]);
+            fetchAllEmployees();
             setSprints([]);
             setEpics([]);
         }
@@ -270,6 +270,21 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
             ]);
             setSprints(sprintsRes.data);
             setEpics(epicsRes.data);
+        } catch (error) { console.error(error); }
+    };
+
+    const fetchAllEmployees = async () => {
+        try {
+            const res = await api.get('/employees?status=active');
+            if (Array.isArray(res.data)) {
+                const emps = res.data.map((e: any) => ({
+                    id: e.id,
+                    userId: e.userId,
+                    firstName: e.firstName,
+                    lastName: e.lastName
+                }));
+                setEmployees(emps);
+            }
         } catch (error) { console.error(error); }
     };
 
