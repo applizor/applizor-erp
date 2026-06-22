@@ -176,13 +176,6 @@ model Company {
   onlineClasses         OnlineClass[]
   lectures              Lecture[]
   exams                 Exam[]
-  aiMemories            AiMemory[]
-  aiApprovals           AiApproval[]
-  aiLogs                AiLog[]
-
-  @@index([name])
-  aiAgents           AiAgent[]
-  aiTasks            AiTask[]
 }
 
 model Branch {
@@ -541,9 +534,6 @@ model Project {
   @@index([status])
   @@index([createdAt])
   @@index([startDate])
-  projectMemory      ProjectMemory?
-  decisionMemories   DecisionMemory[]
-  timelineMemories   TimelineMemory[]
 }
 
 model AutomationRule {
@@ -2275,147 +2265,4 @@ model ExamSubmission {
   @@map("exam_submissions")
 }
 
-model AiMemory {
-  id          String   @id @default(uuid())
-  companyId   String
-  key         String
-  value       String   @db.Text
-  category    String   // e.g. "project", "wiki", "client", "system"
-  referenceId String?  // Optional relation key (e.g. project ID or client ID)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
 
-  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  @@unique([companyId, key, category])
-  @@index([companyId])
-  @@index([category])
-  @@map("ai_memories")
-}
-
-model AiApproval {
-  id          String   @id @default(uuid())
-  companyId   String
-  title       String
-  description String?  @db.Text
-  agentName   String   // e.g. "SalesAgent", "ChiefOfStaff"
-  type        String   // e.g. "QUOTATION", "CONTRACT", "RELEASE", "PROPOSAL"
-  status      String   @default("PENDING") // PENDING, APPROVED, REJECTED
-  payload     Json     // Dynamic JSON containing proposal, quotation, or release details
-  referenceId String?  // ID of related entity in ERP if applicable
-  comments    String?  @db.Text
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  @@index([companyId])
-  @@index([status])
-  @@map("ai_approvals")
-}
-
-model AiLog {
-  id          String   @id @default(uuid())
-  companyId   String
-  agentName   String
-  action      String
-  details     Json?
-  status      String   // SUCCESS, FAILED, RUNNING
-  createdAt   DateTime @default(now())
-
-  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  @@index([companyId])
-  @@index([agentName])
-  @@map("ai_logs")
-}
-
-// ==========================================
-// Phase 11 AI Center & Memory Engine Additions
-// ==========================================
-
-model AiAgent {
-  id          String   @id @default(uuid())
-  name        String
-  role        String   @unique
-  department  String
-  status      String   @default("active") // active, disabled, offline
-  model       String   @default("gemini-2.5-flash")
-  systemPrompt String?  @db.Text
-  responsibilities Json?
-  permissions Json?
-  escalationRules String? @db.Text
-  description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  companyId   String?
-  company     Company? @relation(fields: [companyId], references: [id])
-  tasks       AiTask[]
-}
-
-model AiTask {
-  id          String   @id @default(uuid())
-  title       String
-  description String?
-  agentId     String
-  status      String   @default("todo") // todo, in_progress, qa, completed
-  priority    String   @default("medium")
-  projectId   String?
-  assignedTo  String?  // References Employee or User id
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  companyId   String?
-  company     Company? @relation(fields: [companyId], references: [id])
-  agent       AiAgent  @relation(fields: [agentId], references: [id])
-}
-
-// Memory Engine Models
-model ProjectMemory {
-  id        String   @id @default(uuid())
-  projectId String   @unique
-  data      Json     // Contains architecture, APIs, folder structure, etc.
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-}
-
-model DecisionMemory {
-  id          String   @id @default(uuid())
-  projectId   String
-  decision    String
-  reason      String
-  ownerId     String
-  createdAt   DateTime @default(now())
-  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-}
-
-model TimelineMemory {
-  id        String   @id @default(uuid())
-  projectId String
-  event     String
-  type      String   // release, incident, change, request
-  createdAt DateTime @default(now())
-  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-}
-
-model ConversationMemory {
-  id          String   @id @default(uuid())
-  externalId  String?  // To link with external platform IDs
-  channelId   String   // Teams channel, WhatsApp number, or email thread
-  channelType String   // teams, whatsapp, email, telegram
-  source      String   // teams, whatsapp, email, erp
-  projectId   String?
-  clientId    String?
-  taskId      String?
-  timestamp   DateTime @default(now())
-  messages    Json     // Chronological array of chat interactions
-  metadata    Json?
-  updatedAt   DateTime @updatedAt
-}
-
-model KnowledgeGraph {
-  id        String   @id @default(uuid())
-  nodes     Json     // Vertices of semantic relationships
-  edges     Json     // Connections between vertices
-  updatedAt DateTime @updatedAt
-}

@@ -36,10 +36,7 @@ import {
     Scale,
     Newspaper,
     CheckSquare,
-    Award,
-    Brain,
-    Bot,
-    Terminal
+    Award
 } from 'lucide-react';
 import { auth, useAuth } from '@/lib/auth';
 import { useState, useEffect, useRef } from 'react';
@@ -142,11 +139,6 @@ export default function Sidebar() {
         { name: 'Class Enrollments', href: '/lms/enrollments', icon: FileText, category: 'LMS', module: 'CourseEnrollment' },
         { name: 'Online Classes', href: '/lms/classes', icon: CalendarDays, category: 'LMS', module: 'OnlineClass' },
         { name: 'LMS Certificates', href: '/hrms/certificates', icon: Award, category: 'LMS', module: 'Certificate' },
-
-        // AI Center
-        { name: 'Command Console', href: '/ai-center/dashboard', icon: Terminal, category: 'AI Center' },
-        { name: 'Agent Registry', href: '/ai-center/agents', icon: Bot, category: 'AI Center' },
-        { name: 'Approval Center', href: '/ai-center/approvals', icon: Brain, category: 'AI Center' },
 
         // Settings
         { name: 'Company Settings', href: '/settings/company', icon: Briefcase, category: 'Settings', module: 'Company' },
