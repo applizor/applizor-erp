@@ -93,13 +93,12 @@ export const checkPermission = (module: string, action: string) => {
 
       // Fallback hierarchy for submodules/template modules to parent modules
       const targetModules = [module];
-      if (module === 'DocumentTemplate') {
-        targetModules.push('Document');
-      } else if (module === 'QuotationTemplate') {
+      if (module === 'QuotationTemplate') {
         targetModules.push('Quotation');
       } else if (module === 'CertificateTemplate') {
         targetModules.push('Certificate');
       }
+      // DocumentTemplate intentionally NOT falling back to Document - separate permission
 
       const hasPermission = user.roles.some((userRole: any) =>
         userRole.role.permissions.some((p: any) =>

@@ -33,8 +33,8 @@ export class PermissionService {
             const perms = userRole.role.permissions || [];
             
             const targetModules = [module];
-            if (module === 'DocumentTemplate') targetModules.push('Document');
-            else if (module === 'QuotationTemplate') targetModules.push('Quotation');
+            // DocumentTemplate intentionally NOT falling back to Document - separate permission
+            if (module === 'QuotationTemplate') targetModules.push('Quotation');
             else if (module === 'CertificateTemplate') targetModules.push('Certificate');
 
             const hasAccess = perms.some((p: any) => {
@@ -74,8 +74,8 @@ export class PermissionService {
             const perms = ur.role.permissions || [];
             
             const targetModules = [module];
-            if (module === 'DocumentTemplate') targetModules.push('Document');
-            else if (module === 'QuotationTemplate') targetModules.push('Quotation');
+            // DocumentTemplate intentionally NOT falling back to Document - separate permission
+            if (module === 'QuotationTemplate') targetModules.push('Quotation');
             else if (module === 'CertificateTemplate') targetModules.push('Certificate');
 
             perms.forEach((p: any) => {
