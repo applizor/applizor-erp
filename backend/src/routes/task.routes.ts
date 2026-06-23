@@ -13,6 +13,7 @@ router.post('/', checkPermission('ProjectTask', 'create'), upload.array('files')
 
 // Details, Update, Delete
 router.get('/:id', checkPermission('ProjectTask', 'read'), taskController.getTaskById);
+router.put('/bulk-update', checkPermission('ProjectTask', 'update'), taskController.bulkUpdateTasks);
 router.put('/:id', checkPermission('ProjectTask', 'update'), taskController.updateTask);
 router.delete('/:id', checkPermission('ProjectTask', 'delete'), taskController.deleteTask);
 router.post('/:id/documents', checkPermission('ProjectTask', 'update'), upload.array('files'), taskController.uploadTaskDocument);

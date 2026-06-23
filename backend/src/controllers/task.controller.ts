@@ -538,7 +538,45 @@ export const getTaskById = async (req: AuthRequest, res: Response) => {
     }
 };
 
-// --- Comments ---
+export const bulkUpdateTasks = async (req: AuthRequest, res: Response) => {
+    try {
+        const { taskIds, status } = req.body;
+        if (!taskIds || !Array.isArray(taskIds) || taskIds.length === 0) {
+            return res.status(400).json({ error: 'Invalid task IDs' });
+        }
+        if (!status) return res.status(400).json({ error: 'Status required' });
+
+        const userId = req.user!.id;
+
+        // Verify permissions for each task
+        const tasks = await prisma.task.findMany({
+            where: { id: { in: taskIds } },
+            select: { id: true, projectId: true, assignedToId: true, createdById: true }
+        });
+
+        for (const task of tasks) {
+            const isPM = task.projectId ? await PermissionService.isProjectManager(userId, task.projectId) : false;
+            const scope = PermissionService.getPermissionScope(req.user, 'ProjectTask', 'update');
+            if (!scope.all && !isPM) {
+                const isAssigned = task.assignedToId === userId;
+                const isCreator = task.createdById === userId;
+                if (!((scope.owned && (isAssigned || !task.projectId)) || (scope.added && (isCreator || !task.projectId)))) {
+                    return res.status(403).json({ error: `Permission denied for task ${task.id}` });
+                }
+            }
+        }
+
+        await prisma.task.updateMany({
+            where: { id: { in: taskIds } },
+            data: { status }
+        });
+
+        res.json({ message: 'Bulk update successful' });
+    } catch (error) {
+        console.error("Bulk Update Error:", error);
+        res.status(500).json({ error: 'Failed to bulk update tasks' });
+    }
+};
 
 export const addComment = async (req: AuthRequest, res: Response) => {
     try {
