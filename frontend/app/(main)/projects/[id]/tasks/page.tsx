@@ -239,6 +239,10 @@ export default function KanbanBoard() {
         }
     };
 
+    const toggleTaskSelection = (taskId: string) => {
+        setSelectedTaskIds(prev => prev.includes(taskId) ? prev.filter(id => id !== taskId) : [...prev, taskId]);
+    };
+
     const handleDeleteTask = async () => {
         if (!taskToDelete) return;
         setIsDeleting(true);
