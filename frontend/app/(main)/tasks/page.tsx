@@ -464,7 +464,8 @@ export default function GlobalTasksPage() {
                                                                     type="checkbox"
                                                                     checked={selectedTaskIds.includes(task.id)}
                                                                     onChange={(e) => { e.stopPropagation(); toggleTaskSelection(task.id); }}
-                                                                    className="mr-2"
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                    className="mr-2 cursor-pointer"
                                                                  />
                                                                  <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded border ${task.priority === 'urgent' ? 'bg-rose-50 text-rose-600 border-rose-100' :
                                                                      task.priority === 'high' ? 'bg-orange-50 text-orange-600 border-orange-100' :

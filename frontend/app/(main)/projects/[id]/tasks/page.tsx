@@ -61,6 +61,8 @@ export default function KanbanBoard() {
     const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
     const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
+    const [isBulkStatusModalOpen, setIsBulkStatusModalOpen] = useState(false);
 
     // Deep Linking State
     const searchParams = useSearchParams();
@@ -225,6 +227,18 @@ export default function KanbanBoard() {
         setActiveMenuId(null);
     };
 
+    const handleBulkStatusUpdate = async (newStatus: string) => {
+        try {
+            await api.put('/tasks/bulk-update', { taskIds: selectedTaskIds, status: newStatus });
+            toast.success('Tasks updated successfully');
+            setSelectedTaskIds([]);
+            setIsBulkStatusModalOpen(false);
+            fetchTasks();
+        } catch (error) {
+            toast.error('Failed to update tasks');
+        }
+    };
+
     const handleDeleteTask = async () => {
         if (!taskToDelete) return;
         setIsDeleting(true);
@@ -313,6 +327,53 @@ export default function KanbanBoard() {
                 onClearFilters={() => setFilters({ assigneeId: 'all', type: 'all', priority: 'all', search: '' })}
             />
 
+            {/* Bulk Actions Bar */}
+            {selectedTaskIds.length > 0 && (
+                <div className="fixed bottom-6 right-6 z-50 bg-white border border-slate-200 shadow-xl rounded-lg px-4 py-3 flex items-center gap-3 animate-in slide-in-from-bottom-4">
+                    <span className="text-xs font-bold text-slate-700">{selectedTaskIds.length} tasks selected</span>
+                    <button
+                        onClick={() => setIsBulkStatusModalOpen(true)}
+                        className="btn-primary text-[10px]"
+                    >
+                        Update Status
+                    </button>
+                    <button
+                        onClick={() => setSelectedTaskIds([])}
+                        className="text-[10px] font-bold text-slate-500 hover:text-slate-900"
+                    >
+                        Clear
+                    </button>
+                </div>
+            )}
+
+            {/* Status Selection Modal */}
+            {isBulkStatusModalOpen && (
+                <Portal>
+                    <div className="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center">
+                        <div className="bg-white p-6 rounded-lg w-80 shadow-2xl">
+                            <h2 className="text-sm font-black mb-4">Update Status</h2>
+                            <div className="space-y-2">
+                                {Object.keys(COLUMNS).map(status => (
+                                    <button
+                                        key={status}
+                                        onClick={() => handleBulkStatusUpdate(status)}
+                                        className="w-full text-left px-3 py-2 text-xs font-bold hover:bg-slate-50 rounded"
+                                    >
+                                        {(COLUMNS as any)[status].title}
+                                    </button>
+                                ))}
+                            </div>
+                            <button
+                                onClick={() => setIsBulkStatusModalOpen(false)}
+                                className="w-full mt-4 text-xs font-bold text-slate-500"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </Portal>
+            )}
+
             {/* Board Area */}
             <DragDropContext onDragEnd={onDragEnd}>
                 <div className="flex-1 flex gap-4 overflow-x-auto pb-4 custom-scrollbar">
@@ -351,21 +412,29 @@ export default function KanbanBoard() {
                                                         onClick={() => openTask(task.id)}
                                                         className={`bg-white p-4 rounded-lg border shadow-sm group cursor-pointer transition-all ${task.hasUnansweredComment ? 'border-amber-400 ring-2 ring-amber-400/20 animate-pulse-subtle' : 'border-slate-200 hover:border-primary-300'} ${snapshot.isDragging ? 'rotate-1 shadow-xl ring-2 ring-primary-500/20 z-50' : 'hover:shadow-md'}`}
                                                     >
-                                                        {/* Task Tags & ID */}
-                                                        <div className="flex justify-between items-start mb-3">
-                                                            <div className="flex gap-1.5 flex-wrap">
-                                                                <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded border ${task.priority === 'urgent' ? 'bg-rose-50 text-rose-600 border-rose-100' :
-                                                                    task.priority === 'high' ? 'bg-orange-50 text-orange-600 border-orange-100' :
-                                                                        'bg-slate-50 text-slate-500 border-slate-100'
-                                                                    }`}>
-                                                                    {task.priority}
-                                                                </span>
-                                                                {task.hasUnansweredComment && (
-                                                                    <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded border bg-amber-500 text-white border-amber-600 animate-pulse">
-                                                                        Client Message
-                                                                    </span>
-                                                                )}
-                                                            </div>
+                                                         {/* Task Checkbox & ID */}
+                                                         <div className="flex justify-between items-start mb-3">
+                                                             <div className="flex gap-1.5 flex-wrap items-center">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={selectedTaskIds.includes(task.id)}
+                                                                    onChange={(e) => { e.stopPropagation(); toggleTaskSelection(task.id); }}
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                    className="mr-2 cursor-pointer"
+                                                                />
+                                                                 <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded border ${task.priority === 'urgent' ? 'bg-rose-50 text-rose-600 border-rose-100' :
+                                                                     task.priority === 'high' ? 'bg-orange-50 text-orange-600 border-orange-100' :
+                                                                         'bg-slate-50 text-slate-500 border-slate-100'
+                                                                     }`}>
+                                                                     {task.priority}
+                                                                 </span>
+                                                                 {task.hasUnansweredComment && (
+                                                                     <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded border bg-amber-500 text-white border-amber-600 animate-pulse">
+                                                                         Client Message
+                                                                     </span>
+                                                                 )}
+                                                             </div>
+
                                                             <button
                                                                 onClick={(e) => handleMenuToggle(e, task.id)}
                                                                 className={`p-1 rounded transition-all ${activeMenuId === task.id ? 'bg-slate-100 text-slate-900' : 'text-slate-300 opacity-0 group-hover:opacity-100 hover:text-slate-600'}`}
