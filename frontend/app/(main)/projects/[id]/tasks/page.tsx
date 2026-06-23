@@ -342,15 +342,7 @@ export default function KanbanBoard() {
             {/* Bulk Actions Bar */}
             {selectedTaskIds.length > 0 && (
                 <div className="fixed bottom-6 right-6 z-50 bg-white border border-slate-200 shadow-xl rounded-lg px-4 py-3 flex items-center gap-3 animate-in slide-in-from-bottom-4">
-                    <div className="flex items-center gap-2 mr-2 pr-2 border-r border-slate-200">
-                        <input
-                            type="checkbox"
-                            checked={selectedTaskIds.length === tasks.length && tasks.length > 0}
-                            onChange={toggleSelectAll}
-                        />
-                        <span className="text-[10px] font-black text-slate-700 uppercase">Select All</span>
-                    </div>
-                    <span className="text-xs font-bold text-slate-700">{selectedTaskIds.length} selected</span>
+                    <span className="text-xs font-bold text-slate-700">{selectedTaskIds.length} tasks selected</span>
                     <button
                         onClick={() => setIsBulkStatusModalOpen(true)}
                         className="btn-primary text-[10px]"
@@ -402,6 +394,19 @@ export default function KanbanBoard() {
                             {/* Column Header */}
                             <div className={`p-4 border-b ${colDef.color.split(' ').filter((c: string) => c.startsWith('border')).join(' ')} flex justify-between items-center bg-white/50 backdrop-blur-sm rounded-t-xl`}>
                                 <div className="flex items-center gap-2">
+                                    <input
+                                        type="checkbox"
+                                        className="cursor-pointer"
+                                        checked={columns[colId].length > 0 && columns[colId].every(t => selectedTaskIds.includes(t.id))}
+                                        onChange={(e) => {
+                                            const taskIdsInCol = columns[colId].map(t => t.id);
+                                            if (e.target.checked) {
+                                                setSelectedTaskIds(prev => Array.from(new Set([...prev, ...taskIdsInCol])));
+                                            } else {
+                                                setSelectedTaskIds(prev => prev.filter(id => !taskIdsInCol.includes(id)));
+                                            }
+                                        }}
+                                    />
                                     <h3 className={`font-black text-[11px] uppercase tracking-widest ${colDef.color.split(' ').filter((c: string) => c.startsWith('text')).join(' ')}`}>
                                         {colDef.title}
                                     </h3>
