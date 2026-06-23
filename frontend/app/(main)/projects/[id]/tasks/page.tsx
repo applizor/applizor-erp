@@ -227,6 +227,14 @@ export default function KanbanBoard() {
         setActiveMenuId(null);
     };
 
+    const toggleSelectAll = () => {
+        if (selectedTaskIds.length === tasks.length) {
+            setSelectedTaskIds([]);
+        } else {
+            setSelectedTaskIds(tasks.map(t => t.id));
+        }
+    };
+
     const handleBulkStatusUpdate = async (newStatus: string) => {
         try {
             await api.put('/tasks/bulk-update', { taskIds: selectedTaskIds, status: newStatus });
@@ -334,7 +342,15 @@ export default function KanbanBoard() {
             {/* Bulk Actions Bar */}
             {selectedTaskIds.length > 0 && (
                 <div className="fixed bottom-6 right-6 z-50 bg-white border border-slate-200 shadow-xl rounded-lg px-4 py-3 flex items-center gap-3 animate-in slide-in-from-bottom-4">
-                    <span className="text-xs font-bold text-slate-700">{selectedTaskIds.length} tasks selected</span>
+                    <div className="flex items-center gap-2 mr-2 pr-2 border-r border-slate-200">
+                        <input
+                            type="checkbox"
+                            checked={selectedTaskIds.length === tasks.length && tasks.length > 0}
+                            onChange={toggleSelectAll}
+                        />
+                        <span className="text-[10px] font-black text-slate-700 uppercase">Select All</span>
+                    </div>
+                    <span className="text-xs font-bold text-slate-700">{selectedTaskIds.length} selected</span>
                     <button
                         onClick={() => setIsBulkStatusModalOpen(true)}
                         className="btn-primary text-[10px]"
