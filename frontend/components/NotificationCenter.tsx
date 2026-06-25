@@ -26,7 +26,7 @@ export default function NotificationCenter() {
     const [isOpen, setIsOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
-    const { socket } = useSocket();
+    const { socket, isConnected } = useSocket();
     const router = useRouter();
     const toast = useToast();
 
@@ -51,14 +51,17 @@ export default function NotificationCenter() {
             socket.on('notification', (newNotification: Notification) => {
                 setNotifications(prev => [newNotification, ...prev]);
                 setUnreadCount(prev => prev + 1);
-                // Toast is already handled in SocketContext, but we update the list here
             });
         }
+
+        // Polling fallback (every 30s) to catch any missed notifications
+        const interval = setInterval(fetchNotifications, 30000);
 
         return () => {
             if (socket) {
                 socket.off('notification');
             }
+            clearInterval(interval);
         };
     }, [socket]);
 

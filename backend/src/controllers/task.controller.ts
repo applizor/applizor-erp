@@ -59,7 +59,7 @@ export const uploadTaskDocument = async (req: AuthRequest, res: Response) => {
         }));
 
         if (task.projectId) {
-            NotificationService.emitProjectUpdate(task.projectId, 'TASK_UPDATED', task);
+            NotificationService.emitProjectUpdate(task.projectId, 'TASK_UPDATED', task, req.user!.companyId);
         }
 
         res.status(201).json(uploadedDocuments);
@@ -167,13 +167,26 @@ export const createTask = async (req: AuthRequest, res: Response) => {
                 newStatus: status || 'todo'
             }).catch(err => console.error('Automation error:', err));
 
+            // In-app notification for assignee
+            if (primaryAssigneeId) {
+                const assignedUser = await prisma.user.findUnique({ where: { id: primaryAssigneeId }, select: { firstName: true } });
+                NotificationService.createNotification({
+                    companyId: req.user!.companyId,
+                    userId: primaryAssigneeId,
+                    title: 'Task Assigned',
+                    message: `You have been assigned to "${title}"`,
+                    type: 'task_assigned',
+                    link: `/projects/${task.projectId}/tasks?taskId=${task.id}`
+                });
+            }
+
             // Trigger TASK_ASSIGNED if assignee was set during creation
-            if (assigneeId) {
+            if (primaryAssigneeId) {
                 AutomationService.evaluateRules(task.projectId, 'TASK_ASSIGNED', {
                     taskId: task.id,
                     projectId: task.projectId,
                     taskTitle: title,
-                    assigneeId: assigneeId,
+                    assigneeId: primaryAssigneeId,
                     assigneeEmail: task.assignee?.email || undefined,
                     assigneeName: task.assignee ? `${task.assignee.firstName} ${task.assignee.lastName}` : undefined,
                     companyId: req.user!.companyId
@@ -181,7 +194,7 @@ export const createTask = async (req: AuthRequest, res: Response) => {
             }
 
             // Real-time Update
-            NotificationService.emitProjectUpdate(task.projectId, 'TASK_CREATED', task);
+            NotificationService.emitProjectUpdate(task.projectId, 'TASK_CREATED', task, req.user!.companyId);
         }
 
         res.status(201).json(task);
@@ -276,8 +289,29 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
             return [updated];
         });
 
-        // Notifications
-        // Automation triggered below
+        // In-app notifications
+        try {
+            if (oldTask && oldTask.assignedToId !== task.assignedToId && task.assignedToId) {
+                NotificationService.createNotification({
+                    companyId: req.user!.companyId,
+                    userId: task.assignedToId,
+                    title: 'Task Assigned',
+                    message: `You have been assigned to "${task.title}"`,
+                    type: 'task_assigned',
+                    link: task.projectId ? `/projects/${task.projectId}/tasks?taskId=${task.id}` : undefined
+                });
+            }
+            if (oldTask && oldTask.status !== task.status && task.assignedToId) {
+                NotificationService.createNotification({
+                    companyId: req.user!.companyId,
+                    userId: task.assignedToId,
+                    title: `Task ${task.status === 'done' ? 'Completed' : 'Status Updated'}`,
+                    message: `"${task.title}" moved from ${oldTask?.status} to ${task.status}`,
+                    type: 'task_update',
+                    link: task.projectId ? `/projects/${task.projectId}/tasks?taskId=${task.id}` : undefined
+                });
+            }
+        } catch (e) { /* notification errors are non-fatal */ }
 
         // Trigger Automation (Status Change)
         if (oldTask && oldTask.status !== task.status) {
@@ -312,7 +346,7 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
 
         // Real-time Update
         if (task.projectId) {
-            NotificationService.emitProjectUpdate(task.projectId, 'TASK_UPDATED', task);
+            NotificationService.emitProjectUpdate(task.projectId, 'TASK_UPDATED', task, req.user!.companyId);
         }
 
         res.json(task);
@@ -355,7 +389,7 @@ export const deleteTask = async (req: AuthRequest, res: Response) => {
 
         // Real-time Update
         if (task.projectId) {
-            NotificationService.emitProjectUpdate(task.projectId, 'TASK_DELETED', { id, projectId: task.projectId });
+            NotificationService.emitProjectUpdate(task.projectId, 'TASK_DELETED', { id, projectId: task.projectId }, req.user!.companyId);
         }
 
         res.json({ message: 'Task deleted' });
@@ -687,7 +721,7 @@ export const addComment = async (req: AuthRequest, res: Response) => {
 
         if (task) {
             if (task.projectId) {
-                NotificationService.emitProjectUpdate(task.projectId, 'COMMENT_ADDED', { taskId: id, comment });
+                NotificationService.emitProjectUpdate(task.projectId, 'COMMENT_ADDED', { taskId: id, comment }, req.user!.companyId);
 
                 // Trigger COMMENT_ADDED automation rules
                 const { AutomationService } = await import('../services/automation.service');
@@ -786,7 +820,7 @@ export const deleteTaskComment = async (req: AuthRequest, res: Response) => {
         // Emit Real-time Event
         const task = await prisma.task.findUnique({ where: { id }, select: { projectId: true } });
         if (task && task.projectId) {
-            NotificationService.emitProjectUpdate(task.projectId, 'COMMENT_DELETED', { taskId: id, commentId });
+            NotificationService.emitProjectUpdate(task.projectId, 'COMMENT_DELETED', { taskId: id, commentId }, req.user!.companyId);
         }
 
         res.json({ message: 'Comment deleted' });

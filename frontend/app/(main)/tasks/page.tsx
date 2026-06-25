@@ -146,6 +146,7 @@ export default function GlobalTasksPage() {
         socket.on('TASK_DELETED', refresh);
         socket.on('COMMENT_DELETED', refresh);
         socket.on('TIMER_UPDATED', refresh);
+        socket.on('MILESTONE_UPDATED', refresh);
 
         return () => {
             socket.off('TASK_CREATED', refresh);
@@ -153,6 +154,7 @@ export default function GlobalTasksPage() {
             socket.off('TASK_DELETED', refresh);
             socket.off('COMMENT_DELETED', refresh);
             socket.off('TIMER_UPDATED', refresh);
+            socket.off('MILESTONE_UPDATED', refresh);
         };
     }, [socket, fetchTasks]);
 

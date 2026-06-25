@@ -38,12 +38,16 @@ export class NotificationService {
     }
 
     /**
-     * Emits an event to all users in a specific project room
+     * Emits an event to project room AND company room (for global listeners).
+     * Pass companyId to also broadcast company-wide for global pages like the task board.
      */
-    static emitProjectUpdate(projectId: string, event: string, data: any) {
+    static emitProjectUpdate(projectId: string, event: string, data: any, companyId?: string) {
         try {
             const io = getIO();
             io.to(`project:${projectId}`).emit(event, data);
+            if (companyId) {
+                io.to(`company:${companyId}`).emit(event, { ...data, _projectId: projectId });
+            }
         } catch (error) {
             console.error('Error emitting project update:', error);
         }
