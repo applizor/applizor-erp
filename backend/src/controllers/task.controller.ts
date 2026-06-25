@@ -612,12 +612,28 @@ export const addComment = async (req: AuthRequest, res: Response) => {
 
         const task = await prisma.task.findUnique({
             where: { id },
-            include: { project: true }
+            include: {
+                project: true,
+                assignee: { select: { id: true, email: true, firstName: true } }
+            }
         });
 
         if (task) {
             if (task.projectId) {
                 NotificationService.emitProjectUpdate(task.projectId, 'COMMENT_ADDED', { taskId: id, comment });
+
+                // Trigger COMMENT_ADDED automation rules
+                const { AutomationService } = await import('../services/automation.service');
+                AutomationService.evaluateRules(task.projectId, 'COMMENT_ADDED', {
+                    taskId: id,
+                    projectId: task.projectId,
+                    taskTitle: task.title,
+                    commenterName: `${(req.user as any).firstName} ${(req.user as any).lastName}`,
+                    commentContent: content,
+                    assigneeEmail: task.assignee?.email || undefined,
+                    assigneeId: task.assignedToId || undefined,
+                    companyId: (req.user as any).companyId
+                }).catch(err => console.error('Comment automation error:', err));
             }
 
             // Handle Mentions
