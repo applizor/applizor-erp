@@ -53,6 +53,13 @@ const getShiftColor = (name: string) => {
     return 'bg-slate-50 text-slate-700 border-slate-200';
 };
 
+const toLocalDateKey = (date: Date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+};
+
 export default function RosterPage() {
     const toast = useToast();
     const { can, user } = usePermission();
@@ -104,8 +111,8 @@ export default function RosterPage() {
 
             const rosterRes = await api.get('/shift-rosters', {
                 params: {
-                    startDate: startOfWeek.toISOString().split('T')[0],
-                    endDate: endOfWeek.toISOString().split('T')[0]
+                    startDate: toLocalDateKey(startOfWeek),
+                    endDate: toLocalDateKey(endOfWeek)
                 }
             });
 
@@ -114,7 +121,7 @@ export default function RosterPage() {
 
             const rosterMap: Record<string, any> = {};
             rosterRes.data.forEach((entry: any) => {
-                const dateKey = entry.date.split('T')[0];
+                const dateKey = toLocalDateKey(new Date(entry.date));
                 const key = `${entry.employeeId}-${dateKey}`;
 
                 if (entry.isLeave) {
@@ -196,8 +203,8 @@ export default function RosterPage() {
             endOfWeek.setDate(endOfWeek.getDate() + 6);
 
             const res = await api.post('/shift-rosters/sync-prev', {
-                currentStartDate: startOfWeek.toISOString().split('T')[0],
-                currentEndDate: endOfWeek.toISOString().split('T')[0]
+                currentStartDate: toLocalDateKey(startOfWeek),
+                currentEndDate: toLocalDateKey(endOfWeek)
             });
 
             if (res.data.success) {
@@ -358,7 +365,7 @@ export default function RosterPage() {
                                     const isWeekend = isOffDay(day);
                                     const holiday = holidays.find(h => new Date(h.date).toDateString() === day.toDateString());
                                     return (
-                                        <th key={day.toISOString()} className={`p-2 border-b border-r last:border-r-0 min-w-[120px] ${isWeekend ? 'bg-slate-50' : ''}`}>
+                                        <th key={toLocalDateKey(day)} className={`p-2 border-b border-r last:border-r-0 min-w-[120px] ${isWeekend ? 'bg-slate-50' : ''}`}>
                                             <div className="flex flex-col items-center">
                                                 <span className={`text-[10px] font-black uppercase tracking-tighter ${isWeekend ? 'text-rose-600' : 'text-slate-500'}`}>
                                                     {day.toLocaleDateString('en-US', { weekday: 'short' })}
@@ -397,7 +404,7 @@ export default function RosterPage() {
                                         </div>
                                     </td>
                                     {weekDays.map(day => {
-                                        const dateKey = day.toISOString().split('T')[0];
+                                        const dateKey = toLocalDateKey(day);
                                         const entry = (roster as any)[`${emp.id}-${dateKey}`];
                                         const holiday = holidays.find(h => new Date(h.date).toDateString() === day.toDateString());
 

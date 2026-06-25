@@ -8,8 +8,8 @@ const prisma = new PrismaClient();
 export const getRoster = async (req: AuthRequest, res: Response) => {
     try {
         const { startDate, endDate, departmentId } = req.query;
-        const start = new Date(startDate as string);
-        const end = new Date(endDate as string);
+        const start = new Date(`${startDate}T00:00:00`);
+        const end = new Date(`${endDate}T00:00:00`);
 
         const where: any = {
             date: { gte: start, lte: end },
@@ -194,8 +194,8 @@ export const updateRoster = async (req: AuthRequest, res: Response) => {
 export const syncPreviousWeek = async (req: AuthRequest, res: Response) => {
     try {
         const { currentStartDate, currentEndDate } = req.body;
-        const currentStart = new Date(currentStartDate);
-        const currentEnd = new Date(currentEndDate);
+        const currentStart = new Date(`${currentStartDate}T00:00:00`);
+        const currentEnd = new Date(`${currentEndDate}T00:00:00`);
 
         // Previous week dates
         const prevStart = new Date(currentStart);
