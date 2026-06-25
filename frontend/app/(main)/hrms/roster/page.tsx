@@ -186,27 +186,6 @@ export default function RosterPage() {
 
     const { confirm } = useConfirm();
 
-    const handleAutoFillDefault = () => {
-        if (!defaultShift) {
-            toast.error('No default shift configured. Set one in Shift Configuration.');
-            return;
-        }
-        const newRoster = { ...roster };
-        weekDays.forEach(day => {
-            const isHoliday = holidays.some(h => new Date(h.date).toDateString() === day.toDateString());
-            const isWeekend = isOffDay(day);
-            if (isHoliday || isWeekend) return;
-            filteredEmployees.forEach(emp => {
-                const key = `${emp.id}-${day.toISOString().split('T')[0]}`;
-                if (!newRoster[key]) {
-                    newRoster[key] = { type: 'shift', shiftId: defaultShift.id };
-                }
-            });
-        });
-        setRoster(newRoster);
-        toast.success(`Auto-filled empty slots with ${defaultShift.name}`);
-    };
-
     const handleCopyPreviousWeek = async () => {
         if (!await confirm({ message: 'Override current selections with previous week configuration?', type: 'warning' })) return;
 
@@ -252,6 +231,27 @@ export default function RosterPage() {
         `${e.firstName} ${e.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
         e.employeeId.toLowerCase().includes(searchTerm.toLowerCase())
     );
+
+    const handleAutoFillDefault = () => {
+        if (!defaultShift) {
+            toast.error('No default shift configured. Set one in Shift Configuration.');
+            return;
+        }
+        const newRoster = { ...roster };
+        weekDays.forEach(day => {
+            const isHoliday = holidays.some(h => new Date(h.date).toDateString() === day.toDateString());
+            const isWeekend = isOffDay(day);
+            if (isHoliday || isWeekend) return;
+            filteredEmployees.forEach(emp => {
+                const key = `${emp.id}-${day.toISOString().split('T')[0]}`;
+                if (!newRoster[key]) {
+                    newRoster[key] = { type: 'shift', shiftId: defaultShift.id };
+                }
+            });
+        });
+        setRoster(newRoster);
+        toast.success(`Auto-filled empty slots with ${defaultShift.name}`);
+    };
 
     if (loading) return <LoadingSpinner />;
 
@@ -314,6 +314,7 @@ export default function RosterPage() {
                     <div className="h-6 w-px bg-gray-200 mx-1"></div>
 
                     {(can('ShiftRoster', 'create') || can('ShiftRoster', 'update')) && (
+                        <>
                         <button
                             onClick={handleCopyPreviousWeek}
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-300 text-gray-700 rounded text-[11px] font-bold hover:bg-gray-50 shadow-sm transition-all active:scale-95"
@@ -329,6 +330,7 @@ export default function RosterPage() {
                             <Calendar size={13} />
                             <span>FILL DEFAULT</span>
                         </button>
+                        </>
                     )}
 
                     <PermissionGuard module="ShiftRoster" action="update">
