@@ -193,7 +193,10 @@ export default function AttendanceRegisterPage() {
                 }
 
                 const key = `${emp.employee.id}-${day}`;
-                const dateStr = current.toISOString().split('T')[0];
+                const y = current.getFullYear();
+                const m = String(current.getMonth() + 1).padStart(2, '0');
+                const d = String(current.getDate()).padStart(2, '0');
+                const dateStr = `${y}-${m}-${d}`;
 
                 const checkInISO = bulkCheckIn ? `${dateStr}T${bulkCheckIn}:00` : null;
                 const checkOutISO = bulkCheckOut ? `${dateStr}T${bulkCheckOut}:00` : null;

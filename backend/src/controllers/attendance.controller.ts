@@ -627,8 +627,29 @@ export const manualMarkAttendance = async (req: AuthRequest, res: Response) => {
             const date = new Date(ass.date);
             date.setHours(0, 0, 0, 0);
 
-            // If checkIn/checkOut are provided as strings (times), we might need to combine them with the date.
-            // For now, assuming they are either null or valid Date objects/strings from frontend.
+            const updateData: any = {
+                status: ass.status || 'present',
+                notes: ass.notes || undefined,
+            };
+            if ('checkIn' in ass) {
+                updateData.checkIn = ass.checkIn ? new Date(ass.checkIn) : null;
+            }
+            if ('checkOut' in ass) {
+                updateData.checkOut = ass.checkOut ? new Date(ass.checkOut) : null;
+            }
+
+            const createData: any = {
+                employeeId: ass.employeeId,
+                date: date,
+                status: ass.status || 'present',
+                notes: ass.notes || undefined,
+            };
+            if ('checkIn' in ass) {
+                createData.checkIn = ass.checkIn ? new Date(ass.checkIn) : null;
+            }
+            if ('checkOut' in ass) {
+                createData.checkOut = ass.checkOut ? new Date(ass.checkOut) : null;
+            }
 
             return prisma.attendance.upsert({
                 where: {
@@ -637,20 +658,8 @@ export const manualMarkAttendance = async (req: AuthRequest, res: Response) => {
                         date: date
                     }
                 },
-                update: {
-                    status: ass.status || 'present',
-                    checkIn: ass.checkIn ? new Date(ass.checkIn) : null,
-                    checkOut: ass.checkOut ? new Date(ass.checkOut) : null,
-                    notes: ass.notes || undefined,
-                },
-                create: {
-                    employeeId: ass.employeeId,
-                    date: date,
-                    status: ass.status || 'present',
-                    checkIn: ass.checkIn ? new Date(ass.checkIn) : null,
-                    checkOut: ass.checkOut ? new Date(ass.checkOut) : null,
-                    notes: ass.notes || undefined,
-                }
+                update: updateData,
+                create: createData
             });
         });
 
