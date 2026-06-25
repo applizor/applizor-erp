@@ -342,6 +342,8 @@ export const getAllAttendance = async (req: AuthRequest, res: Response) => {
             const y = parseInt(year as string);
             const startDate = new Date(y, m - 1, 1);
             const endDate = new Date(y, m, 0);
+            const utcStartDate = new Date(Date.UTC(y, m - 1, 1));
+            const utcEndDate = new Date(Date.UTC(y, m, 0));
 
             // 1. Fetch Employees (Apply Permission Scope HERE too?)
             // If I can only see my own attendance, I should only see Myself here.
@@ -431,15 +433,13 @@ export const getAllAttendance = async (req: AuthRequest, res: Response) => {
             });
 
             // Overlay Leaves (Priority over Absent, but under Present if checked in?)
-            // Usually Leave + CheckIn = Present (Leave Cancelled?) or Partial?
-            // For now, if Leave exists, mark as Leave unless CheckIn exists.
             leaveRequests.forEach(leave => {
                 let curr = new Date(leave.startDate);
                 const end = new Date(leave.endDate);
 
                 while (curr <= end) {
-                    if (curr >= startDate && curr <= endDate) {
-                        const day = curr.getDate();
+                    if (curr >= utcStartDate && curr <= utcEndDate) {
+                        const day = curr.getUTCDate();
                         const empData = musterRoll[leave.employeeId];
 
                         if (empData) {
@@ -456,7 +456,7 @@ export const getAllAttendance = async (req: AuthRequest, res: Response) => {
                             }
                         }
                     }
-                    curr.setDate(curr.getDate() + 1);
+                    curr.setUTCDate(curr.getUTCDate() + 1);
                 }
             });
 

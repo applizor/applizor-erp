@@ -269,20 +269,22 @@ export default function AttendanceRegisterPage() {
 
         return (
             <div className="group relative w-full">
-                <CustomSelect
-                    value={status || ''}
-                    onChange={(val) => handleStatusChange(row.employee.id, day, val, checkInTime, checkOutTime)}
-                    options={[
-                        { label: 'PRES', value: 'present' },
-                        { label: 'ABS', value: 'absent' },
-                        { label: 'LATE', value: 'late' },
-                        { label: 'HALF', value: 'half-day' }
-                    ]}
-                    className={`w-full min-w-[70px] text-[10px] h-8 ${getCellStyles()}`}
-                    placeholder={isOff ? 'W/OFF' : 'ABS'}
-                    portal={true}
-                    disabled={status === 'holiday' || status === 'leave'}
-                />
+                    <CustomSelect
+                        value={status || ''}
+                        onChange={(val) => handleStatusChange(row.employee.id, day, val, checkInTime, checkOutTime)}
+                        options={[
+                            { label: 'PRES', value: 'present' },
+                            { label: 'ABS', value: 'absent' },
+                            { label: 'LATE', value: 'late' },
+                            { label: 'HALF', value: 'half-day' },
+                            { label: 'OL', value: 'leave' },
+                            { label: 'H', value: 'holiday' }
+                        ]}
+                        className={`w-full min-w-[70px] text-[10px] h-8 ${getCellStyles()}`}
+                        placeholder={isOff ? 'W/OFF' : 'ABS'}
+                        portal={true}
+                        disabled={status === 'holiday' || status === 'leave'}
+                    />
                 {(status === 'present' || status === 'late') && (
                     <div className="flex gap-0.5 mt-0.5 px-0.5">
                         <input
