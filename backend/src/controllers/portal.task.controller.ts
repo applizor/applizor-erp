@@ -101,6 +101,7 @@ export const getPortalTasks = async (req: ClientAuthRequest, res: Response) => {
             where: { projectId: String(projectId) },
             include: {
                 assignee: { select: { firstName: true } },
+                assignees: { include: { user: { select: { id: true, firstName: true, lastName: true } } } },
                 _count: { select: { comments: true, documents: true } }
             },
             orderBy: { createdAt: 'desc' }
@@ -242,6 +243,7 @@ export const getPortalTaskDetails = async (req: ClientAuthRequest, res: Response
             include: {
                 project: true,
                 assignee: { select: { firstName: true, lastName: true } },
+                assignees: { include: { user: { select: { id: true, firstName: true, lastName: true } } } },
                 documents: {
                     where: { type: 'task_attachment' }
                 },

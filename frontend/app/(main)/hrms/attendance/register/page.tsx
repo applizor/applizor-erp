@@ -103,12 +103,11 @@ export default function AttendanceRegisterPage() {
         }
     };
 
-    const handleStatusChange = (employeeId: string, day: number, status: string | null) => {
+    const handleStatusChange = (employeeId: string, day: number, status: string | null, checkIn?: string, checkOut?: string) => {
         const key = `${employeeId}-${day}`;
         const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
         if (status === null) {
-            // Mark for deletion
             setPendingChanges(prev => ({
                 ...prev,
                 [key]: { employeeId, date: dateStr, delete: true }
@@ -116,9 +115,12 @@ export default function AttendanceRegisterPage() {
             return;
         }
 
+        const change: any = { employeeId, date: dateStr, status };
+        if (checkIn) change.checkIn = `${dateStr}T${checkIn}:00`;
+        if (checkOut) change.checkOut = `${dateStr}T${checkOut}:00`;
         setPendingChanges(prev => ({
             ...prev,
-            [key]: { employeeId, date: dateStr, status }
+            [key]: change
         }));
     };
 
@@ -225,6 +227,15 @@ export default function AttendanceRegisterPage() {
         const pending = pendingChanges[key];
         const record = pending || row.attendance[day];
 
+        const formatTime = (dt: string) => {
+            if (!dt) return '';
+            const d = new Date(dt);
+            return isNaN(d.getTime()) ? '' : `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+        };
+
+        const checkInTime = record?.checkIn ? formatTime(record.checkIn) : '';
+        const checkOutTime = record?.checkOut ? formatTime(record.checkOut) : '';
+
         if (pending?.delete) {
             return (
                 <div className="w-full h-8 flex items-center justify-center relative group">
@@ -254,10 +265,10 @@ export default function AttendanceRegisterPage() {
         };
 
         return (
-            <div className="group relative w-full h-8">
+            <div className="group relative w-full">
                 <CustomSelect
                     value={status || ''}
-                    onChange={(val) => handleStatusChange(row.employee.id, day, val)}
+                    onChange={(val) => handleStatusChange(row.employee.id, day, val, checkInTime, checkOutTime)}
                     options={[
                         { label: 'PRES', value: 'present' },
                         { label: 'ABS', value: 'absent' },
@@ -269,7 +280,24 @@ export default function AttendanceRegisterPage() {
                     portal={true}
                     disabled={status === 'holiday' || status === 'leave'}
                 />
-
+                {(status === 'present' || status === 'late') && (
+                    <div className="flex gap-0.5 mt-0.5 px-0.5">
+                        <input
+                            type="time"
+                            defaultValue={checkInTime}
+                            onChange={(e) => handleStatusChange(row.employee.id, day, status, e.target.value, checkOutTime)}
+                            className="w-full text-[7px] text-slate-500 bg-transparent border border-slate-100 rounded px-0.5 py-0 focus:outline-none focus:border-primary-300"
+                            onClick={(e) => e.stopPropagation()}
+                        />
+                        <input
+                            type="time"
+                            defaultValue={checkOutTime}
+                            onChange={(e) => handleStatusChange(row.employee.id, day, status, checkInTime, e.target.value)}
+                            className="w-full text-[7px] text-slate-500 bg-transparent border border-slate-100 rounded px-0.5 py-0 focus:outline-none focus:border-primary-300"
+                            onClick={(e) => e.stopPropagation()}
+                        />
+                    </div>
+                )}
                 {status && status !== 'holiday' && status !== 'leave' && (
                     <button
                         onClick={async () => {

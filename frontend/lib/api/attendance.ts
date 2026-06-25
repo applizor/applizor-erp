@@ -157,6 +157,10 @@ export const leavesApi = {
     getAllBalances: async (filters?: { departmentId?: string; employeeId?: string; year?: number }) => {
         const response = await api.get('/attendance-leave/all-balances', { params: filters });
         return response.data;
+    },
+    deleteLeave: async (id: string) => {
+        const response = await api.delete(`/attendance-leave/leaves/${id}`);
+        return response.data;
     }
 };
 

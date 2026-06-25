@@ -12,6 +12,7 @@ import { getBaseUrl } from '@/lib/utils/url';
 import Portal from '@/components/ui/Portal';
 import RichTextEditor from '@/components/ui/RichTextEditor';
 import { CustomSelect } from '@/components/ui/CustomSelect';
+import { MultiSelect } from '@/components/ui/MultiSelect';
 import CommentItem from '@/components/tasks/CommentItem';
 import { useSocket } from '@/contexts/SocketContext';
 // import { format } from 'date-fns';
@@ -316,10 +317,13 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
             if (res.data.projectId) {
                 setActiveProjectId(res.data.projectId);
             }
-            // Fix: Map assignedToId (DB) to assigneeId (Form)
+            const assigneeIds = res.data.assignees?.map((a: any) => a.user?.id).filter(Boolean) || [];
+            if (res.data.assignedToId && !assigneeIds.includes(res.data.assignedToId)) {
+                assigneeIds.unshift(res.data.assignedToId);
+            }
             reset({
                 ...res.data,
-                assigneeId: res.data.assignedToId || '',
+                assigneeIds,
                 dueDate: res.data.dueDate ? new Date(res.data.dueDate).toISOString().split('T')[0] : ''
             });
         } catch (error) {
@@ -347,7 +351,11 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
             // Prepared FormData for file upload
             const formData = new FormData();
             Object.keys(data).forEach(key => {
-                if (data[key] !== null && data[key] !== undefined) formData.append(key, data[key]);
+                if (key === 'assigneeIds' && Array.isArray(data[key])) {
+                    formData.append(key, JSON.stringify(data[key]));
+                } else if (data[key] !== null && data[key] !== undefined) {
+                    formData.append(key, data[key]);
+                }
             });
             formData.append('projectId', activeProjectId || '');
 
@@ -359,10 +367,8 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                 await api.post('/tasks', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
                 toast.success('Task created successfully');
             } else {
-                await api.put(`/tasks/${taskId}`, { ...data, projectId: activeProjectId }); // Update doesn't support files yet in simple flow, strictly text
+                await api.put(`/tasks/${taskId}`, { ...data, projectId: activeProjectId });
                 toast.success('Task updated');
-                // For files in edit mode, usually separate endpoint or complex logic. 
-                // MVP: Only upload on creation or separate "Upload" button
             }
             onUpdate();
             onClose();
@@ -1112,42 +1118,24 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                                 />
                             </div>
 
-                            {/* Assignee */}
+                            {/* Assignees */}
                             <div>
-                                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Assignee</label>
-                                <div className="relative">
-                                    <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10 flex items-center justify-center">
-                                        {watch('assigneeId') ? (
-                                            <div className="w-4 h-4 rounded bg-primary-900 text-[7px] font-black text-white flex items-center justify-center uppercase">
-                                                {(() => {
-                                                    const uid = watch('assigneeId');
-                                                    const user = employees.find(e => (e.userId || e.id) === uid);
-                                                    return user ? `${user.firstName[0]}${user.lastName[0]}` : '?';
-                                                })()}
-                                            </div>
-                                        ) : (
-                                            <div className="w-4 h-4 rounded bg-slate-200 flex items-center justify-center">
-                                                <span className="text-[8px] text-slate-400">?</span>
-                                            </div>
-                                        )}
-                                    </div>
-                                    <Controller
-                                        name="assigneeId"
-                                        control={control}
-                                        render={({ field }) => (
-                                            <CustomSelect
-                                                value={field.value}
-                                                onChange={field.onChange}
-                                                options={[
-                                                    { label: 'Unassigned', value: '' },
-                                                    ...employees.filter(e => e.userId).map(emp => ({ label: `${emp.firstName} ${emp.lastName}`, value: emp.userId }))
-                                                ]}
-                                                placeholder="Unassigned"
-                                                className="w-full pl-8"
-                                            />
-                                        )}
-                                    />
-                                </div>
+                                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Assignees</label>
+                                <Controller
+                                    name="assigneeIds"
+                                    control={control}
+                                    render={({ field }) => (
+                                        <MultiSelect
+                                            value={field.value || []}
+                                            onChange={field.onChange}
+                                            options={employees.filter(e => e.userId).map(emp => ({
+                                                label: `${emp.firstName} ${emp.lastName}`,
+                                                value: emp.userId
+                                            }))}
+                                            placeholder="Select assignees"
+                                        />
+                                    )}
+                                />
                             </div>
                         </div>
 

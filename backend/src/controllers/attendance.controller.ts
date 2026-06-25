@@ -453,9 +453,14 @@ export const getAllAttendance = async (req: AuthRequest, res: Response) => {
                                     isLeave: true,
                                     isPaid: leave.leaveType.isPaid
                                 };
+                            } else if (empData.attendance[day].status === 'absent' && !empData.attendance[day].checkIn) {
+                                empData.attendance[day] = {
+                                    status: 'leave',
+                                    leaveType: leave.leaveType.name,
+                                    isLeave: true,
+                                    isPaid: leave.leaveType.isPaid
+                                };
                             } else {
-                                // Conflict: Checked In AND On Leave. 
-                                // Mark as Present but flag it? 
                                 empData.attendance[day].onLeaveButPresent = true;
                                 empData.attendance[day].leaveType = leave.leaveType.name;
                             }

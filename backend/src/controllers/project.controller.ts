@@ -332,6 +332,7 @@ export const getProjectById = async (req: AuthRequest, res: Response) => {
             where: { projectId: id },
             include: {
                 assignee: { select: { firstName: true, lastName: true } },
+                assignees: { include: { user: { select: { firstName: true, lastName: true } } } },
                 _count: { select: { comments: true } }
             }
         });
@@ -342,8 +343,17 @@ export const getProjectById = async (req: AuthRequest, res: Response) => {
         }, {});
 
         const assigneeDistribution = detailedTasks.reduce((acc: any, t: any) => {
-            const name = t.assignee ? `${t.assignee.firstName} ${t.assignee.lastName} ` : 'Unassigned';
-            acc[name] = (acc[name] || 0) + 1;
+            if (t.assignees && t.assignees.length > 0) {
+                t.assignees.forEach((a: any) => {
+                    const name = a.user ? `${a.user.firstName} ${a.user.lastName}` : 'Unknown';
+                    acc[name] = (acc[name] || 0) + 1;
+                });
+            } else if (t.assignee) {
+                const name = `${t.assignee.firstName} ${t.assignee.lastName}`;
+                acc[name] = (acc[name] || 0) + 1;
+            } else {
+                acc['Unassigned'] = (acc['Unassigned'] || 0) + 1;
+            }
             return acc;
         }, {});
 

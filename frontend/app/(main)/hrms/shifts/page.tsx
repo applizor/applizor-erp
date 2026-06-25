@@ -27,6 +27,7 @@ export default function ShiftsPage() {
         endTime: '18:00',
         breakDuration: 60,
         isActive: true,
+        isDefault: false,
         workDays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']
     });
 
@@ -101,6 +102,7 @@ export default function ShiftsPage() {
             endTime: '18:00',
             breakDuration: 60,
             isActive: true,
+            isDefault: false,
             workDays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']
         });
         setIsEditing(false);
@@ -155,6 +157,9 @@ export default function ShiftsPage() {
                             <div className="flex justify-between items-start">
                                 <div className="flex items-center gap-2">
                                     <h3 className="text-sm font-bold text-gray-900">{shift.name}</h3>
+                                    {shift.isDefault && (
+                                        <span className="ent-badge bg-purple-50 text-purple-700 border-purple-200">Default</span>
+                                    )}
                                     <span className={`ent-badge ${shift.isActive ? 'bg-green-50 text-green-700 border-green-200' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>
                                         {shift.isActive ? 'Active' : 'Archived'}
                                     </span>
@@ -287,7 +292,7 @@ export default function ShiftsPage() {
                                         className="ent-input"
                                     />
                                 </div>
-                                <div className="flex flex-col justify-end pb-3">
+                                <div className="flex flex-col justify-end gap-2 pb-3">
                                     <label className="flex items-center gap-2 cursor-pointer select-none">
                                         <input
                                             type="checkbox"
@@ -296,6 +301,15 @@ export default function ShiftsPage() {
                                             className="h-4 w-4 border-gray-300 text-primary-600 focus:ring-primary-500 rounded"
                                         />
                                         <span className="text-xs font-bold text-gray-700 uppercase">Is Active</span>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                                        <input
+                                            type="checkbox"
+                                            checked={currentShift.isDefault || false}
+                                            onChange={(e) => setCurrentShift({ ...currentShift, isDefault: e.target.checked })}
+                                            className="h-4 w-4 border-gray-300 text-primary-600 focus:ring-primary-500 rounded"
+                                        />
+                                        <span className="text-xs font-bold text-gray-700 uppercase">Is Default</span>
                                     </label>
                                 </div>
                             </div>

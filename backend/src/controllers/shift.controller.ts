@@ -46,7 +46,14 @@ export const createShift = async (req: AuthRequest, res: Response) => {
         const user = await prisma.user.findUnique({ where: { id: userId } });
         if (!user?.companyId) return res.status(400).json({ error: 'User/Company not found' });
 
-        const { name, startTime, endTime, breakDuration, workDays } = req.body;
+        const { name, startTime, endTime, breakDuration, workDays, isDefault } = req.body;
+
+        if (isDefault) {
+            await prisma.shift.updateMany({
+                where: { companyId: user.companyId },
+                data: { isDefault: false }
+            });
+        }
 
         const shift = await prisma.shift.create({
             data: {
@@ -55,7 +62,8 @@ export const createShift = async (req: AuthRequest, res: Response) => {
                 startTime,
                 endTime,
                 breakDuration: breakDuration ? parseInt(breakDuration) : 60,
-                workDays: workDays || ["monday", "tuesday", "wednesday", "thursday", "friday"]
+                workDays: workDays || ["monday", "tuesday", "wednesday", "thursday", "friday"],
+                isDefault: isDefault || false
             }
         });
 
@@ -77,9 +85,19 @@ export const updateShift = async (req: AuthRequest, res: Response) => {
         }
 
         const { id } = req.params;
-        const { name, startTime, endTime, breakDuration, isActive, workDays } = req.body;
+        const { name, startTime, endTime, breakDuration, isActive, workDays, isDefault } = req.body;
 
-        const shift = await prisma.shift.update({
+        if (isDefault) {
+            const shift = await prisma.shift.findUnique({ where: { id }, select: { companyId: true } });
+            if (shift) {
+                await prisma.shift.updateMany({
+                    where: { companyId: shift.companyId },
+                    data: { isDefault: false }
+                });
+            }
+        }
+
+        const updated = await prisma.shift.update({
             where: { id },
             data: {
                 name,
@@ -87,11 +105,12 @@ export const updateShift = async (req: AuthRequest, res: Response) => {
                 endTime,
                 breakDuration: breakDuration ? parseInt(breakDuration) : undefined,
                 isActive,
-                workDays
+                workDays,
+                isDefault
             }
         });
 
-        res.json(shift);
+        res.json(updated);
     } catch (error) {
         console.error('Update shift error:', error);
         res.status(500).json({ error: 'Failed to update shift' });

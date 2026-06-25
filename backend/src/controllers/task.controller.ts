@@ -73,9 +73,17 @@ export const createTask = async (req: AuthRequest, res: Response) => {
     try {
         const {
             projectId, title, description, status, priority, type, tags,
-            assigneeId, dueDate, milestoneId,
+            assigneeId, assigneeIds, dueDate, milestoneId,
             storyPoints, parentId, epicId, sprintId, startDate, position
         } = req.body;
+
+        const parsedAssigneeIds = typeof assigneeIds === 'string'
+            ? (() => { try { return JSON.parse(assigneeIds); } catch { return assigneeIds ? [assigneeIds] : []; } })()
+            : (Array.isArray(assigneeIds) ? assigneeIds : []);
+        const assigneeList = parsedAssigneeIds.length > 0
+            ? parsedAssigneeIds.filter(Boolean)
+            : (assigneeId ? [assigneeId] : []);
+        const primaryAssigneeId = assigneeList[0] || null;
 
         // Verify Project Access - allow if user has ProjectTask create permission OR project access
         const taskCreateScope = PermissionService.getPermissionScope(req.user, 'ProjectTask', 'create');
@@ -102,7 +110,10 @@ export const createTask = async (req: AuthRequest, res: Response) => {
                 startDate: startDate ? new Date(startDate) : null,
                 position: position ? parseFloat(position) : 0,
                 createdById: req.user!.id,
-                assignedToId: assigneeId || null,
+                assignedToId: primaryAssigneeId,
+                assignees: assigneeList.length > 0 ? {
+                    createMany: { data: assigneeList.map(uid => ({ userId: uid })) }
+                } : undefined,
                 milestoneId: milestoneId || null,
                 sprintId: sprintId || null,
                 parentId: parentId || null,
@@ -110,6 +121,7 @@ export const createTask = async (req: AuthRequest, res: Response) => {
             },
             include: {
                 assignee: { select: { firstName: true, lastName: true, email: true } },
+                assignees: { include: { user: { select: { id: true, firstName: true, lastName: true, email: true } } } },
                 epic: { select: { title: true } },
                 parent: { select: { title: true } }
             }
@@ -184,9 +196,18 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
         const { id } = req.params;
         const {
             title, description, status, priority, type, tags,
-            assigneeId, dueDate, milestoneId,
+            assigneeId, assigneeIds, dueDate, milestoneId,
             storyPoints, parentId, epicId, sprintId, startDate, position
         } = req.body;
+
+        const parsedAssigneeIds = typeof assigneeIds === 'string'
+            ? (() => { try { return JSON.parse(assigneeIds); } catch { return assigneeIds ? [assigneeIds] : []; } })()
+            : (Array.isArray(assigneeIds) ? assigneeIds : undefined);
+        const hasAssigneeIds = parsedAssigneeIds !== undefined;
+        const assigneeList = hasAssigneeIds
+            ? parsedAssigneeIds.filter(Boolean)
+            : (assigneeId !== undefined ? (assigneeId ? [assigneeId] : []) : undefined);
+        const primaryAssigneeId = assigneeList ? (assigneeList[0] || null) : undefined;
 
         // Fetch old task to compare changes and check permissions
         const oldTask = await prisma.task.findUnique({
@@ -219,26 +240,40 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
             }
         }
 
-        const task = await prisma.task.update({
-            where: { id },
-            data: {
-                title, description, status, priority, type,
-                tags: tags ? (Array.isArray(tags) ? tags : [tags]) : undefined,
-                storyPoints: storyPoints !== undefined ? parseInt(storyPoints) : undefined,
-                dueDate: dueDate ? new Date(dueDate) : undefined,
-                startDate: startDate ? new Date(startDate) : undefined,
-                position: position !== undefined ? parseFloat(position) : undefined,
-                assignedToId: assigneeId !== undefined ? (assigneeId || null) : undefined,
-                milestoneId: milestoneId !== undefined ? (milestoneId || null) : undefined,
-                sprintId: sprintId !== undefined ? (sprintId || null) : undefined,
-                parentId: parentId !== undefined ? (parentId || null) : undefined,
-                epicId: epicId !== undefined ? (epicId || null) : undefined
-            },
-            include: {
-                assignee: { select: { firstName: true, lastName: true, email: true } },
-                epic: { select: { title: true } },
-                parent: { select: { title: true } }
+        const [task] = await prisma.$transaction(async (tx) => {
+            if (hasAssigneeIds) {
+                await tx.taskAssignee.deleteMany({ where: { taskId: id } });
+                if (assigneeList.length > 0) {
+                    await tx.taskAssignee.createMany({
+                        data: assigneeList.map(uid => ({ taskId: id, userId: uid }))
+                    });
+                }
             }
+
+            const updated = await tx.task.update({
+                where: { id },
+                data: {
+                    title, description, status, priority, type,
+                    tags: tags ? (Array.isArray(tags) ? tags : [tags]) : undefined,
+                    storyPoints: storyPoints !== undefined ? parseInt(storyPoints) : undefined,
+                    dueDate: dueDate ? new Date(dueDate) : undefined,
+                    startDate: startDate ? new Date(startDate) : undefined,
+                    position: position !== undefined ? parseFloat(position) : undefined,
+                    assignedToId: primaryAssigneeId,
+                    milestoneId: milestoneId !== undefined ? (milestoneId || null) : undefined,
+                    sprintId: sprintId !== undefined ? (sprintId || null) : undefined,
+                    parentId: parentId !== undefined ? (parentId || null) : undefined,
+                    epicId: epicId !== undefined ? (epicId || null) : undefined
+                },
+                include: {
+                    assignee: { select: { firstName: true, lastName: true, email: true } },
+                    assignees: { include: { user: { select: { id: true, firstName: true, lastName: true, email: true } } } },
+                    epic: { select: { title: true } },
+                    parent: { select: { title: true } }
+                }
+            });
+
+            return [updated];
         });
 
         // Notifications
@@ -296,13 +331,16 @@ export const deleteTask = async (req: AuthRequest, res: Response) => {
         });
         if (!task) return res.status(404).json({ error: 'Task not found' });
 
+        const isAssignee = task.assignedToId === req.user!.id
+            || !!(await prisma.taskAssignee.findFirst({ where: { taskId: id, userId: req.user!.id } }));
+
         // Permission Scoping
         const scope = PermissionService.getPermissionScope(req.user, 'ProjectTask', 'delete');
         const userId = req.user!.id;
         const isPM = task.projectId ? await PermissionService.isProjectManager(userId, task.projectId) : false;
 
         if (!scope.all && !isPM) {
-            const isAssigned = task.assignedToId === userId;
+            const isAssigned = isAssignee;
             const isCreator = task.createdById === userId;
 
             const canDeleteOwned = scope.owned && (isAssigned || !task.projectId);
@@ -347,7 +385,11 @@ export const getTasks = async (req: AuthRequest, res: Response) => {
 
         // Additional Filters from Query
         if (sprintId && sprintId !== 'all') where.sprintId = String(sprintId);
-        if (assigneeId && assigneeId !== 'all') where.assignedToId = assigneeId === 'unassigned' ? null : String(assigneeId);
+        const assigneeFilter = assigneeId && assigneeId !== 'all' ? (
+            assigneeId === 'unassigned'
+                ? { assignedToId: null, assignees: { none: {} } }
+                : { OR: [{ assignedToId: String(assigneeId) }, { assignees: { some: { userId: String(assigneeId) } } }] }
+        ) : null;
         if (type && type !== 'all') where.type = String(type);
         if (priority && priority !== 'all') where.priority = String(priority);
 
@@ -383,6 +425,7 @@ export const getTasks = async (req: AuthRequest, res: Response) => {
                         const orConditions: any[] = [];
                         if (scope.owned) {
                             orConditions.push({ assignedToId: userId });
+                            orConditions.push({ assignees: { some: { userId } } });
                             orConditions.push({ assignedToId: null });
                         }
                         if (scope.added) {
@@ -413,6 +456,7 @@ export const getTasks = async (req: AuthRequest, res: Response) => {
                         const memberConditions: any[] = [];
                         if (scope.owned) {
                             memberConditions.push({ assignedToId: userId });
+                            memberConditions.push({ assignees: { some: { userId } } });
                             memberConditions.push({ assignedToId: null });
                         }
                         if (scope.added) {
@@ -430,6 +474,7 @@ export const getTasks = async (req: AuthRequest, res: Response) => {
                     const noProjectConditions: any[] = [];
                     if (scope.owned) {
                         noProjectConditions.push({ assignedToId: userId });
+                        noProjectConditions.push({ assignees: { some: { userId } } });
                     }
                     if (scope.added) {
                         noProjectConditions.push({ createdById: userId });
@@ -453,10 +498,15 @@ export const getTasks = async (req: AuthRequest, res: Response) => {
             }
         }
 
+        if (assigneeFilter) {
+            where = { AND: [where, assigneeFilter] };
+        }
+
         const tasks = await prisma.task.findMany({
             where,
             include: {
                 assignee: { select: { id: true, firstName: true, lastName: true, email: true } },
+                assignees: { include: { user: { select: { id: true, firstName: true, lastName: true, email: true } } } },
                 creator: { select: { firstName: true, lastName: true } },
                 epic: true,
                 parent: { select: { title: true } },
@@ -491,10 +541,12 @@ export const getTaskById = async (req: AuthRequest, res: Response) => {
             where: { id },
             include: {
                 assignee: { select: { id: true, firstName: true, lastName: true } },
+                assignees: { include: { user: { select: { id: true, firstName: true, lastName: true, email: true } } } },
                 epic: true,
                 subtasks: {
                     include: {
-                        assignee: { select: { id: true, firstName: true, lastName: true } }
+                        assignee: { select: { id: true, firstName: true, lastName: true } },
+                        assignees: { include: { user: { select: { id: true, firstName: true, lastName: true } } } }
                     },
                     orderBy: { position: 'asc' }
                 },
@@ -535,8 +587,9 @@ export const getTaskById = async (req: AuthRequest, res: Response) => {
                 const isAssigned = task.assignedToId === userId;
                 const isUnassigned = task.assignedToId === null;
                 const isCreator = task.createdById === userId;
+                const isInAssignees = task.assignees?.some((a: any) => a.user?.id === userId);
 
-                const canSeeByOwned = scope.owned && (isAssigned || isUnassigned);
+                const canSeeByOwned = scope.owned && (isAssigned || isUnassigned || isInAssignees);
                 const canSeeByAdded = scope.added && isCreator;
 
                 if (!canSeeByOwned && !canSeeByAdded) {
@@ -627,7 +680,8 @@ export const addComment = async (req: AuthRequest, res: Response) => {
             where: { id },
             include: {
                 project: true,
-                assignee: { select: { id: true, email: true, firstName: true } }
+                assignee: { select: { id: true, email: true, firstName: true } },
+                assignees: { include: { user: { select: { id: true, email: true, firstName: true } } } }
             }
         });
 
@@ -637,13 +691,17 @@ export const addComment = async (req: AuthRequest, res: Response) => {
 
                 // Trigger COMMENT_ADDED automation rules
                 const { AutomationService } = await import('../services/automation.service');
+                const allAssigneeEmails = [
+                    ...(task.assignee?.email ? [task.assignee.email] : []),
+                    ...(task.assignees?.map((a: any) => a.user?.email).filter(Boolean) || [])
+                ].filter((v: string, i: number, a: string[]) => a.indexOf(v) === i);
                 AutomationService.evaluateRules(task.projectId, 'COMMENT_ADDED', {
                     taskId: id,
                     projectId: task.projectId,
                     taskTitle: task.title,
                     commenterName: `${(req.user as any).firstName} ${(req.user as any).lastName}`,
                     commentContent: content,
-                    assigneeEmail: task.assignee?.email || undefined,
+                    assigneeEmail: allAssigneeEmails[0] || task.assignee?.email || undefined,
                     assigneeId: task.assignedToId || undefined,
                     companyId: (req.user as any).companyId
                 }).catch(err => console.error('Comment automation error:', err));
@@ -743,7 +801,12 @@ export const getMyTaskAnalysis = async (req: AuthRequest, res: Response) => {
         const userId = req.user!.id;
 
         const tasks = await prisma.task.findMany({
-            where: { assignedToId: userId },
+            where: {
+                OR: [
+                    { assignedToId: userId },
+                    { assignees: { some: { userId } } }
+                ]
+            },
             include: { project: { select: { name: true } } }
         });
 

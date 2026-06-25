@@ -30,6 +30,7 @@ router.post('/leaves', authenticate, leaveController.createLeaveRequest);
 router.get('/my-leaves', authenticate, leaveController.getMyLeaveRequests);
 router.get('/all-leaves', authenticate, leaveController.getAllLeaveRequests);
 router.put('/leaves/:id/status', authenticate, leaveController.updateLeaveStatus);
+router.delete('/leaves/:id', authenticate, leaveController.deleteLeaveRequest);
 
 router.get('/my-balances', authenticate, leaveController.getMyBalances);
 router.get('/all-balances', authenticate, leaveController.getAllBalances);

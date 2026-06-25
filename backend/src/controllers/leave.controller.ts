@@ -826,14 +826,18 @@ export const updateLeaveStatus = async (req: AuthRequest, res: Response) => {
             return res.status(403).json({ error: 'Access denied: You do not have permission to manage this request.' });
         }
 
-        const { status } = req.body; // approved, rejected
+        const { status } = req.body;
+
+        const isRevert = status === 'pending';
+        const wasApproved = existing.status === 'approved';
+        const isNewApproval = status === 'approved' && existing.status !== 'approved';
 
         const leaveRequest = await prisma.leaveRequest.update({
             where: { id },
             data: {
                 status,
-                approvedBy: userId,
-                approvedAt: new Date()
+                approvedBy: isRevert ? null : (status === 'approved' ? userId : existing.approvedBy),
+                approvedAt: isRevert ? null : (status === 'approved' ? new Date() : existing.approvedAt)
             }
         });
 
@@ -852,49 +856,44 @@ export const updateLeaveStatus = async (req: AuthRequest, res: Response) => {
             }
         }
 
-        // Update Leave Balance when approved
-        if (status === 'approved') {
-            const year = new Date(existing.startDate).getFullYear();
+        const year = new Date(existing.startDate).getFullYear();
+        const paidDays = existing.days - existing.lopDays;
 
-            // Calculate paid portion
-            const paidDays = existing.days - existing.lopDays; // Subtract LOP days
+        // Restore leave balance when reverting an approved leave
+        if (isRevert && wasApproved && paidDays > 0) {
+            const balance = await prisma.employeeLeaveBalance.findFirst({
+                where: { employeeId: existing.employeeId, leaveTypeId: existing.leaveTypeId, year }
+            });
+            if (balance) {
+                await prisma.employeeLeaveBalance.update({
+                    where: { id: balance.id },
+                    data: { used: Math.max(0, balance.used - paidDays) }
+                });
+            }
+        }
 
-            // Only update balance if there are paid days to deduct
-            if (paidDays > 0) {
-                // Find or create leave balance record
-                const existingBalance = await prisma.employeeLeaveBalance.findFirst({
-                    where: {
+        // Deduct leave balance when approving
+        if (isNewApproval && paidDays > 0) {
+            const existingBalance = await prisma.employeeLeaveBalance.findFirst({
+                where: { employeeId: existing.employeeId, leaveTypeId: existing.leaveTypeId, year }
+            });
+            if (existingBalance) {
+                await prisma.employeeLeaveBalance.update({
+                    where: { id: existingBalance.id },
+                    data: { used: existingBalance.used + paidDays }
+                });
+            } else {
+                const leaveType = await prisma.leaveType.findUnique({ where: { id: existing.leaveTypeId } });
+                await prisma.employeeLeaveBalance.create({
+                    data: {
                         employeeId: existing.employeeId,
                         leaveTypeId: existing.leaveTypeId,
-                        year
+                        year,
+                        allocated: leaveType?.days || 0,
+                        used: paidDays,
+                        carriedOver: 0
                     }
                 });
-
-                if (existingBalance) {
-                    // Update existing balance - increment 'used' days by PAID amount
-                    await prisma.employeeLeaveBalance.update({
-                        where: { id: existingBalance.id },
-                        data: {
-                            used: existingBalance.used + paidDays
-                        }
-                    });
-                } else {
-                    // Create new balance record if doesn't exist
-                    const leaveType = await prisma.leaveType.findUnique({
-                        where: { id: existing.leaveTypeId }
-                    });
-
-                    await prisma.employeeLeaveBalance.create({
-                        data: {
-                            employeeId: existing.employeeId,
-                            leaveTypeId: existing.leaveTypeId,
-                            year,
-                            allocated: leaveType?.days || 0,
-                            used: paidDays,
-                            carriedOver: 0
-                        }
-                    });
-                }
             }
         }
 
@@ -902,6 +901,59 @@ export const updateLeaveStatus = async (req: AuthRequest, res: Response) => {
     } catch (error) {
         console.error('Update leave status error:', error);
         res.status(500).json({ error: 'Failed to update leave status' });
+    }
+};
+
+// Delete Leave Request
+export const deleteLeaveRequest = async (req: AuthRequest, res: Response) => {
+    try {
+        const userId = req.userId;
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+        const { id } = req.params;
+
+        const existing = await prisma.leaveRequest.findUnique({
+            where: { id },
+            include: { employee: true }
+        });
+
+        if (!existing) return res.status(404).json({ error: 'Leave request not found' });
+
+        const scope = PermissionService.getPermissionScope(req.user, 'Leave', 'delete');
+        let hasAccess = false;
+        if (scope.all) hasAccess = true;
+        else {
+            const currentUserEmployee = await prisma.employee.findUnique({ where: { userId } });
+            const currentEmpId = currentUserEmployee?.id;
+            if (scope.owned && existing.employeeId === currentEmpId) hasAccess = true;
+            if (scope.added && existing.employee.createdById === userId) hasAccess = true;
+        }
+        if (!hasAccess) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        // Restore balance if the leave was approved
+        if (existing.status === 'approved') {
+            const year = new Date(existing.startDate).getFullYear();
+            const paidDays = existing.days - existing.lopDays;
+            if (paidDays > 0) {
+                const balance = await prisma.employeeLeaveBalance.findFirst({
+                    where: { employeeId: existing.employeeId, leaveTypeId: existing.leaveTypeId, year }
+                });
+                if (balance) {
+                    await prisma.employeeLeaveBalance.update({
+                        where: { id: balance.id },
+                        data: { used: Math.max(0, balance.used - paidDays) }
+                    });
+                }
+            }
+        }
+
+        await prisma.leaveRequest.delete({ where: { id } });
+        res.json({ message: 'Leave request deleted' });
+    } catch (error) {
+        console.error('Delete leave request error:', error);
+        res.status(500).json({ error: 'Failed to delete leave request' });
     }
 };
 

@@ -42,6 +42,7 @@ interface Shift {
     startTime: string;
     endTime: string;
     color?: string;
+    isDefault?: boolean;
 }
 
 const getShiftColor = (name: string) => {
@@ -64,6 +65,7 @@ export default function RosterPage() {
     const [currentWeek, setCurrentWeek] = useState(new Date());
     const [searchTerm, setSearchTerm] = useState('');
     const [offDays, setOffDays] = useState<string[]>([]);
+    const defaultShift = shifts.find(s => s.isDefault);
 
     useEffect(() => {
         loadInitialData();
@@ -184,6 +186,27 @@ export default function RosterPage() {
 
     const { confirm } = useConfirm();
 
+    const handleAutoFillDefault = () => {
+        if (!defaultShift) {
+            toast.error('No default shift configured. Set one in Shift Configuration.');
+            return;
+        }
+        const newRoster = { ...roster };
+        weekDays.forEach(day => {
+            const isHoliday = holidays.some(h => new Date(h.date).toDateString() === day.toDateString());
+            const isWeekend = isOffDay(day);
+            if (isHoliday || isWeekend) return;
+            filteredEmployees.forEach(emp => {
+                const key = `${emp.id}-${day.toISOString().split('T')[0]}`;
+                if (!newRoster[key]) {
+                    newRoster[key] = { type: 'shift', shiftId: defaultShift.id };
+                }
+            });
+        });
+        setRoster(newRoster);
+        toast.success(`Auto-filled empty slots with ${defaultShift.name}`);
+    };
+
     const handleCopyPreviousWeek = async () => {
         if (!await confirm({ message: 'Override current selections with previous week configuration?', type: 'warning' })) return;
 
@@ -298,6 +321,14 @@ export default function RosterPage() {
                             <Copy size={13} />
                             <span>SYNC PREV</span>
                         </button>
+                        <button
+                            onClick={handleAutoFillDefault}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 border border-purple-200 text-purple-700 rounded text-[11px] font-bold hover:bg-purple-100 shadow-sm transition-all active:scale-95"
+                            title="Auto-fill empty slots with default shift"
+                        >
+                            <Calendar size={13} />
+                            <span>FILL DEFAULT</span>
+                        </button>
                     )}
 
                     <PermissionGuard module="ShiftRoster" action="update">
@@ -401,7 +432,7 @@ export default function RosterPage() {
                                                             onChange={(val) => handleShiftChange(emp.id, day, val)}
                                                             options={[
                                                                 { label: 'REST', value: '' },
-                                                                ...shifts.map(s => ({ label: s.name, value: s.id }))
+                                                                ...shifts.map(s => ({ label: s.isDefault ? `${s.name} (Default)` : s.name, value: s.id }))
                                                             ]}
                                                             className={`w-full min-w-[100px] ${cellStyle}`}
                                                             placeholder="REST"

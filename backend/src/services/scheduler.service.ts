@@ -171,6 +171,7 @@ export class SchedulerService {
                     },
                     include: {
                         assignee: { select: { id: true, firstName: true, email: true } },
+                        assignees: { include: { user: { select: { id: true, firstName: true, email: true } } } },
                         project: { select: { companyId: true, name: true, id: true } }
                     }
                 });
@@ -178,19 +179,27 @@ export class SchedulerService {
                 console.log(`[Scheduler] Rule "${rule.name}" found ${tasks.length} tasks due in ${daysBefore} days.`);
 
                 for (const task of tasks) {
-                    await AutomationService.executeAction(rule, {
-                        taskId: task.id,
-                        projectId: task.projectId!,
-                        taskTitle: task.title,
-                        assigneeEmail: task.assignee?.email || undefined,
-                        assigneeName: task.assignee?.firstName || 'User',
-                        assigneeId: task.assignee?.id || undefined,
-                        companyId: task.project!.companyId,
-                        newStatus: task.status,
-                        // Custom reminder data
-                        daysRemaining: daysBefore,
-                        dueDate: task.dueDate
-                    } as any);
+                    const allAssignees = [
+                        ...(task.assignee ? [task.assignee] : []),
+                        ...(task.assignees?.map((a: any) => a.user).filter(Boolean) || [])
+                    ];
+                    const uniqueAssignees = allAssignees.filter((a: any, i: number, arr: any[]) =>
+                        arr.findIndex((x: any) => x.id === a.id) === i
+                    );
+                    for (const assignee of uniqueAssignees) {
+                        await AutomationService.executeAction(rule, {
+                            taskId: task.id,
+                            projectId: task.projectId!,
+                            taskTitle: task.title,
+                            assigneeEmail: assignee.email || undefined,
+                            assigneeName: assignee.firstName || 'User',
+                            assigneeId: assignee.id || undefined,
+                            companyId: task.project!.companyId,
+                            newStatus: task.status,
+                            daysRemaining: daysBefore,
+                            dueDate: task.dueDate
+                        } as any);
+                    }
                 }
             }
         } catch (error) {

@@ -30,7 +30,9 @@ export default function LeaveApprovalsPage() {
     const { showAlert } = useAlert();
 
     const [confirmOpen, setConfirmOpen] = useState(false);
-    const [selectedAction, setSelectedAction] = useState<{ id: string, status: 'approved' | 'rejected' } | null>(null);
+    const [selectedAction, setSelectedAction] = useState<{ id: string, status: 'approved' | 'rejected' | 'pending' } | null>(null);
+    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+    const [selectedDeleteId, setSelectedDeleteId] = useState<string | null>(null);
     const [processing, setProcessing] = useState(false);
 
     const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
@@ -108,12 +110,22 @@ export default function LeaveApprovalsPage() {
         setConfirmOpen(true);
     };
 
+    const initiateRevert = (id: string) => {
+        setSelectedAction({ id, status: 'pending' });
+        setConfirmOpen(true);
+    };
+
+    const initiateDelete = (id: string) => {
+        setSelectedDeleteId(id);
+        setDeleteConfirmOpen(true);
+    };
+
     const handleConfirmAction = async () => {
         if (!selectedAction) return;
         try {
             setProcessing(true);
             await leavesApi.updateStatus(selectedAction.id, selectedAction.status);
-            showAlert(`Leave request ${selectedAction.status} successfully`, 'success');
+            showAlert(`Leave request ${selectedAction.status === 'pending' ? 'reverted to pending' : selectedAction.status} successfully`, 'success');
             loadRequests();
         } catch (error) {
             console.error('Failed to update status:', error);
@@ -122,6 +134,23 @@ export default function LeaveApprovalsPage() {
             setProcessing(false);
             setConfirmOpen(false);
             setSelectedAction(null);
+        }
+    };
+
+    const handleDeleteConfirm = async () => {
+        if (!selectedDeleteId) return;
+        try {
+            setProcessing(true);
+            await leavesApi.deleteLeave(selectedDeleteId);
+            showAlert('Leave request deleted successfully', 'success');
+            loadRequests();
+        } catch (error) {
+            console.error('Failed to delete leave:', error);
+            showAlert('Failed to delete leave', 'error');
+        } finally {
+            setProcessing(false);
+            setDeleteConfirmOpen(false);
+            setSelectedDeleteId(null);
         }
     };
 
@@ -244,24 +273,43 @@ export default function LeaveApprovalsPage() {
                                             </span>
                                         </td>
                                         <td className="px-4 py-3 text-right">
-                                            {req.status === 'pending' && (
-                                                <div className="flex justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <button
-                                                        onClick={() => initiateAction(req.id, 'approved')}
-                                                        className="p-1.5 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded hover:bg-emerald-100 transition-all shadow-sm"
-                                                        title="Approve"
-                                                    >
-                                                        <Check size={14} strokeWidth={3} />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => initiateAction(req.id, 'rejected')}
-                                                        className="p-1.5 bg-rose-50 text-rose-600 border border-rose-100 rounded hover:bg-rose-100 transition-all shadow-sm"
-                                                        title="Reject"
-                                                    >
-                                                        <X size={14} strokeWidth={3} />
-                                                    </button>
-                                                </div>
-                                            )}
+                                            <div className="flex justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                {req.status === 'pending' ? (
+                                                    <>
+                                                        <button
+                                                            onClick={() => initiateAction(req.id, 'approved')}
+                                                            className="p-1.5 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded hover:bg-emerald-100 transition-all shadow-sm"
+                                                            title="Approve"
+                                                        >
+                                                            <Check size={14} strokeWidth={3} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => initiateAction(req.id, 'rejected')}
+                                                            className="p-1.5 bg-rose-50 text-rose-600 border border-rose-100 rounded hover:bg-rose-100 transition-all shadow-sm"
+                                                            title="Reject"
+                                                        >
+                                                            <X size={14} strokeWidth={3} />
+                                                        </button>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <button
+                                                            onClick={() => initiateRevert(req.id)}
+                                                            className="p-1.5 bg-amber-50 text-amber-600 border border-amber-100 rounded hover:bg-amber-100 transition-all shadow-sm"
+                                                            title="Revert to Pending"
+                                                        >
+                                                            <Clock size={14} strokeWidth={2} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => initiateDelete(req.id)}
+                                                            className="p-1.5 bg-rose-50 text-rose-600 border border-rose-100 rounded hover:bg-rose-100 transition-all shadow-sm"
+                                                            title="Delete"
+                                                        >
+                                                            <XCircle size={14} strokeWidth={2} />
+                                                        </button>
+                                                    </>
+                                                )}
+                                            </div>
                                         </td>
                                     </tr>
                                 ))
@@ -275,10 +323,25 @@ export default function LeaveApprovalsPage() {
                 isOpen={confirmOpen}
                 onClose={() => setConfirmOpen(false)}
                 onConfirm={handleConfirmAction}
-                title={selectedAction?.status === 'approved' ? 'Execute Approval' : 'Execute Rejection'}
-                message={`Are you sure you want to ${selectedAction?.status} this leave request? This action cannot be undone.`}
-                type={selectedAction?.status === 'approved' ? 'success' : 'danger'}
-                confirmText={selectedAction?.status === 'approved' ? 'Approve' : 'Reject'}
+                title={selectedAction?.status === 'approved' ? 'Execute Approval' : selectedAction?.status === 'rejected' ? 'Execute Rejection' : 'Revert to Pending'}
+                message={
+                    selectedAction?.status === 'pending'
+                        ? 'Are you sure you want to revert this leave request back to pending? The leave balance will be restored if it was previously approved.'
+                        : `Are you sure you want to ${selectedAction?.status} this leave request?`
+                }
+                type={selectedAction?.status === 'approved' ? 'success' : 'warning'}
+                confirmText={selectedAction?.status === 'pending' ? 'Revert' : selectedAction?.status === 'approved' ? 'Approve' : 'Reject'}
+                isLoading={processing}
+            />
+
+            <ConfirmDialog
+                isOpen={deleteConfirmOpen}
+                onClose={() => setDeleteConfirmOpen(false)}
+                onConfirm={handleDeleteConfirm}
+                title="Delete Leave Request"
+                message="Are you sure you want to delete this leave request? This action cannot be undone. Leave balance will be restored if the leave was approved."
+                type="danger"
+                confirmText="Delete"
                 isLoading={processing}
             />
 

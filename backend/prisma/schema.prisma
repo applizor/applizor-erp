@@ -39,6 +39,7 @@ model User {
   taskComments       TaskComment[]
   taskHistory        TaskHistory[]
   watchedTasks       TaskWatcher[]
+  taskAssignees      TaskAssignee[]
   assignedTickets    Ticket[]        @relation("TicketAssignee")
   createdTickets     Ticket[]        @relation("TicketCreator")
   ticketComments     TicketComment[]
@@ -589,6 +590,7 @@ model Task {
   linksAsSource   TaskLink[]    @relation("SourceTask")
   linksAsTarget   TaskLink[]    @relation("TargetTask")
   watchers        TaskWatcher[]
+  assignees       TaskAssignee[]
   timesheets      Timesheet[]
   activeTimers    ActiveTimer[]
   @@index([projectId])
@@ -708,6 +710,19 @@ model Epic {
 }
 
 model TaskWatcher {
+  id        String   @id @default(uuid())
+  taskId    String
+  userId    String
+  createdAt DateTime @default(now())
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, userId])
+  @@index([taskId])
+  @@index([userId])
+}
+
+model TaskAssignee {
   id        String   @id @default(uuid())
   taskId    String
   userId    String
@@ -1017,6 +1032,7 @@ model Shift {
   endTime       String
   breakDuration Int           @default(60)
   isActive      Boolean       @default(true)
+  isDefault     Boolean       @default(false)
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
   workDays      Json?

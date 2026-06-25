@@ -28,6 +28,7 @@ interface Task {
     storyPoints?: number;
     project?: { id: string, name: string };
     assignee?: { id: string, firstName: string, lastName: string };
+    assignees?: { user: { id: string, firstName: string, lastName: string } }[];
     epic?: { id: string, title: string };
     hasUnansweredComment?: boolean;
     _count?: { comments: number, documents: number, subtasks: number };
@@ -168,7 +169,7 @@ export default function GlobalTasksPage() {
     useEffect(() => {
         const filtered = tasks.filter(t => {
             const matchAssignee = filters.assigneeId === 'all' ? true : 
-                                 (filters.assigneeId === 'unassigned' ? !t.assignee : (t.assignee?.id === filters.assigneeId));
+                                 (filters.assigneeId === 'unassigned' ? !t.assignee && (!t.assignees || t.assignees.length === 0) : (t.assignee?.id === filters.assigneeId || t.assignees?.some(a => a.user?.id === filters.assigneeId)));
             const matchType = filters.type === 'all' ? true : t.type === filters.type;
             const matchPriority = filters.priority === 'all' ? true : t.priority === filters.priority;
             const matchSearch = filters.search ? t.title.toLowerCase().includes(filters.search.toLowerCase()) : true;
@@ -271,11 +272,12 @@ export default function GlobalTasksPage() {
     const handleDuplicateTask = async (task: Task) => {
         try {
             const { id, _count, ...rest } = task as any;
+            const assigneeIds = [rest.assignee?.id, ...(rest.assignees?.map((a: any) => a.user?.id) || [])].filter(Boolean);
             await api.post('/tasks', {
                 ...rest,
                 title: `${rest.title} (Copy)`,
                 projectId: task.projectId,
-                assigneeId: rest.assignee?.id
+                assigneeIds: [...new Set(assigneeIds)]
             });
             toast.success('Task duplicated');
             fetchTasks();

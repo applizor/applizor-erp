@@ -199,6 +199,7 @@ export interface Shift {
     endTime: string;
     breakDuration: number;
     isActive: boolean;
+    isDefault?: boolean;
     workDays: string[];
     description?: string;
     _count?: {
