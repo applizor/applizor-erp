@@ -443,26 +443,16 @@ export const getAllAttendance = async (req: AuthRequest, res: Response) => {
                         const empData = musterRoll[leave.employeeId];
 
                         if (empData) {
-                            // If user checked in, keep it as Present/Late, maybe add note?
-                            // Or strictly override? 
-                            // Let's say if NO attendance record, it's Leave.
-                            if (!empData.attendance[day]) {
-                                empData.attendance[day] = {
-                                    status: 'leave',
-                                    leaveType: leave.leaveType.name,
-                                    isLeave: true,
-                                    isPaid: leave.leaveType.isPaid
-                                };
-                            } else if (empData.attendance[day].status === 'absent' && !empData.attendance[day].checkIn) {
-                                empData.attendance[day] = {
-                                    status: 'leave',
-                                    leaveType: leave.leaveType.name,
-                                    isLeave: true,
-                                    isPaid: leave.leaveType.isPaid
-                                };
-                            } else {
+                            if (empData.attendance[day]?.checkIn) {
                                 empData.attendance[day].onLeaveButPresent = true;
                                 empData.attendance[day].leaveType = leave.leaveType.name;
+                            } else {
+                                empData.attendance[day] = {
+                                    status: 'leave',
+                                    leaveType: leave.leaveType.name,
+                                    isLeave: true,
+                                    isPaid: leave.leaveType.isPaid
+                                };
                             }
                         }
                     }

@@ -161,26 +161,33 @@ export const updateRoster = async (req: AuthRequest, res: Response) => {
             }
         }
 
-        const operations = assignments.map(ass =>
-            prisma.shiftRoster.upsert({
+        const operations = assignments.map(ass => {
+            const date = new Date(ass.date);
+            if (!ass.shiftId) {
+                return prisma.shiftRoster.deleteMany({
+                    where: { employeeId: ass.employeeId, date }
+                });
+            }
+            return prisma.shiftRoster.upsert({
                 where: {
                     employeeId_date: {
                         employeeId: ass.employeeId,
-                        date: new Date(ass.date)
+                        date
                     }
                 },
                 update: { shiftId: ass.shiftId },
                 create: {
                     employeeId: ass.employeeId,
                     shiftId: ass.shiftId,
-                    date: new Date(ass.date)
+                    date
                 }
-            })
-        );
+            });
+        });
 
         const results = await prisma.$transaction(operations);
 
-        res.json(results);
+        const deletedCount = results.filter(r => typeof r === 'object' && 'count' in r).reduce((sum: number, r: any) => sum + r.count, 0);
+        res.json({ upserted: results.length - assignments.filter(a => !a.shiftId).length, deleted: deletedCount });
     } catch (error: any) {
         console.error('Update roster error:', error);
         res.status(500).json({
