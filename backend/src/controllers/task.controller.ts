@@ -112,7 +112,7 @@ export const createTask = async (req: AuthRequest, res: Response) => {
                 createdById: req.user!.id,
                 assignedToId: primaryAssigneeId,
                 assignees: assigneeList.length > 0 ? {
-                    createMany: { data: assigneeList.map(uid => ({ userId: uid })) }
+                    createMany: { data: assigneeList.map((uid: string) => ({ userId: uid })) }
                 } : undefined,
                 milestoneId: milestoneId || null,
                 sprintId: sprintId || null,
@@ -258,7 +258,7 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
                 await tx.taskAssignee.deleteMany({ where: { taskId: id } });
                 if (assigneeList.length > 0) {
                     await tx.taskAssignee.createMany({
-                        data: assigneeList.map(uid => ({ taskId: id, userId: uid }))
+                        data: assigneeList.map((uid: string) => ({ taskId: id, userId: uid }))
                     });
                 }
             }
@@ -407,7 +407,7 @@ export const getTasks = async (req: AuthRequest, res: Response) => {
 
         const companyId = req.user!.companyId;
 
-        const where: any = {};
+        let where: any = {};
         const companyUserIds = (await prisma.user.findMany({
             where: { companyId },
             select: { id: true }
