@@ -155,6 +155,19 @@ export const createTask = async (req: AuthRequest, res: Response) => {
                 newStatus: status || 'todo'
             }).catch(err => console.error('Automation error:', err));
 
+            // Trigger TASK_ASSIGNED if assignee was set during creation
+            if (assigneeId) {
+                AutomationService.evaluateRules(task.projectId, 'TASK_ASSIGNED', {
+                    taskId: task.id,
+                    projectId: task.projectId,
+                    taskTitle: title,
+                    assigneeId: assigneeId,
+                    assigneeEmail: task.assignee?.email || undefined,
+                    assigneeName: task.assignee ? `${task.assignee.firstName} ${task.assignee.lastName}` : undefined,
+                    companyId: req.user!.companyId
+                }).catch(err => console.error('Assign automation error:', err));
+            }
+
             // Real-time Update
             NotificationService.emitProjectUpdate(task.projectId, 'TASK_CREATED', task);
         }
