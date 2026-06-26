@@ -8659,6 +8659,41 @@
         }
       }
     },
+    "/api/attendance-leave/leaves/{id}": {
+      "delete": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
     "/api/attendance-leave/my-balances": {
       "get": {
         "description": "",
@@ -9110,6 +9145,9 @@
                   "example": "any"
                 },
                 "workDays": {
+                  "example": "any"
+                },
+                "isDefault": {
                   "example": "any"
                 }
               }
@@ -14111,6 +14149,9 @@
                 "assigneeId": {
                   "example": "any"
                 },
+                "assigneeIds": {
+                  "example": "any"
+                },
                 "dueDate": {
                   "example": "any"
                 },
@@ -14230,6 +14271,9 @@
                 "assigneeId": {
                   "example": "any"
                 },
+                "assigneeIds": {
+                  "example": "any"
+                },
                 "dueDate": {
                   "example": "any"
                 },
@@ -14303,6 +14347,50 @@
           },
           "404": {
             "description": "Not Found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/api/tasks/bulk-update": {
+      "put": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "taskIds": {
+                  "example": "any"
+                },
+                "status": {
+                  "example": "any"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
           },
           "500": {
             "description": "Internal Server Error"

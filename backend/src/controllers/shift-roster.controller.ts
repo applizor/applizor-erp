@@ -83,12 +83,14 @@ export const getRoster = async (req: AuthRequest, res: Response) => {
                                 color: 'red' // proprietary flag for UI
                             },
                             employee: leave.employee,
-                            isLeave: true
+                            isLeave: true,
+                            durationType: leave.durationType
                         });
                     } else {
                         // Mark existing shift as "On Leave" override?
                         (existingShift as any).isLeave = true;
                         (existingShift as any).leaveType = leave.leaveType.name;
+                        (existingShift as any).durationType = leave.durationType;
                     }
                 }
                 curr.setDate(curr.getDate() + 1);

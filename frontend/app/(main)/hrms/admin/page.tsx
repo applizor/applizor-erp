@@ -46,7 +46,10 @@ export default function AdminAttendancePage() {
         checkInTime: '09:00',
         checkOutTime: '18:00',
         notes: '',
-        skipOffDays: true
+        skipOffDays: true,
+        leaveType: '',
+        durationType: '',
+        isPaid: true
     });
 
     const formatDate = (date: Date | string) => {
@@ -167,30 +170,53 @@ export default function AdminAttendancePage() {
 
     const days = getDaysInMonth();
 
-    const handleCellClick = (employeeId: string, dateKey: string, currentStatus?: string) => {
+    const handleCellClick = (employeeId: string, dateKey: string, currentStatus?: string, record?: any) => {
+        const formatTimeFromISO = (dt?: string) => {
+            if (!dt) return '';
+            const d = new Date(dt);
+            return isNaN(d.getTime()) ? '' : `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+        };
+
+        const isLeaveRecord = currentStatus === 'leave' || currentStatus === 'on-leave' || record?.isLeave;
+
         setManualData({
             employeeId,
             dateRange: { start: dateKey, end: dateKey },
             status: currentStatus || 'present',
-            checkInTime: '09:00',
-            checkOutTime: '18:00',
-            notes: '',
-            skipOffDays: true
+            checkInTime: record?.checkIn ? formatTimeFromISO(record.checkIn) : '09:00',
+            checkOutTime: record ? (record?.checkOut ? formatTimeFromISO(record.checkOut) : '') : '18:00',
+            notes: (isLeaveRecord ? `[Leave: ${record?.leaveType || ''} ${record?.durationType === 'half' || record?.durationType === 'first_half' ? '(First Half)' : record?.durationType === 'second_half' ? '(Second Half)' : ''}] ` : '') + (record?.notes || ''),
+            skipOffDays: true,
+            leaveType: record?.leaveType || '',
+            durationType: record?.durationType || '',
+            isPaid: record?.isPaid !== undefined ? record?.isPaid : true
         });
         setShowMarkModal(true);
     };
 
-    const getStatusIcon = (status?: string, date?: Date, onClick?: () => void) => {
+    const getStatusIcon = (status?: string, date?: Date, onClick?: () => void, record?: any) => {
         const iconClass = "w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold cursor-pointer hover:scale-110 transition-transform shadow-sm";
         if (!status && date && isOffDay(date)) {
             return <div onClick={onClick} className={`${iconClass} bg-gray-50 text-gray-400 text-[10px] font-black`} title="Weekend Off">OFF</div>;
         }
-        switch (status) {
+
+        let effectiveStatus = status;
+        if ((status === 'leave' || status === 'on-leave') && (record?.durationType === 'half' || record?.durationType === 'first_half' || record?.durationType === 'second_half')) {
+            effectiveStatus = 'half-day-leave';
+        }
+
+        if (record?.onLeaveButPresent) {
+            return <div onClick={onClick} className={`${iconClass} bg-violet-100 text-violet-700 ring-2 ring-violet-300 ring-offset-1`} title={`Present (On Leave: ${record.leaveType || 'Leave'})`}>P</div>;
+        }
+
+        switch (effectiveStatus) {
             case 'present': return <div onClick={onClick} className={`${iconClass} bg-green-100 text-green-700`} title="Present">P</div>;
             case 'absent': return <div onClick={onClick} className={`${iconClass} bg-red-100 text-red-700`} title="Absent">A</div>;
-            case 'half-day': return <div onClick={onClick} className={`${iconClass} bg-yellow-100 text-yellow-700`} title="Half Day">HD</div>;
+            case 'half-day':
+            case 'half-day-leave': return <div onClick={onClick} className={`${iconClass} bg-yellow-100 text-yellow-700`} title={record?.durationType === 'second_half' ? 'Half Day Leave (Second Half)' : 'Half Day Leave (First Half)'}>HD</div>;
             case 'late': return <div onClick={onClick} className={`${iconClass} bg-orange-100 text-orange-700`} title="Late">L</div>;
-            case 'on-leave': return <div onClick={onClick} className={`${iconClass} bg-blue-100 text-blue-700`} title="On Leave">OL</div>;
+            case 'on-leave':
+            case 'leave': return <div onClick={onClick} className={`${iconClass} bg-blue-100 text-blue-700`} title="On Leave">OL</div>;
             case 'holiday': return <div onClick={onClick} className={`${iconClass} bg-purple-100 text-purple-700`} title="Holiday">H</div>;
             case 'weekend': return <div onClick={onClick} className={`${iconClass} bg-gray-50 text-gray-400 text-[10px] font-black`} title="Weekend Off">OFF</div>;
             default: return <div onClick={onClick} className="w-6 h-6 rounded-md flex items-center justify-center text-gray-300 text-xs font-bold cursor-pointer hover:bg-gray-50" title="Click to mark">-</div>;
@@ -307,7 +333,8 @@ export default function AdminAttendancePage() {
                 <div className="flex items-center text-xs text-gray-600"><span className="w-5 h-5 rounded-md bg-red-100 text-red-700 flex items-center justify-center font-bold mr-2">A</span> Absent</div>
                 <div className="flex items-center text-xs text-gray-600"><span className="w-5 h-5 rounded-md bg-blue-100 text-blue-700 flex items-center justify-center font-bold mr-2">OL</span> On Leave</div>
                 <div className="flex items-center text-xs text-gray-600"><span className="w-5 h-5 rounded-md bg-purple-100 text-purple-700 flex items-center justify-center font-bold mr-2">H</span> Holiday</div>
-                <div className="flex items-center text-xs text-gray-600"><span className="w-5 h-5 rounded-md bg-yellow-100 text-yellow-700 flex items-center justify-center font-bold mr-2">HD</span> Half Day</div>
+                <div className="flex items-center text-xs text-gray-600"><span className="w-5 h-5 rounded-md bg-yellow-100 text-yellow-700 flex items-center justify-center font-bold mr-2">HD</span> Half Day / Half Day Leave</div>
+                <div className="flex items-center text-xs text-gray-600"><span className="w-5 h-5 rounded-md bg-violet-100 text-violet-700 flex items-center justify-center font-bold mr-2 ring-2 ring-violet-300">P</span> Present on Leave</div>
                 <div className="flex items-center text-xs text-gray-600"><span className="w-5 h-5 rounded-md bg-gray-50 text-gray-400 flex items-center justify-center font-bold mr-2 text-[8px]">OFF</span> Weekend</div>
             </div>
 
@@ -353,7 +380,7 @@ export default function AdminAttendancePage() {
 
                                 if (r.status === 'present' || r.status === 'late') acc.present++;
                                 if (r.status === 'absent') acc.absent++;
-                                if (r.status === 'on-leave') {
+                                if (r.status === 'on-leave' || r.status === 'leave') {
                                     if ((r as any).isPaid) acc.leave++;
                                     else acc.unpaidLeave++;
                                 }
@@ -392,7 +419,7 @@ export default function AdminAttendancePage() {
                                         return (
                                             <td key={dateKey} className="px-1 py-2 text-center border-b border-gray-50">
                                                 <div className="flex justify-center">
-                                                    {getStatusIcon(status, day, () => handleCellClick(emp.id, dateKey, status))}
+                                                    {getStatusIcon(status, day, () => handleCellClick(emp.id, dateKey, status, record), record)}
                                                 </div>
                                             </td>
                                         );
@@ -453,12 +480,29 @@ export default function AdminAttendancePage() {
                                 { label: 'Present', value: 'present' },
                                 { label: 'Absent', value: 'absent' },
                                 { label: 'Half Day', value: 'half-day' },
-                                { label: 'Late', value: 'late' }
+                                { label: 'Late', value: 'late' },
+                                { label: 'On Leave (Paid)', value: 'leave' },
+                                { label: 'On Leave (Unpaid)', value: 'on-leave' }
                             ]}
                             value={manualData.status}
                             onChange={(val) => setManualData({ ...manualData, status: val })}
                         />
                     </div>
+
+                    {manualData.leaveType && (
+                        <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-xs">
+                            <span className="font-bold text-blue-700 uppercase tracking-wider">Leave Info:</span>
+                            <span className="text-blue-600 ml-2">{manualData.leaveType}</span>
+                            {manualData.durationType === 'half' || manualData.durationType === 'first_half' ? (
+                                <span className="ml-2 text-yellow-600 font-bold">(Half Day - First Half)</span>
+                            ) : manualData.durationType === 'second_half' ? (
+                                <span className="ml-2 text-yellow-600 font-bold">(Half Day - Second Half)</span>
+                            ) : null}
+                            {manualData.isPaid === false && (
+                                <span className="ml-2 text-red-600 font-bold">(Unpaid)</span>
+                            )}
+                        </div>
+                    )}
 
                     <div className="grid grid-cols-2 gap-4">
                         <div className="ent-form-group">

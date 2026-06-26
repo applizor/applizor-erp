@@ -253,26 +253,32 @@ export default function AttendanceRegisterPage() {
         }
 
         const status = record?.status;
+        const isOnLeaveButPresent = record?.onLeaveButPresent;
+        const isHalfDayLeave = (status === 'leave' || status === 'on-leave') && (record?.durationType === 'half' || record?.durationType === 'first_half' || record?.durationType === 'second_half');
+        const effectiveStatus = isHalfDayLeave ? 'half-day' : status;
         const isSet = !!status && status !== 'holiday' && status !== 'leave';
         const isOff = isOffDay(day);
 
         const getCellStyles = () => {
-            if (status === 'present') return 'bg-emerald-50 text-emerald-700 border-emerald-100 font-black';
-            if (status === 'absent') return 'bg-rose-50 text-rose-700 border-rose-100 font-black';
-            if (status === 'holiday') return 'bg-teal-50 text-teal-700 border-teal-100 font-bold';
-            if (status === 'leave') return 'bg-blue-50 text-blue-700 border-blue-100 font-bold';
-            if (status === 'late') return 'bg-amber-50 text-amber-700 border-amber-100 font-black';
-            if (status === 'half-day') return 'bg-orange-50 text-orange-700 border-orange-100 font-black';
+            if (isOnLeaveButPresent) return 'bg-violet-50 text-violet-700 border-violet-200 font-black ring-2 ring-violet-300 ring-offset-1';
+            if (effectiveStatus === 'present') return 'bg-emerald-50 text-emerald-700 border-emerald-100 font-black';
+            if (effectiveStatus === 'absent') return 'bg-rose-50 text-rose-700 border-rose-100 font-black';
+            if (effectiveStatus === 'holiday') return 'bg-teal-50 text-teal-700 border-teal-100 font-bold';
+            if (effectiveStatus === 'leave') return 'bg-blue-50 text-blue-700 border-blue-100 font-bold';
+            if (effectiveStatus === 'late') return 'bg-amber-50 text-amber-700 border-amber-100 font-black';
+            if (effectiveStatus === 'half-day') return 'bg-yellow-50 text-yellow-700 border-yellow-100 font-black';
             if (isOff) return 'bg-slate-50 text-slate-400 border-slate-200';
             return 'bg-white text-slate-300 border-slate-100';
         };
 
-        const isReadonly = status === 'holiday' || status === 'leave' || (!can('Attendance', 'update') && !can('Attendance', 'create'));
+        const isReadonly = effectiveStatus === 'holiday' || effectiveStatus === 'leave' || (!can('Attendance', 'update') && !can('Attendance', 'create')) || isOnLeaveButPresent;
 
-        if (isReadonly) {
-            const label = status === 'leave' ? 'OL'
-                : status === 'holiday' ? 'H'
-                    : isOff ? 'W/OFF' : 'OFF';
+        if (isReadonly || isHalfDayLeave) {
+            const label = isOnLeaveButPresent ? 'P'
+                : isHalfDayLeave ? 'HD'
+                    : effectiveStatus === 'leave' ? 'OL'
+                        : effectiveStatus === 'holiday' ? 'H'
+                            : isOff ? 'W/OFF' : 'OFF';
             return (
                 <div className={`w-full h-8 flex items-center justify-center rounded border text-[10px] text-center select-none uppercase tracking-tighter ${getCellStyles()}`}>
                     {label}
@@ -300,6 +306,7 @@ export default function AttendanceRegisterPage() {
                 {(status === 'present' || status === 'late') && (
                     <div className="flex gap-0.5 mt-0.5 px-0.5">
                         <input
+                            key={`ci-${key}-${checkInTime}`}
                             type="time"
                             defaultValue={checkInTime}
                             onChange={(e) => handleStatusChange(row.employee.id, day, status, e.target.value, checkOutTime)}
@@ -307,6 +314,7 @@ export default function AttendanceRegisterPage() {
                             onClick={(e) => e.stopPropagation()}
                         />
                         <input
+                            key={`co-${key}-${checkOutTime}`}
                             type="time"
                             defaultValue={checkOutTime}
                             onChange={(e) => handleStatusChange(row.employee.id, day, status, checkInTime, e.target.value)}
@@ -561,6 +569,7 @@ export default function AttendanceRegisterPage() {
                     <div className="flex items-center gap-1.5 bg-orange-50 px-2 py-1 rounded border border-orange-100 text-orange-700">HALF-DAY</div>
                     <div className="flex items-center gap-1.5 bg-blue-50 px-2 py-1 rounded border border-blue-100 text-blue-700">LEAVE</div>
                     <div className="flex items-center gap-1.5 bg-teal-50 px-2 py-1 rounded border border-teal-100 text-teal-700">HOLIDAY</div>
+                    <div className="flex items-center gap-1.5 bg-violet-50 px-2 py-1 rounded border border-violet-200 text-violet-700 ring-2 ring-violet-300">PRESENT ON LEAVE</div>
                     <div className="flex items-center gap-1.5 bg-slate-100 px-2 py-1 rounded border border-slate-200 text-slate-500">WEEKLY OFF</div>
                 </div>
             </div>

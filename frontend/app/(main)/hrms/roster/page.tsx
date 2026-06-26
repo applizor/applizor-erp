@@ -129,7 +129,8 @@ export default function RosterPage() {
                         type: 'leave',
                         name: entry.shift.name,
                         shiftId: 'LEAVE',
-                        leaveType: entry.shift.name.replace('Leave: ', '')
+                        leaveType: entry.shift.name.replace('Leave: ', ''),
+                        durationType: entry.durationType
                     };
                 } else {
                     rosterMap[key] = {
@@ -421,8 +422,14 @@ export default function RosterPage() {
                                         let cellStyle = 'bg-white border-transparent text-slate-400';
 
                                         if (isLeave) {
-                                            cellStyle = 'bg-rose-50 border-rose-100 text-rose-700 font-bold';
-                                            displayContent = (
+                                            const isHalfDay = entry?.durationType === 'half' || entry?.durationType === 'first_half' || entry?.durationType === 'second_half';
+                                            cellStyle = `border font-bold ${isHalfDay ? 'bg-amber-50 border-amber-100 text-amber-700' : 'bg-rose-50 border-rose-100 text-rose-700'}`;
+                                            displayContent = isHalfDay ? (
+                                                <div className="flex items-center justify-center gap-1">
+                                                    <div className="w-1 h-1 rounded-full bg-amber-500 animate-pulse"></div>
+                                                    HD
+                                                </div>
+                                            ) : (
                                                 <div className="flex items-center justify-center gap-1">
                                                     <div className="w-1 h-1 rounded-full bg-rose-500 animate-pulse"></div>
                                                     {leaveName.split(' ')[0]}
@@ -487,7 +494,11 @@ export default function RosterPage() {
                     </div>
                     <div className="flex items-center gap-1.5">
                         <span className="w-2.5 h-2.5 bg-rose-50 border border-rose-100 rounded-sm shadow-inner"></span>
-                        <span className="text-rose-700">ACTIVE LEAVES</span>
+                        <span className="text-rose-700">FULL DAY LEAVE</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 bg-amber-50 border border-amber-100 rounded-sm"></span>
+                        <span className="text-amber-700">HALF DAY LEAVE</span>
                     </div>
                     <div className="flex items-center gap-1.5">
                         <span className="w-2.5 h-2.5 bg-teal-50 border border-teal-100 rounded-sm"></span>

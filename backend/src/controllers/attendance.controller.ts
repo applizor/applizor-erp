@@ -342,9 +342,6 @@ export const getAllAttendance = async (req: AuthRequest, res: Response) => {
             const y = parseInt(year as string);
             const startDate = new Date(y, m - 1, 1);
             const endDate = new Date(y, m, 0);
-            const utcStartDate = new Date(Date.UTC(y, m - 1, 1));
-            const utcEndDate = new Date(Date.UTC(y, m, 0));
-
             // 1. Fetch Employees (Apply Permission Scope HERE too?)
             // If I can only see my own attendance, I should only see Myself here.
 
@@ -438,25 +435,27 @@ export const getAllAttendance = async (req: AuthRequest, res: Response) => {
                 const end = new Date(leave.endDate);
 
                 while (curr <= end) {
-                    if (curr >= utcStartDate && curr <= utcEndDate) {
-                        const day = curr.getUTCDate();
+                    if (curr >= startDate && curr <= endDate) {
+                        const day = curr.getDate();
                         const empData = musterRoll[leave.employeeId];
 
                         if (empData) {
                             if (empData.attendance[day]?.checkIn) {
                                 empData.attendance[day].onLeaveButPresent = true;
                                 empData.attendance[day].leaveType = leave.leaveType.name;
+                                empData.attendance[day].durationType = leave.durationType;
                             } else {
                                 empData.attendance[day] = {
                                     status: 'leave',
                                     leaveType: leave.leaveType.name,
                                     isLeave: true,
-                                    isPaid: leave.leaveType.isPaid
+                                    isPaid: leave.leaveType.isPaid,
+                                    durationType: leave.durationType
                                 };
                             }
                         }
                     }
-                    curr.setUTCDate(curr.getUTCDate() + 1);
+                    curr.setDate(curr.getDate() + 1);
                 }
             });
 
