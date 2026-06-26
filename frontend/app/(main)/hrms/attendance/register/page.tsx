@@ -267,24 +267,36 @@ export default function AttendanceRegisterPage() {
             return 'bg-white text-slate-300 border-slate-100';
         };
 
+        const isReadonly = status === 'holiday' || status === 'leave' || (!can('Attendance', 'update') && !can('Attendance', 'create'));
+
+        if (isReadonly) {
+            const label = status === 'leave' ? 'OL'
+                : status === 'holiday' ? 'H'
+                    : isOff ? 'W/OFF' : 'OFF';
+            return (
+                <div className={`w-full h-8 flex items-center justify-center rounded border text-[10px] text-center select-none uppercase tracking-tighter ${getCellStyles()}`}>
+                    {label}
+                </div>
+            );
+        }
+
         return (
             <div className="group relative w-full">
-                    <CustomSelect
-                        value={status || ''}
-                        onChange={(val) => handleStatusChange(row.employee.id, day, val, checkInTime, checkOutTime)}
-                        options={[
-                            { label: 'PRES', value: 'present' },
-                            { label: 'ABS', value: 'absent' },
-                            { label: 'LATE', value: 'late' },
-                            { label: 'HALF', value: 'half-day' },
-                            { label: 'OL', value: 'leave' },
-                            { label: 'H', value: 'holiday' }
-                        ]}
-                        className={`w-full min-w-[70px] text-[10px] h-8 ${getCellStyles()}`}
-                        placeholder={isOff ? 'W/OFF' : 'ABS'}
-                        portal={true}
-                        disabled={status === 'holiday' || status === 'leave'}
-                    />
+                <CustomSelect
+                    value={status || ''}
+                    onChange={(val) => handleStatusChange(row.employee.id, day, val, checkInTime, checkOutTime)}
+                    options={[
+                        { label: 'PRES', value: 'present' },
+                        { label: 'ABS', value: 'absent' },
+                        { label: 'LATE', value: 'late' },
+                        { label: 'HALF', value: 'half-day' },
+                        { label: 'OL', value: 'leave' },
+                        { label: 'H', value: 'holiday' }
+                    ]}
+                    className={`w-full min-w-[70px] text-[10px] h-8 ${getCellStyles()}`}
+                    placeholder={isOff ? 'W/OFF' : 'ABS'}
+                    portal={true}
+                />
                 {(status === 'present' || status === 'late') && (
                     <div className="flex gap-0.5 mt-0.5 px-0.5">
                         <input

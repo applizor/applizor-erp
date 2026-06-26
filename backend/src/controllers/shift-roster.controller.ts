@@ -128,6 +128,16 @@ export const updateRoster = async (req: AuthRequest, res: Response) => {
         if (validEmployees !== Array.from(new Set(employeesToCheck)).length) {
             return res.status(403).json({ error: 'Access denied: One or more employees do not belong to your organization.' });
         }
+
+        // Fetch company off-days
+        const companyData = await prisma.company.findUnique({
+            where: { id: companyId },
+            select: { offDays: true }
+        });
+        const companyOffDays = companyData?.offDays
+            ? companyData.offDays.split(',').map((s: string) => s.trim().toLowerCase())
+            : [];
+
         const datesToCheck = assignments.map(a => new Date(a.date));
 
         // Find min and max date to reduce query scope
@@ -157,6 +167,18 @@ export const updateRoster = async (req: AuthRequest, res: Response) => {
             if (conflict) {
                 return res.status(409).json({
                     error: `Cannot assign shift to employee ${assignment.employeeId} on ${assignDate.toDateString()} because they are on Approved Leave.`
+                });
+            }
+        }
+
+        // Check for off-day assignments
+        for (const assignment of assignments) {
+            if (!assignment.shiftId) continue;
+            const assignDate = new Date(assignment.date);
+            const dayName = assignDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+            if (companyOffDays.includes(dayName)) {
+                return res.status(400).json({
+                    error: `Cannot assign shift on ${assignDate.toDateString()} (${dayName}) — it is a company off-day.`
                 });
             }
         }
@@ -222,6 +244,15 @@ export const syncPreviousWeek = async (req: AuthRequest, res: Response) => {
             return res.json({ message: 'No assignments found in previous week to sync.' });
         }
 
+        // Fetch company off-days
+        const company = await prisma.company.findUnique({
+            where: { id: req.user.companyId },
+            select: { offDays: true }
+        });
+        const offDays = company?.offDays
+            ? company.offDays.split(',').map((s: string) => s.trim().toLowerCase())
+            : [];
+
         // 2. Fetch Approved Leaves for CURRENT week to prevent conflicts (Scoped to company)
         const employeesToCheck = Array.from(new Set(prevAssignments.map(a => a.employeeId)));
         const approvedLeaves = await prisma.leaveRequest.findMany({
@@ -253,6 +284,12 @@ export const syncPreviousWeek = async (req: AuthRequest, res: Response) => {
 
             if (conflict) {
                 conflicts.push(`Employee ${ass.employeeId} on ${newDate.toDateString()}`);
+                continue;
+            }
+
+            // Skip if date is a company off-day
+            const dayName = newDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+            if (offDays.includes(dayName)) {
                 continue;
             }
 
