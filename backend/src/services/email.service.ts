@@ -41,7 +41,10 @@ const getDefaultFromAddress = (fromOverride?: string): string => {
         || '';
 };
 
-const sendViaMicrosoftGraph = async (to: string, subject: string, html: string, attachments: any[] = [], fromOverride?: string) => {
+const toRecipientArray = (to: string | string[]): { emailAddress: { address: string } }[] =>
+    (Array.isArray(to) ? to : [to]).map(t => ({ emailAddress: { address: t } }));
+
+const sendViaMicrosoftGraph = async (to: string, subject: string, html: string, attachments: any[] = [], fromOverride?: string, cc?: string | string[], bcc?: string | string[]) => {
     const accessToken = await getMicrosoftAccessToken();
     if (!accessToken) {
         throw new Error('Could not retrieve access token for Microsoft Graph');
@@ -60,16 +63,14 @@ const sendViaMicrosoftGraph = async (to: string, subject: string, html: string, 
         contentType: att.contentType || 'application/octet-stream'
     }));
 
-    const emailData = {
+    const emailData: any = {
         message: {
             subject: subject,
             body: {
                 contentType: "HTML",
                 content: html
             },
-            toRecipients: [
-                { emailAddress: { address: to } }
-            ],
+            toRecipients: toRecipientArray(to),
             from: {
                 emailAddress: { address: fromAddress }
             },
@@ -77,6 +78,13 @@ const sendViaMicrosoftGraph = async (to: string, subject: string, html: string, 
         },
         saveToSentItems: "true"
     };
+
+    if (cc) {
+        emailData.message.ccRecipients = toRecipientArray(cc);
+    }
+    if (bcc) {
+        emailData.message.bccRecipients = toRecipientArray(bcc);
+    }
 
     const headers = {
         'Authorization': `Bearer ${accessToken}`,
@@ -334,8 +342,8 @@ export const sendEmail = async (
     try {
         // MICROSOFT GRAPH PATH
         if (process.env.SMTP_SERVICE_PROVIDER === 'MICROSOFT') {
-            // Note: Graph API helper below might need update for CC/BCC if strictly required by client, but SMTP is primary.
-            return await sendViaMicrosoftGraph(to.toString(), subject, content, attachments, fromOverride);
+            // Note: Graph API now supports CC/BCC via the updated helper above.
+            return await sendViaMicrosoftGraph(to.toString(), subject, content, attachments, fromOverride, cc, bcc);
         }
 
         // GMAIL / SMTP PATH
