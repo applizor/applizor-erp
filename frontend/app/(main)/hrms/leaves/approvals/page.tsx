@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { leavesApi, leaveTypesApi } from '@/lib/api/attendance';
 import { employeesApi, Employee } from '@/lib/api/hrms';
-import { Check, X, Clock, User, Plus, Calendar, AlertCircle, AlertTriangle, XCircle, Info, Search, Filter } from 'lucide-react';
+import { Check, X, Clock, User, Plus, Calendar, AlertCircle, AlertTriangle, XCircle, Info, Search, Filter, Eye, Download } from 'lucide-react';
 import { CustomSelect } from '@/components/ui/CustomSelect';
 import { useAlert } from '@/context/AlertContext';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -16,12 +16,21 @@ interface LeaveRequest {
         lastName: string;
         department?: { name: string };
     };
-    leaveType: { name: string };
+    leaveType: { name: string; isPaid?: boolean };
     startDate: string;
     endDate: string;
-    reason: string;
+    reason?: string;
     status: string;
     days: number;
+    durationType?: string;
+    category?: string;
+    lopDays?: number;
+    approvedBy?: string;
+    approvedAt?: string;
+    assignedBy?: string;
+    attachmentPath?: string;
+    createdAt?: string;
+    updatedAt?: string;
 }
 
 export default function LeaveApprovalsPage() {
@@ -35,6 +44,7 @@ export default function LeaveApprovalsPage() {
     const [selectedDeleteId, setSelectedDeleteId] = useState<string | null>(null);
     const [processing, setProcessing] = useState(false);
 
+    const [detailRequest, setDetailRequest] = useState<LeaveRequest | null>(null);
     const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [leaveTypes, setLeaveTypes] = useState<any[]>([]);
@@ -240,7 +250,11 @@ export default function LeaveApprovalsPage() {
                                 </tr>
                             ) : (
                                 requests.map((req) => (
-                                    <tr key={req.id} className="group hover:bg-primary-50/30 transition-colors">
+                                    <tr
+                                        key={req.id}
+                                        onClick={() => setDetailRequest(req)}
+                                        className="group hover:bg-primary-50/30 transition-colors cursor-pointer"
+                                    >
                                         <td className="px-4 py-3">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-8 h-8 rounded bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-500 font-bold text-[10px]">
@@ -273,7 +287,14 @@ export default function LeaveApprovalsPage() {
                                             </span>
                                         </td>
                                         <td className="px-4 py-3 text-right">
-                                            <div className="flex justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <div className="flex justify-end gap-1.5 opacity-100 transition-opacity">
+                                                <button
+                                                    onClick={() => setDetailRequest(req)}
+                                                    className="p-1.5 bg-slate-50 text-slate-500 border border-slate-200 rounded hover:bg-slate-100 transition-all shadow-sm"
+                                                    title="View Details"
+                                                >
+                                                    <Eye size={14} strokeWidth={2} />
+                                                </button>
                                                 {req.status === 'pending' ? (
                                                     <>
                                                         <button
@@ -344,6 +365,166 @@ export default function LeaveApprovalsPage() {
                 confirmText="Delete"
                 isLoading={processing}
             />
+
+            {/* Detail Modal */}
+            {detailRequest && (
+                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setDetailRequest(null)}>
+                    <div className="bg-white rounded-md shadow-2xl max-w-lg w-full border border-gray-200 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex justify-between items-center p-4 bg-gray-50 border-b border-gray-200">
+                            <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded bg-primary-900 flex items-center justify-center text-white font-bold text-xs">
+                                    {detailRequest.employee.firstName[0]}{detailRequest.employee.lastName[0]}
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-black text-gray-900 uppercase">Leave Application</h3>
+                                    <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">
+                                        {detailRequest.employee.firstName} {detailRequest.employee.lastName}
+                                    </p>
+                                </div>
+                            </div>
+                            <button onClick={() => setDetailRequest(null)} className="text-gray-400 hover:text-gray-600 p-1 hover:bg-gray-100 rounded-full transition-colors">
+                                <XCircle size={20} />
+                            </button>
+                        </div>
+
+                        <div className="p-5 space-y-4">
+                            {/* Status */}
+                            <div className="flex justify-between items-center">
+                                <span className={`ent-badge font-black uppercase text-[10px] tracking-widest ${detailRequest.status === 'approved' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                                    detailRequest.status === 'rejected' ? 'bg-rose-50 text-rose-700 border-rose-100' :
+                                        'bg-amber-50 text-amber-700 border-amber-100'
+                                    }`}>
+                                    {detailRequest.status}
+                                </span>
+                                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
+                                    Applied {detailRequest.createdAt ? new Date(detailRequest.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
+                                </span>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
+                                    <div className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Leave Type</div>
+                                    <div className="text-xs font-black text-slate-900 uppercase">{detailRequest.leaveType.name}</div>
+                                    {detailRequest.leaveType.isPaid !== undefined && (
+                                        <div className={`text-[9px] font-bold mt-0.5 ${detailRequest.leaveType.isPaid ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                            {detailRequest.leaveType.isPaid ? 'PAID' : 'UNPAID'}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
+                                    <div className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Duration</div>
+                                    <div className="text-xs font-black text-slate-900">
+                                        {detailRequest.days} {detailRequest.days === 1 ? 'DAY' : 'DAYS'}
+                                    </div>
+                                    <div className="text-[9px] font-bold text-slate-500 uppercase mt-0.5">
+                                        {detailRequest.durationType === 'first_half' ? 'First Half' :
+                                         detailRequest.durationType === 'second_half' ? 'Second Half' :
+                                         detailRequest.durationType === 'half' ? 'Half Day' :
+                                         detailRequest.durationType === 'multiple' ? 'Multiple Days' : 'Full Day'}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Date Range */}
+                            <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
+                                <div className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Date Range</div>
+                                <div className="flex items-center gap-3">
+                                    <div className="flex-1 text-center">
+                                        <div className="text-[9px] font-bold text-slate-500 uppercase">From</div>
+                                        <div className="text-sm font-black text-slate-900">
+                                            {new Date(detailRequest.startDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                                        </div>
+                                    </div>
+                                    <div className="text-slate-300 font-black text-lg">→</div>
+                                    <div className="flex-1 text-center">
+                                        <div className="text-[9px] font-bold text-slate-500 uppercase">To</div>
+                                        <div className="text-sm font-black text-slate-900">
+                                            {new Date(detailRequest.endDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Reason */}
+                            <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
+                                <div className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Rationalisation</div>
+                                <div className="text-xs text-slate-700 leading-relaxed">{detailRequest.reason || 'No reason provided'}</div>
+                            </div>
+
+                            {/* Additional Info */}
+                            {(detailRequest.category || detailRequest.lopDays || detailRequest.lopDays! > 0) && (
+                                <div className="grid grid-cols-2 gap-4">
+                                    {detailRequest.category && (
+                                        <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
+                                            <div className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Category</div>
+                                            <div className="text-xs font-black text-slate-900 uppercase">{detailRequest.category}</div>
+                                        </div>
+                                    )}
+                                    {detailRequest.lopDays !== undefined && detailRequest.lopDays > 0 && (
+                                        <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
+                                            <div className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Loss of Pay Days</div>
+                                            <div className="text-xs font-black text-rose-700">{detailRequest.lopDays} DAYS</div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Approval / Audit Trail */}
+                            <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
+                                <div className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-2">Audit Trail</div>
+                                <div className="space-y-1.5">
+                                    {detailRequest.assignedBy && (
+                                        <div className="flex justify-between text-[10px]">
+                                            <span className="font-bold text-slate-500">Assigned By</span>
+                                            <span className="font-black text-slate-800 uppercase">{detailRequest.assignedBy}</span>
+                                        </div>
+                                    )}
+                                    {detailRequest.approvedBy && (
+                                        <div className="flex justify-between text-[10px]">
+                                            <span className="font-bold text-slate-500">Approved By</span>
+                                            <span className="font-black text-slate-800 uppercase">{detailRequest.approvedBy}</span>
+                                        </div>
+                                    )}
+                                    {detailRequest.approvedAt && (
+                                        <div className="flex justify-between text-[10px]">
+                                            <span className="font-bold text-slate-500">Approved At</span>
+                                            <span className="font-black text-slate-800">
+                                                {new Date(detailRequest.approvedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                            </span>
+                                        </div>
+                                    )}
+                                    {detailRequest.attachmentPath && (
+                                        <div className="flex justify-between text-[10px] items-center">
+                                            <span className="font-bold text-slate-500">Attachment</span>
+                                            <a
+                                                href={detailRequest.attachmentPath}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="font-black text-primary-700 hover:text-primary-900 underline inline-flex items-center gap-1"
+                                            >
+                                                <Download size={10} />
+                                                View File
+                                            </a>
+                                        </div>
+                                    )}
+                                    {!detailRequest.assignedBy && !detailRequest.approvedBy && !detailRequest.approvedAt && !detailRequest.attachmentPath && (
+                                        <p className="text-[10px] text-slate-400 italic">No audit records available</p>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="border-t border-gray-100 p-3 flex justify-end">
+                            <button
+                                onClick={() => setDetailRequest(null)}
+                                className="px-4 py-2 text-xs font-bold text-gray-500 hover:text-gray-700 uppercase tracking-widest transition-colors"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {isAssignModalOpen && (
                 <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
