@@ -3,6 +3,7 @@ import path from 'path';
 
 const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env.development';
 dotenv.config({ path: path.resolve(__dirname, '../../', envFile) });
+dotenv.config({ path: path.resolve(__dirname, '../../', '.env') });
 
 interface EnvConfig {
     NODE_ENV: string;
