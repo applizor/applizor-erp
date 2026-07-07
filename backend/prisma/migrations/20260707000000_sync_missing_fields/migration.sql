@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "storageConfig" JSONB;
+
+-- AlterTable
+ALTER TABLE "email_logs" ADD COLUMN IF NOT EXISTS "cc" TEXT, ADD COLUMN IF NOT EXISTS "bcc" TEXT;
