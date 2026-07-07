@@ -35,10 +35,7 @@ services:
       NODE_ENV: production
       DATABASE_URL: postgresql://applizor:${DB_PASSWORD:-applizor123}@postgres:5432/applizor_erp?schema=public
       PORT: 5000
-      JWT_SECRET: ${JWT_SECRET}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
       GOTENBERG_URL: http://gotenberg:3000
-      STORAGE_TYPE: ${STORAGE_TYPE:-local}
     ports:
       - "${API_PORT:-5000}:5000"
     volumes:
