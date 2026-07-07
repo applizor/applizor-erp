@@ -378,13 +378,13 @@ export const generateInvoicePDF = async (req: AuthRequest, res: Response) => {
 export const recordPayment = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { amount, paymentMethod, transactionId } = req.body;
+    const { amount, paymentMethod, transactionId, paymentDate } = req.body;
 
     if (!amount || !paymentMethod) {
       return res.status(400).json({ error: 'Amount and payment method are required' });
     }
 
-    const updatedInvoice = await InvoiceService.recordPayment(id, Number(amount), paymentMethod, transactionId);
+    const updatedInvoice = await InvoiceService.recordPayment(id, Number(amount), paymentMethod, transactionId, req.user?.companyId, paymentDate);
 
     // Log Activity
     try {
@@ -1303,5 +1303,123 @@ export const getActivityLog = async (req: AuthRequest, res: Response) => {
   } catch (error: any) {
     console.error('Get activity log error:', error);
     res.status(500).json({ error: 'Failed to fetch activity log' });
+  }
+};
+
+export const duplicateInvoice = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.userId;
+    const user = req.user;
+
+    if (!user || !user.companyId) {
+      return res.status(400).json({ error: 'User must belong to a company' });
+    }
+
+    const original = await prisma.invoice.findFirst({
+      where: { id, companyId: user.companyId },
+      include: {
+        items: {
+          include: {
+            appliedTaxes: true
+          }
+        }
+      }
+    });
+
+    if (!original) {
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+
+    const prefix = original.type === 'quotation' ? 'QTN' : 'INV';
+    const year = new Date().getFullYear();
+    const count = await prisma.invoice.count({
+      where: {
+        companyId: user.companyId,
+        type: original.type,
+        createdAt: {
+          gte: new Date(year, 0, 1),
+          lt: new Date(year + 1, 0, 1)
+        }
+      }
+    });
+    const suffix = String(count + 1).padStart(5, '0');
+    const invoiceNumber = `${prefix}-${year}-${suffix}`;
+
+    const cloned = await prisma.$transaction(async (tx) => {
+      return await tx.invoice.create({
+        data: {
+          companyId: user.companyId,
+          clientId: original.clientId,
+          projectId: original.projectId,
+          invoiceNumber,
+          invoiceDate: new Date(),
+          dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          status: 'draft',
+          type: original.type,
+          currency: original.currency,
+          exchangeRate: original.exchangeRate,
+          baseCurrencyAmount: original.baseCurrencyAmount,
+          terms: original.terms,
+          notes: original.notes,
+          subtotal: original.subtotal,
+          tax: original.tax,
+          discount: original.discount,
+          total: original.total,
+          isRecurring: false,
+          includeBankDetails: original.includeBankDetails,
+          items: {
+            create: original.items.map(item => ({
+              description: item.description,
+              quantity: item.quantity,
+              rate: item.rate,
+              unit: item.unit,
+              amount: item.amount,
+              hsnSacCode: item.hsnSacCode,
+              discount: item.discount,
+              appliedTaxes: {
+                create: item.appliedTaxes.map(t => ({
+                  taxRateId: t.taxRateId,
+                  name: t.name,
+                  percentage: t.percentage,
+                  amount: t.amount
+                }))
+              }
+            }))
+          }
+        },
+        include: {
+          items: true
+        }
+      });
+    });
+
+    try {
+      await prisma.invoiceActivity.create({
+        data: {
+          invoiceId: cloned.id,
+          type: 'STATUS_CHANGE',
+          browser: 'Admin',
+          ipAddress: 'unknown',
+          userAgent: 'unknown',
+          metadata: {
+            action: 'CREATED',
+            userId: userId,
+            userName: `${user.firstName} ${user.lastName}`,
+            clonedFrom: original.invoiceNumber
+          }
+        }
+      });
+    } catch (logError) {
+      console.error('Failed to log duplication activity:', logError);
+    }
+
+    res.status(201).json({
+      message: 'Invoice duplicated successfully',
+      invoice: cloned
+    });
+  } catch (error: any) {
+    console.error('Duplicate invoice error:', error);
+    res.status(500).json({ error: 'Failed to duplicate invoice', details: error.message });
   }
 };

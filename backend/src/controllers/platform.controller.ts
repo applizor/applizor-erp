@@ -440,7 +440,16 @@ export const listCountries = async (req: AuthRequest, res: Response) => {
             orderBy: { name: 'asc' },
             include: { currency: true },
         });
-        res.json(countries);
+
+        const seenCodes = new Set();
+        const uniqueCountries = countries.filter(c => {
+            const normalized = c.code.trim().toUpperCase();
+            if (seenCodes.has(normalized)) return false;
+            seenCodes.add(normalized);
+            return true;
+        });
+
+        res.json(uniqueCountries);
     } catch (error) {
         console.error('List countries error:', error);
         res.status(500).json({ error: 'Failed to list countries' });
@@ -460,7 +469,17 @@ export const listStates = async (req: AuthRequest, res: Response) => {
             where,
             orderBy: { name: 'asc' },
         });
-        res.json(states);
+
+        // De-duplicate states by name
+        const seenNames = new Set();
+        const uniqueStates = states.filter(state => {
+            const normalized = state.name.trim().toLowerCase();
+            if (seenNames.has(normalized)) return false;
+            seenNames.add(normalized);
+            return true;
+        });
+
+        res.json(uniqueStates);
     } catch (error) {
         console.error('List states error:', error);
         res.status(500).json({ error: 'Failed to list states' });

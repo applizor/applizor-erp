@@ -25,7 +25,7 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState(false);
     const [showPaymentModal, setShowPaymentModal] = useState(false);
-    const [paymentData, setPaymentData] = useState({ amount: 0, method: 'bank-transfer' });
+    const [paymentData, setPaymentData] = useState({ amount: 0, method: 'bank-transfer', paymentDate: new Date().toISOString().split('T')[0] });
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [useLetterhead, setUseLetterhead] = useState(true);
     const [activeTab, setActiveTab] = useState('details');
@@ -40,7 +40,11 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
             setLoading(true);
             const data = await invoicesApi.getById(params.id);
             setInvoice(data.invoice);
-            setPaymentData(prev => ({ ...prev, amount: Number(data.invoice.total) - Number(data.invoice.paidAmount) }));
+            setPaymentData(prev => ({
+                ...prev,
+                amount: Number(data.invoice.total) - Number(data.invoice.paidAmount),
+                paymentDate: new Date().toISOString().split('T')[0]
+            }));
         } catch (error) {
             toast.error('Failed to load document details');
             router.push('/invoices');
@@ -125,7 +129,8 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
             setActionLoading(true);
             await invoicesApi.recordPayment(params.id, {
                 amount: Number(paymentData.amount),
-                paymentMethod: paymentData.method
+                paymentMethod: paymentData.method,
+                paymentDate: paymentData.paymentDate
             });
             toast.success('Liquidation recorded');
             setShowPaymentModal(false);
@@ -161,6 +166,20 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
         } finally {
             setActionLoading(false);
             setShowDeleteConfirm(false);
+        }
+    };
+
+    const handleDuplicate = async () => {
+        try {
+            setActionLoading(true);
+            const res = await invoicesApi.duplicate(params.id);
+            toast.success('Document duplicated successfully');
+            router.push(`/invoices/${res.invoice.id}/edit`);
+        } catch (error) {
+            console.error('Duplication error:', error);
+            toast.error('Failed to duplicate document');
+        } finally {
+            setActionLoading(false);
         }
     };
 
@@ -285,6 +304,9 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
                     </button>
                     <button onClick={handleSendEmail} disabled={actionLoading} className="flex-1 lg:flex-none px-3 py-1.5 bg-white border border-gray-200 rounded text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 flex items-center justify-center gap-2 transition-all">
                         <Mail size={14} /> {actionLoading ? 'Sending...' : 'Transmit'}
+                    </button>
+                    <button onClick={handleDuplicate} disabled={actionLoading} className="flex-1 lg:flex-none px-3 py-1.5 bg-white border border-gray-200 rounded text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 flex items-center justify-center gap-2 transition-all">
+                        <Copy size={14} /> Duplicate
                     </button>
                     {!isPaid && (
                         <Link
@@ -673,6 +695,15 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
                                         className="ent-input w-full pl-10 font-black text-lg p-3"
                                     />
                                 </div>
+                            </div>
+                            <div className="ent-form-group">
+                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Origination Date</label>
+                                <input
+                                    type="date"
+                                    value={paymentData.paymentDate}
+                                    onChange={e => setPaymentData({ ...paymentData, paymentDate: e.target.value })}
+                                    className="ent-input w-full p-3 font-bold text-xs"
+                                />
                             </div>
                             <div className="ent-form-group">
                                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Settlement Mechanism</label>

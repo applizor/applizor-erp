@@ -233,7 +233,9 @@ import emailRoutes from './routes/email.routes';
 app.use('/api/emails', emailRoutes);
 
 import subscriptionPlanRoutes from './routes/subscription-plan.routes';
+import subscriptionRoutes from './routes/subscription.routes';
 app.use('/api/subscription-plans', subscriptionPlanRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
 
 import serviceRoutes from './routes/service.routes';
 app.use('/api/services', serviceRoutes);

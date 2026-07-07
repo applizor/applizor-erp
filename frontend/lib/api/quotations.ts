@@ -88,5 +88,10 @@ export const quotationsApi = {
             responseType: 'blob'
         });
         return response.data;
+    },
+
+    duplicate: async (id: string) => {
+        const response = await api.post(`/quotations/${id}/duplicate`);
+        return response.data;
     }
 };

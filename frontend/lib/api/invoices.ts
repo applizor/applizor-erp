@@ -83,7 +83,7 @@ export const invoicesApi = {
     return response.data;
   },
 
-  recordPayment: async (id: string, data: { amount: number; paymentMethod: string; transactionId?: string }) => {
+  recordPayment: async (id: string, data: { amount: number; paymentMethod: string; transactionId?: string; paymentDate?: string }) => {
     const response = await api.post(`/invoices/${id}/payments`, data);
     return response.data;
   },
@@ -123,6 +123,10 @@ export const invoicesApi = {
   },
   deletePayment: async (paymentId: string) => {
     const response = await api.delete(`/payments/${paymentId}`);
+    return response.data;
+  },
+  duplicate: async (id: string) => {
+    const response = await api.post(`/invoices/${id}/duplicate`);
     return response.data;
   }
 };

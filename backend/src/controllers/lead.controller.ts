@@ -4,6 +4,19 @@ import { AuthRequest } from '../middleware/auth';
 import { PermissionService } from '../services/permission.service';
 import { notifyLeadAssigned } from '../services/email.service';
 
+const calculateLeadTemperature = (lead: any) => {
+  const contacted = lead.lastContactedAt ? new Date(lead.lastContactedAt) : new Date(lead.createdAt);
+  const diffDays = Math.ceil((Date.now() - contacted.getTime()) / (1000 * 60 * 60 * 24));
+  
+  if (diffDays > 30) {
+    return 'cold';
+  } else if (diffDays > 7) {
+    return 'warm';
+  } else {
+    return 'hot';
+  }
+};
+
 export const createLead = async (req: AuthRequest, res: Response) => {
   try {
     console.log('[CreateLead] Request received');
@@ -176,7 +189,7 @@ export const getLeads = async (req: AuthRequest, res: Response) => {
     ]);
 
     res.json({
-      leads,
+      leads: leads.map(l => ({ ...l, temperature: calculateLeadTemperature(l) })),
       pagination: {
         page: Number(page),
         limit: Number(limit),
@@ -224,7 +237,7 @@ export const getLead = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'Lead not found or access denied' });
     }
 
-    res.json({ lead });
+    res.json({ lead: { ...lead, temperature: calculateLeadTemperature(lead) } });
   } catch (error: any) {
     console.error('Get lead error:', error);
     res.status(500).json({ error: 'Failed to get lead', details: error.message });
@@ -482,15 +495,17 @@ export const getLeadsKanban = async (req: AuthRequest, res: Response) => {
       orderBy: { createdAt: 'desc' }
     });
 
+    const mappedLeads = leads.map(l => ({ ...l, temperature: calculateLeadTemperature(l) }));
+
     // Group by stage
     const kanban = {
-      lead: leads.filter(l => l.stage === 'lead'),
-      contacted: leads.filter(l => l.stage === 'contacted'),
-      qualified: leads.filter(l => l.stage === 'qualified'),
-      proposal: leads.filter(l => l.stage === 'proposal'),
-      negotiation: leads.filter(l => l.stage === 'negotiation'),
-      won: leads.filter(l => l.status === 'won'),
-      lost: leads.filter(l => l.status === 'lost')
+      lead: mappedLeads.filter(l => l.stage === 'lead'),
+      contacted: mappedLeads.filter(l => l.stage === 'contacted'),
+      qualified: mappedLeads.filter(l => l.stage === 'qualified'),
+      proposal: mappedLeads.filter(l => l.stage === 'proposal'),
+      negotiation: mappedLeads.filter(l => l.stage === 'negotiation'),
+      won: mappedLeads.filter(l => l.status === 'won'),
+      lost: mappedLeads.filter(l => l.status === 'lost')
     };
 
     res.json(kanban);
@@ -971,5 +986,69 @@ export const completeActivity = async (req: AuthRequest, res: Response) => {
   } catch (error: any) {
     console.error('Complete activity error:', error);
     res.status(500).json({ error: 'Failed to complete activity', details: error.message });
+  }
+};
+
+export const reengageLead = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const user = req.user;
+    if (!PermissionService.hasBasicPermission(user, 'Lead', 'update')) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Verify lead access
+    const scopeFilter = await PermissionService.getScopedWhereClause(
+      user, 'Lead', 'update', 'Lead', 'createdBy', 'assignedTo'
+    );
+    const lead = await prisma.lead.findFirst({
+      where: { AND: [{ id }, scopeFilter] }
+    });
+
+    if (!lead) return res.status(404).json({ error: 'Lead not found or access denied' });
+    if (!lead.email) return res.status(400).json({ error: 'Lead does not have an email address' });
+
+    // Send warmup email
+    const subject = `Re-engaging check-in: ${lead.company || lead.name}`;
+    const content = `
+      <p>Hello <strong>${lead.name}</strong>,</p>
+      <p>I hope you are doing well.</p>
+      <p>It's been a while since we last spoke regarding potential solutions for your team at <strong>${lead.company || 'your organization'}</strong>. We wanted to reach out to see if you have any updates on your requirements, or if there is anything else we can assist you with at this time.</p>
+      <p>Looking forward to hearing from you.</p>
+      <p>Best regards,</p>
+      <p><strong>${user.firstName} ${user.lastName}</strong><br/>Sales & Strategy Team</p>
+    `;
+
+    const { sendEmail } = require('../services/email.service');
+    await sendEmail(lead.email, subject, content);
+
+    // Create activity entry
+    const activity = await prisma.leadActivity.create({
+      data: {
+        leadId: id,
+        type: 'email',
+        title: 'Dispatched Cold Lead Warmup Email',
+        description: `Sent re-engagement template to ${lead.email}`,
+        status: 'completed',
+        completedAt: new Date(),
+        createdBy: userId
+      }
+    });
+
+    // Update last contacted date on lead
+    await prisma.lead.update({
+      where: { id },
+      data: { lastContactedAt: new Date() }
+    });
+
+    res.json({ message: 'Warmup re-engagement email sent successfully', activity });
+  } catch (error: any) {
+    console.error('Re-engage lead error:', error);
+    res.status(500).json({ error: 'Failed to send re-engagement email', details: error.message });
   }
 };

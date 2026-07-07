@@ -334,6 +334,33 @@ export const updateClient = async (req: AuthRequest, res: Response) => {
       data,
     });
 
+    // Compute differences for compliance audit logs
+    const changes: Record<string, { old: any, new: any }> = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (value !== undefined && (existing as any)[key] !== value) {
+        if (key === 'password') {
+          changes[key] = { old: '******', new: '******' };
+        } else {
+          changes[key] = { old: (existing as any)[key], new: value };
+        }
+      }
+    }
+
+    if (Object.keys(changes).length > 0) {
+      await prisma.auditLog.create({
+        data: {
+          companyId: req.user!.companyId!,
+          userId: req.userId!,
+          action: 'UPDATE',
+          module: 'CLIENT',
+          entityType: 'Client',
+          entityId: client.id,
+          details: `Updated client details: ${Object.keys(changes).join(', ')}`,
+          changes: changes as any
+        }
+      });
+    }
+
     res.json({
       message: 'Client updated successfully',
       client,

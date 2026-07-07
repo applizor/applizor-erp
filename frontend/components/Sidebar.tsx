@@ -103,6 +103,7 @@ export default function Sidebar() {
         // CRM (Sales)
         { name: 'Leads', href: '/leads', icon: LineChart, category: 'CRM', module: 'Lead' },
         { name: 'Clients', href: '/clients', icon: Users, category: 'CRM', module: 'Client' },
+        { name: 'Client Memberships', href: '/settings/memberships', icon: CreditCard, category: 'CRM', module: 'Client' },
         { name: 'Quotations', href: '/quotations', icon: FileText, category: 'CRM', module: 'Lead' },
         { name: 'Quote Templates', href: '/quotations/templates', icon: Copy, category: 'CRM', module: 'QuotationTemplate' },
         { name: 'Contracts', href: '/crm/contracts', icon: ShieldCheck, category: 'CRM', module: 'Contract' },

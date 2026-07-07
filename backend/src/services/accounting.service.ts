@@ -76,7 +76,8 @@ export const createJournalEntry = async (
     reference: string,
     lines: JournalLineInput[],
     autoPost: boolean = false,
-    userId?: string // Added for Audit Trail
+    userId?: string, // Added for Audit Trail
+    prismaTx?: any
 ) => {
     // 0. Check Ledger Lock
     await checkLedgerLock(companyId, date);
@@ -90,7 +91,7 @@ export const createJournalEntry = async (
         throw new Error(`Unbalanced Journal Entry: Debit ${totalDebit} != Credit ${totalCredit}`);
     }
 
-    return await prisma.$transaction(async (tx) => {
+    const execute = async (tx: any) => {
         // 1. Create Header
         const entry = await tx.journalEntry.create({
             data: {
@@ -150,7 +151,10 @@ export const createJournalEntry = async (
         });
 
         return entry;
-    });
+    };
+
+    if (prismaTx) return execute(prismaTx);
+    return await prisma.$transaction(execute);
 };
 
 export const getTrialBalance = async (companyId: string) => {
@@ -167,8 +171,9 @@ export const getAccountByCode = async (companyId: string, code: string) => {
     });
 };
 
-export const ensureAccount = async (companyId: string, code: string, name: string, type: string) => {
-    return await prisma.ledgerAccount.upsert({
+export const ensureAccount = async (companyId: string, code: string, name: string, type: string, prismaTx?: any) => {
+    const tx = prismaTx || prisma;
+    return await tx.ledgerAccount.upsert({
         where: { companyId_code: { companyId, code } },
         update: {},
         create: { companyId, code, name, type }
@@ -512,11 +517,12 @@ export const deleteJournalEntry = async (id: string, userId?: string, companyId?
 /**
  * Automates GST-compliant Ledger posting for Invoices
  */
-export const postInvoiceToLedger = async (invoiceId: string, companyId?: string) => {
+export const postInvoiceToLedger = async (invoiceId: string, companyId?: string, prismaTx?: any) => {
+    const tx = prismaTx || prisma;
     const whereClause: any = { id: invoiceId };
     if (companyId) whereClause.companyId = companyId;
 
-    const invoice = await prisma.invoice.findFirst({
+    const invoice = await tx.invoice.findFirst({
         where: whereClause,
         include: {
             client: true,
@@ -531,7 +537,7 @@ export const postInvoiceToLedger = async (invoiceId: string, companyId?: string)
 
     // Integrity: Delete any previous postings for this invoice to handle UPDATES
     // If it transitions to 'draft', 'canceled', or 'voided', this cleans up any old postings.
-    await deleteLedgerPostings(reference);
+    await deleteLedgerPostings(reference, tx);
 
     // Sync Logic: Only 'sent', 'paid', or 'partial' invoices should have ledger entries.
     if (!['sent', 'paid', 'partial'].includes(invoice.status)) return;
@@ -539,12 +545,12 @@ export const postInvoiceToLedger = async (invoiceId: string, companyId?: string)
     const ownerCompanyId = invoice.companyId;
 
     // Resolve IDs for common accounts
-    const debtorsAcc = await ensureAccount(ownerCompanyId, '1200', 'Sundry Debtors', 'asset');
-    const salesAcc = await ensureAccount(ownerCompanyId, '4000', 'Sales Revenue', 'income');
-    const cgstAcc = await ensureAccount(ownerCompanyId, '2200', 'Output CGST', 'liability');
-    const sgstAcc = await ensureAccount(ownerCompanyId, '2201', 'Output SGST', 'liability');
-    const igstAcc = await ensureAccount(ownerCompanyId, '2202', 'Output IGST', 'liability');
-    const discountAcc = await ensureAccount(ownerCompanyId, '5201', 'Discount Allowed', 'expense');
+    const debtorsAcc = await ensureAccount(ownerCompanyId, '1200', 'Sundry Debtors', 'asset', tx);
+    const salesAcc = await ensureAccount(ownerCompanyId, '4000', 'Sales Revenue', 'income', tx);
+    const cgstAcc = await ensureAccount(ownerCompanyId, '2200', 'Output CGST', 'liability', tx);
+    const sgstAcc = await ensureAccount(ownerCompanyId, '2201', 'Output SGST', 'liability', tx);
+    const igstAcc = await ensureAccount(ownerCompanyId, '2202', 'Output IGST', 'liability', tx);
+    const discountAcc = await ensureAccount(ownerCompanyId, '5201', 'Discount Allowed', 'expense', tx);
 
     const lines: JournalLineInput[] = [];
 
@@ -563,8 +569,8 @@ export const postInvoiceToLedger = async (invoiceId: string, companyId?: string)
     // 3. Credit Tax Components
     let totalTaxRecorded = 0;
     const taxMap: Record<string, number> = {};
-    invoice.items.forEach(item => {
-        item.appliedTaxes.forEach(t => {
+    invoice.items.forEach((item: any) => {
+        item.appliedTaxes.forEach((t: any) => {
             const name = t.name.toUpperCase();
             if (!taxMap[name]) taxMap[name] = 0;
             taxMap[name] += Number(t.amount);
@@ -602,18 +608,21 @@ export const postInvoiceToLedger = async (invoiceId: string, companyId?: string)
         `Invoice ${invoice.invoiceNumber} to ${invoice.client?.name || 'Client'}`,
         reference,
         lines,
-        true // Auto Post
+        true, // Auto Post
+        undefined,
+        tx
     );
 };
 
 /**
  * Automates Ledger posting for Payments
  */
-export const postPaymentToLedger = async (paymentId: string, companyId?: string) => {
+export const postPaymentToLedger = async (paymentId: string, companyId?: string, prismaTx?: any) => {
+    const tx = prismaTx || prisma;
     const whereClause: any = { id: paymentId };
     if (companyId) whereClause.companyId = companyId;
 
-    const payment = await prisma.payment.findFirst({
+    const payment = await tx.payment.findFirst({
         where: whereClause,
         include: { invoice: { include: { client: true } } }
     });
@@ -624,13 +633,13 @@ export const postPaymentToLedger = async (paymentId: string, companyId?: string)
     const reference = `PAY-${payment.id.slice(-6).toUpperCase()}`;
 
     // Integrity: Delete any previous postings for this payment
-    await deleteLedgerPostings(reference);
+    await deleteLedgerPostings(reference, tx);
 
     // Resolve accounts
     const ownerCompanyId = payment.invoice.companyId;
-    const bankAcc = await ensureAccount(ownerCompanyId, '1001', 'Bank Account', 'asset');
-    const cashAcc = await ensureAccount(ownerCompanyId, '1000', 'Cash', 'asset');
-    const debtorsAcc = await ensureAccount(ownerCompanyId, '1200', 'Sundry Debtors', 'asset');
+    const bankAcc = await ensureAccount(ownerCompanyId, '1001', 'Bank Account', 'asset', tx);
+    const cashAcc = await ensureAccount(ownerCompanyId, '1000', 'Cash', 'asset', tx);
+    const debtorsAcc = await ensureAccount(ownerCompanyId, '1200', 'Sundry Debtors', 'asset', tx);
 
     const method = payment.paymentMethod?.toLowerCase() || 'bank';
     const receivingAcc = (method === 'cash') ? cashAcc : bankAcc;
@@ -646,7 +655,9 @@ export const postPaymentToLedger = async (paymentId: string, companyId?: string)
         `Payment received for Invoice ${payment.invoice.invoiceNumber}`,
         reference,
         lines,
-        true
+        true,
+        undefined,
+        tx
     );
 };
 
@@ -702,43 +713,48 @@ export const reconcileCompanyLedger = async (companyId: string) => {
             data: { balance: new Decimal(0) }
         });
 
-        // 2. Fetch all posted journal lines for the company
-        const lines = await tx.journalEntryLine.findMany({
+        // 2. Fetch aggregated debit/credit totals per account from DB (optimized bulk aggregation)
+        const aggs = await tx.journalEntryLine.groupBy({
+            by: ['accountId'],
             where: {
                 journalEntry: {
                     companyId,
                     status: 'posted'
                 }
             },
-            include: { account: true }
+            _sum: {
+                debit: true,
+                credit: true
+            }
         });
 
-        // 3. Group by accountId and calculate new balances
-        const accountTotals: Record<string, number> = {};
-        for (const line of lines) {
-            if (!accountTotals[line.accountId]) accountTotals[line.accountId] = 0;
-
-            const debit = Number(line.debit);
-            const credit = Number(line.credit);
-
-            if (['asset', 'expense'].includes(line.account.type)) {
-                accountTotals[line.accountId] += (debit - credit);
-            } else {
-                accountTotals[line.accountId] += (credit - debit);
-            }
-        }
+        // 3. Fetch all accounts to update
+        const accounts = await tx.ledgerAccount.findMany({
+            where: { companyId }
+        });
 
         // 4. Update ledger accounts with correct balances
-        for (const [accountId, balance] of Object.entries(accountTotals)) {
+        for (const account of accounts) {
+            const match = aggs.find(a => a.accountId === account.id);
+            const debit = Number(match?._sum.debit || 0);
+            const credit = Number(match?._sum.credit || 0);
+
+            let balance = 0;
+            if (['asset', 'expense'].includes(account.type)) {
+                balance = debit - credit;
+            } else {
+                balance = credit - debit;
+            }
+
             await tx.ledgerAccount.update({
-                where: { id: accountId },
+                where: { id: account.id },
                 data: { balance: new Decimal(balance) }
             });
         }
 
         return {
             success: true,
-            accountsReconciled: Object.keys(accountTotals).length,
+            accountsReconciled: accounts.length,
             backfilledInvoices: backfilledCount
         };
     });

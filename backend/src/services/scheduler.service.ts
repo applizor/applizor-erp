@@ -1,6 +1,6 @@
 import cron from 'node-cron';
 import prisma from '../prisma/client';
-import { sendQuotationReminder, sendInvoiceEmail } from './email.service';
+import { sendQuotationReminder, sendInvoiceEmail, sendEmail } from './email.service';
 import { leaveAccrualService } from './leave-accrual.service';
 import { InvoiceService } from './invoice.service';
 import { AutomationService } from './automation.service';
@@ -48,6 +48,15 @@ export class SchedulerService {
             await CronLockService.withCronLock('daily_task_reminders', async () => {
                 console.log('⏰ Running daily task reminder check...');
                 await this.processTaskReminders();
+            });
+        });
+
+        // CRM Lead Alerts & Quotation Expirations: Run daily at 00:05 AM
+        cron.schedule('5 0 * * *', async () => {
+            await CronLockService.withCronLock('daily_crm_alerts', async () => {
+                console.log('⏰ Running daily CRM lead alert and quotation expiration check...');
+                await this.checkLeadFollowUps();
+                await this.expireQuotations();
             });
         });
     }
@@ -214,6 +223,110 @@ export class SchedulerService {
             }
         } catch (error) {
             console.error('[Scheduler] Error processing task reminders:', error);
+        }
+    }
+
+    static async checkLeadFollowUps() {
+        try {
+            const now = new Date();
+            const dueLeads = await prisma.lead.findMany({
+                where: {
+                    nextFollowUpAt: { lte: now },
+                    status: { notIn: ['won', 'lost', 'converted'] },
+                    assignedTo: { not: null }
+                },
+                include: {
+                    assignedUser: true
+                }
+            });
+
+            console.log(`[Scheduler] Found ${dueLeads.length} leads due for follow-ups.`);
+
+            for (const lead of dueLeads) {
+                if (lead.assignedUser && lead.assignedUser.email) {
+                    const link = `/leads/${lead.id}`;
+                    
+                    // Check if alert notification was already created for this specific nextFollowUpAt
+                    const existingAlert = await prisma.notification.findFirst({
+                        where: {
+                            userId: lead.assignedTo!,
+                            type: 'LEAD_REMINDER',
+                            link,
+                            createdAt: { gte: lead.nextFollowUpAt! }
+                        }
+                    });
+
+                    if (existingAlert) {
+                        console.log(`[Scheduler] Alert already sent for lead "${lead.name}" (ID: ${lead.id}) for follow-up date ${lead.nextFollowUpAt}. Skipping.`);
+                        continue;
+                    }
+
+                    console.log(`[Scheduler] Alerting ${lead.assignedUser.email} for Lead "${lead.name}" follow-up.`);
+                    
+                    await prisma.notification.create({
+                        data: {
+                            userId: lead.assignedTo!,
+                            companyId: lead.companyId,
+                            title: 'Lead Follow-up Due',
+                            message: `The scheduled follow-up for lead "${lead.name}" (${lead.company || 'Private'}) is now due.`,
+                            type: 'LEAD_REMINDER',
+                            link,
+                            isRead: false
+                        }
+                    });
+
+                    const subject = `Lead Follow-up Reminder: ${lead.name}`;
+                    const content = `
+                        <p>Hello <strong>${lead.assignedUser.firstName}</strong>,</p>
+                        <p>This is a reminder that you have a scheduled follow-up due for the following lead:</p>
+                        <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+                            <tr><td style="padding: 5px; font-weight: bold; width: 120px;">Lead Name:</td><td>${lead.name}</td></tr>
+                            <tr><td style="padding: 5px; font-weight: bold;">Company:</td><td>${lead.company || '—'}</td></tr>
+                            <tr><td style="padding: 5px; font-weight: bold;">Contact:</td><td>${lead.email || lead.phone || '—'}</td></tr>
+                            <tr><td style="padding: 5px; font-weight: bold;">Next Follow-up:</td><td>${lead.nextFollowUpAt ? new Date(lead.nextFollowUpAt).toLocaleString() : 'N/A'}</td></tr>
+                        </table>
+                    `;
+                    
+                    await sendEmail(lead.assignedUser.email, subject, content);
+                }
+            }
+        } catch (error) {
+            console.error('[Scheduler] Error checking lead follow-ups:', error);
+        }
+    }
+
+    static async expireQuotations() {
+        try {
+            const now = new Date();
+            const expiredQuotes = await prisma.quotation.findMany({
+                where: {
+                    validUntil: { lte: now },
+                    status: { in: ['draft', 'sent'] }
+                }
+            });
+
+            console.log(`[Scheduler] Expiring ${expiredQuotes.length} quotations.`);
+
+            for (const quote of expiredQuotes) {
+                await prisma.$transaction(async (tx) => {
+                    await tx.quotation.update({
+                        where: { id: quote.id },
+                        data: { status: 'expired' }
+                    });
+
+                    await tx.quotationActivity.create({
+                        data: {
+                            quotationId: quote.id,
+                            type: 'EXPIRED',
+                            metadata: {
+                                reason: 'Validity period reached validUntil limit'
+                            }
+                        }
+                    });
+                });
+            }
+        } catch (error) {
+            console.error('[Scheduler] Error auto-expiring quotations:', error);
         }
     }
 }

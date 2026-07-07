@@ -156,17 +156,20 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
     // Fetch Tax Rates and Units
     const [taxRates, setTaxRates] = useState<any[]>([]);
     const [unitTypes, setUnitTypes] = useState<any[]>([]);
+    const [services, setServices] = useState<any[]>([]);
 
     useEffect(() => {
         const fetchSettings = async () => {
             try {
-                const [taxesRes, unitsRes] = await Promise.all([
+                const [taxesRes, unitsRes, servicesRes] = await Promise.all([
                     api.get('/settings/taxes'),
-                    api.get('/settings/units')
+                    api.get('/settings/units'),
+                    api.get('/services')
                 ]);
 
                 setTaxRates(taxesRes.data);
                 setUnitTypes(unitsRes.data);
+                setServices(servicesRes.data || []);
             } catch (error) {
                 console.error('Failed to fetch invoice settings', error);
             }
@@ -459,9 +462,17 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
                                     <td className="px-4 py-2">
                                         <input
                                             {...register(`items.${index}.description`)}
+                                            list={`services-list-${index}`}
                                             placeholder="Component or service identifier..."
                                             className="w-full border-none bg-transparent focus:ring-0 text-[11px] font-bold placeholder:text-gray-300 placeholder:italic p-0"
                                         />
+                                        <datalist id={`services-list-${index}`}>
+                                            {services.map((s: any) => (
+                                                <option key={s.id} value={s.name}>
+                                                    {s.category} - {s.description || ''}
+                                                </option>
+                                            ))}
+                                        </datalist>
                                         {errors.items?.[index]?.description && (
                                             <span className="text-[8px] font-black text-rose-500 uppercase block leading-none mt-1">{errors.items[index]?.description?.message}</span>
                                         )}

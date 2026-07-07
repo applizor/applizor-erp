@@ -170,14 +170,25 @@ export default function LeadKanbanPage() {
                                                                     <div className="text-[14px] font-black text-gray-900 tracking-tight">
                                                                         {formatCurrency(lead.value || 0)}
                                                                     </div>
-                                                                    {lead.priority && (
-                                                                        <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded-md border ${lead.priority === 'high' || lead.priority === 'urgent'
-                                                                            ? 'bg-rose-50 text-rose-700 border-rose-100'
-                                                                            : 'bg-primary-50 text-primary-700 border-primary-100'
+                                                                    <div className="flex items-center gap-1">
+                                                                        {lead.temperature && (
+                                                                            <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded-md border ${
+                                                                                lead.temperature === 'hot' ? 'bg-red-50 text-red-600 border-red-100 animate-pulse' :
+                                                                                lead.temperature === 'warm' ? 'bg-amber-50 text-amber-600 border-amber-100' :
+                                                                                'bg-slate-100 text-slate-500 border-slate-200'
                                                                             }`}>
-                                                                            {lead.priority}
-                                                                        </span>
-                                                                    )}
+                                                                                {lead.temperature}
+                                                                            </span>
+                                                                        )}
+                                                                        {lead.priority && (
+                                                                            <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded-md border ${lead.priority === 'high' || lead.priority === 'urgent'
+                                                                                ? 'bg-rose-50 text-rose-700 border-rose-100'
+                                                                                : 'bg-primary-50 text-primary-700 border-primary-100'
+                                                                                }`}>
+                                                                                {lead.priority}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
                                                                 </div>
 
                                                                 {lead.nextFollowUpAt && (

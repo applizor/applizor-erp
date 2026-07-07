@@ -9,7 +9,8 @@ import {
     downloadQuotationPDF,
     downloadSignedQuotationPDF,
     sendQuotationEmail,
-    getQuotationAnalytics
+    getQuotationAnalytics,
+    duplicateQuotation
 } from '../controllers/quotation.controller';
 import {
     generatePublicLink,
@@ -30,6 +31,7 @@ router.get('/', authenticate, getQuotations);
 router.get('/:id', authenticate, getQuotation);
 router.put('/:id', authenticate, updateQuotation);
 router.post('/:id/convert-to-invoice', authenticate, convertQuotationToInvoice);
+router.post('/:id/duplicate', authenticate, duplicateQuotation);
 router.delete('/:id', authenticate, deleteQuotation);
 
 // Public link management (require authentication)

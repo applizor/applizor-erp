@@ -95,6 +95,17 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
         window.print();
     };
 
+    const handleDuplicate = async () => {
+        try {
+            const res = await quotationsApi.duplicate(params.id);
+            toast.success('Quotation duplicated successfully');
+            router.push(`/quotations/${res.quotation.id}/edit`);
+        } catch (error) {
+            console.error('Duplication error:', error);
+            toast.error('Failed to duplicate quotation');
+        }
+    };
+
     const getStatusBadge = (status: string) => {
         const styles: Record<string, string> = {
             draft: 'bg-gray-100 text-gray-800',
@@ -186,6 +197,16 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
                     >
                         Preview PDF
                     </Button>
+
+                    {can('Quotation', 'create') && (
+                        <Button
+                            onClick={handleDuplicate}
+                            variant="secondary"
+                            icon={Copy}
+                        >
+                            Duplicate
+                        </Button>
+                    )}
 
                     <div className="flex items-center gap-2 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
                         <input

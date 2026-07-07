@@ -101,7 +101,7 @@ export const attendanceApi = {
     },
     getAll: async (filters?: { date?: string; departmentId?: string; employeeName?: string }) => {
         const response = await api.get('/attendance-leave/all-attendance', { params: filters });
-        return response.data;
+        return Array.isArray(response.data) ? response.data : (response.data?.data || response.data);
     },
     getMusterRoll: async (month: number, year: number, departmentId?: string) => {
         const response = await api.get('/attendance-leave/all-attendance', {
@@ -136,11 +136,11 @@ export const leavesApi = {
     },
     getMyLeaves: async () => {
         const response = await api.get('/attendance-leave/my-leaves');
-        return response.data;
+        return Array.isArray(response.data) ? response.data : (response.data?.data || []);
     },
     getAllLeaves: async (status?: string) => {
         const response = await api.get('/attendance-leave/all-leaves', { params: { status } });
-        return response.data;
+        return Array.isArray(response.data) ? response.data : (response.data?.data || []);
     },
     updateStatus: async (id: string, status: string) => {
         const response = await api.put(`/attendance-leave/leaves/${id}/status`, { status });

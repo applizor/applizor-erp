@@ -455,7 +455,10 @@ export const deletePayment = async (req: AuthRequest, res: Response) => {
         where: { id }
       });
 
-      // 3. Log Activity
+      // 3. Delete Ledger Postings inside transaction for consistency
+      await accountingService.deleteLedgerPostings(`PAY-${id.slice(-6).toUpperCase()}`, tx);
+
+      // 4. Log Activity
       await tx.auditLog.create({
         data: {
           companyId: payment.invoice?.companyId || '',
@@ -468,13 +471,6 @@ export const deletePayment = async (req: AuthRequest, res: Response) => {
         }
       });
     });
-
-    // Cleanup ledger outside transaction
-    try {
-      await accountingService.deleteLedgerPostings(`PAY-${id.slice(-6).toUpperCase()}`);
-    } catch (err) {
-      console.error('Failed to cleanup ledger after payment deletion:', err);
-    }
 
     res.json({ message: 'Payment deleted successfully' });
   } catch (error: any) {

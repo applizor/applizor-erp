@@ -14,7 +14,8 @@ import {
   scheduleFollowUp,
   updateActivity,
   deleteActivity,
-  completeActivity
+  completeActivity,
+  reengageLead
 } from '../controllers/lead.controller';
 import { authenticate } from '../middleware/auth';
 import { requireModule } from '../middleware/enforcePlanLimit';
@@ -46,6 +47,7 @@ router.put('/:id/activities/:activityId', updateActivity);
 router.delete('/:id/activities/:activityId', deleteActivity);
 router.post('/:id/activities/:activityId/complete', completeActivity);
 router.post('/:id/schedule-follow-up', scheduleFollowUp);
+router.post('/:id/reengage', reengageLead);
 
 // Legacy conversion route (keep for backwards compatibility)
 router.post('/:id/convert', convertLeadToClient);

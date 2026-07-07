@@ -1,11 +1,11 @@
 #!/bin/bash
 # Restore database from projectstartbackup.sql
 
-echo "⏳ Restoring database from backend/backups/projectstartbackup.sql..."
+echo "⏳ Restoring database from backend/backups/remote_db_backup.sql..."
 
 # Check if file exists
-if [ ! -f "backend/backups/projectstartbackup.sql" ]; then
-    echo "❌ Error: backend/backups/projectstartbackup.sql not found!"
+if [ ! -f "backend/backups/remote_db_backup.sql" ]; then
+    echo "❌ Error: backend/backups/remote_db_backup.sql not found!"
     exit 1
 fi
 
@@ -17,6 +17,6 @@ if [ -f /.dockerenv ]; then
 fi
 
 # Run restoration using docker exec and psql
-docker exec -i applizor-postgres psql -U applizor -d applizor_erp < backend/backups/projectstartbackup.sql
+docker exec -i applizor-postgres psql -U applizor -d applizor_erp < backend/backups/remote_db_backup.sql
 
 echo "✅ Database restoration complete!"

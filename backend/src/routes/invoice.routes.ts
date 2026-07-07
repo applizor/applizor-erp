@@ -18,6 +18,7 @@ import {
   revokePublicLink,
   getActivityLog,
   deleteInvoice,
+  duplicateInvoice,
 } from '../controllers/invoice.controller';
 import {
   getInvoiceByToken,
@@ -44,6 +45,7 @@ router.post('/:id/generate-link', authenticate, generatePublicLink);
 router.post('/:id/revoke-link', authenticate, revokePublicLink);
 router.post('/:id/revoke-link', authenticate, revokePublicLink);
 router.put('/:id/status', authenticate, updateInvoiceStatus);
+router.post('/:id/duplicate', authenticate, duplicateInvoice);
 router.delete('/:id', authenticate, deleteInvoice);
 
 // Public routes (no authentication required)

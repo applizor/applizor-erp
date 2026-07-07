@@ -29,6 +29,7 @@ export default function LeadDetailPage() {
     const [convertDialog, setConvertDialog] = useState(false);
     const [showActivityModal, setShowActivityModal] = useState(false);
     const [savingActivity, setSavingActivity] = useState(false);
+    const [reengaging, setReengaging] = useState(false);
     const [editingActivity, setEditingActivity] = useState<any>(null);
     const [activityForm, setActivityForm] = useState({
         type: 'call',
@@ -94,6 +95,21 @@ export default function LeadDetailPage() {
             toast.error(error.response?.data?.error || 'Conversion protocol failed');
         } finally {
             setConverting(false);
+        }
+    };
+
+    const handleReengage = async () => {
+        if (!lead) return;
+        try {
+            setReengaging(true);
+            await api.post(`/leads/${lead.id}/reengage`);
+            toast.success('Warmup email dispatched successfully!');
+            await loadLead(lead.id);
+            await loadActivities(lead.id);
+        } catch (error: any) {
+            toast.error(error.response?.data?.error || 'Warmup protocol failed');
+        } finally {
+            setReengaging(false);
         }
     };
 
@@ -243,9 +259,27 @@ export default function LeadDetailPage() {
                     <div className={`ml-4 px-3 py-1 border rounded-md font-black text-[9px] uppercase tracking-widest ${getStatusStyles(lead.status)}`}>
                         {getStatusLabel(lead.status)}
                     </div>
+                    {lead.temperature && (
+                        <div className={`ml-2 px-3 py-1 border rounded-md font-black text-[9px] uppercase tracking-widest ${
+                            lead.temperature === 'hot' ? 'bg-red-50 text-red-600 border-red-100 animate-pulse' :
+                            lead.temperature === 'warm' ? 'bg-amber-50 text-amber-600 border-amber-100' :
+                            'bg-slate-100 text-slate-500 border-slate-200'
+                        }`}>
+                            TEMP: {lead.temperature}
+                        </div>
+                    )}
                 </div>
 
                 <div className="flex items-center gap-2">
+                    {can('Lead', 'update') && lead.temperature === 'cold' && lead.email && (
+                        <button
+                            onClick={handleReengage}
+                            disabled={reengaging}
+                            className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-black text-[10px] uppercase tracking-widest flex items-center gap-2 rounded-md transition-all disabled:opacity-50 shadow-md shadow-amber-500/10"
+                        >
+                            <Mail size={14} /> {reengaging ? 'WARMING UP...' : 'Re-engage Cold Lead'}
+                        </button>
+                    )}
                     {can('Lead', 'update') && can('Client', 'create') && (
                         <button
                             onClick={() => setConvertDialog(true)}

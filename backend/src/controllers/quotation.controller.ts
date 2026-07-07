@@ -545,24 +545,44 @@ export const updateQuotation = async (req: AuthRequest, res: Response) => {
             updateData.baseCurrencyAmount = baseCurrencyAmount;
 
             // Delete existing items and create new ones
-            await prisma.quotationItem.deleteMany({
-                where: { quotationId: id }
+            // We wrap this replacement in a transaction to prevent partial updates / data loss on failure
+            const quotation = await prisma.$transaction(async (tx) => {
+                await tx.quotationItem.deleteMany({
+                    where: { quotationId: id }
+                });
+
+                updateData.items = {
+                    create: processedItems.map((item: any) => ({
+                        description: item.description,
+                        quantity: item.quantity,
+                        unit: item.unit,
+                        unitPrice: item.unitPrice,
+                        hsnSacCode: item.hsnSacCode,
+                        discount: item.discount,
+                        total: item.total,
+                        appliedTaxes: {
+                            create: item.appliedTaxes
+                        }
+                    }))
+                };
+
+                return await tx.quotation.update({
+                    where: { id },
+                    data: updateData,
+                    include: {
+                        items: {
+                            include: {
+                                appliedTaxes: true
+                            }
+                        }
+                    }
+                });
             });
 
-            updateData.items = {
-                create: processedItems.map((item: any) => ({
-                    description: item.description,
-                    quantity: item.quantity,
-                    unit: item.unit,
-                    unitPrice: item.unitPrice,
-                    hsnSacCode: item.hsnSacCode,
-                    discount: item.discount,
-                    total: item.total,
-                    appliedTaxes: {
-                        create: item.appliedTaxes
-                    }
-                }))
-            };
+            return res.json({
+                message: 'Quotation updated successfully',
+                quotation
+            });
         }
 
         const quotation = await prisma.quotation.update({
@@ -1194,5 +1214,122 @@ export const getQuotationAnalytics = async (req: AuthRequest, res: Response) => 
     } catch (error: any) {
         console.error('Get quotation analytics error:', error);
         res.status(500).json({ error: 'Failed to fetch quotation analytics', details: error.message });
+    }
+};
+
+export const duplicateQuotation = async (req: AuthRequest, res: Response) => {
+    try {
+        const user = req.user;
+        if (!user || !user.companyId) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        const { id } = req.params;
+
+        if (!PermissionService.hasBasicPermission(user, 'Quotation', 'create')) {
+            return res.status(403).json({ error: 'Access denied: No create rights for Quotation' });
+        }
+
+        const original = await prisma.quotation.findFirst({
+            where: { id, companyId: user.companyId },
+            include: {
+                items: {
+                    include: {
+                        appliedTaxes: true
+                    }
+                }
+            }
+        });
+
+        if (!original) {
+            return res.status(404).json({ error: 'Quotation not found' });
+        }
+
+        const year = new Date().getFullYear();
+        const count = await prisma.quotation.count({
+            where: {
+                companyId: user.companyId,
+                createdAt: {
+                    gte: new Date(year, 0, 1),
+                    lt: new Date(year + 1, 0, 1)
+                }
+            }
+        });
+        const suffix = String(count + 1).padStart(5, '0');
+        const quotationNumber = `QUO-${year}-${suffix}`;
+
+        const cloned = await prisma.$transaction(async (tx) => {
+            return await tx.quotation.create({
+                data: {
+                    companyId: user.companyId,
+                    createdBy: user.id,
+                    leadId: original.leadId,
+                    clientId: original.clientId,
+                    quotationNumber,
+                    title: `${original.title} (Copy)`,
+                    description: original.description,
+                    quotationDate: new Date(),
+                    validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+                    exchangeRate: original.exchangeRate,
+                    baseCurrencyAmount: original.baseCurrencyAmount,
+                    subtotal: original.subtotal,
+                    tax: original.tax,
+                    discount: original.discount,
+                    total: original.total,
+                    currency: original.currency,
+                    paymentTerms: original.paymentTerms,
+                    deliveryTerms: original.deliveryTerms,
+                    notes: original.notes,
+                    reminderFrequency: original.reminderFrequency,
+                    maxReminders: original.maxReminders,
+                    items: {
+                        create: original.items.map(item => ({
+                            description: item.description,
+                            quantity: item.quantity,
+                            unit: item.unit,
+                            unitPrice: item.unitPrice,
+                            hsnSacCode: item.hsnSacCode,
+                            discount: item.discount,
+                            total: item.total,
+                            appliedTaxes: {
+                                create: item.appliedTaxes.map(t => ({
+                                    taxRateId: t.taxRateId,
+                                    name: t.name,
+                                    percentage: t.percentage,
+                                    amount: t.amount
+                                }))
+                            }
+                        }))
+                    }
+                },
+                include: {
+                    items: true
+                }
+            });
+        });
+
+        try {
+            await prisma.quotationActivity.create({
+                data: {
+                    quotationId: cloned.id,
+                    type: 'CREATED',
+                    metadata: {
+                        userId: user.id,
+                        userName: `${user.firstName} ${user.lastName}`,
+                        clonedFrom: original.quotationNumber
+                    }
+                }
+            });
+        } catch (logError) {
+            console.error('Failed to log quotation duplication activity:', logError);
+        }
+
+        res.status(201).json({
+            message: 'Quotation duplicated successfully',
+            quotation: cloned
+        });
+    } catch (error: any) {
+        console.error('Duplicate quotation error:', error);
+        res.status(500).json({ error: 'Failed to duplicate quotation', details: error.message });
     }
 };

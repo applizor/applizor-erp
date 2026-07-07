@@ -190,6 +190,7 @@ export class InvoiceService {
                         recurringStartDate: invoiceData.recurringStartDate ? new Date(invoiceData.recurringStartDate) : undefined,
                         recurringEndDate: invoiceData.recurringEndDate ? new Date(invoiceData.recurringEndDate) : undefined,
                         recurringNextRun: invoiceData.recurringNextRun ? new Date(invoiceData.recurringNextRun) : (invoiceData.isRecurring ? new Date(invoiceData.recurringStartDate || Date.now()) : undefined),
+                        nextOccurrence: invoiceData.recurringNextRun ? new Date(invoiceData.recurringNextRun) : (invoiceData.isRecurring ? new Date(invoiceData.recurringStartDate || Date.now()) : undefined),
                         recurringStatus: invoiceData.isRecurring ? 'active' : undefined,
                         items: {
                             create: processedItems.map(item => ({
@@ -252,17 +253,13 @@ export class InvoiceService {
                     });
                 }
 
+                // Auto-post inside transaction for atomic safety
+                if (invoice.type !== 'quotation' && invoice.status === 'sent') {
+                    await accountingService.postInvoiceToLedger(invoice.id, invoice.companyId, tx);
+                }
+
                 return invoice;
             });
-
-            // Auto-post outside transaction for visibility
-            if (result.type !== 'quotation' && result.status === 'sent') {
-                try {
-                    await accountingService.postInvoiceToLedger(result.id, result.companyId);
-                } catch (err) {
-                    console.error('Failed to auto-post created invoice to ledger:', err);
-                }
-            }
 
             return result;
         } catch (error) {
@@ -358,7 +355,7 @@ export class InvoiceService {
     /**
      * Record a payment for an invoice
      */
-    static async recordPayment(invoiceId: string, amount: number, paymentMethod: string, transactionId?: string, companyId?: string) {
+    static async recordPayment(invoiceId: string, amount: number, paymentMethod: string, transactionId?: string, companyId?: string, paymentDate?: Date | string) {
         const result = await prisma.$transaction(async (tx) => {
             const invoice = await tx.invoice.findFirst({
                 where: { id: invoiceId, companyId }
@@ -392,27 +389,23 @@ export class InvoiceService {
                     amount: new Decimal(amount),
                     paymentMethod,
                     transactionId,
-                    paymentDate: new Date(),
+                    paymentDate: paymentDate ? new Date(paymentDate) : new Date(),
                     status: 'success'
                 }
             });
 
-            return { updatedInvoice, paymentRecordId: pay.id, status };
+            // Post to Ledger inside the transaction
+            if (companyId) {
+                await accountingService.postPaymentToLedger(pay.id, companyId, tx);
+                if (status !== 'draft') {
+                    await accountingService.postInvoiceToLedger(invoiceId, companyId, tx);
+                }
+            }
+
+            return updatedInvoice;
         });
 
-        // Post to Ledger outside transaction
-        try {
-            if (result.paymentRecordId && companyId) {
-                await accountingService.postPaymentToLedger(result.paymentRecordId, companyId);
-            }
-            if (result.status !== 'draft' && companyId) {
-                await accountingService.postInvoiceToLedger(invoiceId, companyId);
-            }
-        } catch (err) {
-            console.error('Failed to sync ledger after payment record:', err);
-        }
-
-        return result.updatedInvoice;
+        return result;
     }
 
     /**
@@ -424,10 +417,17 @@ export class InvoiceService {
             where: {
                 isRecurring: true,
                 recurringStatus: 'active',
-                nextOccurrence: { lte: today },
                 OR: [
-                    { recurringEndDate: null },
-                    { recurringEndDate: { gte: today } }
+                    { nextOccurrence: { lte: today } },
+                    { recurringNextRun: { lte: today } }
+                ],
+                AND: [
+                    {
+                        OR: [
+                            { recurringEndDate: null },
+                            { recurringEndDate: { gte: today } }
+                        ]
+                    }
                 ]
             },
             include: {
@@ -739,15 +739,11 @@ export class InvoiceService {
                 }
             });
 
+            // Sync ledger inside transaction for safety
+            await accountingService.postInvoiceToLedger(id, invoiceData.companyId, tx);
+
             return invoice;
         });
-
-        // Sync ledger outside transaction
-        try {
-            await accountingService.postInvoiceToLedger(id, invoiceData.companyId);
-        } catch (err) {
-            console.error('Failed to sync ledger after invoice update:', err);
-        }
 
         return result;
     }
