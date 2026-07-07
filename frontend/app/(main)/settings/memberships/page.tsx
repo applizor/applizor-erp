@@ -37,6 +37,8 @@ export default function MembershipsPage() {
 
     // Form inputs state
     const [clientId, setClientId] = useState('');
+    const [planId, setPlanId] = useState('');
+    const [plansList, setPlansList] = useState<any[]>([]);
     const [name, setName] = useState('');
     const [plan, setPlan] = useState('');
     const [amount, setAmount] = useState('');
@@ -50,15 +52,17 @@ export default function MembershipsPage() {
     const loadData = async () => {
         try {
             setLoading(true);
-            const [memRes, clientRes] = await Promise.all([
+            const [memRes, clientRes, planRes] = await Promise.all([
                 api.get('/subscriptions'),
-                api.get('/clients')
+                api.get('/clients'),
+                api.get('/subscription-plans')
             ]);
 
             setMemberships(memRes.data?.subscriptions || []);
             setClients(Array.isArray(clientRes.data) ? clientRes.data : (clientRes.data?.clients || []));
+            setPlansList(planRes.data || []);
         } catch (error) {
-            toast.error('Failed to load memberships or clients database');
+            toast.error('Failed to load memberships, clients, or plans database');
         } finally {
             setLoading(false);
         }
@@ -70,6 +74,7 @@ export default function MembershipsPage() {
 
     const resetForm = () => {
         setClientId('');
+        setPlanId('');
         setName('');
         setPlan('');
         setAmount('');
@@ -84,6 +89,7 @@ export default function MembershipsPage() {
     const handleEdit = (mem: any) => {
         setEditingMembership(mem);
         setClientId(mem.clientId);
+        setPlanId(mem.planId || '');
         setName(mem.name);
         setPlan(mem.plan);
         setAmount(String(mem.amount));
@@ -107,6 +113,7 @@ export default function MembershipsPage() {
                 clientId,
                 name,
                 plan,
+                planId: planId || null,
                 amount: Number(amount),
                 billingCycle,
                 startDate,
@@ -419,52 +426,80 @@ export default function MembershipsPage() {
                                     />
                                 </div>
 
+                                <div className="ent-form-group col-span-2">
+                                    <label className="ent-label">Subscription Plan *</label>
+                                    <CustomSelect
+                                        placeholder="Choose a subscription plan..."
+                                        value={planId}
+                                        onChange={(val) => {
+                                            setPlanId(val);
+                                            const selectedPlan = plansList.find(p => p.id === val);
+                                            if (selectedPlan) {
+                                                setName(selectedPlan.name);
+                                                setPlan(selectedPlan.code);
+                                                setAmount(String(selectedPlan.price));
+                                                setBillingCycle(selectedPlan.interval);
+                                                setCurrency(selectedPlan.currency || 'INR');
+                                            } else {
+                                                setName('');
+                                                setPlan('');
+                                                setAmount('');
+                                                setBillingCycle('monthly');
+                                                setCurrency('INR');
+                                            }
+                                        }}
+                                        options={plansList.map(p => ({
+                                            label: `${p.name} (${p.currency || 'INR'} ${p.price}/${p.interval})`,
+                                            value: p.id
+                                        }))}
+                                    />
+                                </div>
+
                                 <div className="ent-form-group">
-                                    <label className="ent-label">Membership/Category Title</label>
+                                    <label className="ent-label">Membership/Category Title (Autofilled)</label>
                                     <input
                                         type="text"
-                                        className="ent-input"
+                                        className="ent-input bg-slate-50 cursor-not-allowed"
                                         value={name}
-                                        onChange={e => setName(e.target.value)}
+                                        disabled
                                         required
-                                        placeholder="e.g. Gold Subscription"
+                                        placeholder="Select a plan above"
                                     />
                                 </div>
 
                                 <div className="ent-form-group">
-                                    <label className="ent-label">Tier / Description Identifier</label>
+                                    <label className="ent-label">Tier / Description Identifier (Autofilled)</label>
                                     <input
                                         type="text"
-                                        className="ent-input"
+                                        className="ent-input bg-slate-50 cursor-not-allowed"
                                         value={plan}
-                                        onChange={e => setPlan(e.target.value)}
+                                        disabled
                                         required
-                                        placeholder="e.g. Premium Tier"
+                                        placeholder="Select a plan above"
                                     />
                                 </div>
 
                                 <div className="ent-form-group">
-                                    <label className="ent-label">Billing Amount</label>
+                                    <label className="ent-label">Billing Amount (Autofilled)</label>
                                     <input
                                         type="number"
-                                        className="ent-input"
+                                        className="ent-input bg-slate-50 cursor-not-allowed"
                                         value={amount}
-                                        onChange={e => setAmount(e.target.value)}
+                                        disabled
                                         required
-                                        placeholder="5000"
+                                        placeholder="Select a plan above"
                                     />
                                 </div>
 
                                 <div className="ent-form-group">
-                                    <label className="ent-label">Billing Cycle</label>
-                                    <CustomSelect
+                                    <label className="ent-label">Billing Cycle (Autofilled)</label>
+                                    <input
+                                        type="text"
+                                        className="ent-input bg-slate-50 cursor-not-allowed uppercase"
                                         value={billingCycle}
-                                        onChange={setBillingCycle}
-                                        options={[
-                                            { label: 'Monthly Cycle', value: 'monthly' },
-                                            { label: 'Quarterly Cycle', value: 'quarterly' },
-                                            { label: 'Yearly Cycle', value: 'yearly' }
-                                        ]}
+                                        disabled
+                                        required
+                                        placeholder="Select a plan above"
                                     />
                                 </div>
 
