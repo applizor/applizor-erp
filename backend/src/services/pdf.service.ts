@@ -115,20 +115,37 @@ export class PDFService {
     public static async getImageBase64(filePath: string | undefined): Promise<string | undefined> {
         if (!filePath) return undefined;
 
-        // If it's already a base64 or external URL, return as is
-        if (filePath.startsWith('data:') || filePath.startsWith('http')) return filePath;
+        // If it's already a base64, return as is
+        if (filePath.startsWith('data:')) return filePath;
 
         try {
-            // Use StorageService to get the buffer (handles S3/Local automatically)
-            const fileBuffer = await StorageService.getFileBuffer(filePath);
+            let fileBuffer: Buffer | null = null;
+
+            if (filePath.startsWith('http')) {
+                // Try to extract S3 key and fetch via StorageService first
+                const key = StorageService.extractKey(filePath);
+                if (key && key !== filePath) {
+                    fileBuffer = await StorageService.getFileBuffer(key);
+                }
+
+                // Fallback to axios HTTP request if not in S3
+                if (!fileBuffer) {
+                    const response = await axios.get(filePath, { responseType: 'arraybuffer', timeout: 10000 });
+                    fileBuffer = Buffer.from(response.data);
+                }
+            } else {
+                // Use StorageService to get the buffer (handles S3/Local automatically)
+                fileBuffer = await StorageService.getFileBuffer(filePath);
+            }
 
             if (fileBuffer) {
-                const extension = path.extname(filePath).substring(1).toLowerCase();
+                const cleanPath = filePath.split('?')[0];
+                const extension = path.extname(cleanPath).substring(1).toLowerCase() || 'png';
                 const mimeType = extension === 'png' ? 'image/png' : 'image/jpeg';
                 return `data:${mimeType};base64,${fileBuffer.toString('base64')}`;
             }
-        } catch (error) {
-            console.error('[PDFService] Error converting image to base64:', error);
+        } catch (error: any) {
+            console.error('[PDFService] Error converting image to base64:', error.message);
         }
         return filePath; // Fallback to original
     }
