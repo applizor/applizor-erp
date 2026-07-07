@@ -620,7 +620,7 @@ export const postInvoiceToLedger = async (invoiceId: string, companyId?: string,
 export const postPaymentToLedger = async (paymentId: string, companyId?: string, prismaTx?: any) => {
     const tx = prismaTx || prisma;
     const whereClause: any = { id: paymentId };
-    if (companyId) whereClause.companyId = companyId;
+    if (companyId) whereClause.invoice = { companyId };
 
     const payment = await tx.payment.findFirst({
         where: whereClause,
