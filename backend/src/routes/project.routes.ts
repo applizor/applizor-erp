@@ -1,6 +1,7 @@
 
 import { Router } from 'express';
 import { authenticate, checkPermission } from '../middleware/auth';
+import { requireModule } from '../middleware/enforcePlanLimit';
 import { upload } from '../middleware/upload';
 import * as projectController from '../controllers/project.controller';
 import * as automationController from '../controllers/automation.controller';
@@ -9,6 +10,7 @@ const router = Router();
 
 // Apply auth middleware to all routes
 router.use(authenticate);
+router.use(requireModule('projects'));
 
 // List & Create
 router.get('/', checkPermission('Project', 'read'), projectController.getProjects);
@@ -55,6 +57,7 @@ router.get('/:projectId/automation', checkPermission('Project', 'read'), automat
 router.post('/:projectId/automation', checkPermission('Project', 'update'), automationController.createRule);
 router.put('/automation/:ruleId', checkPermission('Project', 'update'), automationController.updateRule);
 router.delete('/automation/:ruleId', checkPermission('Project', 'update'), automationController.deleteRule);
+router.get('/automation/:ruleId/logs', checkPermission('Project', 'read'), automationController.getRuleLogs);
 
 // Tasks (handled via Task controller usually but can be here too)
 

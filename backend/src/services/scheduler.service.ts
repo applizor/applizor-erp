@@ -5,7 +5,7 @@ import { leaveAccrualService } from './leave-accrual.service';
 import { InvoiceService } from './invoice.service';
 import { AutomationService } from './automation.service';
 import { generatePublicLink } from '../controllers/quotation-public.controller'; // Careful: this might be a controller function
-// We might need to implement logic to get/generate valid public token without controller req/res
+import { CronLockService } from './cron-lock.service';
 
 export class SchedulerService {
     static init() {
@@ -13,32 +13,42 @@ export class SchedulerService {
 
         // Run every hour at minute 0
         cron.schedule('0 * * * *', async () => {
-            console.log('⏰ Running hourly scheduler tasks...');
-            await this.processQuotationReminders();
+            await CronLockService.withCronLock('quotation_reminders', async () => {
+                console.log('⏰ Running hourly scheduler tasks...');
+                await this.processQuotationReminders();
+            });
         });
 
         // Monthly Leave Accrual: Run at 00:00 on the 1st of every month
         cron.schedule('0 0 1 * *', async () => {
-            console.log('⏰ Running monthly leave accruals...');
-            await leaveAccrualService.processMonthlyAccruals();
+            await CronLockService.withCronLock('monthly_leave_accruals', async () => {
+                console.log('⏰ Running monthly leave accruals...');
+                await leaveAccrualService.processMonthlyAccruals();
+            });
         });
 
         // Probation Confirmation: Run daily at 00:01
         cron.schedule('1 0 * * *', async () => {
-            console.log('⏰ Running daily probation check...');
-            await leaveAccrualService.processProbationConfirmations();
+            await CronLockService.withCronLock('daily_probation_check', async () => {
+                console.log('⏰ Running daily probation check...');
+                await leaveAccrualService.processProbationConfirmations();
+            });
         });
 
         // Recurring Invoices: Run daily at 01:00
         cron.schedule('0 1 * * *', async () => {
-            console.log('⏰ Running daily recurring invoice generation...');
-            await this.processRecurringInvoices();
+            await CronLockService.withCronLock('recurring_invoices', async () => {
+                console.log('⏰ Running daily recurring invoice generation...');
+                await this.processRecurringInvoices();
+            });
         });
 
         // Task Reminders: Run daily at 09:30 AM
         cron.schedule('30 9 * * *', async () => {
-            console.log('⏰ Running daily task reminder check...');
-            await this.processTaskReminders();
+            await CronLockService.withCronLock('daily_task_reminders', async () => {
+                console.log('⏰ Running daily task reminder check...');
+                await this.processTaskReminders();
+            });
         });
     }
 

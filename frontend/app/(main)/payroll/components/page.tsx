@@ -37,7 +37,7 @@ export default function PayrollComponentsPage() {
 
     const fetchAccounts = async () => {
         try {
-            const res = await api.get('/settings/accounts');
+            const res = await api.get('/accounting/accounts');
             setAccounts(res.data || []);
         } catch (error) {
             console.error('Failed to fetch accounts', error);

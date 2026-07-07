@@ -214,7 +214,7 @@ export function ImagePlugin() {
                 const hasHtml = types.includes('text/html');
 
                 if (hasHtml) {
-                    const html = event.clipboardData.getData('text/html');
+                    const html = event.clipboardData?.getData('text/html');
                     if (html) {
                         event.preventDefault();
                         const parser = new DOMParser();

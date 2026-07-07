@@ -16,12 +16,15 @@ export const initSocket = (server: HttpServer) => {
                 const isDevTunnel = origin && origin.endsWith('.devtunnels.ms');
                 const isLocalIP = origin && /^http:\/\/(\d{1,3}\.){3}\d{1,3}(:\d+)?$/.test(origin);
 
+                const isProduction = process.env.NODE_ENV === 'production';
                 if (!origin || allowedOrigins.indexOf(origin || '') !== -1 || isAllowedLocalhost || isDevTunnel || isLocalIP) {
                     callback(null, true);
+                } else if (isProduction) {
+                    console.warn(`Socket blocked by CORS: ${origin}`);
+                    callback(new Error('Not allowed by CORS'));
                 } else {
                     console.warn(`Socket blocked by CORS: ${origin}`);
-                    callback(null, true); // Temporarily allow for dev
-                    // callback(new Error('Not allowed by CORS'));
+                    callback(null, true);
                 }
             },
             methods: ["GET", "POST"],

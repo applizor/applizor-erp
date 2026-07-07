@@ -86,7 +86,9 @@ export const getCandidates = async (req: AuthRequest, res: Response) => {
 
         const { jobOpeningId, status, email } = req.query;
 
-        const where: any = {};
+        const where: any = {
+            companyId: req.user!.companyId
+        };
         if (jobOpeningId) where.jobOpeningId = jobOpeningId as string;
         if (status) where.status = status as string;
         if (email) where.email = { contains: email as string, mode: 'insensitive' };
@@ -120,8 +122,8 @@ export const getCandidateById = async (req: AuthRequest, res: Response) => {
 
         const { id } = req.params;
 
-        const candidate = await prisma.candidate.findUnique({
-            where: { id },
+        const candidate = await prisma.candidate.findFirst({
+            where: { id, companyId: req.user!.companyId },
             include: {
                 jobOpening: true,
                 interviews: {
@@ -155,6 +157,9 @@ export const updateCandidateStatus = async (req: AuthRequest, res: Response) => 
         const { id } = req.params;
         const { status, currentStage, notes } = req.body;
 
+        const existing = await prisma.candidate.findFirst({ where: { id, companyId: req.user!.companyId } });
+        if (!existing) return res.status(404).json({ error: 'Not found' });
+
         const candidate = await prisma.candidate.update({
             where: { id },
             data: {
@@ -183,6 +188,9 @@ export const updateCandidate = async (req: AuthRequest, res: Response) => {
 
         const { id } = req.params;
         const { firstName, lastName, email, phone, jobOpeningId, notes } = req.body;
+
+        const existing = await prisma.candidate.findFirst({ where: { id, companyId: req.user!.companyId } });
+        if (!existing) return res.status(404).json({ error: 'Not found' });
 
         const candidate = await prisma.candidate.update({
             where: { id },
@@ -215,6 +223,9 @@ export const deleteCandidate = async (req: AuthRequest, res: Response) => {
 
         const { id } = req.params;
 
+        const existing = await prisma.candidate.findFirst({ where: { id, companyId: req.user!.companyId } });
+        if (!existing) return res.status(404).json({ error: 'Not found' });
+
         await prisma.candidate.delete({
             where: { id },
         });
@@ -233,7 +244,7 @@ export const parseCandidateResume = async (req: AuthRequest, res: Response) => {
         if (!PermissionService.hasBasicPermission(req.user, 'Recruitment', 'update')) {
             return res.status(403).json({ error: 'Access denied' });
         }
-        const updatedCandidate = await RecruitmentService.parseResume(id);
+        const updatedCandidate = await RecruitmentService.parseResume(id, req.user!.companyId);
         res.json(updatedCandidate);
     } catch (error: any) {
         res.status(500).json({ error: 'Parsing failed', details: error.message });
@@ -247,7 +258,7 @@ export const getSmartMatchScore = async (req: AuthRequest, res: Response) => {
         const { jobOpeningId } = req.query;
         if (!jobOpeningId) return res.status(400).json({ error: 'jobOpeningId is required' });
 
-        const match = await RecruitmentService.getMatchScore(id, jobOpeningId as string);
+        const match = await RecruitmentService.getMatchScore(id, jobOpeningId as string, req.user!.companyId);
         res.json(match);
     } catch (error: any) {
         res.status(500).json({ error: 'Matching failed', details: error.message });

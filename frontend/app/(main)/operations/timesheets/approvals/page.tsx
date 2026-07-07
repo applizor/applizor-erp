@@ -39,7 +39,7 @@ export default function TimesheetApprovals() {
             const res = await api.get('/timesheets?status=submitted');
             // This will likely return empty if I am not an admin or if I can't see others.
             // For this step, I'll build the UI assuming backend works, then fix backend.
-            setTimesheets(res.data);
+            setTimesheets(res.data?.data || res.data || []);
         } catch (error) {
             console.error(error);
         } finally {

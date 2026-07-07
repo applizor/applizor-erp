@@ -13,9 +13,9 @@ export const processCarryForward = async (req: AuthRequest, res: Response) => {
 
         console.log(`Processing carry forward for ${previousYear} -> ${currentYear}`);
 
-        // 1. Get all employees
+        // 1. Get all employees for this company
         const employees = await prisma.employee.findMany({
-            where: { status: 'active' }
+            where: { status: 'active', companyId: req.user!.companyId }
         });
 
         // 2. Get all leave types with carry forward enabled

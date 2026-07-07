@@ -18,7 +18,15 @@ export const getNotifications = async (req: AuthRequest, res: Response) => {
             where: { userId, isRead: false }
         });
 
-        res.json({ notifications, unreadCount });
+        // Map to frontend-friendly format (read instead of isRead)
+        const mapped = notifications.map(n => ({
+            ...n,
+            read: n.isRead,
+            isRead: undefined,
+            timestamp: n.createdAt,
+        }));
+
+        res.json({ data: mapped, unreadCount });
     } catch (error) {
         console.error('Error fetching notifications:', error);
         res.status(500).json({ error: 'Failed to fetch notifications' });
@@ -27,7 +35,7 @@ export const getNotifications = async (req: AuthRequest, res: Response) => {
 
 export const markAsRead = async (req: AuthRequest, res: Response) => {
     try {
-        const { id } = req.params;
+        const id = req.params.id;
         const userId = req.user?.id;
 
         const notification = await prisma.notification.findUnique({

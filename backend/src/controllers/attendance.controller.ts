@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import prisma from '../prisma/client';
 import { PermissionService } from '../services/permission.service';
+import { AttendanceSecurityService } from '../services/attendance-security.service';
 
 // Helper to get start of day in IST (UTC+5:30)
 function getStartOfDayIST(date?: Date) {
@@ -36,17 +37,13 @@ function deg2rad(deg: number) {
 export const checkIn = async (req: AuthRequest, res: Response) => {
     try {
         const userId = req.userId;
-        const { latitude, longitude } = req.body;
+        const { latitude, longitude, isMocked, accuracy } = req.body;
         const clientIp = req.ip || req.headers['x-forwarded-for'];
 
         if (!userId) {
             return res.status(401).json({ error: 'User not authenticated' });
         }
 
-        // Check Create Permission for Attendance
-        // For Self: 'Owned' permission usually allows creating own records? 
-        // Or specific "Self Service" permission?
-        // Let's assume ANY create permission on 'Attendance' allows check-in.
         if (!PermissionService.hasBasicPermission(req.user, 'Attendance', 'create')) {
             return res.status(403).json({ error: 'Access denied: No permission to check-in' });
         }
@@ -63,9 +60,26 @@ export const checkIn = async (req: AuthRequest, res: Response) => {
             return res.status(404).json({ error: 'Employee record not found for this user' });
         }
 
-        // 1. Check Shift & Late Coming rules apply to the FIRST check-in of the day usually, 
-        // or we track every session. For simplicity, we calculate "Late" only on the very first record of the day,
-        // or just mark 'present' for subsequent ones.
+        // ── GPS Spoofing & Security Checks ──
+        const metaCheck = AttendanceSecurityService.verifyClientMetadata(isMocked, accuracy);
+        if (!metaCheck.isSecure) {
+            return res.status(403).json({ error: metaCheck.reason });
+        }
+
+        if (latitude && longitude) {
+            const parsedLat = Number(latitude);
+            const parsedLon = Number(longitude);
+
+            const travelCheck = await AttendanceSecurityService.checkImpossibleTravel(employee.id, parsedLat, parsedLon);
+            if (!travelCheck.isSecure) {
+                return res.status(403).json({ error: travelCheck.reason });
+            }
+
+            const ipCheck = await AttendanceSecurityService.verifyIpLocationProximity(clientIp as string, parsedLat, parsedLon);
+            if (!ipCheck.isSecure) {
+                return res.status(403).json({ error: ipCheck.reason });
+            }
+        }
 
         const today = getStartOfDayIST();
 
@@ -104,7 +118,7 @@ export const checkIn = async (req: AuthRequest, res: Response) => {
             }
         }
 
-        // IP & Geofencing Validation (Same as before)
+        // IP & Geofencing Validation
         if (employee.company.allowedIPs) {
             const allowed = employee.company.allowedIPs.split(',').map(ip => ip.trim());
             const matches = allowed.some(ip => (clientIp as string).includes(ip));
@@ -116,7 +130,6 @@ export const checkIn = async (req: AuthRequest, res: Response) => {
         }
 
         if (employee.company.latitude && employee.company.longitude) {
-            // ... (Geofencing logic logic remains same, assuming valid if provided)
             if (latitude && longitude) {
                 const distance = getDistanceFromLatLonInM(
                     employee.company.latitude,
@@ -169,22 +182,45 @@ export const checkIn = async (req: AuthRequest, res: Response) => {
 export const checkOut = async (req: AuthRequest, res: Response) => {
     try {
         const userId = req.userId;
+        const { latitude, longitude, isMocked, accuracy } = req.body;
+        const clientIp = req.ip || req.headers['x-forwarded-for'];
+
         if (!userId) {
             return res.status(401).json({ error: 'User not authenticated' });
         }
 
-        // Checking out is an update action on Attendance
         if (!PermissionService.hasBasicPermission(req.user, 'Attendance', 'update')) {
             return res.status(403).json({ error: 'Access denied: No permission to check-out' });
         }
 
         const employee = await prisma.employee.findUnique({
             where: { userId },
-            include: { shift: true }
+            include: { company: true, shift: true }
         });
 
         if (!employee) {
             return res.status(404).json({ error: 'Employee record not found for this user' });
+        }
+
+        // ── GPS Spoofing & Security Checks ──
+        const metaCheck = AttendanceSecurityService.verifyClientMetadata(isMocked, accuracy);
+        if (!metaCheck.isSecure) {
+            return res.status(403).json({ error: metaCheck.reason });
+        }
+
+        if (latitude && longitude) {
+            const parsedLat = Number(latitude);
+            const parsedLon = Number(longitude);
+
+            const travelCheck = await AttendanceSecurityService.checkImpossibleTravel(employee.id, parsedLat, parsedLon);
+            if (!travelCheck.isSecure) {
+                return res.status(403).json({ error: travelCheck.reason });
+            }
+
+            const ipCheck = await AttendanceSecurityService.verifyIpLocationProximity(clientIp as string, parsedLat, parsedLon);
+            if (!ipCheck.isSecure) {
+                return res.status(403).json({ error: ipCheck.reason });
+            }
         }
 
         const today = getStartOfDayIST();
@@ -206,12 +242,25 @@ export const checkOut = async (req: AuthRequest, res: Response) => {
             return res.status(400).json({ error: 'You are already checked out. Please check in again to start a new session.' });
         }
 
-        // Calculate Overtime (Only relevant if checking out AFTER shift end, logic roughly same)
-        let notes = latestAttendance.notes || '';
-        // Simplified overtime logic: Just log it if it's the last checkout? 
-        // For multiple punch-ins, overtime calculation is complex (sum of durations). 
-        // We'll keep the basic "Out time > Shift End" check for now, but apply it to the specific session closing.
+        // Check Geofence distance on checkout if office location is set
+        if (employee.company.latitude && employee.company.longitude) {
+            if (latitude && longitude) {
+                const distance = getDistanceFromLatLonInM(
+                    employee.company.latitude,
+                    employee.company.longitude,
+                    Number(latitude),
+                    Number(longitude)
+                );
+                if (distance > (employee.company.radius || 100)) {
+                    return res.status(403).json({
+                        error: `You are too far from office location (${Math.round(distance)}m) to check out. Max allowed: ${employee.company.radius}m`
+                    });
+                }
+            }
+        }
 
+        // Calculate Overtime
+        let notes = latestAttendance.notes || '';
         if (employee.shift) {
             const [hours, minutes] = employee.shift.endTime.split(':').map(Number);
             const shiftEnd = new Date();
@@ -221,9 +270,7 @@ export const checkOut = async (req: AuthRequest, res: Response) => {
             if (now > shiftEnd) {
                 const diffMs = now.getTime() - shiftEnd.getTime();
                 if (diffMs > 30 * 60000) {
-                    // Only add note if not already there to avoid duplicates?
-                    // Actually, just append.
-                    // notes += ...
+                    // Overtime handling
                 }
             }
         }
@@ -315,21 +362,39 @@ export const getAllAttendance = async (req: AuthRequest, res: Response) => {
 
         // Mode 1: Daily List View (Legacy/Simple)
         if (date) {
-            const attendance = await prisma.attendance.findMany({
-                where,
-                include: {
-                    employee: {
-                        select: {
-                            firstName: true,
-                            lastName: true,
-                            employeeId: true,
-                            department: { select: { name: true } }
+            const page = req.query.page ? parseInt(req.query.page as string) : 1;
+            const limit = req.query.limit ? Math.min(100, parseInt(req.query.limit as string)) : 20;
+            const skip = (page - 1) * limit;
+
+            const [attendance, totalCount] = await Promise.all([
+                prisma.attendance.findMany({
+                    where,
+                    include: {
+                        employee: {
+                            select: {
+                                firstName: true,
+                                lastName: true,
+                                employeeId: true,
+                                department: { select: { name: true } }
+                            }
                         }
-                    }
-                },
-                orderBy: { date: 'desc' }
+                    },
+                    orderBy: { date: 'desc' },
+                    take: limit,
+                    skip
+                }),
+                prisma.attendance.count({ where })
+            ]);
+
+            return res.json({
+                data: attendance,
+                pagination: {
+                    total: totalCount,
+                    page,
+                    limit,
+                    totalPages: Math.ceil(totalCount / limit)
+                }
             });
-            return res.json(attendance);
         }
 
         // Mode 2: Month/Year Muster Roll (Matrix Data)
@@ -345,7 +410,8 @@ export const getAllAttendance = async (req: AuthRequest, res: Response) => {
             // 1. Fetch Employees (Apply Permission Scope HERE too?)
             // If I can only see my own attendance, I should only see Myself here.
 
-            const empWhere: any = { status: 'active' };
+            const companyId = req.user!.companyId;
+            const empWhere: any = { status: 'active', companyId };
             if (scope.owned && !scope.all && currentEmpId) {
                 empWhere.id = currentEmpId;
             }
@@ -394,7 +460,11 @@ export const getAllAttendance = async (req: AuthRequest, res: Response) => {
             // 4. Fetch Holidays
             const holidays = await prisma.holiday.findMany({
                 where: {
-                    date: { gte: startDate, lte: endDate }
+                    date: { gte: startDate, lte: endDate },
+                    OR: [
+                        { companyId },
+                        { companyId: null }
+                    ]
                 }
             });
 

@@ -9,6 +9,8 @@ export interface JobOpening {
     requirements?: string;
     status: 'open' | 'closed' | 'on-hold';
     candidateCount?: number;
+    companyId?: string;
+    isPublic?: boolean;
     createdAt: string;
 }
 
@@ -76,8 +78,8 @@ export const jobOpeningsApi = {
 };
 
 export const candidatesApi = {
-    getAll: async (jobId?: string) => {
-        const response = await api.get('/recruitment/candidates', { params: { jobId } });
+    getAll: async (jobOpeningId?: string) => {
+        const response = await api.get('/recruitment/candidates', { params: { jobOpeningId } });
         return response.data;
     },
     create: async (data: Partial<Candidate>) => {

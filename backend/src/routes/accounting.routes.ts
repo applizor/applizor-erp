@@ -1,6 +1,7 @@
 
 import express from 'express';
 import { authenticate } from '../middleware/auth';
+import { requireModule } from '../middleware/enforcePlanLimit';
 import {
     getChartOfAccounts,
     createManualEntry,
@@ -17,18 +18,21 @@ import {
 
 const router = express.Router();
 
-router.get('/accounts', authenticate, getChartOfAccounts);
-router.post('/accounts', authenticate, createAccount);
-router.post('/entries', authenticate, createManualEntry);
+router.use(authenticate);
+router.use(requireModule('accounting'));
+
+router.get('/accounts', getChartOfAccounts);
+router.post('/accounts', createAccount);
+router.post('/entries', createManualEntry);
 
 // Reports
-router.get('/reports/general-ledger/:accountId', authenticate, getGeneralLedgerReport);
-router.get('/reports/balance-sheet', authenticate, getBalanceSheetReport);
-router.get('/reports/profit-loss', authenticate, getProfitAndLossReport);
-router.get('/journal', authenticate, getJournalEntries);
-router.get('/reports/gst-summary', authenticate, getGstSummaryReport);
-router.post('/reconcile', authenticate, reconcileLedger);
-router.delete('/journal/:id', authenticate, deleteJournalEntry);
-router.get('/reports/export', authenticate, exportReport);
+router.get('/reports/general-ledger/:accountId', getGeneralLedgerReport);
+router.get('/reports/balance-sheet', getBalanceSheetReport);
+router.get('/reports/profit-loss', getProfitAndLossReport);
+router.get('/journal', getJournalEntries);
+router.get('/reports/gst-summary', getGstSummaryReport);
+router.post('/reconcile', reconcileLedger);
+router.delete('/journal/:id', deleteJournalEntry);
+router.get('/reports/export', exportReport);
 
 export default router;

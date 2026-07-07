@@ -425,10 +425,15 @@ export const createLeaveRequest = async (req: AuthRequest, res: Response) => {
 
         // 2. Advanced Day Calculation (Excluding Holidays/Weekends + Sandwich Rule)
         // Fetch Holidays in this range
+        const empCompanyId = employee.companyId;
         const holidays = await prisma.holiday.findMany({
             where: {
                 date: { gte: start, lte: end },
-                isActive: true
+                isActive: true,
+                OR: [
+                    { companyId: empCompanyId },
+                    { companyId: null }
+                ]
             }
         });
 
@@ -701,13 +706,32 @@ export const getMyLeaveRequests = async (req: AuthRequest, res: Response) => {
         const employee = await prisma.employee.findUnique({ where: { userId } });
         if (!employee) return res.status(404).json({ error: 'Employee record not found' });
 
-        const leaveRequests = await prisma.leaveRequest.findMany({
-            where: { employeeId: employee.id },
-            include: { leaveType: true },
-            orderBy: { createdAt: 'desc' }
-        });
+        const page = req.query.page ? parseInt(req.query.page as string) : 1;
+        const limit = req.query.limit ? Math.min(100, parseInt(req.query.limit as string)) : 20;
+        const skip = (page - 1) * limit;
 
-        res.json(leaveRequests);
+        const where = { employeeId: employee.id };
+
+        const [leaveRequests, totalCount] = await Promise.all([
+            prisma.leaveRequest.findMany({
+                where,
+                include: { leaveType: true },
+                orderBy: { createdAt: 'desc' },
+                take: limit,
+                skip
+            }),
+            prisma.leaveRequest.count({ where })
+        ]);
+
+        res.json({
+            data: leaveRequests,
+            pagination: {
+                total: totalCount,
+                page,
+                limit,
+                totalPages: Math.ceil(totalCount / limit)
+            }
+        });
     } catch (error) {
         console.error('Get my leave requests error:', error);
         res.status(500).json({ error: 'Failed to fetch leave requests' });
@@ -761,18 +785,35 @@ export const getAllLeaveRequests = async (req: AuthRequest, res: Response) => {
             }
         }
 
-        const leaveRequests = await prisma.leaveRequest.findMany({
-            where,
-            include: {
-                leaveType: true,
-                employee: {
-                    select: { firstName: true, lastName: true, department: { select: { name: true } } }
-                }
-            },
-            orderBy: { createdAt: 'desc' }
-        });
+        const page = req.query.page ? parseInt(req.query.page as string) : 1;
+        const limit = req.query.limit ? Math.min(100, parseInt(req.query.limit as string)) : 20;
+        const skip = (page - 1) * limit;
 
-        res.json(leaveRequests);
+        const [leaveRequests, totalCount] = await Promise.all([
+            prisma.leaveRequest.findMany({
+                where,
+                include: {
+                    leaveType: true,
+                    employee: {
+                        select: { firstName: true, lastName: true, department: { select: { name: true } } }
+                    }
+                },
+                orderBy: { createdAt: 'desc' },
+                take: limit,
+                skip
+            }),
+            prisma.leaveRequest.count({ where })
+        ]);
+
+        res.json({
+            data: leaveRequests,
+            pagination: {
+                total: totalCount,
+                page,
+                limit,
+                totalPages: Math.ceil(totalCount / limit)
+            }
+        });
     } catch (error) {
         console.error('Get all leave requests error:', error);
         res.status(500).json({ error: 'Failed to fetch leave requests' });
@@ -984,8 +1025,16 @@ export const calculateLeaveDaysValue = async (req: AuthRequest, res: Response) =
 
         // Logic reused from createLeaveRequest
         // 1. Fetch Holidays
+        const holidaysCompanyId = employee.companyId;
         const holidays = await prisma.holiday.findMany({
-            where: { date: { gte: start, lte: end }, isActive: true }
+            where: {
+                date: { gte: start, lte: end },
+                isActive: true,
+                OR: [
+                    { companyId: holidaysCompanyId },
+                    { companyId: null }
+                ]
+            }
         });
 
         // 2. Determine Shift Days
@@ -1122,7 +1171,7 @@ export const getMyBalances = async (req: AuthRequest, res: Response) => {
                 if (joinYear === currentYear) {
                     const proRata = (annualQuota / 12) * effectiveMonths;
                     displayTotal = Math.round(proRata * 2) / 2;
-                    console.log(`DEBUG_PRO_RATA: Type=${b.leaveType.name}, Accrual=${b.leaveType.accrualType}, Quota=${annualQuota}, Months=${effectiveMonths}, Display=${displayTotal}`);
+
                 } else {
                     displayTotal = annualQuota;
                 }

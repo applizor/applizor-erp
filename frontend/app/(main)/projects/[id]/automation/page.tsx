@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Zap, Trash2, ArrowRight, Mail, Bell } from 'lucide-react';
+import { Plus, Zap, Trash2, ArrowRight, Mail, Bell, History, X } from 'lucide-react';
 import api from '@/lib/api';
 import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import ProjectAutomationRuleModal from '@/components/projects/ProjectAutomationRuleModal';
 import { useProjectPermissions } from '@/hooks/useProjectPermissions';
 import AccessDenied from '@/components/AccessDenied';
+import { Edit2 } from 'lucide-react';
 
 export default function ProjectAutomationPage({ params }: { params: { id: string } }) {
     const [project, setProject] = useState<any>(null);
@@ -17,6 +18,11 @@ export default function ProjectAutomationPage({ params }: { params: { id: string
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedRule, setSelectedRule] = useState<any>(null);
     const toast = useToast();
+
+    // Logs dialog state
+    const [selectedRuleForLogs, setSelectedRuleForLogs] = useState<any>(null);
+    const [logs, setLogs] = useState<any[]>([]);
+    const [loadingLogs, setLoadingLogs] = useState(false);
 
     useEffect(() => {
         fetchRules();
@@ -34,6 +40,18 @@ export default function ProjectAutomationPage({ params }: { params: { id: string
             console.error(error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchLogs = async (ruleId: string) => {
+        try {
+            setLoadingLogs(true);
+            const res = await api.get(`/projects/automation/${ruleId}/logs`);
+            setLogs(res.data || []);
+        } catch (error) {
+            toast.error('Failed to load execution logs');
+        } finally {
+            setLoadingLogs(false);
         }
     };
 
@@ -65,6 +83,7 @@ export default function ProjectAutomationPage({ params }: { params: { id: string
             case 'SEND_EMAIL': return <Mail size={10} />;
             case 'IN_APP_NOTIFICATION': return <Bell size={10} />;
             case 'TEAMS_NOTIFICATION': return <span className="text-[8px] font-black">TM</span>;
+            case 'SLACK_NOTIFICATION': return <span className="text-[8px] font-black">SL</span>;
             default: return <Mail size={10} />;
         }
     };
@@ -74,6 +93,7 @@ export default function ProjectAutomationPage({ params }: { params: { id: string
             case 'SEND_EMAIL': return 'Email';
             case 'IN_APP_NOTIFICATION': return 'In-App';
             case 'TEAMS_NOTIFICATION': return 'Teams';
+            case 'SLACK_NOTIFICATION': return 'Slack';
             default: return type.replace('_NOTIFICATION', '');
         }
     };
@@ -166,6 +186,18 @@ export default function ProjectAutomationPage({ params }: { params: { id: string
                                         ) : (
                                             <span>Triggers on task creation</span>
                                         )}
+                                        
+                                        {/* Optional Priority & Type Indicators */}
+                                        {rule.triggerConfig?.priority && rule.triggerConfig.priority !== '*' && (
+                                            <span className="text-[9px] bg-slate-150 text-slate-600 px-1.5 py-0.5 rounded font-black">
+                                                Priority: {rule.triggerConfig.priority}
+                                            </span>
+                                        )}
+                                        {rule.triggerConfig?.type && rule.triggerConfig.type !== '*' && (
+                                            <span className="text-[9px] bg-slate-150 text-slate-600 px-1.5 py-0.5 rounded font-black">
+                                                Type: {rule.triggerConfig.type}
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -175,6 +207,16 @@ export default function ProjectAutomationPage({ params }: { params: { id: string
                                     {rule.isActive ? 'Active' : 'Inactive'}
                                 </div>
                                 <div className="flex items-center gap-1 md:opacity-0 group-hover:opacity-100 transition-all">
+                                    <button
+                                        onClick={() => {
+                                            setSelectedRuleForLogs(rule);
+                                            fetchLogs(rule.id);
+                                        }}
+                                        className="p-2 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-all"
+                                        title="Execution History"
+                                    >
+                                        <History size={16} />
+                                    </button>
                                     <button
                                         onClick={() => {
                                             setSelectedRule(rule);
@@ -210,9 +252,62 @@ export default function ProjectAutomationPage({ params }: { params: { id: string
                     onSuccess={fetchRules}
                 />
             )}
+
+            {/* Execution logs popup */}
+            {selectedRuleForLogs && (
+                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex justify-center items-center p-4 animate-fade-in">
+                    <div className="bg-white rounded-md shadow-2xl w-full max-w-lg overflow-hidden animate-zoom-in border border-slate-100 ring-1 ring-slate-900/5">
+                        <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-start">
+                            <div>
+                                <h3 className="text-sm font-black uppercase text-slate-900 leading-none">Execution History</h3>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1.5">Rule: {selectedRuleForLogs.name}</p>
+                            </div>
+                            <button
+                                onClick={() => setSelectedRuleForLogs(null)}
+                                className="text-slate-400 hover:text-slate-600 p-1 hover:bg-slate-50 rounded-full"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="p-6 max-h-[50vh] overflow-y-auto custom-scrollbar space-y-3 bg-slate-50/50">
+                            {loadingLogs ? (
+                                <div className="py-8 text-center"><LoadingSpinner /></div>
+                            ) : logs.length === 0 ? (
+                                <div className="text-center py-8 text-slate-400 uppercase text-[10px] font-black tracking-widest">No executions recorded yet</div>
+                            ) : (
+                                <div className="space-y-2.5">
+                                    {logs.map((log) => (
+                                        <div key={log.id} className="bg-white p-4 rounded-lg border border-slate-200/80 shadow-sm">
+                                            <div className="flex justify-between items-center mb-2">
+                                                <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${log.status === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-100'}`}>
+                                                    {log.status}
+                                                </span>
+                                                <span className="text-[10px] text-slate-400 font-bold">
+                                                    {new Date(log.executedAt).toLocaleString()}
+                                                </span>
+                                            </div>
+                                            <p className="text-xs text-slate-700 font-semibold mb-1">{log.message}</p>
+                                            {log.details && (
+                                                <pre className="text-[9px] bg-slate-50 p-2.5 rounded border border-slate-150 overflow-x-auto text-slate-500 font-mono mt-2 select-all max-h-32">
+                                                    {JSON.stringify(log.details, null, 2)}
+                                                </pre>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                        <div className="p-4 border-t border-slate-100 flex justify-end bg-white">
+                            <button
+                                onClick={() => setSelectedRuleForLogs(null)}
+                                className="btn-secondary text-[10px]"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
-
-// I need to add Edit/Settings icons if available, but for now I'll use standard ones
-import { Edit2 } from 'lucide-react';

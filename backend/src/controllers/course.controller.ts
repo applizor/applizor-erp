@@ -101,8 +101,8 @@ export const getCourseById = async (req: AuthRequest, res: Response) => {
         }
 
         const { id } = req.params;
-        const course = await prisma.course.findUnique({
-            where: { id },
+        const course = await prisma.course.findFirst({
+            where: { id, companyId: req.user.companyId },
             include: {
                 classes: {
                     orderBy: { schedule: 'asc' }
@@ -130,6 +130,10 @@ export const deleteCourse = async (req: AuthRequest, res: Response) => {
         }
 
         const { id } = req.params;
+
+        const existing = await prisma.course.findFirst({ where: { id, companyId: req.user.companyId } });
+        if (!existing) return res.status(404).json({ error: 'Not found' });
+
         await prisma.course.delete({ where: { id } });
         res.json({ message: 'Course deleted successfully' });
     } catch (error: any) {

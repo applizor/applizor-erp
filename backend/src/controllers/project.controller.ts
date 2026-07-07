@@ -175,8 +175,8 @@ export const getProjectById = async (req: AuthRequest, res: Response) => {
         const user = req.user!;
 
         // 1. Fetch Project with Members & Stats relations
-        const project = await prisma.project.findUnique({
-            where: { id },
+        const project = await prisma.project.findFirst({
+            where: { id, companyId: req.user!.companyId },
             include: {
                 client: { select: { companyName: true, name: true } }, // Use name instead of contactPerson
                 members: {
@@ -488,6 +488,11 @@ export const updateProject = async (req: AuthRequest, res: Response) => {
             data.endDate = (endDate && endDate.trim() !== "") ? new Date(endDate) : null;
         }
 
+        const existing = await prisma.project.findFirst({
+            where: { id, companyId: req.user!.companyId }
+        });
+        if (!existing) return res.status(404).json({ error: 'Project not found' });
+
         const project = await prisma.project.update({
             where: { id },
             data
@@ -505,6 +510,10 @@ export const deleteProject = async (req: AuthRequest, res: Response) => {
             return res.status(403).json({ error: 'Access denied: No delete rights for Project' });
         }
         const { id } = req.params;
+        const existing = await prisma.project.findFirst({
+            where: { id, companyId: req.user!.companyId }
+        });
+        if (!existing) return res.status(404).json({ error: 'Project not found' });
         await prisma.project.delete({ where: { id } });
         res.json({ message: 'Project deleted' });
     } catch (error: any) {
@@ -518,6 +527,11 @@ export const addProjectMember = async (req: AuthRequest, res: Response) => {
     try {
         const { id } = req.params;
         const { employeeId, role } = req.body;
+
+        const project = await prisma.project.findFirst({
+            where: { id, companyId: req.user!.companyId }
+        });
+        if (!project) return res.status(404).json({ error: 'Project not found' });
 
         const member = await prisma.projectMember.create({
             data: {
@@ -574,6 +588,12 @@ export const createMilestone = async (req: AuthRequest, res: Response) => {
 export const getProjectNotes = async (req: AuthRequest, res: Response) => {
     try {
         const { id } = req.params;
+
+        const project = await prisma.project.findFirst({
+            where: { id, companyId: req.user!.companyId }
+        });
+        if (!project) return res.status(404).json({ error: 'Project not found' });
+
         const notes = await prisma.projectNote.findMany({
             where: { projectId: id },
             orderBy: { updatedAt: 'desc' },
@@ -651,6 +671,12 @@ export const deleteProjectNote = async (req: AuthRequest, res: Response) => {
 export const getProjectDocuments = async (req: AuthRequest, res: Response) => {
     try {
         const { id } = req.params;
+
+        const project = await prisma.project.findFirst({
+            where: { id, companyId: req.user!.companyId }
+        });
+        if (!project) return res.status(404).json({ error: 'Project not found' });
+
         const documents = await prisma.document.findMany({
             where: { projectId: id },
             orderBy: { createdAt: 'desc' },

@@ -9,11 +9,12 @@ import Link from 'next/link';
 import { employeesApi, departmentsApi, Employee, Department } from '@/lib/api/hrms';
 import { PermissionGuard } from '@/components/PermissionGuard';
 import { usePermission } from '@/hooks/usePermission';
-import { Plus, Users, Clock, Zap, Search, Filter, Trash2, UserPlus, Fingerprint, Shield } from 'lucide-react';
+import { Plus, Users, Clock, Zap, Search, Filter, Trash2, UserPlus, Fingerprint, Shield, Upload } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { EmployeeListSkeleton } from '@/components/hrms/EmployeeListSkeleton';
 import PageHeader from '@/components/ui/PageHeader';
 import { CustomSelect } from '@/components/ui/CustomSelect';
+import { BulkImportModal } from '@/components/hrms/BulkImportModal';
 
 export default function EmployeesPage() {
     const toast = useToast();
@@ -24,6 +25,7 @@ export default function EmployeesPage() {
     const [loading, setLoading] = useState(true);
     const [redirecting, setRedirecting] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+    const [showBulkImport, setShowBulkImport] = useState(false);
     const [filters, setFilters] = useState({
         departmentId: '',
         status: ''
@@ -144,12 +146,21 @@ export default function EmployeesPage() {
                             />
                         </div>
                         <PermissionGuard module="Employee" action="create">
-                            <Link
-                                href="/hrms/employees/new"
-                                className="btn-primary flex items-center gap-2"
-                            >
-                                <Plus size={14} /> Register Resource
-                            </Link>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowBulkImport(true)}
+                                    className="px-4 py-2 border border-gray-200 hover:border-primary-300 rounded-md text-[10px] font-black uppercase tracking-widest text-primary-600 hover:text-primary-700 bg-white shadow-sm flex items-center gap-1.5 transition-all"
+                                >
+                                    <Upload size={14} /> Bulk Import
+                                </button>
+                                <Link
+                                    href="/hrms/employees/new"
+                                    className="btn-primary flex items-center gap-2"
+                                >
+                                    <Plus size={14} /> Register Resource
+                                </Link>
+                            </div>
                         </PermissionGuard>
                     </div>
                 }
@@ -277,6 +288,12 @@ export default function EmployeesPage() {
                 message="This will decouple the resource from all organizational nodes. This action is irreversible."
                 type="danger"
                 confirmText="Confirm Delete"
+            />
+
+            <BulkImportModal
+                isOpen={showBulkImport}
+                onClose={() => setShowBulkImport(false)}
+                onSuccess={loadData}
             />
         </div>
     );

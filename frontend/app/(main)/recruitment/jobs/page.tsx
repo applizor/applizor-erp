@@ -13,6 +13,7 @@ interface JobOpening {
     title: string;
     department: string;
     status: string;
+    companyId?: string;
     isPublic?: boolean;
     publicId?: string;
     _count?: {
@@ -196,7 +197,7 @@ export default function JobsPage() {
                                 <div className="flex items-center gap-2">
                                     {job.isPublic && (
                                         <Link
-                                            href={`/careers/b81a0e3f-9301-43f7-a633-6db7e5fa54b0`} // Hardcoding for test, should be dynamic from company context
+                                            href={`/careers/${job.companyId || job.id}`}
                                             target="_blank"
                                             className="flex items-center gap-1.5 px-2 py-1 bg-blue-50 text-blue-700 border border-blue-100 rounded-md hover:bg-blue-100 transition-colors"
                                         >

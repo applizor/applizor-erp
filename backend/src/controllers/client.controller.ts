@@ -104,7 +104,30 @@ export const createClient = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    // TODO: Send Welcome Email with credentials if portalAccess is true
+    if (client.portalAccess && client.email) {
+    try {
+        const companyName = client.companyName || 'Our';
+        const { sendEmail } = await import('../services/email.service');
+        await sendEmail(
+            client.email,
+            `Welcome to ${companyName} Portal - Your Account Credentials`,
+            `
+                <h2>Welcome to the Client Portal</h2>
+                <p>Your account has been created.</p>
+                <p><strong>Email:</strong> ${client.email}</p>
+                <p><strong>Password:</strong> ${password}</p>
+                <p>Please login and change your password.</p>
+            `,
+            [],
+            undefined,
+            undefined,
+            undefined,
+            true
+        );
+    } catch (emailErr) {
+        console.error('Failed to send welcome email:', emailErr);
+    }
+}
 
     res.status(201).json({
       message: 'Client created successfully',
@@ -197,8 +220,8 @@ export const getClient = async (req: AuthRequest, res: Response) => {
 
     const { id } = req.params;
 
-    const client = await prisma.client.findUnique({
-      where: { id },
+    const client = await prisma.client.findFirst({
+      where: { id, companyId: req.user!.companyId },
       include: {
         invoices: {
           orderBy: { createdAt: 'desc' },
@@ -303,6 +326,9 @@ export const updateClient = async (req: AuthRequest, res: Response) => {
       data.password = await bcrypt.hash(password, 10);
     }
 
+    const existing = await prisma.client.findFirst({ where: { id, companyId: req.user!.companyId } });
+    if (!existing) return res.status(404).json({ error: 'Not found' });
+
     const client = await prisma.client.update({
       where: { id },
       data,
@@ -331,6 +357,9 @@ export const deleteClient = async (req: AuthRequest, res: Response) => {
 
     const { id } = req.params;
 
+    const existing = await prisma.client.findFirst({ where: { id, companyId: req.user!.companyId } });
+    if (!existing) return res.status(404).json({ error: 'Not found' });
+
     await prisma.client.delete({
       where: { id },
     });
@@ -349,6 +378,10 @@ export const deleteClient = async (req: AuthRequest, res: Response) => {
 export const getClientDocuments = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params; // Client ID
+    const companyId = req.user!.companyId;
+
+    const client = await prisma.client.findFirst({ where: { id, companyId } });
+    if (!client) return res.status(404).json({ error: 'Client not found' });
 
     const documents = await prisma.document.findMany({
       where: { clientId: id },

@@ -38,25 +38,60 @@ export class PerformanceService {
      * FnF Logic (Full & Final Settlement)
      * Calculates the pending dues for an exiting employee.
      */
-    static async calculateFnF(employeeId: string) {
+    static async calculateFnF(employeeId: string, companyId: string) {
         const employee = await prisma.employee.findUnique({
             where: { id: employeeId },
-            include: { exitDetail: true, payrolls: { orderBy: { createdAt: 'desc' }, take: 1 } }
+            include: { payrolls: { orderBy: { year: 'desc', month: 'desc' }, take: 3 } }
         });
+        if (!employee) throw new Error('Employee not found');
 
-        if (!employee || !employee.exitDetail) throw new Error('Exit details not found');
+        const doj = employee.dateOfJoining ? new Date(employee.dateOfJoining) : new Date();
+        const exitDate = employee.exitDate ? new Date(employee.exitDate) : new Date();
+        const tenureMs = exitDate.getTime() - doj.getTime();
+        const tenureYears = tenureMs / (365.25 * 24 * 60 * 60 * 1000);
 
-        const lastSalary = employee.payrolls[0]?.netSalary || 0;
-        const gratuity = 0; // Simplified
-        const leaveEncashment = 0; // Simplified
+        // Last drawn monthly gross (from most recent payroll)
+        const lastPayroll = employee.payrolls[0];
+        const lastGross = lastPayroll ? Number(lastPayroll.grossSalary) : Number(employee.salary) || 0;
 
-        const totalDues = Number(lastSalary) + gratuity + leaveEncashment;
+        // Gratuity: (Last drawn salary × 15/26 × years of service)
+        // Eligible after 5 years of continuous service
+        let gratuity = 0;
+        if (tenureYears >= 5) {
+            gratuity = Math.floor(lastGross * (15 / 26) * Math.floor(tenureYears));
+        }
+
+        // Leave encashment: Unused encashable leave days × daily wage
+        // Daily wage = monthly gross / 30
+        const dailyWage = lastGross / 30;
+        const leaveBalances = await prisma.employeeLeaveBalance.findMany({
+            where: {
+                employeeId,
+                leaveType: { encashable: true }
+            }
+        });
+        const encashableBalance = leaveBalances.reduce((sum: number, lb: any) => {
+            const bal = Number(lb.allocated) + Number(lb.carriedOver) - Number(lb.used);
+            return sum + Math.floor(bal);
+        }, 0);
+
+        // Max encashment = 30 days (standard policy)
+        const encashableLeaves = Math.min(encashableBalance, 30);
+        const leaveEncashment = Math.floor(encashableLeaves * dailyWage);
+
+        // Notice period recovery
+        // Default notice period is 30 days. Short notice = recovery
+        // Actual logic depends on company policy
+        const noticePeriodDays = 30;
+        const noticeRecovery = 0; // Simplified: calculated during separation approval
 
         return {
-            lastMonthlySalary: lastSalary,
             gratuity,
             leaveEncashment,
-            totalSettlement: totalDues
+            noticeRecovery,
+            total: gratuity + leaveEncashment - noticeRecovery,
+            tenureYears: Math.round(tenureYears * 100) / 100,
+            earnedLeaveBalance: encashableBalance
         };
     }
 }

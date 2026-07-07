@@ -7,10 +7,28 @@ interface JournalLineInput {
     credit?: number;
 }
 
+const mockTx = {
+    journalEntry: { create: jest.fn() },
+    ledgerAccount: { update: jest.fn() },
+    auditLog: { create: jest.fn().mockResolvedValue({}) },
+};
+
+jest.mock('@/prisma/client', () => ({
+    __esModule: true,
+    default: {
+        company: {
+            findUnique: jest.fn().mockResolvedValue({ accountingLockDate: null }),
+        },
+        journalEntry: { create: jest.fn() },
+        ledgerAccount: { update: jest.fn() },
+        auditLog: { create: jest.fn().mockResolvedValue({}) },
+        $transaction: jest.fn((cb: any) => cb(mockTx)),
+    },
+}));
+
 describe('AccountingService', () => {
     beforeEach(() => {
         jest.clearAllMocks();
-        jest.restoreAllMocks();
     });
 
     describe('createJournalEntry', () => {
@@ -44,31 +62,30 @@ describe('AccountingService', () => {
                 ]
             };
 
-            // Spy on the transaction method
-            const txSpy = jest.spyOn(prisma, '$transaction').mockImplementation(async (callback: any) => {
-                return callback(prisma);
-            });
-
-            // Spy on the delegates
-            const createSpy = jest.spyOn(prisma.journalEntry, 'create').mockResolvedValue(mockEntry as any);
-            const updateSpy = jest.spyOn(prisma.ledgerAccount, 'update').mockResolvedValue({} as any);
+            (prisma.$transaction as jest.Mock).mockImplementation(async (cb: any) => cb(mockTx));
+            mockTx.journalEntry.create.mockResolvedValue(mockEntry);
 
             await createJournalEntry(companyId, date, description, reference, lines, true);
 
-            expect(txSpy).toHaveBeenCalled();
-            expect(createSpy).toHaveBeenCalled();
-            expect(updateSpy).toHaveBeenCalledTimes(2);
+            expect(prisma.$transaction).toHaveBeenCalled();
+            expect(mockTx.journalEntry.create).toHaveBeenCalled();
+            expect(mockTx.ledgerAccount.update).toHaveBeenCalledTimes(2);
 
-            // Asset: Debit - Credit = 100 - 0 = +100
-            expect(updateSpy).toHaveBeenCalledWith(expect.objectContaining({
+            expect(mockTx.ledgerAccount.update).toHaveBeenCalledWith(expect.objectContaining({
                 where: { id: 'acc-asset' },
                 data: { balance: { increment: 100 } }
             }));
 
-            // Liability: Credit - Debit = 100 - 0 = +100
-            expect(updateSpy).toHaveBeenCalledWith(expect.objectContaining({
+            expect(mockTx.ledgerAccount.update).toHaveBeenCalledWith(expect.objectContaining({
                 where: { id: 'acc-liability' },
                 data: { balance: { increment: 100 } }
+            }));
+
+            expect(mockTx.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
+                data: expect.objectContaining({
+                    companyId,
+                    module: 'ACCOUNTING',
+                })
             }));
         });
     });

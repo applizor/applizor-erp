@@ -12,4 +12,9 @@ router.post('/reviews', authenticate, performanceController.createPerformanceRev
 router.post('/exit', authenticate, performanceController.initiateExit);
 router.get('/exit/:employeeId/fnf', authenticate, performanceController.getFnFStatement);
 
+// Review Cycles
+router.post('/cycles', authenticate, performanceController.createReviewCycle);
+router.get('/cycles', authenticate, performanceController.listReviewCycles);
+router.post('/cycles/:id/close', authenticate, performanceController.closeReviewCycle);
+
 export default router;

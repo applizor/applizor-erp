@@ -88,7 +88,10 @@ export const updateShift = async (req: AuthRequest, res: Response) => {
         const { name, startTime, endTime, breakDuration, isActive, workDays, isDefault } = req.body;
 
         if (isDefault) {
-            const shift = await prisma.shift.findUnique({ where: { id }, select: { companyId: true } });
+            const shift = await prisma.shift.findFirst({
+                where: { id, companyId: req.user!.companyId },
+                select: { companyId: true }
+            });
             if (shift) {
                 await prisma.shift.updateMany({
                     where: { companyId: shift.companyId },
@@ -96,6 +99,11 @@ export const updateShift = async (req: AuthRequest, res: Response) => {
                 });
             }
         }
+
+        const existing = await prisma.shift.findFirst({
+            where: { id, companyId: req.user!.companyId }
+        });
+        if (!existing) return res.status(404).json({ error: 'Shift not found' });
 
         const updated = await prisma.shift.update({
             where: { id },
@@ -128,6 +136,12 @@ export const deleteShift = async (req: AuthRequest, res: Response) => {
         }
 
         const { id } = req.params;
+
+        const existing = await prisma.shift.findFirst({
+            where: { id, companyId: req.user!.companyId }
+        });
+        if (!existing) return res.status(404).json({ error: 'Shift not found' });
+
         await prisma.shift.delete({ where: { id } });
         res.json({ message: 'Shift deleted successfully' });
     } catch (error) {
@@ -149,6 +163,14 @@ export const assignShift = async (req: AuthRequest, res: Response) => {
         }
 
         const { employeeId, shiftId } = req.body;
+
+        // Verify shift belongs to the same company
+        if (shiftId) {
+            const shiftExists = await prisma.shift.findFirst({
+                where: { id: shiftId, companyId: req.user!.companyId }
+            });
+            if (!shiftExists) return res.status(404).json({ error: 'Shift not found' });
+        }
 
         // Verify Scope? Can I update THIS employee?
         // Let's do a quick Scope Check for 'Employee' 'update'.

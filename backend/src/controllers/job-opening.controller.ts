@@ -84,8 +84,8 @@ export const getJobOpeningById = async (req: AuthRequest, res: Response) => {
         }
 
         const { id } = req.params;
-        const job = await prisma.jobOpening.findUnique({
-            where: { id },
+        const job = await prisma.jobOpening.findFirst({
+            where: { id, companyId: req.user!.companyId },
             include: {
                 candidates: {
                     select: { id: true, firstName: true, lastName: true, status: true }
@@ -113,6 +113,11 @@ export const updateJobOpening = async (req: AuthRequest, res: Response) => {
 
         const { id } = req.params;
         const { title, department, position, description, requirements, status, isPublic } = req.body;
+
+        const existing = await prisma.jobOpening.findFirst({
+            where: { id, companyId: req.user!.companyId }
+        });
+        if (!existing) return res.status(404).json({ error: 'Job not found' });
 
         const job = await prisma.jobOpening.update({
             where: { id },
@@ -184,6 +189,12 @@ export const deleteJobOpening = async (req: AuthRequest, res: Response) => {
         }
 
         const { id } = req.params;
+
+        const existing = await prisma.jobOpening.findFirst({
+            where: { id, companyId: req.user!.companyId }
+        });
+        if (!existing) return res.status(404).json({ error: 'Job not found' });
+
         await prisma.jobOpening.delete({ where: { id } });
         res.json({ message: 'Job opening deleted' });
     } catch (error) {

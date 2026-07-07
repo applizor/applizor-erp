@@ -56,8 +56,14 @@ export const getBranches = async (req: AuthRequest, res: Response) => {
 
 export const updateBranch = async (req: AuthRequest, res: Response) => {
     try {
+        const userId = req.userId;
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
         const { id } = req.params;
         const { name, code, address, city, state, country, pincode, phone, email, isActive } = req.body;
+
+        const existing = await prisma.branch.findFirst({ where: { id, companyId: req.user!.companyId } });
+        if (!existing) return res.status(404).json({ error: 'Not found' });
 
         const branch = await prisma.branch.update({
             where: { id },
@@ -84,7 +90,14 @@ export const updateBranch = async (req: AuthRequest, res: Response) => {
 
 export const deleteBranch = async (req: AuthRequest, res: Response) => {
     try {
+        const userId = req.userId;
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
         const { id } = req.params;
+
+        const existing = await prisma.branch.findFirst({ where: { id, companyId: req.user!.companyId } });
+        if (!existing) return res.status(404).json({ error: 'Not found' });
+
         await prisma.branch.delete({ where: { id } });
         res.json({ message: 'Branch deleted successfully' });
     } catch (error: any) {

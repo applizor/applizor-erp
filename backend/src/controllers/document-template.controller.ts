@@ -5,13 +5,18 @@ import { AuthRequest } from '../middleware/auth';
 
 export const createTemplate = async (req: AuthRequest, res: Response) => {
     try {
-        const { name, type, content, variables } = req.body;
+        const { name, type, content, variables, pdfMarginTop, pdfMarginBottom, pdfMarginLeft, pdfMarginRight, pdfContinuationTop } = req.body;
         const template = await prisma.documentTemplate.create({
             data: {
                 name,
                 type,
                 content,
                 variables,
+                pdfMarginTop: pdfMarginTop !== undefined && pdfMarginTop !== null ? parseInt(pdfMarginTop) : null,
+                pdfMarginBottom: pdfMarginBottom !== undefined && pdfMarginBottom !== null ? parseInt(pdfMarginBottom) : null,
+                pdfMarginLeft: pdfMarginLeft !== undefined && pdfMarginLeft !== null ? parseInt(pdfMarginLeft) : null,
+                pdfMarginRight: pdfMarginRight !== undefined && pdfMarginRight !== null ? parseInt(pdfMarginRight) : null,
+                pdfContinuationTop: pdfContinuationTop !== undefined && pdfContinuationTop !== null ? parseInt(pdfContinuationTop) : null,
                 companyId: req.user!.companyId
             }
         });
@@ -36,7 +41,7 @@ export const getTemplates = async (req: AuthRequest, res: Response) => {
 export const updateTemplate = async (req: AuthRequest, res: Response) => {
     try {
         const { id } = req.params;
-        const { name, type, content, variables } = req.body;
+        const { name, type, content, variables, pdfMarginTop, pdfMarginBottom, pdfMarginLeft, pdfMarginRight, pdfContinuationTop } = req.body;
 
         // Initial check to ensure it belongs to company
         const existing = await prisma.documentTemplate.findFirst({
@@ -53,7 +58,12 @@ export const updateTemplate = async (req: AuthRequest, res: Response) => {
                 name,
                 type,
                 content,
-                variables
+                variables,
+                pdfMarginTop: pdfMarginTop !== undefined && pdfMarginTop !== null ? parseInt(pdfMarginTop) : null,
+                pdfMarginBottom: pdfMarginBottom !== undefined && pdfMarginBottom !== null ? parseInt(pdfMarginBottom) : null,
+                pdfMarginLeft: pdfMarginLeft !== undefined && pdfMarginLeft !== null ? parseInt(pdfMarginLeft) : null,
+                pdfMarginRight: pdfMarginRight !== undefined && pdfMarginRight !== null ? parseInt(pdfMarginRight) : null,
+                pdfContinuationTop: pdfContinuationTop !== undefined && pdfContinuationTop !== null ? parseInt(pdfContinuationTop) : null,
             }
         });
         res.json(template);

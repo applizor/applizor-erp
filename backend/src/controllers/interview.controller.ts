@@ -9,6 +9,12 @@ export const scheduleInterview = async (req: AuthRequest, res: Response) => {
     try {
         const { candidateId, round, type, scheduledAt, interviewer, meetingLink } = req.body;
 
+        // Verify candidate belongs to user's company
+        const existingCandidate = await prisma.candidate.findFirst({
+            where: { id: candidateId, companyId: req.user!.companyId }
+        });
+        if (!existingCandidate) return res.status(404).json({ error: 'Candidate not found' });
+
         const interview = await prisma.interview.create({
             data: {
                 candidateId,
@@ -95,7 +101,7 @@ export const getCandidateInterviews = async (req: AuthRequest, res: Response) =>
         const { candidateId } = req.params;
 
         const interviews = await prisma.interview.findMany({
-            where: { candidateId },
+            where: { candidateId, candidate: { companyId: req.user!.companyId } },
             orderBy: { round: 'asc' }
         });
 
@@ -195,6 +201,12 @@ export const updateFeedback = async (req: AuthRequest, res: Response) => {
         const { id } = req.params;
         const { feedback, rating, status, scorecard } = req.body;
 
+        // Verify interview belongs to user's company
+        const interviewCheck = await prisma.interview.findFirst({
+            where: { id, candidate: { companyId: req.user!.companyId } }
+        });
+        if (!interviewCheck) return res.status(404).json({ error: 'Interview not found' });
+
         // Transaction to update interview and create/update scorecard
         const result = await prisma.$transaction(async (prisma) => {
             const interview = await prisma.interview.update({
@@ -259,6 +271,12 @@ export const saveScorecard = async (req: AuthRequest, res: Response) => {
         const { id } = req.params;
         const { ratings, comments, recommendation } = req.body;
 
+        // Verify interview belongs to user's company
+        const interviewCheck = await prisma.interview.findFirst({
+            where: { id, candidate: { companyId: req.user!.companyId } }
+        });
+        if (!interviewCheck) return res.status(404).json({ error: 'Interview not found' });
+
         // Transaction to update interview and create/update scorecard
         const result = await prisma.$transaction(async (tx) => {
             const interview = await tx.interview.update({
@@ -308,6 +326,11 @@ export const saveScorecard = async (req: AuthRequest, res: Response) => {
 export const cancelInterview = async (req: AuthRequest, res: Response) => {
     try {
         const { id } = req.params;
+
+        const existingInterview = await prisma.interview.findFirst({
+            where: { id, candidate: { companyId: req.user!.companyId } }
+        });
+        if (!existingInterview) return res.status(404).json({ error: 'Interview not found' });
 
         await prisma.interview.update({
             where: { id },

@@ -162,7 +162,7 @@ export const studentApi = {
             data: mapStudent(res.data)
         })),
 
-    create: (data: Partial<Student> & { password?: string }) =>
+    create: (data: Partial<Student> & { password?: string; employeeId?: string }) =>
         api.post<Student>('/lms/students', data).then(res => ({
             ...res,
             data: mapStudent(res.data)

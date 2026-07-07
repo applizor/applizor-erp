@@ -110,8 +110,8 @@ export const getTicketById = async (req: AuthRequest, res: Response) => {
             return res.status(403).json({ error: 'Access denied' });
         }
 
-        const ticket = await prisma.ticket.findUnique({
-            where: { id },
+        const ticket = await prisma.ticket.findFirst({
+            where: { id, companyId: user.companyId },
             include: {
                 creator: { select: { id: true, firstName: true, lastName: true } },
                 assignee: { select: { id: true, firstName: true, lastName: true } },
@@ -148,6 +148,11 @@ export const updateTicket = async (req: AuthRequest, res: Response) => {
             return res.status(403).json({ error: 'Access denied' });
         }
 
+        const existing = await prisma.ticket.findFirst({
+            where: { id, companyId: user.companyId }
+        });
+        if (!existing) return res.status(404).json({ error: 'Ticket not found' });
+
         const ticket = await prisma.ticket.update({
             where: { id },
             data
@@ -169,6 +174,12 @@ export const addReply = async (req: AuthRequest, res: Response) => {
         // Any user who can READ the ticket can likely reply (requester or agent)
         // Or we enforce 'update' permission? Usually 'read' is enough to comment for requester.
         // Let's assume if you can see it, you can reply.
+
+        // Verify ticket belongs to user's company
+        const ticketExists = await prisma.ticket.findFirst({
+            where: { id, companyId: user.companyId }
+        });
+        if (!ticketExists) return res.status(404).json({ error: 'Ticket not found' });
 
         const message = await prisma.ticketMessage.create({
             data: {

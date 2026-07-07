@@ -13,7 +13,7 @@ export default function PayrollLayout({ children }: { children: React.ReactNode 
         { name: 'Structure Admin', href: '/payroll/structure', icon: Edit },
         { name: 'Payroll Ledger', href: '/payroll/payslips', icon: FileSpreadsheet },
         { name: 'My Payslips', href: '/payroll/my-payslips', icon: PieChart },
-        { name: 'Accounting', href: '/accounting', icon: Activity },
+        { name: 'Accounting', href: '/accounting/chart-of-accounts', icon: Activity },
     ];
 
     return (

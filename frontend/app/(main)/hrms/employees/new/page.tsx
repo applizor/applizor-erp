@@ -55,10 +55,6 @@ export default function NewEmployeePage() {
         exitDate: ''
     });
 
-    if (user && !can('Employee', 'create')) {
-        return <AccessDenied />;
-    }
-
     useEffect(() => {
         loadMetadata();
         fetchRoles();
@@ -400,6 +396,10 @@ export default function NewEmployeePage() {
                 );
         }
     };
+
+    if (user && !can('Employee', 'create')) {
+        return <AccessDenied />;
+    }
 
     return (
         <div className="space-y-6 max-w-5xl mx-auto">

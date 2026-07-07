@@ -1,21 +1,16 @@
 'use client';
 
-import { useState, use } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 
-export default function ResetPasswordPage({ searchParams }: { searchParams: Promise<{ token: string }> }) {
+export default function ResetPasswordPage({ searchParams }: { searchParams: { token?: string } }) {
     const router = useRouter();
-    const [token, setToken] = useState('');
+    const token = searchParams?.token || '';
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
-
-    // Extract token
-    searchParams.then(params => {
-        if (params.token) setToken(params.token);
-    });
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

@@ -1,5 +1,6 @@
 import prisma from '../prisma/client';
 import { FormulaEvaluator } from '../utils/formula-evaluator';
+import { StatutoryRuleService } from './statutory-rule.service';
 
 export class PayrollService {
     /**
@@ -122,30 +123,35 @@ export class PayrollService {
 
     /**
      * Calculate statutory deductions based on basic and gross salary
-     */
-    /**
-     * Calculate statutory deductions based on basic and gross salary
+     * Uses the Statutory Rule Engine for countries with configured rules,
+     * falls back to legacy India-specific logic when no country is set.
      */
     static async calculateStatutoryDeductions(companyId: string, basic: number, gross: number, ptState: string = 'Maharashtra', month?: number, year?: number) {
-        const config = await this.getStatutoryConfig(companyId);
-
-        // PF Calculation
-        const pfWage = Math.min(basic, Number(config.pfBasicLimit));
-        const pfEmployee = Math.floor(pfWage * (Number(config.pfEmployeeRate) / 100));
-        const pfEmployer = Math.floor(pfWage * (Number(config.pfEmployerRate) / 100));
-
-        // ESI Calculation
-        let esiEmployee = 0;
-        let esiEmployer = 0;
-        if (gross <= Number(config.esiGrossLimit)) {
-            esiEmployee = Math.ceil(gross * (Number(config.esiEmployeeRate) / 100));
-            esiEmployer = Math.ceil(gross * (Number(config.esiEmployerRate) / 100));
-        }
+        const result = await StatutoryRuleService.calculateAllDeductions(
+            companyId,
+            { basicSalary: basic, grossSalary: gross, ptState },
+            month,
+            year,
+        );
+        
+        const findVal = (obj: Record<string, number>, key: string) => {
+            const lowerKey = key.toLowerCase();
+            const entry = Object.entries(obj).find(([k]) => k.toLowerCase() === lowerKey || k.toLowerCase().includes(lowerKey));
+            return entry ? entry[1] : 0;
+        };
 
         return {
-            pf: { employee: pfEmployee, employer: pfEmployer },
-            esi: { employee: esiEmployee, employer: esiEmployer },
-            pt: config.professionalTaxEnabled ? this.calculateProfessionalTax(gross, config.ptSlabs, ptState, month) : 0
+            pf: { 
+                employee: findVal(result.deductions, 'pf') || findVal(result.deductions, 'provident'), 
+                employer: findVal(result.employerContributions, 'pf') || findVal(result.employerContributions, 'provident') 
+            },
+            esi: { 
+                employee: findVal(result.deductions, 'esi') || findVal(result.deductions, 'state insurance'), 
+                employer: findVal(result.employerContributions, 'esi') || findVal(result.employerContributions, 'state insurance') 
+            },
+            pt: findVal(result.deductions, 'pt') || findVal(result.deductions, 'professional'),
+            breakdown: result.deductions,
+            employerContributions: result.employerContributions
         };
     }
 
@@ -191,23 +197,30 @@ export class PayrollService {
     }
 
     /**
+     * Format a date to local YYYY-MM-DD string (timezone-safe)
+     */
+    static formatLocalDate(d: Date): string {
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+
+    /**
      * Compute stats from existing attendance records (Pure Function)
      * Now considers offDays and holidays if provided
      */
-    static computeAttendanceStats(attendances: any[], totalDays: number, startDate: Date, offDays: string[] = [], holidayDates: string[] = []) {
+    static computeAttendanceStats(attendances: any[], totalDays: number, startDate: Date, offDays: string[] = [], holidayDates: string[] = [], approvedLeaveDates: Set<string> = new Set()) {
         let lopDays = 0;
         let presentDays = 0;
 
         const attMap = new Map();
         attendances.forEach(att => {
-            const dateStr = new Date(att.date).toISOString().split('T')[0];
+            const dateStr = this.formatLocalDate(new Date(att.date));
             attMap.set(dateStr, att);
         });
 
         for (let i = 0; i < totalDays; i++) {
             const date = new Date(startDate);
             date.setDate(date.getDate() + i);
-            const dateStr = date.toISOString().split('T')[0];
+            const dateStr = this.formatLocalDate(date);
             const att = attMap.get(dateStr);
 
             if (att) {
@@ -224,6 +237,8 @@ export class PayrollService {
                 const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
                 if (offDays.includes(dayName) || holidayDates.includes(dateStr)) {
                     presentDays += 1; // Off day or Holiday is paid
+                } else if (approvedLeaveDates.has(dateStr)) {
+                    presentDays += 1; // Approved leave is paid (not LOP)
                 } else {
                     // Missing record on working day = LOP
                     lopDays += 1;
@@ -238,11 +253,11 @@ export class PayrollService {
      * Calculate Attendance Metrics for Payroll (Fetches Data)
      */
     static async calculateAttendanceMetrics(employeeId: string, companyId: string, month: number, year: number) {
-        const startDate = new Date(year, month - 1, 1);
-        const endDate = new Date(year, month, 0);
+        const startDate = new Date(Date.UTC(year, month - 1, 1));
+        const endDate = new Date(Date.UTC(year, month, 0));
         const totalDays = endDate.getDate();
 
-        const [attendances, company, holidays] = await Promise.all([
+        const [attendances, company, holidays, leaveRequests] = await Promise.all([
             prisma.attendance.findMany({
                 where: {
                     employeeId,
@@ -255,16 +270,39 @@ export class PayrollService {
             }) as any,
             prisma.holiday.findMany({
                 where: {
-                    date: { gte: startDate, lte: endDate }
+                    date: { gte: startDate, lte: endDate },
+                    OR: [
+                        { companyId },
+                        { companyId: null }
+                    ]
                 },
                 select: { date: true }
+            }),
+            prisma.leaveRequest.findMany({
+                where: {
+                    employeeId,
+                    status: 'approved',
+                    startDate: { lte: endDate },
+                    endDate: { gte: startDate }
+                },
+                select: { startDate: true, endDate: true }
             })
         ]);
 
         const offDays = company?.offDays ? (company.offDays as string).split(',').map((s: string) => s.trim()) : ['Saturday', 'Sunday'];
-        const holidayDates = (holidays as any[]).map(h => new Date(h.date).toISOString().split('T')[0]);
+        const holidayDates = (holidays as any[]).map(h => this.formatLocalDate(new Date(h.date)));
 
-        const stats = this.computeAttendanceStats(attendances, totalDays, startDate, offDays, holidayDates);
+        // Build approved leave dates set
+        const approvedLeaveDates = new Set<string>();
+        for (const lr of leaveRequests) {
+            const lrStart = new Date(lr.startDate);
+            const lrEnd = new Date(lr.endDate);
+            for (let d = new Date(lrStart); d <= lrEnd; d.setDate(d.getDate() + 1)) {
+                approvedLeaveDates.add(this.formatLocalDate(d));
+            }
+        }
+
+        const stats = this.computeAttendanceStats(attendances, totalDays, startDate, offDays, holidayDates, approvedLeaveDates);
 
         return {
             totalDays,
@@ -274,7 +312,7 @@ export class PayrollService {
     /**
      * Calculate monthly TDS based on annual projections and investment declarations
      */
-    static async calculateTDS(employeeId: string, companyId: string, monthlyGross: number, month: number) {
+    static async calculateTDS(employeeId: string, companyId: string, monthlyGross: number, month: number, year: number) {
         // 1. Get Approved Tax Declaration
         const declaration = await prisma.taxDeclaration.findFirst({
             where: { employeeId, status: 'approved' },
@@ -291,26 +329,71 @@ export class PayrollService {
         let taxableIncome = annualGross - standardDeduction;
 
         if (regime === 'old') {
-            // Subtract approved investments up to limit (approx 1.5L for 80C + others)
             taxableIncome -= Math.min(annualInvestments, 200000);
         }
 
-        // 3. Apply Slab Logic (Simplified Indian Slab for demonstration)
+        // 3. Determine Financial Year
+        const fyYear = month <= 3 ? year - 1 : year;
+        const financialYear = `${fyYear}-${(fyYear + 1) % 100}`;
+
+        // 4. Apply FY 2025-26 Slab Logic
         let annualTax = 0;
         if (regime === 'new') {
-            if (taxableIncome > 1500000) annualTax += (taxableIncome - 1500000) * 0.30 + 150000;
-            else if (taxableIncome > 1200000) annualTax += (taxableIncome - 1200000) * 0.20 + 90000;
-            else if (taxableIncome > 900000) annualTax += (taxableIncome - 900000) * 0.15 + 45000;
-            else if (taxableIncome > 600000) annualTax += (taxableIncome - 600000) * 0.10 + 15000;
-            else if (taxableIncome > 300000) annualTax += (taxableIncome - 300000) * 0.05;
+            // New Regime FY 2025-26 slabs
+            if (taxableIncome > 2400000) annualTax = (taxableIncome - 2400000) * 0.30 + 300000;
+            else if (taxableIncome > 2000000) annualTax = (taxableIncome - 2000000) * 0.25 + 200000;
+            else if (taxableIncome > 1600000) annualTax = (taxableIncome - 1600000) * 0.20 + 120000;
+            else if (taxableIncome > 1200000) annualTax = (taxableIncome - 1200000) * 0.15 + 60000;
+            else if (taxableIncome > 800000) annualTax = (taxableIncome - 800000) * 0.10 + 20000;
+            else if (taxableIncome > 400000) annualTax = (taxableIncome - 400000) * 0.05;
         } else {
-            if (taxableIncome > 1000000) annualTax += (taxableIncome - 1000000) * 0.30 + 112500;
-            else if (taxableIncome > 500000) annualTax += (taxableIncome - 500000) * 0.20 + 12500;
-            else if (taxableIncome > 250000) annualTax += (taxableIncome - 250000) * 0.05;
+            // Old Regime FY 2025-26 slabs
+            if (taxableIncome > 1500000) annualTax = (taxableIncome - 1500000) * 0.30 + 187500;
+            else if (taxableIncome > 1200000) annualTax = (taxableIncome - 1200000) * 0.20 + 97500;
+            else if (taxableIncome > 900000) annualTax = (taxableIncome - 900000) * 0.15 + 37500;
+            else if (taxableIncome > 600000) annualTax = (taxableIncome - 600000) * 0.10 + 15000;
+            else if (taxableIncome > 300000) annualTax = (taxableIncome - 300000) * 0.05;
         }
 
-        // 4. Divide by 12 for monthly TDS
-        return Math.floor(annualTax / 12);
+        // 5. Section 87A Rebate
+        if (regime === 'new' && taxableIncome <= 700000) {
+            annualTax = Math.max(0, annualTax - 25000);
+        } else if (regime === 'old' && taxableIncome <= 500000) {
+            annualTax = Math.max(0, annualTax - 12500);
+        }
+
+        // 6. Health & Education Cess (4%)
+        annualTax = Math.floor(annualTax * 1.04);
+
+        // 7. Fetch YTD already deducted TDS
+        const previousPayrolls = await prisma.payroll.findMany({
+            where: {
+                employeeId,
+                year,
+                month: { lt: month },
+                status: { in: ['processed', 'paid'] }
+            },
+            select: { deductionsBreakdown: true }
+        });
+
+        let alreadyDeducted = 0;
+        for (const pp of previousPayrolls) {
+            const breakdown = pp.deductionsBreakdown as Record<string, number> || {};
+            for (const [name, amt] of Object.entries(breakdown)) {
+                if (name.toUpperCase() === 'TDS' || name.toUpperCase().includes('INCOME TAX')) {
+                    alreadyDeducted += amt;
+                }
+            }
+        }
+
+        // 8. Calculate remaining months (inclusive)
+        const remainingMonths = 12 - month + 1;
+        if (remainingMonths <= 0) return 0;
+
+        // 9. Monthly TDS = (TotalTax - AlreadyDeducted) / RemainingMonths
+        const monthlyTDS = Math.max(0, Math.floor((annualTax - alreadyDeducted) / remainingMonths));
+
+        return monthlyTDS;
     }
 
     /**
@@ -333,7 +416,7 @@ export class PayrollService {
 
     static isPT(name: string): boolean {
         const n = name.toUpperCase();
-        return n.includes('PT') || n.includes('PROFESSIONAL TAX');
+        return n === 'PT' || n === 'PROFESSIONAL TAX';
     }
 
     static isTDS(name: string): boolean {
@@ -396,27 +479,10 @@ export class PayrollService {
                     if (comp.calculationType === 'flat') {
                         return Number(comp.value);
                     } else if (comp.calculationType === 'percentage') {
-                        // Default % of CTC if not specified in formula? 
-                        // Or usually schema implies 'percentage' of value against a base. 
-                        // For now, let's assume value is % of CTC if formula is empty
                         return (ctc / 12) * (Number(comp.value) / 100);
                     } else if (comp.calculationType === 'formula' && comp.formula) {
                         try {
-                            // Simple parser: Replace variables
-                            // Supported: CTC, BASIC
-                            let expression = comp.formula.toUpperCase();
-                            expression = expression.replace(/CTC/g, String(ctc / 12)); // Monthly CTC approach? Or Annual?
-                            // Usually formulas are on monthly basis in this system
-
-                            // If Basic is calculated, use it
-                            if (context['BASIC']) {
-                                expression = expression.replace(/BASIC/g, String(context['BASIC']));
-                            }
-
-                            // Safe Eval using function constructor (restricted scope)
-                            // Warning: usage of eval/Function. Ideally use a library.
-                            // For MVP valid inputs:
-                            return Function('"use strict";return (' + expression + ')')();
+                            return FormulaEvaluator.evaluate(comp.formula, context);
                         } catch (e) {
                             console.error('Formula Error', e);
                             return 0;

@@ -8,8 +8,40 @@ import { PayrollService } from '../services/payroll.service';
 import { ComplianceService } from '../services/compliance.service';
 import { PayrollAccountingService } from '../services/payroll-accounting.service';
 import { sendPayslipEmail } from '../services/email.service';
+import { StatutoryRuleService } from '../services/statutory-rule.service';
 
 // --- Salary Component Master ---
+
+export const getMyPayrolls = async (req: AuthRequest, res: Response) => {
+    try {
+        const userId = req.userId;
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+        // Find the employee record for this user
+        const employee = await prisma.employee.findUnique({ where: { userId } });
+        if (!employee) return res.json([]);
+
+        const payrolls = await prisma.payroll.findMany({
+            where: { employeeId: employee.id },
+            include: {
+                employee: {
+                    select: {
+                        firstName: true,
+                        lastName: true,
+                        employeeId: true,
+                        department: { select: { name: true } }
+                    }
+                }
+            },
+            orderBy: { year: 'desc', month: 'desc' }
+        });
+
+        res.json(payrolls);
+    } catch (error) {
+        console.error('Get my payrolls error:', error);
+        res.status(500).json({ error: 'Failed to fetch payrolls' });
+    }
+};
 
 export const getSalaryComponents = async (req: AuthRequest, res: Response) => {
     try {
@@ -59,6 +91,56 @@ export const createSalaryComponent = async (req: AuthRequest, res: Response) => 
     }
 };
 
+export const updateSalaryComponent = async (req: AuthRequest, res: Response) => {
+    try {
+        if (!PermissionService.hasBasicPermission(req.user, 'SalaryComponent', 'update')) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        const { id } = req.params;
+        const companyId = req.user!.companyId;
+
+        const existing = await prisma.salaryComponent.findFirst({ where: { id, companyId } });
+        if (!existing) return res.status(404).json({ error: 'Component not found' });
+
+        const { name, type, calculationType, defaultValue, isActive } = req.body;
+        const component = await prisma.salaryComponent.update({
+            where: { id },
+            data: {
+                ...(name !== undefined && { name }),
+                ...(type !== undefined && { type }),
+                ...(calculationType !== undefined && { calculationType }),
+                ...(defaultValue !== undefined && { defaultValue }),
+                ...(isActive !== undefined && { isActive })
+            }
+        });
+
+        res.json(component);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to update component' });
+    }
+};
+
+export const deleteSalaryComponent = async (req: AuthRequest, res: Response) => {
+    try {
+        if (!PermissionService.hasBasicPermission(req.user, 'SalaryComponent', 'delete')) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        const { id } = req.params;
+        const companyId = req.user!.companyId;
+
+        const existing = await prisma.salaryComponent.findFirst({ where: { id, companyId } });
+        if (!existing) return res.status(404).json({ error: 'Component not found' });
+
+        await prisma.salaryComponent.delete({ where: { id } });
+
+        res.json({ message: 'Component deleted successfully' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to delete component' });
+    }
+};
+
 // --- Statutory Configuration ---
 
 export const getStatutoryConfig = async (req: AuthRequest, res: Response) => {
@@ -84,10 +166,6 @@ export const updateStatutoryConfig = async (req: AuthRequest, res: Response) => 
         res.json(config);
     } catch (error) {
         console.error('UpdateStatConfig Controller Error:', error);
-        console.error('Context:', {
-            companyId: req.user?.companyId,
-            body: req.body
-        });
         res.status(500).json({ error: 'Failed to update statutory config' });
     }
 };
@@ -224,7 +302,8 @@ export const processPayroll = async (req: AuthRequest, res: Response) => {
         }
 
         const where: any = {
-            status: 'active'
+            status: 'active',
+            companyId: req.user!.companyId
         };
 
         if (departmentId) {
@@ -237,16 +316,25 @@ export const processPayroll = async (req: AuthRequest, res: Response) => {
         }) as any;
         const offDaysArr = company?.offDays ? (company.offDays as string).split(',').map((s: string) => s.trim()) : ['Saturday', 'Sunday'];
 
+        // Use UTC-based month boundaries to avoid timezone shifts
+        const monthStartUTC = new Date(Date.UTC(year, month - 1, 1));
+        const monthEndUTC = new Date(Date.UTC(year, month, 0));
+
         const holidays = await prisma.holiday.findMany({
             where: {
                 date: {
-                    gte: new Date(year, month - 1, 1),
-                    lte: new Date(year, month, 0)
-                }
+                    gte: monthStartUTC,
+                    lte: monthEndUTC
+                },
+                OR: [
+                    { companyId: req.user!.companyId },
+                    { companyId: null }
+                ]
             },
             select: { date: true }
         });
-        const holidayDates = holidays.map(h => new Date(h.date).toISOString().split('T')[0]);
+        const formatDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const holidayDates = holidays.map(h => formatDate(new Date(h.date)));
 
         const employees = await prisma.employee.findMany({
             where,
@@ -254,9 +342,21 @@ export const processPayroll = async (req: AuthRequest, res: Response) => {
                 attendances: {
                     where: {
                         date: {
-                            gte: new Date(year, month - 1, 1),
-                            lte: new Date(year, month, 0)
+                            gte: monthStartUTC,
+                            lte: monthEndUTC
                         }
+                    }
+                },
+                leaveRequests: {
+                    where: {
+                        status: 'approved',
+                        startDate: { lte: monthEndUTC },
+                        endDate: { gte: monthStartUTC }
+                    },
+                    select: {
+                        startDate: true,
+                        endDate: true,
+                        durationType: true
                     }
                 },
                 salaryStructureDetails: {
@@ -269,17 +369,28 @@ export const processPayroll = async (req: AuthRequest, res: Response) => {
             }
         });
 
-        const payrolls = [];
+        const payrolls = await prisma.$transaction(async (tx) => {
+            const results = [];
 
-        for (const emp of employees) {
+            for (const emp of employees) {
             // Skip if no structure defined
             if (!emp.salaryStructureDetails) continue;
 
-            const totalDays = new Date(year, month, 0).getDate();
-            const startDate = new Date(year, month - 1, 1);
+            const totalDays = monthEndUTC.getDate();
+            const startDate = new Date(monthStartUTC);
 
             // Calculate LOP (Reuse pre-fetched attendances)
-            const attendanceMetrics = PayrollService.computeAttendanceStats(emp.attendances, totalDays, startDate, offDaysArr, holidayDates);
+            // Build set of approved leave dates to exclude from LOP
+            const approvedLeaveDates = new Set<string>();
+            for (const lr of emp.leaveRequests) {
+                const lrStart = new Date(lr.startDate);
+                const lrEnd = new Date(lr.endDate);
+                for (let d = new Date(lrStart); d <= lrEnd; d.setDate(d.getDate() + 1)) {
+                    approvedLeaveDates.add(formatDate(d));
+                }
+            }
+
+            const attendanceMetrics = PayrollService.computeAttendanceStats(emp.attendances, totalDays, startDate, offDaysArr, holidayDates, approvedLeaveDates);
             const absentDays = attendanceMetrics.lopDays;
 
             const structure = emp.salaryStructureDetails;
@@ -288,6 +399,11 @@ export const processPayroll = async (req: AuthRequest, res: Response) => {
 
             const earningsBreakdown: any = {};
             const deductionsBreakdown: any = {};
+
+            // Fetch active statutory rules for this country/company to dynamically identify statutory components
+            const countryId = await StatutoryRuleService.getCountryForCompany(req.user!.companyId);
+            const activeRules = countryId ? await StatutoryRuleService.getActiveRules(countryId, req.user!.companyId) : [];
+            const activeRuleCodes = new Set(activeRules.map(r => r.code.toUpperCase()));
 
             // Calculate each component
             for (const item of structure.components) {
@@ -303,12 +419,13 @@ export const processPayroll = async (req: AuthRequest, res: Response) => {
                     earningsBreakdown[component.name] = amount;
                 } else if (component.type === 'deduction') {
                     // Check if it's a statutory deduction that should be auto-calculated
-                    if (PayrollService.isPF(component.name)) {
-                        // Will calculate later
-                    } else if (PayrollService.isESI(component.name)) {
-                        // Will check later
-                    } else if (PayrollService.isPT(component.name)) {
-                        // Auto-calculated later
+                    const isStatutory = activeRuleCodes.has(component.name.toUpperCase()) || 
+                                       PayrollService.isPF(component.name) || 
+                                       PayrollService.isESI(component.name) || 
+                                       PayrollService.isPT(component.name);
+                    
+                    if (isStatutory) {
+                        // Will calculate dynamically below
                     } else {
                         totalDeductions += amount;
                         deductionsBreakdown[component.name] = amount;
@@ -317,60 +434,39 @@ export const processPayroll = async (req: AuthRequest, res: Response) => {
             }
 
             // --- Statutory Calculations ---
-            // --- Statutory Calculations ---
             const basicAmount = (Object.entries(earningsBreakdown).find(([name]) => PayrollService.isBasic(name))?.[1] as number) || 0;
             const statutory = await PayrollService.calculateStatutoryDeductions(req.user!.companyId, basicAmount, grossEarned, emp.ptState || 'Maharashtra', Number(month), Number(year));
 
-            // Integrate PF (FORCE if Configured)
-            // Even if no component exists, statutory config dictates the rule.
-            if (statutory.pf.employee > 0) {
-                const pfLabel = structure.components.find(c => PayrollService.isPF(c.component.name))?.component.name || 'Provident Fund';
-                deductionsBreakdown[pfLabel] = statutory.pf.employee;
-                // If it was already added via loop (unlikely if we separate logic), ensure we don't double count? 
-                // The loop skips 'isPF' components now. So we are safe to add here.
-                totalDeductions += statutory.pf.employee;
-            }
-
-            // Integrate ESI (FORCE if Configured)
-            if (statutory.esi.employee > 0) {
-                const esiLabel = structure.components.find(c => PayrollService.isESI(c.component.name))?.component.name || 'ESI';
-                deductionsBreakdown[esiLabel] = statutory.esi.employee;
-                totalDeductions += statutory.esi.employee;
-            }
-
-            // Integrate PT (Professional Tax) (FORCE if Configured)
-            if (statutory.pt > 0) {
-                const ptLabel = structure.components.find(c => PayrollService.isPT(c.component.name))?.component.name || 'Professional Tax';
-                deductionsBreakdown[ptLabel] = statutory.pt;
-                totalDeductions += statutory.pt;
+            // Integrate dynamic statutory rules from rule engine (PF, ESI, PT, Social Security, Medicare, FICA, CPF, etc.)
+            if (statutory.breakdown) {
+                for (const [code, amount] of Object.entries(statutory.breakdown)) {
+                    if (amount > 0) {
+                        const compName = structure.components.find(c => 
+                            c.component.name.toUpperCase() === code.toUpperCase() || 
+                            c.component.name.toUpperCase().includes(code.toUpperCase())
+                        )?.component.name || code.toUpperCase();
+                        
+                        deductionsBreakdown[compName] = amount;
+                        totalDeductions += amount;
+                    }
+                }
             }
 
             // Integrate TDS (Advanced Tax)
-            const tdsAmount = await PayrollService.calculateTDS(emp.id, req.user!.companyId, grossEarned, Number(month));
+            const tdsAmount = await PayrollService.calculateTDS(emp.id, req.user!.companyId, grossEarned, Number(month), Number(year));
             if (tdsAmount > 0) {
                 const tdsLabel = structure.components.find(c => PayrollService.isTDS(c.component.name))?.component.name || 'TDS';
-                // TDS might have been manually added as a 'Deduction' component in some systems.
-                // If found in loop, we should probably take greater of calculated vs manual?
-                // For now, auto-calculated takes precedence or adds to it? 
-                // Let's assume TDS is strictly auto-calculated here.
                 deductionsBreakdown[tdsLabel] = tdsAmount;
                 totalDeductions += tdsAmount;
             }
 
             const netSalary = grossEarned - totalDeductions;
 
-            // Calculate totalAllowances
-            const basicComponent = structure.components.find(c => c.component.name === 'Basic');
-            const basicSalaryAmount = Number(basicComponent?.monthlyAmount || 0);
-
-            // Adjust basic for LOP if needed (assuming basic is part of grossEarned logic above)
-            // But strict 'Basic' field in Payroll model might expect the actual paid Basic?
-            // Let's use the calculated Basic from earningsBreakdown if available, else 0
-            const processedBasic = earningsBreakdown['Basic'] || 0;
+            const processedBasic = (Object.entries(earningsBreakdown).find(([name]) => PayrollService.isBasic(name))?.[1] as number) || 0;
             const totalAllowances = grossEarned - processedBasic;
 
             // Check if payroll exists
-            const existingPayroll = await prisma.payroll.findFirst({
+            const existingPayroll = await tx.payroll.findFirst({
                 where: {
                     employeeId: emp.id,
                     month: Number(month),
@@ -381,7 +477,7 @@ export const processPayroll = async (req: AuthRequest, res: Response) => {
             let payroll;
 
             if (existingPayroll) {
-                payroll = await prisma.payroll.update({
+                payroll = await tx.payroll.update({
                     where: { id: existingPayroll.id },
                     data: {
                         basicSalary: processedBasic,
@@ -396,7 +492,7 @@ export const processPayroll = async (req: AuthRequest, res: Response) => {
                     }
                 });
             } else {
-                payroll = await prisma.payroll.create({
+                payroll = await tx.payroll.create({
                     data: {
                         employeeId: emp.id,
                         month: Number(month),
@@ -413,8 +509,11 @@ export const processPayroll = async (req: AuthRequest, res: Response) => {
                     }
                 });
             }
-            payrolls.push({ ...payroll, absentDays });
-        }
+                results.push({ ...payroll, absentDays });
+            }
+
+            return results;
+        });
 
         res.json({ message: `Processed payroll for ${payrolls.length} employees`, payrolls });
 
@@ -452,7 +551,7 @@ export const getPayrollList = async (req: AuthRequest, res: Response) => {
         const userId = req.userId;
         if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-        const { month, year } = req.query;
+        const { month, year, page, limit } = req.query;
         if (!month || !year) return res.status(400).json({ error: 'Month and Year required' });
 
         // --- SCOPED ACCESS ---
@@ -467,7 +566,8 @@ export const getPayrollList = async (req: AuthRequest, res: Response) => {
 
         const where: any = {
             month: Number(month),
-            year: Number(year)
+            year: Number(year),
+            employee: { companyId: req.user!.companyId }
         };
 
         if (!scope.all) {
@@ -486,20 +586,41 @@ export const getPayrollList = async (req: AuthRequest, res: Response) => {
             }
         }
 
-        const payrolls = await prisma.payroll.findMany({
-            where,
-            include: {
-                employee: {
-                    select: {
-                        firstName: true,
-                        lastName: true,
-                        employeeId: true,
-                        department: { select: { name: true } }
+        const pageNum = page ? Math.max(1, Number(page)) : 1;
+        const limitNum = limit ? Math.max(1, Math.min(100, Number(limit))) : 0;
+
+        const [payrolls, total] = await Promise.all([
+            prisma.payroll.findMany({
+                where,
+                include: {
+                    employee: {
+                        select: {
+                            firstName: true,
+                            lastName: true,
+                            employeeId: true,
+                            department: { select: { name: true } }
+                        }
                     }
+                },
+                orderBy: { createdAt: 'desc' },
+                ...(limitNum > 0 ? { skip: (pageNum - 1) * limitNum, take: limitNum } : {})
+            }),
+            limitNum > 0 ? prisma.payroll.count({ where }) : Promise.resolve(0)
+        ]);
+
+        if (limitNum > 0) {
+            res.json({
+                data: payrolls,
+                pagination: {
+                    page: pageNum,
+                    limit: limitNum,
+                    total,
+                    totalPages: Math.ceil(total / limitNum)
                 }
-            }
-        });
-        res.json(payrolls);
+            });
+        } else {
+            res.json(payrolls);
+        }
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch payroll list' });
     }
@@ -525,29 +646,67 @@ export const approvePayroll = async (req: AuthRequest, res: Response) => {
         });
 
         if (!payroll) return res.status(404).json({ error: 'Payroll not found' });
-        if (payroll.status !== 'draft') return res.status(400).json({ error: 'Payroll already processed' });
+        if (payroll.status !== 'processed') return res.status(400).json({ error: 'Payroll must be in processed status to approve' });
 
-        // 2. Ensure Accounts exist (for robustness)
+        // 2. Fetch StatutoryConfig for dynamic account mappings
+        const statutoryConfig = await prisma.statutoryConfig.findUnique({ where: { companyId } });
         const salaryExpenseAcct = await ensureAccount(companyId, '5000', 'Salary Expense', 'expense');
-        const salaryPayableAcct = await ensureAccount(companyId, '2100', 'Salaries Payable', 'liability');
-        const taxPayableAcct = await ensureAccount(companyId, '2200', 'Tax/PF Payable', 'liability');
+        const salaryPayableAcct = statutoryConfig?.salaryPayableAccountId
+            ? await prisma.ledgerAccount.findUnique({ where: { id: statutoryConfig.salaryPayableAccountId } })
+            || await ensureAccount(companyId, '2100', 'Salaries Payable', 'liability')
+            : await ensureAccount(companyId, '2100', 'Salaries Payable', 'liability');
+        const pfPayableAcct = statutoryConfig?.pfPayableAccountId
+            ? await prisma.ledgerAccount.findUnique({ where: { id: statutoryConfig.pfPayableAccountId } })
+            || await ensureAccount(companyId, '2205', 'PF Payable', 'liability')
+            : null;
+        const ptPayableAcct = statutoryConfig?.ptPayableAccountId
+            ? await prisma.ledgerAccount.findUnique({ where: { id: statutoryConfig.ptPayableAccountId } })
+            || await ensureAccount(companyId, '2210', 'PT Payable', 'liability')
+            : null;
+        const tdsPayableAcct = statutoryConfig?.tdsPayableAccountId
+            ? await prisma.ledgerAccount.findUnique({ where: { id: statutoryConfig.tdsPayableAccountId } })
+            || await ensureAccount(companyId, '2220', 'TDS Payable', 'liability')
+            : null;
 
         // 3. Create Journal Entry
-        // Debit Expense = Gross
-        // Credit Payable = Net
-        // Credit Tax/PF = Deductions
+        // Build journal entry lines
+        const journalLines: Array<{ accountId: string; debit: number; credit: number }> = [
+            { accountId: salaryExpenseAcct.id, debit: Number(payroll.grossSalary), credit: 0 },
+            { accountId: salaryPayableAcct.id, debit: 0, credit: Number(payroll.netSalary) },
+        ];
+
+        // Parse deductions breakdown to allocate to correct payable accounts
+        const deductionsBreakdown = (payroll.deductionsBreakdown as Record<string, number>) || {};
+        const pfAmount = Object.entries(deductionsBreakdown).reduce((sum, [name, amt]) =>
+            name.toUpperCase().includes('PF') || name.toUpperCase().includes('PROVIDENT FUND') ? sum + amt : sum, 0);
+        const ptAmount = Object.entries(deductionsBreakdown).reduce((sum, [name, amt]) =>
+            name.toUpperCase().includes('PT') || name.toUpperCase().includes('PROFESSIONAL TAX') ? sum + amt : sum, 0);
+        const tdsAmount = Object.entries(deductionsBreakdown).reduce((sum, [name, amt]) =>
+            name.toUpperCase() === 'TDS' || name.toUpperCase().includes('INCOME TAX') ? sum + amt : sum, 0);
+        const otherDeductions = Number(payroll.deductions) - pfAmount - ptAmount - tdsAmount;
+
+        if (pfAmount > 0 && pfPayableAcct) {
+            journalLines.push({ accountId: pfPayableAcct.id, debit: 0, credit: pfAmount });
+        }
+        if (ptAmount > 0 && ptPayableAcct) {
+            journalLines.push({ accountId: ptPayableAcct.id, debit: 0, credit: ptAmount });
+        }
+        if (tdsAmount > 0 && tdsPayableAcct) {
+            journalLines.push({ accountId: tdsPayableAcct.id, debit: 0, credit: tdsAmount });
+        }
+        if (otherDeductions > 0) {
+            // Fallback: other deductions go to salary payable contra
+            journalLines.push({ accountId: salaryPayableAcct.id, debit: otherDeductions, credit: 0 });
+        }
 
         await createJournalEntry(
             companyId,
             new Date(),
             `Payroll for ${payroll.employee.firstName} ${payroll.employee.lastName} - ${payroll.month}/${payroll.year}`,
             `PAYROLL-${payroll.month}-${payroll.year}-${payroll.employee.employeeId}`,
-            [
-                { accountId: salaryExpenseAcct.id, debit: Number(payroll.grossSalary) },
-                { accountId: salaryPayableAcct.id, credit: Number(payroll.netSalary) },
-                { accountId: taxPayableAcct.id, credit: Number(payroll.deductions) }
-            ],
-            true // Auto-post
+            journalLines,
+            true,
+            req.userId
         );
 
         // 4. Update Payroll Status
@@ -690,6 +849,66 @@ export const emailPayslip = async (req: AuthRequest, res: Response) => {
     } catch (error) {
         console.error('Email payslip error:', error);
         res.status(500).json({ error: 'Failed to email payslip' });
+    }
+};
+
+export const bulkEmailPayslips = async (req: AuthRequest, res: Response) => {
+    try {
+        const { month, year, employeeIds } = req.body;
+        const companyId = req.user!.companyId;
+
+        if (!month || !year) {
+            return res.status(400).json({ error: 'Month and year are required' });
+        }
+
+        const where: any = { month: Number(month), year: Number(year), employee: { companyId } };
+        if (Array.isArray(employeeIds) && employeeIds.length > 0) {
+            where.employeeId = { in: employeeIds };
+        }
+
+        const payrolls = await prisma.payroll.findMany({
+            where,
+            include: { employee: true }
+        });
+
+        if (payrolls.length === 0) {
+            return res.status(404).json({ error: 'No payrolls found for the given period' });
+        }
+
+        let sent = 0;
+        let failed = 0;
+
+        const company = await prisma.company.findUnique({ where: { id: companyId } });
+        if (!company) return res.status(404).json({ error: 'Company not found' });
+
+        for (const payroll of payrolls) {
+            try {
+                const pdfBuffer = await PDFService.generatePayslip(payroll, company);
+                const monthName = new Date(payroll.year, payroll.month - 1).toLocaleString('default', { month: 'long' });
+
+                await sendPayslipEmail(
+                    payroll.employee.email,
+                    {
+                        employeeName: `${payroll.employee.firstName} ${payroll.employee.lastName}`,
+                        monthName,
+                        year: payroll.year,
+                        netSalary: Number(payroll.netSalary),
+                        currency: company?.currency || 'INR',
+                        companyId
+                    },
+                    pdfBuffer
+                );
+                sent++;
+            } catch (err) {
+                console.error(`Failed to email payslip for ${payroll.employee.firstName}:`, err);
+                failed++;
+            }
+        }
+
+        res.json({ message: `Sent ${sent} payslips${failed > 0 ? `, ${failed} failed` : ''}`, sent, failed });
+    } catch (error) {
+        console.error('Bulk email payroll error:', error);
+        res.status(500).json({ error: 'Failed to send bulk payslips' });
     }
 };
 

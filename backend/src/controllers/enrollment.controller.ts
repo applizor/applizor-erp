@@ -62,6 +62,9 @@ export const updateEnrollment = async (req: AuthRequest, res: Response) => {
             data.completionDate = null;
         }
 
+        const existing = await prisma.courseEnrollment.findFirst({ where: { id, companyId: req.user.companyId } });
+        if (!existing) return res.status(404).json({ error: 'Not found' });
+
         const enrollment = await prisma.courseEnrollment.update({
             where: { id },
             data,
@@ -114,8 +117,8 @@ export const getEnrollmentById = async (req: AuthRequest, res: Response) => {
         }
 
         const { id } = req.params;
-        const enrollment = await prisma.courseEnrollment.findUnique({
-            where: { id },
+        const enrollment = await prisma.courseEnrollment.findFirst({
+            where: { id, companyId: req.user.companyId },
             include: {
                 student: true,
                 course: true
@@ -137,6 +140,10 @@ export const deleteEnrollment = async (req: AuthRequest, res: Response) => {
         }
 
         const { id } = req.params;
+
+        const existing = await prisma.courseEnrollment.findFirst({ where: { id, companyId: req.user.companyId } });
+        if (!existing) return res.status(404).json({ error: 'Not found' });
+
         await prisma.courseEnrollment.delete({ where: { id } });
         res.json({ message: 'Enrollment deleted successfully' });
     } catch (error: any) {

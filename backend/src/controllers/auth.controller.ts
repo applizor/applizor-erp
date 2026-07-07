@@ -6,6 +6,88 @@ import crypto from 'crypto';
 import { sendEmail } from '../services/email.service';
 import { logAction } from '../services/audit.service';
 import { AuthRequest } from '../middleware/auth';
+import { initializeCompanyDefaults } from './platform.controller';
+
+export const listUsers = async (req: AuthRequest, res: Response) => {
+    try {
+        const companyId = req.user!.companyId;
+        const users = await prisma.user.findMany({
+            where: { companyId },
+            select: { id: true, email: true, firstName: true, lastName: true, isActive: true, createdAt: true },
+            orderBy: { createdAt: 'desc' }
+        });
+        const mapped = users.map(u => ({
+            id: u.id,
+            email: u.email,
+            name: `${u.firstName} ${u.lastName}`,
+            isActive: u.isActive,
+            createdAt: u.createdAt,
+        }));
+        res.json(mapped);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch users' });
+    }
+};
+
+export const updateUser = async (req: AuthRequest, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { isActive } = req.body;
+        const user = await prisma.user.update({
+            where: { id },
+            data: { ...(isActive !== undefined && { isActive }) }
+        });
+        res.json({ message: 'User updated', user: { id: user.id, email: user.email, isActive: user.isActive } });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to update user' });
+    }
+};
+
+export const inviteUser = async (req: AuthRequest, res: Response) => {
+    try {
+        const companyId = req.user!.companyId;
+        const { email, role } = req.body;
+        if (!email) return res.status(400).json({ error: 'Email is required' });
+
+        const existing = await prisma.user.findUnique({ where: { email } });
+        if (existing) return res.status(409).json({ error: 'User already exists' });
+
+        const tempPassword = crypto.randomBytes(8).toString('hex');
+        const hashed = await hashPassword(tempPassword);
+        const firstName = email.split('@')[0];
+        const lastName = '';
+
+        await prisma.user.create({
+            data: { email, password: hashed, firstName, lastName, companyId }
+        });
+
+        try {
+            await sendEmail(
+                email,
+                `Welcome to Applizor ERP — Your Account`,
+                `
+                    <h2>Welcome to Applizor ERP</h2>
+                    <p>Your account has been created.</p>
+                    <p><strong>Email:</strong> ${email}</p>
+                    <p><strong>Password:</strong> ${tempPassword}</p>
+                    <p>Please login and change your password.</p>
+                `,
+                [],
+                undefined,
+                undefined,
+                undefined,
+                true
+            );
+        } catch (emailErr) {
+            console.error('Invite email failed:', emailErr);
+        }
+
+        res.status(201).json({ message: 'User invited', email });
+    } catch (error: any) {
+        if (error?.code === 'P2002') return res.status(409).json({ error: 'User already exists' });
+        res.status(500).json({ error: 'Failed to invite user' });
+    }
+};
 
 export const register = async (req: Request, res: Response) => {
   try {
@@ -33,13 +115,39 @@ export const register = async (req: Request, res: Response) => {
       // Create company if provided
       let company = null;
       if (companyName) {
+        // Find default country
+        const defaultCountry = await tx.country.findFirst({ where: { code: 'IN' } }) || await tx.country.findFirst();
+
         company = await tx.company.create({
           data: {
             name: companyName,
             isActive: true,
+            countryId: defaultCountry?.id || null,
+            currency: 'INR',
+            timezone: 'Asia/Kolkata',
+            locale: 'en-IN',
+            offDays: 'Saturday, Sunday',
           },
         });
+
+        // Assign default Starter subscription
+        const starterPlan = await tx.tenantPlan.findFirst({ where: { code: 'starter_monthly' } });
+        if (starterPlan) {
+          await tx.tenantSubscription.create({
+            data: {
+              companyId: company.id,
+              planId: starterPlan.id,
+              status: 'active',
+              autoRenew: true,
+              currentPeriodStart: new Date(),
+              currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+            },
+          });
+        }
       }
+
+      // Find Admin role
+      const adminRole = await tx.role.findFirst({ where: { name: 'Admin' } });
 
       // Create user
       const user = await tx.user.create({
@@ -50,11 +158,23 @@ export const register = async (req: Request, res: Response) => {
           lastName,
           phone,
           companyId: company?.id,
+          ...(adminRole && {
+            roles: {
+              create: {
+                roleId: adminRole.id
+              }
+            }
+          })
         },
       });
 
       return { user, company };
     });
+
+    // Auto-bootstrap defaults if company and country are available
+    if (result.company && result.company.countryId) {
+      await initializeCompanyDefaults(result.company.id, result.company.countryId);
+    }
 
     // Generate token
     const token = generateToken(result.user.id);

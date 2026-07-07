@@ -203,6 +203,41 @@ export default function ProjectAutomationRuleModal({ projectId, rule, onClose, o
                                     </p>
                                 </div>
                             )}
+
+                            {/* Advanced Conditional Filters (Priority & Task Type) */}
+                            {triggerType !== 'TASK_REMINDER' && (
+                                <div className="grid grid-cols-2 gap-3 animate-fade-in bg-slate-50 p-3 rounded-md border border-slate-100">
+                                    <div>
+                                        <label className="ent-label mb-1">Priority Condition</label>
+                                        <CustomSelect
+                                            value={triggerConfig.priority || '*'}
+                                            onChange={(val) => setTriggerConfig({ ...triggerConfig, priority: val })}
+                                            options={[
+                                                { label: 'Any Priority', value: '*' },
+                                                { label: 'High', value: 'high' },
+                                                { label: 'Medium', value: 'medium' },
+                                                { label: 'Low', value: 'low' }
+                                            ]}
+                                            className="w-full"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="ent-label mb-1">Task Type Condition</label>
+                                        <CustomSelect
+                                            value={triggerConfig.type || '*'}
+                                            onChange={(val) => setTriggerConfig({ ...triggerConfig, type: val })}
+                                            options={[
+                                                { label: 'Any Type', value: '*' },
+                                                { label: 'Task', value: 'task' },
+                                                { label: 'Bug', value: 'bug' },
+                                                { label: 'Story', value: 'story' },
+                                                { label: 'Epic', value: 'epic' }
+                                            ]}
+                                            className="w-full"
+                                        />
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {/* Action Section */}
@@ -263,6 +298,9 @@ export default function ProjectAutomationRuleModal({ projectId, rule, onClose, o
                                                     { label: 'Task Assignee', value: 'assignee' },
                                                     { label: 'Mentioned Users (@)', value: 'mentions' },
                                                     { label: 'Project Client', value: 'client' },
+                                                    { label: 'Project Managers', value: 'project_manager' },
+                                                    { label: 'All Project Members', value: 'project_members' },
+                                                    { label: 'Task Creator', value: 'task_creator' },
                                                     { label: 'Custom Email / External', value: 'custom' }
                                                 ]}
                                                 className="w-full"
@@ -314,13 +352,45 @@ export default function ProjectAutomationRuleModal({ projectId, rule, onClose, o
                                             />
                                         </div>
                                         <div>
-                                            <label className="ent-label">Message Body</label>
+                                            <div className="flex justify-between items-center mb-1">
+                                                <label className="ent-label m-0">Message Body</label>
+                                                <span className="text-[9px] font-bold text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded border border-violet-100 uppercase tracking-wider">Supports Placeholders</span>
+                                            </div>
                                             <textarea
                                                 className="ent-input h-24 resize-none py-2"
                                                 value={actionConfig.body || ''}
                                                 onChange={e => setActionConfig({ ...actionConfig, body: e.target.value })}
                                                 placeholder="Enter your message content here..."
                                             />
+                                        </div>
+                                        <div className="bg-slate-50 p-3 rounded-lg border border-slate-200/60">
+                                            <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider block mb-2">Available Variables (Click to copy)</span>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {[
+                                                    { var: '{{taskTitle}}', label: 'Task Title' },
+                                                    { var: '{{projectName}}', label: 'Project Name' },
+                                                    { var: '{{assigneeName}}', label: 'Assignee Name' },
+                                                    { var: '{{oldStatus}}', label: 'Old Status' },
+                                                    { var: '{{newStatus}}', label: 'New Status' },
+                                                    { var: '{{commenterName}}', label: 'Commenter' },
+                                                    { var: '{{commentContent}}', label: 'Comment Body' },
+                                                    { var: '{{creatorName}}', label: 'Task Creator' },
+                                                    { var: '{{taskDescription}}', label: 'Task Desc.' }
+                                                ].map(v => (
+                                                    <button
+                                                        key={v.var}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            navigator.clipboard.writeText(v.var);
+                                                            toast.success(`Copied ${v.var}`);
+                                                        }}
+                                                        className="text-[9px] font-bold bg-white text-slate-700 hover:text-violet-700 hover:bg-violet-50 border border-slate-200 hover:border-violet-200 px-2 py-1 rounded transition-all select-none"
+                                                        title={`Click to copy placeholder`}
+                                                    >
+                                                        {v.var} ({v.label})
+                                                    </button>
+                                                ))}
+                                            </div>
                                         </div>
                                     </div>
                                 )}

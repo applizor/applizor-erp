@@ -10,6 +10,7 @@ import { Plus, Users, Search, Filter, Trash2, Edit2, UserPlus, Phone, Mail, Cale
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import PageHeader from '@/components/ui/PageHeader';
 import { CustomSelect } from '@/components/ui/CustomSelect';
+import api from '@/lib/api';
 
 export default function StudentsPage() {
     const toast = useToast();
@@ -18,6 +19,9 @@ export default function StudentsPage() {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
+    const [employees, setEmployees] = useState<any[]>([]);
+    const [onboardType, setOnboardType] = useState<'new' | 'employee'>('new');
+    const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
     
     // Modal states
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -39,7 +43,17 @@ export default function StudentsPage() {
 
     useEffect(() => {
         loadStudents();
+        loadEmployees();
     }, []);
+
+    const loadEmployees = async () => {
+        try {
+            const res = await api.get('/employees');
+            setEmployees(res.data || []);
+        } catch (error) {
+            console.error('Failed to load employees:', error);
+        }
+    };
 
     const loadStudents = async () => {
         try {
@@ -57,6 +71,8 @@ export default function StudentsPage() {
     const handleOpenModal = (student?: Student) => {
         if (student) {
             setEditingStudent(student);
+            setOnboardType('new');
+            setSelectedEmployeeId('');
             setFormData({
                 studentId: student.studentId || '',
                 firstName: student.firstName || '',
@@ -70,6 +86,8 @@ export default function StudentsPage() {
             });
         } else {
             setEditingStudent(null);
+            setOnboardType('new');
+            setSelectedEmployeeId('');
             setFormData({
                 studentId: `STUD-${Math.floor(1000 + Math.random() * 9000)}`,
                 firstName: '',
@@ -116,7 +134,8 @@ export default function StudentsPage() {
                     phone: formData.phone || undefined,
                     dateOfBirth: formData.dateOfBirth || undefined,
                     status: formData.status,
-                    password: formData.password || undefined
+                    password: formData.createAccount ? formData.password : undefined,
+                    employeeId: onboardType === 'employee' ? selectedEmployeeId : undefined
                 });
                 toast.success('Student onboarded successfully');
             }
@@ -292,6 +311,67 @@ export default function StudentsPage() {
                         
                         <form onSubmit={handleFormSubmit} className="p-5 space-y-4">
                             <div className="grid grid-cols-2 gap-3">
+                                {!editingStudent && (
+                                    <div className="ent-form-group col-span-2">
+                                        <label className="ent-label">Onboarding Path</label>
+                                        <CustomSelect
+                                            options={[
+                                                { label: 'Register New External Learner', value: 'new' },
+                                                { label: 'Link Existing Company Employee', value: 'employee' }
+                                            ]}
+                                            value={onboardType}
+                                            onChange={(val) => {
+                                                setOnboardType(val as 'new' | 'employee');
+                                                setSelectedEmployeeId('');
+                                                if (val === 'employee') {
+                                                    setFormData(prev => ({
+                                                        ...prev,
+                                                        firstName: '',
+                                                        lastName: '',
+                                                        email: '',
+                                                        phone: '',
+                                                        dateOfBirth: '',
+                                                        createAccount: false
+                                                    }));
+                                                } else {
+                                                    setFormData(prev => ({
+                                                        ...prev,
+                                                        createAccount: true,
+                                                        password: 'password123'
+                                                    }));
+                                                }
+                                            }}
+                                        />
+                                    </div>
+                                )}
+
+                                {!editingStudent && onboardType === 'employee' && (
+                                    <div className="ent-form-group col-span-2">
+                                        <label className="ent-label">Select Employee *</label>
+                                        <CustomSelect
+                                            options={employees.map(emp => ({
+                                                label: `${emp.firstName} ${emp.lastName} (${emp.email})`,
+                                                value: emp.id
+                                            }))}
+                                            value={selectedEmployeeId}
+                                            onChange={(val) => {
+                                                setSelectedEmployeeId(val);
+                                                const emp = employees.find(e => e.id === val);
+                                                if (emp) {
+                                                    setFormData(prev => ({
+                                                        ...prev,
+                                                        firstName: emp.firstName,
+                                                        lastName: emp.lastName,
+                                                        email: emp.email,
+                                                        phone: emp.phone || '',
+                                                        dateOfBirth: emp.dateOfBirth ? new Date(emp.dateOfBirth).toISOString().split('T')[0] : '',
+                                                    }));
+                                                }
+                                            }}
+                                        />
+                                    </div>
+                                )}
+
                                 <div className="ent-form-group col-span-2">
                                     <label className="ent-label">Student ID</label>
                                     <input
@@ -311,6 +391,7 @@ export default function StudentsPage() {
                                         required
                                         placeholder="Enter first name"
                                         value={formData.firstName}
+                                        disabled={!editingStudent && onboardType === 'employee'}
                                         onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                                     />
                                 </div>
@@ -322,6 +403,7 @@ export default function StudentsPage() {
                                         required
                                         placeholder="Enter last name"
                                         value={formData.lastName}
+                                        disabled={!editingStudent && onboardType === 'employee'}
                                         onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                                     />
                                 </div>
@@ -333,6 +415,7 @@ export default function StudentsPage() {
                                         required
                                         placeholder="Enter email address"
                                         value={formData.email}
+                                        disabled={!editingStudent && onboardType === 'employee'}
                                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                                     />
                                 </div>
@@ -343,6 +426,7 @@ export default function StudentsPage() {
                                         className="ent-input"
                                         placeholder="Enter phone number"
                                         value={formData.phone}
+                                        disabled={!editingStudent && onboardType === 'employee'}
                                         onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                                     />
                                 </div>
@@ -352,6 +436,7 @@ export default function StudentsPage() {
                                         type="date"
                                         className="ent-input"
                                         value={formData.dateOfBirth}
+                                        disabled={!editingStudent && onboardType === 'employee'}
                                         onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
                                     />
                                 </div>
@@ -367,7 +452,7 @@ export default function StudentsPage() {
                                     />
                                 </div>
                                 
-                                {!editingStudent && (
+                                {!editingStudent && onboardType === 'new' && (
                                     <div className="col-span-2 border-t border-gray-100 pt-3 mt-1">
                                         <div className="flex items-center gap-2 mb-2">
                                             <input

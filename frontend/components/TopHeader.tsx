@@ -91,6 +91,19 @@ export default function TopHeader() {
         }
     };
 
+    // ⌘K global search shortcut
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                e.preventDefault();
+                const input = document.querySelector<HTMLInputElement>('input[placeholder*="Global search"]');
+                input?.focus();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
+
     const handleOpenMenu = () => {
         window.dispatchEvent(new CustomEvent('open-mobile-menu'));
     };
@@ -114,19 +127,27 @@ export default function TopHeader() {
             </div>
 
             {/* Left Side (Search - Desktop only) */}
-            <div className="hidden md:flex items-center gap-4 flex-1">
-                <div className="hidden md:flex items-center relative max-w-md w-full">
-                    <Search className="absolute left-3 w-3.5 h-3.5 text-gray-400" />
-                    <input
-                        type="text"
-                        placeholder="Global search..."
-                        className="ent-input w-full pl-9 py-1.5 text-[11px] font-medium placeholder:text-gray-400 border-gray-200 bg-gray-50 focus:bg-white transition-colors"
-                    />
-                    <div className="absolute right-2 flex gap-1">
-                        <span className="text-[9px] font-black text-gray-300 border border-gray-200 rounded px-1.5 bg-white">⌘</span>
-                        <span className="text-[9px] font-black text-gray-300 border border-gray-200 rounded px-1.5 bg-white">K</span>
-                    </div>
-                </div>
+            <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                <input
+                    type="text"
+                    placeholder="Global search... (⌘K)"
+                    className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    onFocus={() => {
+                        // Focus handler — could open search modal
+                    }}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                            const query = (e.target as HTMLInputElement).value.trim();
+                            if (query) {
+                                window.location.href = `/search?q=${encodeURIComponent(query)}`;
+                            }
+                        }
+                    }}
+                />
+                <kbd className="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-mono text-gray-400 bg-gray-100 rounded">
+                    ⌘K
+                </kbd>
             </div>
 
             {/* Right Side Actions */}

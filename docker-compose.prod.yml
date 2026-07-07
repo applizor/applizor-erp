@@ -6,7 +6,7 @@ services:
     restart: always
     environment:
       POSTGRES_USER: applizor
-      POSTGRES_PASSWORD: applizor123
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-applizor123}
       POSTGRES_DB: applizor_erp
     ports:
       - "5433:5432"
@@ -24,6 +24,7 @@ services:
   backend:
     build:
       context: ./backend
+      dockerfile: Dockerfile
       target: runner
     image: applizor-backend-prod:latest
     container_name: applizor-backend-prod
@@ -32,15 +33,21 @@ services:
       - ./backend/.env.production
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://applizor:applizor123@postgres:5432/applizor_erp?schema=public
+      DATABASE_URL: postgresql://applizor:${DB_PASSWORD:-applizor123}@postgres:5432/applizor_erp?schema=public
       PORT: 5000
+      JWT_SECRET: ${JWT_SECRET}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      GOTENBERG_URL: http://gotenberg:3000
+      STORAGE_TYPE: ${STORAGE_TYPE:-local}
     ports:
-      - "5000:5000"
+      - "${API_PORT:-5000}:5000"
     volumes:
-      - ./backend/uploads:/app/uploads
+      - uploads:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
+      gotenberg:
+        condition: service_started
     networks:
       - applizor-network
 
@@ -51,6 +58,15 @@ services:
     restart: always
     ports:
       - "8000:3000"
+    command:
+      - "gotenberg"
+      - "--chromium-disable-javascript=true"
+      - "--chromium-allow-list=file:///tmp/.*"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     networks:
       - applizor-network
 
@@ -58,17 +74,18 @@ services:
   frontend:
     build:
       context: ./frontend
+      dockerfile: Dockerfile
       target: runner
       args:
-        - NEXT_PUBLIC_API_URL=https://api.iam.applizor.com/api
+        - NEXT_PUBLIC_API_URL=${API_URL:-http://localhost:5000/api}
     image: applizor-frontend-prod:latest
     container_name: applizor-frontend-prod
     restart: always
     environment:
       NODE_ENV: production
-      NEXT_PUBLIC_API_URL: https://api.iam.applizor.com/api
+      NEXT_PUBLIC_API_URL: ${API_URL:-http://localhost:5000/api}
     ports:
-      - "3000:3000"
+      - "${APP_PORT:-3000}:3000"
     depends_on:
       - backend
     networks:
@@ -76,7 +93,7 @@ services:
 
 volumes:
   postgres_data:
-
+  uploads:
 
 networks:
   applizor-network:

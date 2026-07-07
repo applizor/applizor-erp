@@ -8,7 +8,7 @@ export const getRules = async (req: AuthRequest, res: Response) => {
     try {
         const { projectId } = req.params;
         const rules = await prisma.automationRule.findMany({
-            where: { projectId },
+            where: { projectId, project: { companyId: req.user!.companyId } },
             orderBy: { createdAt: 'desc' }
         });
         res.json(rules);
@@ -21,6 +21,11 @@ export const createRule = async (req: AuthRequest, res: Response) => {
     try {
         const { projectId } = req.params;
         const { name, triggerType, triggerConfig, actionType, actionConfig } = req.body;
+
+        const project = await prisma.project.findFirst({
+            where: { id: projectId, companyId: req.user!.companyId }
+        });
+        if (!project) return res.status(404).json({ error: 'Project not found' });
 
         const rule = await prisma.automationRule.create({
             data: {
@@ -44,6 +49,11 @@ export const updateRule = async (req: AuthRequest, res: Response) => {
         const { ruleId } = req.params;
         const { name, triggerType, triggerConfig, actionType, actionConfig, isActive } = req.body;
 
+        const existing = await prisma.automationRule.findFirst({
+            where: { id: ruleId, project: { companyId: req.user!.companyId } }
+        });
+        if (!existing) return res.status(404).json({ error: 'Rule not found' });
+
         const rule = await prisma.automationRule.update({
             where: { id: ruleId },
             data: {
@@ -66,10 +76,38 @@ export const updateRule = async (req: AuthRequest, res: Response) => {
 export const deleteRule = async (req: AuthRequest, res: Response) => {
     try {
         const { ruleId } = req.params;
+
+        const existing = await prisma.automationRule.findFirst({
+            where: { id: ruleId, project: { companyId: req.user!.companyId } }
+        });
+        if (!existing) return res.status(404).json({ error: 'Rule not found' });
+
         await prisma.automationRule.delete({ where: { id: ruleId } });
         res.json({ message: 'Rule deleted' });
     } catch (error) {
         res.status(500).json({ error: 'Failed to delete rule' });
+    }
+};
+
+export const getRuleLogs = async (req: AuthRequest, res: Response) => {
+    try {
+        const { ruleId } = req.params;
+        
+        const existing = await prisma.automationRule.findFirst({
+            where: { id: ruleId, project: { companyId: req.user!.companyId } }
+        });
+        if (!existing) return res.status(404).json({ error: 'Rule not found' });
+
+        const logs = await prisma.automationLog.findMany({
+            where: { ruleId },
+            orderBy: { executedAt: 'desc' },
+            take: 50
+        });
+        
+        res.json(logs);
+    } catch (error) {
+        console.error('Fetch rule logs error:', error);
+        res.status(500).json({ error: 'Failed to fetch rule logs' });
     }
 };
 

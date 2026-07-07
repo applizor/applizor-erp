@@ -24,10 +24,10 @@ export const getCompany = async (req: AuthRequest, res: Response) => {
     });
 
     if (company) {
-      if (company.logo) company.logo = StorageService.getFileUrl(company.logo);
-      if (company.digitalSignature) company.digitalSignature = StorageService.getFileUrl(company.digitalSignature);
-      if (company.letterhead) company.letterhead = StorageService.getFileUrl(company.letterhead);
-      if (company.continuationSheet) company.continuationSheet = StorageService.getFileUrl(company.continuationSheet);
+      if (company.logo) company.logo = await StorageService.getFileUrl(company.logo);
+      if (company.digitalSignature) company.digitalSignature = await StorageService.getFileUrl(company.digitalSignature);
+      if (company.letterhead) company.letterhead = await StorageService.getFileUrl(company.letterhead);
+      if (company.continuationSheet) company.continuationSheet = await StorageService.getFileUrl(company.continuationSheet);
     }
 
     res.json({ company });
@@ -79,10 +79,44 @@ export const updateCompany = async (req: AuthRequest, res: Response) => {
       offDays // Added
     } = req.body;
 
+    let resolvedCountryId = req.body.countryId;
+    let resolvedStateId = req.body.stateId;
+
+    if (!resolvedCountryId && country) {
+      const dbCountry = await prisma.country.findFirst({
+        where: {
+          OR: [
+            { name: { equals: country, mode: 'insensitive' } },
+            { code: { equals: country, mode: 'insensitive' } }
+          ]
+        }
+      });
+      if (dbCountry) {
+        resolvedCountryId = dbCountry.id;
+      }
+    }
+
+    if (!resolvedStateId && state && resolvedCountryId) {
+      const dbState = await prisma.state.findFirst({
+        where: {
+          countryId: resolvedCountryId,
+          OR: [
+            { name: { equals: state, mode: 'insensitive' } },
+            { code: { equals: state, mode: 'insensitive' } }
+          ]
+        }
+      });
+      if (dbState) {
+        resolvedStateId = dbState.id;
+      }
+    }
+
     const company = await prisma.company.update({
       where: { id: companyId },
       data: {
         name, email, phone, address, city, state, country, pincode,
+        countryId: resolvedCountryId || undefined,
+        stateId: resolvedStateId || undefined,
         currency, // Added
         allowedIPs, latitude: latitude ? parseFloat(latitude) : undefined, longitude: longitude ? parseFloat(longitude) : undefined, radius: radius ? parseInt(radius) : undefined,
         legalName, gstin, pan, tan,
@@ -102,10 +136,10 @@ export const updateCompany = async (req: AuthRequest, res: Response) => {
     });
 
     if (company) {
-      if (company.logo) company.logo = StorageService.getFileUrl(company.logo);
-      if (company.digitalSignature) company.digitalSignature = StorageService.getFileUrl(company.digitalSignature);
-      if (company.letterhead) company.letterhead = StorageService.getFileUrl(company.letterhead);
-      if (company.continuationSheet) company.continuationSheet = StorageService.getFileUrl(company.continuationSheet);
+      if (company.logo) company.logo = await StorageService.getFileUrl(company.logo);
+      if (company.digitalSignature) company.digitalSignature = await StorageService.getFileUrl(company.digitalSignature);
+      if (company.letterhead) company.letterhead = await StorageService.getFileUrl(company.letterhead);
+      if (company.continuationSheet) company.continuationSheet = await StorageService.getFileUrl(company.continuationSheet);
     }
 
     res.json(company);
@@ -116,36 +150,24 @@ export const updateCompany = async (req: AuthRequest, res: Response) => {
 };
 
 export const uploadLetterhead = async (req: AuthRequest, res: Response) => {
-  try {
-    const userId = req.userId;
-    if (!userId) {
-      return res.status(401).json({ error: 'Unauthorized' });
+    try {
+        const companyId = req.user!.companyId;
+        const company = await prisma.company.findUnique({ where: { id: companyId } });
+        if (!company) return res.status(404).json({ error: 'Company not found' });
+
+        const { letterheadUrl } = req.body;
+        if (!letterheadUrl) return res.status(400).json({ error: 'letterheadUrl is required' });
+
+        await prisma.company.update({
+            where: { id: companyId },
+            data: { letterhead: letterheadUrl }
+        });
+
+        res.json({ message: 'Letterhead updated', letterhead: letterheadUrl });
+    } catch (error) {
+        console.error('Upload letterhead error:', error);
+        res.status(500).json({ error: 'Failed to upload letterhead' });
     }
-
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-    });
-
-    if (!user || !user.companyId) {
-      return res.status(404).json({ error: 'Company not found' });
-    }
-
-    // TODO: Handle file upload (multer)
-    // For now, just accept file path
-    const { letterheadDoc } = req.body;
-
-    const company = await prisma.company.update({
-      where: { id: user.companyId },
-      data: {
-        letterheadDoc,
-      },
-    });
-
-    res.json({ message: 'Letterhead uploaded successfully', company });
-  } catch (error: any) {
-    console.error('Upload letterhead error:', error);
-    res.status(500).json({ error: 'Failed to upload letterhead', details: error.message });
-  }
 };
 
 export const updateLogo = async (req: AuthRequest, res: Response) => {

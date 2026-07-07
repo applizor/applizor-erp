@@ -1,15 +1,43 @@
 import { Response } from 'express';
+import fs from 'fs';
+import path from 'path';
 import { AuthRequest } from '../middleware/auth';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prisma/client';
+import { RosterValidatorService, RosterAssignmentInput } from '../services/roster-validator.service';
 
-const prisma = new PrismaClient();
+// ─────────────────────────────────────────────────────────────
+// Helper: Parse uploaded CSV file into an array of row objects
+// Supports both comma and semicolon delimiters.
+// Expected columns (case-insensitive, order-independent):
+//   employeeId OR email, shiftId OR shiftName OR shiftCode, date (YYYY-MM-DD)
+// ─────────────────────────────────────────────────────────────
+function parseCSV(filePath: string): Record<string, string>[] {
+    const content = fs.readFileSync(filePath, 'utf-8');
+    const lines = content.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
 
-// Get Roster for a Date Range
+    if (lines.length < 2) return [];
+
+    const delimiter = lines[0].includes(';') ? ';' : ',';
+    const headers = lines[0].split(delimiter).map(h => h.trim().toLowerCase().replace(/\s+/g, ''));
+
+    return lines.slice(1).map(line => {
+        const values = line.split(delimiter).map(v => v.trim());
+        const row: Record<string, string> = {};
+        headers.forEach((header, i) => {
+            row[header] = values[i] ?? '';
+        });
+        return row;
+    }).filter(row => Object.values(row).some(v => v !== ''));
+}
+
+// ─────────────────────────────────────────────────────────────
+// GET /api/shift-rosters  – Fetch roster for a date range
+// ─────────────────────────────────────────────────────────────
 export const getRoster = async (req: AuthRequest, res: Response) => {
     try {
         const { startDate, endDate, departmentId } = req.query;
         const start = new Date(`${startDate}T00:00:00`);
-        const end = new Date(`${endDate}T00:00:00`);
+        const end   = new Date(`${endDate}T00:00:00`);
 
         const where: any = {
             date: { gte: start, lte: end },
@@ -20,7 +48,7 @@ export const getRoster = async (req: AuthRequest, res: Response) => {
             where.employee = { ...where.employee, departmentId: departmentId as string };
         }
 
-        // 1. Fetch Assigned Shifts
+        // 1. Assigned Shifts
         const roster = await prisma.shiftRoster.findMany({
             where,
             include: {
@@ -29,48 +57,34 @@ export const getRoster = async (req: AuthRequest, res: Response) => {
             }
         });
 
-        // 2. Fetch Approved Leaves for this period
+        // 2. Approved Leaves overlapping the range
         const leaves = await prisma.leaveRequest.findMany({
             where: {
                 status: 'approved',
-                // Filter by department if needed? 
-                // For now fetch all overlapping leaves to ensure accuracy
                 OR: [
                     { startDate: { gte: start, lte: end } },
-                    { endDate: { gte: start, lte: end } },
+                    { endDate:   { gte: start, lte: end } },
                     { startDate: { lte: start }, endDate: { gte: end } }
                 ]
             },
             include: {
-                employee: { select: { firstName: true, lastName: true, employeeId: true } },
+                employee:  { select: { firstName: true, lastName: true, employeeId: true } },
                 leaveType: true
             }
         });
 
-        // 3. Merge Leaves into Roster Structure
-        // For the frontend, we might want to return standard Roster entries 
-        // AND a list of "Leave Entries" formatted like roster entries?
-
-        // Let's create "Virtual" roster entries for leaves
-        const leaveEntries = [];
-
+        // 3. Build virtual "leave" entries for cells with no shift assigned
+        const leaveEntries: any[] = [];
         for (const leave of leaves) {
             let curr = new Date(leave.startDate);
             const lEnd = new Date(leave.endDate);
 
             while (curr <= lEnd) {
                 if (curr >= start && curr <= end) {
-                    // Check if this employee already has a shift assigned this day
                     const existingShift = roster.find(
                         r => r.employeeId === leave.employeeId &&
-                            r.date.toDateString() === curr.toDateString()
+                             r.date.toDateString() === curr.toDateString()
                     );
-
-                    // If NO shift assigned, OR we want to show Leave prominently
-                    // We'll add a special entry.
-                    // Actually, if we want to show "On Leave" INSTEAD of Shift, we should mark it.
-                    // But if we want to show "On Leave" on an Empty cell, we add it.
-
                     if (!existingShift) {
                         leaveEntries.push({
                             id: `leave-${leave.id}-${curr.getTime()}`,
@@ -80,16 +94,15 @@ export const getRoster = async (req: AuthRequest, res: Response) => {
                                 name: `Leave: ${leave.leaveType.name}`,
                                 startTime: '-',
                                 endTime: '-',
-                                color: 'red' // proprietary flag for UI
+                                color: 'red'
                             },
                             employee: leave.employee,
                             isLeave: true,
                             durationType: leave.durationType
                         });
                     } else {
-                        // Mark existing shift as "On Leave" override?
-                        (existingShift as any).isLeave = true;
-                        (existingShift as any).leaveType = leave.leaveType.name;
+                        (existingShift as any).isLeave    = true;
+                        (existingShift as any).leaveType  = leave.leaveType.name;
                         (existingShift as any).durationType = leave.durationType;
                     }
                 }
@@ -97,7 +110,6 @@ export const getRoster = async (req: AuthRequest, res: Response) => {
             }
         }
 
-        // Combine
         res.json([...roster, ...leaveEntries]);
     } catch (error) {
         console.error('Get roster error:', error);
@@ -105,136 +117,221 @@ export const getRoster = async (req: AuthRequest, res: Response) => {
     }
 };
 
-// Create or Update Roster entries
+// ─────────────────────────────────────────────────────────────
+// POST /api/shift-rosters/batch  – Batch assign shifts
+// Now uses RosterValidatorService for partial processing:
+//   Valid rows → upserted into DB.
+//   Invalid rows → returned as warnings (not a hard failure).
+// ─────────────────────────────────────────────────────────────
 export const updateRoster = async (req: AuthRequest, res: Response) => {
     try {
-        const { assignments } = req.body; // Array of { employeeId, shiftId, date }
+        const { assignments } = req.body; // [{ employeeId, shiftId, date }]
 
         if (!Array.isArray(assignments)) {
             return res.status(400).json({ error: 'Assignments must be an array' });
         }
 
-        console.log('Received assignments:', JSON.stringify(assignments, null, 2));
-
         const companyId = req.user.companyId;
 
-        // 1. Multitenancy Check: Verify all employees belong to this company
-        const employeesToCheck = assignments.map(a => a.employeeId);
-        const validEmployees = await prisma.employee.count({
-            where: {
-                id: { in: employeesToCheck },
-                companyId: companyId
-            }
+        // Multitenancy: verify all employees belong to this company
+        const employeeIds = Array.from(new Set(assignments.map((a: any) => a.employeeId)));
+        const validEmpCount = await prisma.employee.count({
+            where: { id: { in: employeeIds as string[] }, companyId }
         });
-
-        if (validEmployees !== Array.from(new Set(employeesToCheck)).length) {
-            return res.status(403).json({ error: 'Access denied: One or more employees do not belong to your organization.' });
+        if (validEmpCount !== employeeIds.length) {
+            return res.status(403).json({ error: 'One or more employees do not belong to your organisation.' });
         }
 
-        // Fetch company off-days
-        const companyData = await prisma.company.findUnique({
-            where: { id: companyId },
-            select: { offDays: true }
-        });
-        const companyOffDays = companyData?.offDays
-            ? companyData.offDays.split(',').map((s: string) => s.trim().toLowerCase())
-            : [];
-
-        const datesToCheck = assignments.map(a => new Date(a.date));
-
-        // Find min and max date to reduce query scope
-        const minDate = new Date(Math.min(...datesToCheck.map(d => d.getTime())));
-        const maxDate = new Date(Math.max(...datesToCheck.map(d => d.getTime())));
-
-        const approvedLeaves = await prisma.leaveRequest.findMany({
-            where: {
-                employeeId: { in: employeesToCheck },
-                status: 'approved',
-                OR: [
-                    { startDate: { gte: minDate, lte: maxDate } },
-                    { endDate: { gte: minDate, lte: maxDate } },
-                    { startDate: { lte: minDate }, endDate: { gte: maxDate } }
-                ]
-            }
-        });
-
-        // Check each assignment
-        for (const assignment of assignments) {
-            const assignDate = new Date(assignment.date);
-            const conflict = approvedLeaves.find(leave =>
-                leave.employeeId === assignment.employeeId &&
-                assignDate >= leave.startDate && assignDate <= leave.endDate
-            );
-
-            if (conflict) {
-                return res.status(409).json({
-                    error: `Cannot assign shift to employee ${assignment.employeeId} on ${assignDate.toDateString()} because they are on Approved Leave.`
-                });
+        // Multitenancy: verify all shifts belong to this company
+        const shiftIds = Array.from(new Set(
+            assignments.filter((a: any) => a.shiftId).map((a: any) => a.shiftId)
+        ));
+        if (shiftIds.length > 0) {
+            const validShiftCount = await prisma.shift.count({
+                where: { id: { in: shiftIds as string[] }, companyId }
+            });
+            if (validShiftCount !== shiftIds.length) {
+                return res.status(403).json({ error: 'One or more shifts do not belong to your organisation.' });
             }
         }
 
-        // Check for off-day assignments
-        for (const assignment of assignments) {
-            if (!assignment.shiftId) continue;
-            const assignDate = new Date(assignment.date);
-            const dayName = assignDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
-            if (companyOffDays.includes(dayName)) {
-                return res.status(400).json({
-                    error: `Cannot assign shift on ${assignDate.toDateString()} (${dayName}) — it is a company off-day.`
-                });
-            }
-        }
+        // Run Conflict Engine (partial processing: valid rows only)
+        const { validAssignments, warnings } = await RosterValidatorService.validateAssignments(
+            companyId,
+            assignments as RosterAssignmentInput[]
+        );
 
-        const operations = assignments.map(ass => {
+        // Persist valid assignments
+        const operations = validAssignments.map((ass) => {
             const date = new Date(ass.date);
             if (!ass.shiftId) {
-                return prisma.shiftRoster.deleteMany({
-                    where: { employeeId: ass.employeeId, date }
-                });
+                return prisma.shiftRoster.deleteMany({ where: { employeeId: ass.employeeId, date } });
             }
             return prisma.shiftRoster.upsert({
-                where: {
-                    employeeId_date: {
-                        employeeId: ass.employeeId,
-                        date
-                    }
-                },
+                where:  { employeeId_date: { employeeId: ass.employeeId, date } },
                 update: { shiftId: ass.shiftId },
-                create: {
-                    employeeId: ass.employeeId,
-                    shiftId: ass.shiftId,
-                    date
-                }
+                create: { employeeId: ass.employeeId, shiftId: ass.shiftId, date }
             });
         });
 
-        const results = await prisma.$transaction(operations);
+        if (operations.length > 0) {
+            await prisma.$transaction(operations);
+        }
 
-        const deletedCount = results.filter(r => typeof r === 'object' && 'count' in r).reduce((sum: number, r: any) => sum + r.count, 0);
-        res.json({ upserted: results.length - assignments.filter(a => !a.shiftId).length, deleted: deletedCount });
+        res.json({
+            success:   true,
+            saved:     validAssignments.length,
+            skipped:   warnings.length,
+            warnings
+        });
     } catch (error: any) {
         console.error('Update roster error:', error);
-        res.status(500).json({
-            error: 'Failed to update roster',
-            details: error.message,
-            code: error.code // Prisma error code
-        });
+        res.status(500).json({ error: 'Failed to update roster', details: error.message });
     }
 };
-// Sync Previous Week Roster
+
+// ─────────────────────────────────────────────────────────────
+// POST /api/shift-rosters/upload  – Bulk CSV Roster Upload
+//
+// CSV format (headers are case-insensitive):
+//   employeeid OR email | shiftid OR shiftname OR shiftcode | date
+//
+// Example CSV:
+//   employeeId,shiftName,date
+//   EMP-0001,Morning Shift,2026-07-07
+//   hr@company.com,Night Shift,2026-07-08
+//
+// Returns a detailed execution report.
+// ─────────────────────────────────────────────────────────────
+export const uploadRosterCSV = async (req: AuthRequest, res: Response) => {
+    const filePath = (req as any).file?.path;
+
+    try {
+        if (!filePath) {
+            return res.status(400).json({ error: 'No CSV file uploaded. Use field name "file".' });
+        }
+
+        const companyId = req.user.companyId;
+        const rows = parseCSV(filePath);
+
+        if (rows.length === 0) {
+            return res.status(400).json({ error: 'CSV file is empty or has no valid data rows.' });
+        }
+
+        // ── Resolve employees (by employeeId code or email) ──────────────────
+        const employees = await prisma.employee.findMany({
+            where: { companyId },
+            select: { id: true, employeeId: true, user: { select: { email: true } } }
+        });
+        const empByCode  = new Map(employees.map(e => [e.employeeId?.toLowerCase(), e.id]));
+        const empByEmail = new Map(employees.map(e => [e.user?.email?.toLowerCase(), e.id]));
+
+        // ── Resolve shifts (by id, name, or code) ────────────────────────────
+        const shifts = await prisma.shift.findMany({
+            where: { companyId },
+            select: { id: true, name: true }
+        });
+        const shiftById   = new Map(shifts.map(s => [s.id.toLowerCase(), s.id]));
+        const shiftByName = new Map(shifts.map(s => [s.name.toLowerCase(), s.id]));
+
+        // ── Parse and resolve each CSV row ───────────────────────────────────
+        const parseWarnings: Array<{ row: number; error: string }> = [];
+        const resolved: RosterAssignmentInput[] = [];
+
+        rows.forEach((row, i) => {
+            const rowNum = i + 2; // +2 because row 1 is header
+
+            // Resolve Employee ID
+            const rawEmp = (row['employeeid'] || row['email'] || '').toLowerCase().trim();
+            let employeeId = empByCode.get(rawEmp) ?? empByEmail.get(rawEmp);
+            if (!employeeId) {
+                parseWarnings.push({ row: rowNum, error: `Employee not found: "${rawEmp}"` });
+                return;
+            }
+
+            // Resolve Shift ID
+            const rawShift = (row['shiftid'] || row['shiftname'] || row['shiftcode'] || '').toLowerCase().trim();
+            let shiftId: string | null = null;
+            if (rawShift && rawShift !== 'off' && rawShift !== '-') {
+                shiftId = shiftById.get(rawShift) ?? shiftByName.get(rawShift) ?? null;
+                if (!shiftId) {
+                    parseWarnings.push({ row: rowNum, error: `Shift not found: "${rawShift}"` });
+                    return;
+                }
+            }
+
+            // Validate Date format
+            const date = (row['date'] || '').trim();
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+                parseWarnings.push({ row: rowNum, error: `Invalid date format "${date}". Expected YYYY-MM-DD.` });
+                return;
+            }
+
+            resolved.push({ employeeId, shiftId, date });
+        });
+
+        // ── Run Conflict Engine ───────────────────────────────────────────────
+        const { validAssignments, warnings: conflictWarnings } = await RosterValidatorService.validateAssignments(
+            companyId,
+            resolved
+        );
+
+        // ── Persist valid rows ────────────────────────────────────────────────
+        const operations = validAssignments.map((ass) => {
+            const date = new Date(ass.date);
+            if (!ass.shiftId) {
+                return prisma.shiftRoster.deleteMany({ where: { employeeId: ass.employeeId, date } });
+            }
+            return prisma.shiftRoster.upsert({
+                where:  { employeeId_date: { employeeId: ass.employeeId, date } },
+                update: { shiftId: ass.shiftId },
+                create: { employeeId: ass.employeeId, shiftId: ass.shiftId, date }
+            });
+        });
+
+        if (operations.length > 0) {
+            await prisma.$transaction(operations);
+        }
+
+        // ── Cleanup temp file ─────────────────────────────────────────────────
+        fs.unlinkSync(filePath);
+
+        // ── Return execution report ───────────────────────────────────────────
+        const allWarnings = [
+            ...parseWarnings.map(w => ({ row: w.row, error: w.error })),
+            ...conflictWarnings.map(w => ({ employeeId: w.employeeId, date: w.date, error: w.error }))
+        ];
+
+        res.json({
+            success:    true,
+            totalRows:  rows.length,
+            imported:   validAssignments.length,
+            skipped:    rows.length - validAssignments.length,
+            warnings:   allWarnings
+        });
+    } catch (error: any) {
+        // Ensure temp file is cleaned up even on error
+        if (filePath && fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        console.error('Upload roster CSV error:', error);
+        res.status(500).json({ error: 'Failed to process CSV upload', details: error.message });
+    }
+};
+
+// ─────────────────────────────────────────────────────────────
+// POST /api/shift-rosters/sync-prev  – Copy previous week's roster
+// ─────────────────────────────────────────────────────────────
 export const syncPreviousWeek = async (req: AuthRequest, res: Response) => {
     try {
         const { currentStartDate, currentEndDate } = req.body;
         const currentStart = new Date(`${currentStartDate}T00:00:00`);
-        const currentEnd = new Date(`${currentEndDate}T00:00:00`);
+        const currentEnd   = new Date(`${currentEndDate}T00:00:00`);
 
-        // Previous week dates
         const prevStart = new Date(currentStart);
         prevStart.setDate(prevStart.getDate() - 7);
         const prevEnd = new Date(currentEnd);
         prevEnd.setDate(prevEnd.getDate() - 7);
 
-        // 1. Fetch Previous Week Assignments (Scoped to company)
+        // Fetch previous week assignments
         const prevAssignments = await prisma.shiftRoster.findMany({
             where: {
                 date: { gte: prevStart, lte: prevEnd },
@@ -246,81 +343,41 @@ export const syncPreviousWeek = async (req: AuthRequest, res: Response) => {
             return res.json({ message: 'No assignments found in previous week to sync.' });
         }
 
-        // Fetch company off-days
-        const company = await prisma.company.findUnique({
-            where: { id: req.user.companyId },
-            select: { offDays: true }
-        });
-        const offDays = company?.offDays
-            ? company.offDays.split(',').map((s: string) => s.trim().toLowerCase())
-            : [];
-
-        // 2. Fetch Approved Leaves for CURRENT week to prevent conflicts (Scoped to company)
-        const employeesToCheck = Array.from(new Set(prevAssignments.map(a => a.employeeId)));
-        const approvedLeaves = await prisma.leaveRequest.findMany({
-            where: {
-                employeeId: { in: employeesToCheck },
-                status: 'approved',
-                employee: { companyId: req.user.companyId },
-                OR: [
-                    { startDate: { gte: currentStart, lte: currentEnd } },
-                    { endDate: { gte: currentStart, lte: currentEnd } },
-                    { startDate: { lte: currentStart }, endDate: { gte: currentEnd } }
-                ]
-            }
-        });
-
-        // 3. Prepare Upsert Operations
-        const operations: any[] = [];
-        const conflicts: string[] = [];
-
-        for (const ass of prevAssignments) {
-            const newDate = new Date(ass.date);
+        // Build RosterAssignmentInput for the current week
+        const candidates: RosterAssignmentInput[] = prevAssignments.map(a => {
+            const newDate = new Date(a.date);
             newDate.setDate(newDate.getDate() + 7);
+            return {
+                employeeId: a.employeeId,
+                shiftId:    a.shiftId,
+                date:       newDate.toISOString().split('T')[0]
+            };
+        });
 
-            // Check conflict
-            const conflict = approvedLeaves.find(leave =>
-                leave.employeeId === ass.employeeId &&
-                newDate >= leave.startDate && newDate <= leave.endDate
-            );
+        // Run Conflict Engine
+        const { validAssignments, warnings } = await RosterValidatorService.validateAssignments(
+            req.user.companyId,
+            candidates
+        );
 
-            if (conflict) {
-                conflicts.push(`Employee ${ass.employeeId} on ${newDate.toDateString()}`);
-                continue;
-            }
-
-            // Skip if date is a company off-day
-            const dayName = newDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
-            if (offDays.includes(dayName)) {
-                continue;
-            }
-
-            operations.push(
-                prisma.shiftRoster.upsert({
-                    where: {
-                        employeeId_date: {
-                            employeeId: ass.employeeId,
-                            date: newDate
-                        }
-                    },
-                    update: { shiftId: ass.shiftId },
-                    create: {
-                        employeeId: ass.employeeId,
-                        shiftId: ass.shiftId,
-                        date: newDate
-                    }
-                })
-            );
-        }
+        const operations = validAssignments.map(ass => {
+            const date = new Date(ass.date);
+            return prisma.shiftRoster.upsert({
+                where:  { employeeId_date: { employeeId: ass.employeeId, date } },
+                update: { shiftId: ass.shiftId! },
+                create: { employeeId: ass.employeeId, shiftId: ass.shiftId!, date }
+            });
+        });
 
         if (operations.length > 0) {
             await prisma.$transaction(operations);
         }
 
         res.json({
-            success: true,
-            syncedCount: operations.length,
-            conflicts
+            success:    true,
+            syncedCount: validAssignments.length,
+            skipped:    warnings.length,
+            warnings
         });
     } catch (error: any) {
         console.error('Sync roster error:', error);

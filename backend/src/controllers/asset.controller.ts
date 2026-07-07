@@ -198,6 +198,9 @@ export const updateAsset = async (req: AuthRequest, res: Response) => {
             }
         }
 
+        const existing = await prisma.asset.findFirst({ where: { id, companyId: req.user!.companyId } });
+        if (!existing) return res.status(404).json({ error: 'Not found' });
+
         const asset = await prisma.asset.update({
             where: { id },
             data: updateData
@@ -236,6 +239,10 @@ export const deleteAsset = async (req: AuthRequest, res: Response) => {
         }
 
         const { id } = req.params;
+
+        const existing = await prisma.asset.findFirst({ where: { id, companyId: req.user!.companyId } });
+        if (!existing) return res.status(404).json({ error: 'Not found' });
+
         await prisma.asset.delete({ where: { id } });
         res.json({ message: 'Asset deleted successfully' });
     } catch (error) {

@@ -36,7 +36,8 @@ import {
     Scale,
     Newspaper,
     CheckSquare,
-    Award
+    Award,
+    Database
 } from 'lucide-react';
 import { auth, useAuth } from '@/lib/auth';
 import { useState, useEffect, useRef } from 'react';
@@ -106,24 +107,27 @@ export default function Sidebar() {
         { name: 'Quote Templates', href: '/quotations/templates', icon: Copy, category: 'CRM', module: 'QuotationTemplate' },
         { name: 'Contracts', href: '/crm/contracts', icon: ShieldCheck, category: 'CRM', module: 'Contract' },
 
-        // Finance & Payroll
-        { name: 'Invoices', href: '/invoices', icon: FileText, category: 'Finance & Payroll', module: 'Invoice' },
-        { name: 'Payroll Cycles', href: '/payroll/run', icon: Banknote, category: 'Finance & Payroll', module: 'Payroll' },
-        { name: 'Statutory Config', href: '/payroll/config', icon: ShieldCheck, category: 'Finance & Payroll', module: 'Payroll' },
-        { name: 'My Payslips', href: '/payroll/my-payslips', icon: FileSpreadsheet, category: 'Finance & Payroll', module: 'Payroll', action: 'read' },
-        { name: 'Salary Units', href: '/payroll/components', icon: Layers, category: 'Finance & Payroll', module: 'SalaryComponent' },
-        { name: 'Structure Admin', href: '/payroll/structure', icon: Edit, category: 'Finance & Payroll', module: 'SalaryStructure' },
-        { name: 'Bulk Assignment', href: '/payroll/structure/bulk', icon: CheckSquare, category: 'Finance & Payroll', module: 'SalaryStructure' },
-        { name: 'Salary Templates', href: '/payroll/templates', icon: Copy, category: 'Finance & Payroll', module: 'SalaryStructure' },
-        { name: 'Payroll Ledger', href: '/payroll/payslips', icon: FileSpreadsheet, category: 'Finance & Payroll', module: 'Payroll' },
+        // Finance
+        { name: 'Invoices', href: '/invoices', icon: FileText, category: 'Finance', module: 'Invoice' },
+
+        // Payroll
+        { name: 'Payroll Cycles', href: '/payroll/run', icon: Banknote, category: 'Payroll', module: 'Payroll' },
+        { name: 'Statutory Config', href: '/payroll/config', icon: ShieldCheck, category: 'Payroll', module: 'Payroll' },
+        { name: 'Compliance Rules', href: '/payroll/rules', icon: Scale, category: 'Payroll', module: 'Payroll' },
+        { name: 'My Payslips', href: '/payroll/my-payslips', icon: FileSpreadsheet, category: 'Payroll', module: 'Payroll', action: 'read' },
+        { name: 'Salary Units', href: '/payroll/components', icon: Layers, category: 'Payroll', module: 'SalaryComponent' },
+        { name: 'Structure Admin', href: '/payroll/structure', icon: Edit, category: 'Payroll', module: 'SalaryStructure' },
+        { name: 'Bulk Assignment', href: '/payroll/structure/bulk', icon: CheckSquare, category: 'Payroll', module: 'SalaryStructure' },
+        { name: 'Salary Templates', href: '/payroll/templates', icon: Copy, category: 'Payroll', module: 'SalaryStructure' },
+        { name: 'Payroll Ledger', href: '/payroll/payslips', icon: FileSpreadsheet, category: 'Payroll', module: 'Payroll' },
 
         // Accounting
-        { name: 'Chart of Accounts', href: '/accounting/chart-of-accounts', icon: BookOpen, category: 'Finance & Payroll', module: 'Accounting' },
-        { name: 'Journal Entries', href: '/accounting/journal', icon: FileText, category: 'Finance & Payroll', module: 'Accounting' },
-        { name: 'Trial Balance', href: '/accounting/reports/trial-balance', icon: Scale, category: 'Finance & Payroll', module: 'Accounting' },
-        { name: 'Balance Sheet', href: '/accounting/reports/balance-sheet', icon: Building2, category: 'Finance & Payroll', module: 'Accounting' },
-        { name: 'Profit & Loss', href: '/accounting/reports/profit-loss', icon: LineChart, category: 'Finance & Payroll', module: 'Accounting' },
-        { name: 'GST Summary', href: '/accounting/reports/gst-summary', icon: FileText, category: 'Finance & Payroll', module: 'Accounting' },
+        { name: 'Chart of Accounts', href: '/accounting/chart-of-accounts', icon: BookOpen, category: 'Accounting', module: 'Accounting' },
+        { name: 'Journal Entries', href: '/accounting/journal', icon: FileText, category: 'Accounting', module: 'Accounting' },
+        { name: 'Trial Balance', href: '/accounting/reports/trial-balance', icon: Scale, category: 'Accounting', module: 'Accounting' },
+        { name: 'Balance Sheet', href: '/accounting/reports/balance-sheet', icon: Building2, category: 'Accounting', module: 'Accounting' },
+        { name: 'Profit & Loss', href: '/accounting/reports/profit-loss', icon: LineChart, category: 'Accounting', module: 'Accounting' },
+        { name: 'GST Summary', href: '/accounting/reports/gst-summary', icon: FileText, category: 'Accounting', module: 'Accounting' },
 
         // Ops & Docs
         { name: 'Projects', href: '/projects', icon: LayoutDashboard, category: 'Operations', module: 'Project' },
@@ -132,6 +136,7 @@ export default function Sidebar() {
         { name: 'Timesheets', href: '/hrms/timesheets', icon: CalendarCheck, category: 'Operations', module: 'Timesheet' },
         { name: 'Documents', href: '/documents', icon: FileText, category: 'Operations', module: 'Document' },
         { name: 'Helpdesk', href: '/helpdesk', icon: LifeBuoy, category: 'Operations', module: 'Ticket' },
+        { name: 'Email Center', href: '/emails', icon: Mail, category: 'Operations', module: 'Company' },
 
         // LMS (Learning Management)
         { name: 'Students', href: '/lms/students', icon: Users, category: 'LMS', module: 'Student' },
@@ -144,6 +149,16 @@ export default function Sidebar() {
         { name: 'Company Settings', href: '/settings/company', icon: Briefcase, category: 'Settings', module: 'Company' },
         { name: 'Subscription Plans', href: '/settings/subscription-plans', icon: CreditCard, category: 'Settings', module: 'Company' },
         { name: 'Services', href: '/settings/services', icon: Briefcase, category: 'Settings', module: 'Company' },
+        { name: 'SaaS Subscription', href: '/settings/billing', icon: CreditCard, category: 'Settings', module: 'Company' },
+        { name: 'S3 Cloud Storage', href: '/settings/storage', icon: Database, category: 'Settings', module: 'Company' },
+        { name: 'Email Settings', href: '/settings/email', icon: Mail, category: 'Settings', module: 'Company' },
+
+        // Platform Admin (Super Admin only)
+        { name: 'Platform Overview', href: '/superadmin/dashboard', icon: LayoutDashboard, category: 'Platform Admin', role: 'Super Admin' },
+        { name: 'Manage Tenants', href: '/superadmin/tenants', icon: Building2, category: 'Platform Admin', role: 'Super Admin' },
+        { name: 'Tenant Plans', href: '/superadmin/plans', icon: CreditCard, category: 'Platform Admin', role: 'Super Admin' },
+        { name: 'Statutory Rules', href: '/superadmin/rules', icon: ShieldCheck, category: 'Platform Admin', role: 'Super Admin' },
+        { name: 'COA Templates', href: '/superadmin/coa', icon: BookOpen, category: 'Platform Admin', role: 'Super Admin' },
     ];
 
     const [isHovered, setIsHovered] = useState(false);
@@ -183,9 +198,15 @@ export default function Sidebar() {
             if (!item.module && !(item as any).role) return true;
 
             const isAdmin = user.roles?.some(r => r.toLowerCase() === 'admin' || r.toLowerCase() === 'administrator');
+            const isSuperAdmin = user.roles?.some(r => r.toLowerCase() === 'super admin' || r.toLowerCase() === 'platform admin');
 
-            if ((item as any).role && !user.roles?.includes((item as any).role) && !isAdmin) {
-                return false;
+            if ((item as any).role) {
+                const requiredRole = (item as any).role;
+                if (requiredRole === 'Super Admin') {
+                    if (!isSuperAdmin) return false;
+                } else if (!user.roles?.includes(requiredRole) && !isAdmin && !isSuperAdmin) {
+                    return false;
+                }
             }
 
             if (item.module) {

@@ -71,11 +71,12 @@ export default function ProjectFiles({ params }: { params: { id: string } }) {
         }
     };
 
-    const handleDownload = (docId: string) => {
-        // Implement download logic or link to public URL if available
-        // For local uploads, we need a download endpoint or static serving
-        // Assuming static serving from backend `/uploads` or generic text response for now
-        toast.success("Download started (Mock)"); // In real app, window.open(url)
+    const handleDownload = (doc: any) => {
+        if (doc.fileUrl) {
+            window.open(doc.fileUrl, '_blank');
+        } else {
+            toast.error('No file URL available');
+        }
     };
 
     if (loading) return <div className="p-12"><LoadingSpinner /></div>;
@@ -157,7 +158,7 @@ export default function ProjectFiles({ params }: { params: { id: string } }) {
                                     <td className="p-4 text-xs font-mono text-gray-500">{(doc.fileSize / 1024).toFixed(1)} KB</td>
                                     <td className="p-4 text-xs text-gray-500">{new Date(doc.createdAt).toLocaleDateString()}</td>
                                     <td className="p-4 text-right flex justify-end gap-2">
-                                        <button onClick={() => handleDownload(doc.id)} className="p-1.5 hover:bg-gray-100 rounded text-gray-500 hover:text-primary-600 transition-colors">
+                                        <button onClick={() => handleDownload(doc)} className="p-1.5 hover:bg-gray-100 rounded text-gray-500 hover:text-primary-600 transition-colors">
                                             <Download size={14} />
                                         </button>
                                         <button onClick={() => handleDelete(doc.id)} className="p-1.5 hover:bg-rose-50 rounded text-gray-400 hover:text-rose-500 transition-colors">

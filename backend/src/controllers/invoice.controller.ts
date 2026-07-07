@@ -653,12 +653,13 @@ export const updateInvoiceStatus = async (req: AuthRequest, res: Response) => {
 export const batchUpdateStatus = async (req: AuthRequest, res: Response) => {
   try {
     const { ids, status } = req.body;
+    const companyId = req.user!.companyId;
     if (!ids || !Array.isArray(ids) || !status) {
       return res.status(400).json({ error: 'Invalid request' });
     }
 
     await prisma.invoice.updateMany({
-      where: { id: { in: ids } },
+      where: { id: { in: ids }, companyId },
       data: { status }
     });
 
@@ -683,12 +684,13 @@ export const batchUpdateStatus = async (req: AuthRequest, res: Response) => {
 export const batchSendInvoices = async (req: AuthRequest, res: Response) => {
   try {
     const { ids } = req.body;
+    const companyId = req.user!.companyId;
     if (!ids || !Array.isArray(ids)) {
       return res.status(400).json({ error: 'Invalid request' });
     }
 
     const invoices = await prisma.invoice.findMany({
-      where: { id: { in: ids } },
+      where: { id: { in: ids }, companyId },
       include: {
         client: true,
         company: true,
@@ -930,7 +932,7 @@ export const updateInvoice = async (req: AuthRequest, res: Response) => {
 export const convertQuotation = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const invoice = await InvoiceService.convertQuotationToInvoice(id);
+    const invoice = await InvoiceService.convertQuotationToInvoice(id, req.user!.companyId);
     res.json({ message: 'Quotation converted successfully', invoice });
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Conversion failed' });
@@ -943,7 +945,7 @@ export const convertQuotation = async (req: AuthRequest, res: Response) => {
 export const getPublicInvoice = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    console.log(`[DEBUG] getPublicInvoice called with ID: ${id}`);
+
     const invoice = await prisma.invoice.findUnique({
       where: { id },
       include: {

@@ -5,7 +5,9 @@ import { useParams, useSearchParams } from 'next/navigation';
 import { accountingApi } from '@/lib/api/accounting';
 import { BookOpen, Download, Calendar, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
-import { startOfMonth, endOfMonth, format } from 'date-fns';
+import { startOfMonth } from 'date-fns/startOfMonth';
+import { endOfMonth } from 'date-fns/endOfMonth';
+import { format } from 'date-fns/format';
 import Link from 'next/link';
 
 export default function GeneralLedgerPage() {

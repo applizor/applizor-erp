@@ -32,6 +32,9 @@ export const sendGenericEmail = async (req: Request, res: Response) => {
         // Same sender as invoice emails (EMAIL_ACCOUNTS shared mailbox)
         const resolvedFrom = from || process.env.EMAIL_ACCOUNTS || process.env.EMAIL_INFO || process.env.EMAIL_FROM || process.env.SMTP_USER;
 
+        const companyId = (req as any).user?.companyId;
+        const department = req.body.department;
+
         const info = await sendEmail(
             to,
             subject,
@@ -40,7 +43,9 @@ export const sendGenericEmail = async (req: Request, res: Response) => {
             resolvedFrom,
             cc,
             bcc,
-            isHtml
+            isHtml,
+            companyId,
+            department
         );
 
         const messageId = (info as any)?.messageId;

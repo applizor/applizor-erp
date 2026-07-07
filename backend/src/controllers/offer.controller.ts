@@ -10,9 +10,15 @@ export const createOffer = async (req: AuthRequest, res: Response) => {
     try {
         const { candidateId, position, department, salary, startDate, templateId } = req.body;
 
+        // Verify candidate belongs to user's company
+        const candidateCheck = await prisma.candidate.findFirst({
+            where: { id: candidateId, companyId: req.user!.companyId }
+        });
+        if (!candidateCheck) return res.status(404).json({ error: 'Candidate not found' });
+
         // Check if offer already exists
-        const existingOffer = await prisma.offerLetter.findUnique({
-            where: { candidateId }
+        const existingOffer = await prisma.offerLetter.findFirst({
+            where: { candidateId, candidate: { companyId: req.user!.companyId } }
         });
 
         if (existingOffer) {
@@ -52,8 +58,8 @@ export const getOffer = async (req: AuthRequest, res: Response) => {
     try {
         const { candidateId } = req.params;
 
-        const offer = await prisma.offerLetter.findUnique({
-            where: { candidateId }
+        const offer = await prisma.offerLetter.findFirst({
+            where: { candidateId, candidate: { companyId: req.user!.companyId } }
         });
 
         if (!offer) {
@@ -72,6 +78,11 @@ export const updateOfferStatus = async (req: AuthRequest, res: Response) => {
     try {
         const { id } = req.params;
         const { status } = req.body; // sent, accepted, rejected
+
+        const existingOffer = await prisma.offerLetter.findFirst({
+            where: { id, candidate: { companyId: req.user!.companyId } }
+        });
+        if (!existingOffer) return res.status(404).json({ error: 'Offer not found' });
 
         const offer = await prisma.offerLetter.update({
             where: { id },

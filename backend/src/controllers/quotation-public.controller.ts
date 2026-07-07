@@ -163,10 +163,10 @@ export const getQuotationByToken = async (req: Request, res: Response) => {
         const { StorageService } = await import('../services/storage.service');
 
         if (quotation.company) {
-            if (quotation.company.logo) quotation.company.logo = StorageService.getFileUrl(quotation.company.logo) as any;
-            if (quotation.company.digitalSignature) quotation.company.digitalSignature = StorageService.getFileUrl(quotation.company.digitalSignature) as any;
-            if (quotation.company.letterhead) quotation.company.letterhead = StorageService.getFileUrl(quotation.company.letterhead) as any;
-            if (quotation.company.continuationSheet) quotation.company.continuationSheet = StorageService.getFileUrl(quotation.company.continuationSheet) as any;
+            if (quotation.company.logo) quotation.company.logo = await StorageService.getFileUrl(quotation.company.logo, quotation.companyId) as any;
+            if (quotation.company.digitalSignature) quotation.company.digitalSignature = await StorageService.getFileUrl(quotation.company.digitalSignature, quotation.companyId) as any;
+            if (quotation.company.letterhead) quotation.company.letterhead = await StorageService.getFileUrl(quotation.company.letterhead, quotation.companyId) as any;
+            if (quotation.company.continuationSheet) quotation.company.continuationSheet = await StorageService.getFileUrl(quotation.company.continuationSheet, quotation.companyId) as any;
         }
 
         // Hydrate appliedTaxes for legacy items

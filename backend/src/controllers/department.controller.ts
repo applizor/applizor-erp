@@ -102,6 +102,9 @@ export const updateDepartment = async (req: AuthRequest, res: Response) => {
         const { id } = req.params;
         const { name, description, isActive } = req.body;
 
+        const existing = await prisma.department.findFirst({ where: { id, companyId: req.user!.companyId } });
+        if (!existing) return res.status(404).json({ error: 'Not found' });
+
         const department = await prisma.department.update({
             where: { id },
             data: { name, description, isActive },
@@ -125,6 +128,9 @@ export const deleteDepartment = async (req: AuthRequest, res: Response) => {
         }
 
         const { id } = req.params;
+
+        const existing = await prisma.department.findFirst({ where: { id, companyId: req.user!.companyId } });
+        if (!existing) return res.status(404).json({ error: 'Not found' });
 
         await prisma.department.delete({
             where: { id },

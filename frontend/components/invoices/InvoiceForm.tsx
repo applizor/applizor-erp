@@ -55,6 +55,8 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
 
     const [projects, setProjects] = useState<any[]>([]);
     const [loadingProjects, setLoadingProjects] = useState(false);
+    const [exchangeRate, setExchangeRate] = useState(initialData?.exchangeRate || 1.0);
+    const [loadingExchangeRate, setLoadingExchangeRate] = useState(false);
 
     const {
         register,
@@ -77,6 +79,56 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
             includeBankDetails: true,
         },
     });
+
+    const watchCurrency = watch('currency') || globalCurrency || 'USD';
+
+    // Format local invoice currency helper
+    const formatInvoiceCurrency = (amount: number | string | null | undefined) => {
+        if (amount === null || amount === undefined || amount === '') return `${watchCurrency} 0.00`;
+        const num = Number(amount);
+        if (isNaN(num)) return `${watchCurrency} 0.00`;
+
+        return new Intl.NumberFormat(watchCurrency === 'INR' ? 'en-IN' : 'en-US', {
+            style: 'currency',
+            currency: watchCurrency,
+            minimumFractionDigits: 2
+        }).format(num);
+    };
+
+    // Load dynamic exchange rates
+    useEffect(() => {
+        if (!globalCurrency) return;
+        if (watchCurrency === globalCurrency) {
+            setExchangeRate(1.0);
+            return;
+        }
+
+        setLoadingExchangeRate(true);
+        api.post('/currencies/convert', {
+            amount: 1,
+            from: watchCurrency,
+            to: globalCurrency
+        })
+        .then(res => {
+            if (res.data?.rate) {
+                setExchangeRate(Number(res.data.rate));
+            }
+        })
+        .catch(err => {
+            console.error('Failed to resolve dynamic exchange rate:', err);
+            setExchangeRate(1.0);
+        })
+        .finally(() => setLoadingExchangeRate(false));
+    }, [watchCurrency, globalCurrency]);
+
+    const handleFormSubmit = (values: InvoiceFormValues) => {
+        const calculatedBaseCurrencyAmount = totals.total * exchangeRate;
+        onSubmit({
+            ...values,
+            exchangeRate,
+            baseCurrencyAmount: calculatedBaseCurrencyAmount
+        } as any);
+    };
 
     const watchClientId = watch('clientId');
 
@@ -166,7 +218,7 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
     const totals = calculateTotals();
 
     return (
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
             {/* Primary Configuration Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Meta Configuration */}
@@ -484,7 +536,7 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
                                         />
                                     </td>
                                     <td className="px-4 py-2 text-right text-[11px] font-black text-gray-900">
-                                        {formatCurrency(((watchItems[index]?.quantity || 0) * (watchItems[index]?.rate || 0)) * (1 - (watchItems[index]?.discount || 0) / 100))}
+                                        {formatInvoiceCurrency(((watchItems[index]?.quantity || 0) * (watchItems[index]?.rate || 0)) * (1 - (watchItems[index]?.discount || 0) / 100))}
                                     </td>
                                     <td className="px-4 py-2 text-center">
                                         {fields.length > 1 && (
@@ -534,24 +586,23 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
                 {/* Final Calculation Matrix */}
                 <div className="bg-gray-900 text-white p-6 rounded-lg shadow-2xl relative overflow-hidden group">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-primary-600/10 rounded-full blur-3xl -translate-y-12 translate-x-12 group-hover:bg-primary-600/20 transition-all duration-700" />
-
                     <div className="space-y-3 relative z-10 border-b border-white/5 pb-6">
                         <div className="flex justify-between items-center text-gray-400">
                             <span className="text-[10px] font-black uppercase tracking-widest leading-none">Gross Subtotal</span>
-                            <span className="text-xs font-black text-white">{formatCurrency(totals.subtotal)}</span>
+                            <span className="text-xs font-black text-white">{formatInvoiceCurrency(totals.subtotal)}</span>
                         </div>
                         <div className="flex justify-between items-center text-gray-400">
                             <span className="text-[10px] font-black uppercase tracking-widest leading-none">Total Item Discounts</span>
-                            <span className="text-xs font-black text-rose-400">-{formatCurrency(totals.totalItemDiscount)}</span>
+                            <span className="text-xs font-black text-rose-400">-{formatInvoiceCurrency(totals.totalItemDiscount)}</span>
                         </div>
                         <div className="flex justify-between items-center text-gray-400">
                             <span className="text-[10px] font-black uppercase tracking-widest leading-none">Total Tax</span>
-                            <span className="text-xs font-black text-emerald-400">+{formatCurrency(totals.totalTax)}</span>
+                            <span className="text-xs font-black text-emerald-400">+{formatInvoiceCurrency(totals.totalTax)}</span>
                         </div>
                         {Object.entries(totals.taxBreakdown).map(([name, amount]) => (
                             <div key={name} className="flex justify-between text-[10px] items-center text-gray-500 pl-2 border-l border-gray-700/50">
                                 <span>{name}</span>
-                                <span>{formatCurrency(amount)}</span>
+                                <span>{formatInvoiceCurrency(amount)}</span>
                             </div>
                         ))}
                         <div className="flex justify-between items-center gap-4">
@@ -566,21 +617,27 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
                             </div>
                         </div>
                     </div>
-
                     <div className="pt-6 relative z-10">
                         <div className="flex justify-between items-end">
                             <div>
                                 <p className="text-[10px] font-black text-primary-400 uppercase tracking-[0.2em] mb-2 leading-none">Consolidated Valuation</p>
-                                <h2 className="text-3xl font-black tracking-tighter text-white">{formatCurrency(totals.total)}</h2>
+                                <h2 className="text-3xl font-black tracking-tighter text-white">{formatInvoiceCurrency(totals.total)}</h2>
                             </div>
                             <div className="flex flex-col items-end gap-1">
                                 <span className="flex items-center gap-1 text-[8px] font-black text-gray-400 uppercase bg-white/5 px-2 py-1 rounded-full border border-white/10">
                                     <ShieldCheck size={10} className="text-primary-500" />
                                     Secure Computation
                                 </span>
-                                <span className="text-[9px] font-bold text-gray-500">Billed in {watch('currency')}</span>
+                                <span className="text-[9px] font-bold text-gray-500">Billed in {watchCurrency}</span>
                             </div>
                         </div>
+                        {watchCurrency !== globalCurrency && (
+                            <div className="mt-2 text-[10px] text-gray-400 font-medium leading-relaxed border-t border-white/5 pt-2">
+                                Exchange rate: 1 {watchCurrency} = {exchangeRate} {globalCurrency}
+                                <br />
+                                Base currency equivalent: <span className="font-black text-emerald-400">{formatCurrency(totals.total * exchangeRate)}</span>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

@@ -19,9 +19,18 @@ const doc = {
 const outputFile = './src/swagger.json';
 const routes = ['./src/server.ts'];
 
-/* NOTE: If you are using the express Router, you must pass in the 'routes' only the 
-root file where the route starts, such as index.js, app.js, routes.js, etc ... */
+const TIMEOUT_MS = 30000;
+const timer = setTimeout(() => {
+    console.error('Swagger generation timed out after ' + TIMEOUT_MS + 'ms');
+    process.exit(0);
+}, TIMEOUT_MS);
 
 swaggerAutogen(outputFile, routes, doc).then(() => {
+    clearTimeout(timer);
     console.log('Swagger JSON generated at ./src/swagger.json');
+    process.exit(0);
+}).catch(err => {
+    clearTimeout(timer);
+    console.error('Swagger generation failed:', err);
+    process.exit(0);
 });

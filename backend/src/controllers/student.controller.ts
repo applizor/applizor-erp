@@ -25,10 +25,47 @@ export const createStudent = async (req: AuthRequest, res: Response) => {
             dateOfBirth,
             status,
             password, // Optional: if provided, create a User account
-            roleId // Optional: Custom Role ID for student user (defaults to finding Student/Employee role)
+            roleId, // Optional: Custom Role ID for student user (defaults to finding Student/Employee role)
+            employeeId // Optional: Link existing employee
         } = req.body;
 
-        if (!firstName || !lastName || !email) {
+        let finalFirstName = firstName;
+        let finalLastName = lastName;
+        let finalEmail = email;
+        let finalPhone = phone;
+        let finalDOB = dateOfBirth;
+        let linkedUserId = null;
+
+        if (employeeId) {
+            const employee = await prisma.employee.findUnique({
+                where: { id: employeeId }
+            });
+            if (!employee) {
+                return res.status(404).json({ error: 'Employee not found' });
+            }
+
+            // Verify they don't already have a student profile
+            const existingStudent = await prisma.student.findFirst({
+                where: {
+                    OR: [
+                        { email: employee.email },
+                        ...(employee.userId ? [{ userId: employee.userId }] : [])
+                    ]
+                }
+            });
+            if (existingStudent) {
+                return res.status(400).json({ error: 'This employee is already onboarded as a student.' });
+            }
+
+            finalFirstName = employee.firstName;
+            finalLastName = employee.lastName;
+            finalEmail = employee.email;
+            finalPhone = employee.phone || undefined;
+            finalDOB = employee.dateOfBirth ? employee.dateOfBirth.toISOString().split('T')[0] : undefined;
+            linkedUserId = employee.userId;
+        }
+
+        if (!finalFirstName || !finalLastName || !finalEmail) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
@@ -57,10 +94,10 @@ export const createStudent = async (req: AuthRequest, res: Response) => {
         }
 
         const result = await prisma.$transaction(async (tx) => {
-            let newUserId = null;
+            let newUserId = linkedUserId;
 
-            if (password) {
-                const existingUser = await tx.user.findUnique({ where: { email } });
+            if (!newUserId && password) {
+                const existingUser = await tx.user.findUnique({ where: { email: finalEmail } });
                 if (existingUser) throw new Error('User with this email already exists');
 
                 const { hashPassword } = await import('../utils/password');
@@ -68,15 +105,23 @@ export const createStudent = async (req: AuthRequest, res: Response) => {
 
                 const newUser = await tx.user.create({
                     data: {
-                        email,
+                        email: finalEmail,
                         password: hashedPassword,
-                        firstName,
-                        lastName,
-                        phone,
+                        firstName: finalFirstName,
+                        lastName: finalLastName,
+                        phone: finalPhone,
                         companyId: adminUser.companyId,
                     }
                 });
                 newUserId = newUser.id;
+
+                // Update employee with user link
+                if (employeeId) {
+                    await tx.employee.update({
+                        where: { id: employeeId },
+                        data: { userId: newUserId }
+                    });
+                }
 
                 let roleToAssign = roleId;
                 if (!roleToAssign) {
@@ -105,11 +150,11 @@ export const createStudent = async (req: AuthRequest, res: Response) => {
                     userId: newUserId,
                     companyId: adminUser.companyId as string,
                     studentId: finalStudentId,
-                    firstName,
-                    lastName,
-                    email,
-                    phone,
-                    dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
+                    firstName: finalFirstName,
+                    lastName: finalLastName,
+                    email: finalEmail,
+                    phone: finalPhone,
+                    dateOfBirth: finalDOB ? new Date(finalDOB) : null,
                     status: status || 'active'
                 }
             });
@@ -170,6 +215,11 @@ export const updateStudent = async (req: AuthRequest, res: Response) => {
             createAccount,
             portalActive
         } = req.body;
+
+        const existing = await prisma.student.findFirst({
+            where: { id, companyId: req.user!.companyId }
+        });
+        if (!existing) return res.status(404).json({ error: 'Student not found' });
 
         const student = await prisma.student.update({
             where: { id },
@@ -313,8 +363,8 @@ export const getStudentById = async (req: AuthRequest, res: Response) => {
         }
 
         const { id } = req.params;
-        const student = await prisma.student.findUnique({
-            where: { id },
+        const student = await prisma.student.findFirst({
+            where: { id, companyId: req.user!.companyId },
             include: {
                 user: true,
                 enrollments: {
@@ -342,7 +392,9 @@ export const deleteStudent = async (req: AuthRequest, res: Response) => {
         }
 
         const { id } = req.params;
-        const student = await prisma.student.findUnique({ where: { id } });
+        const student = await prisma.student.findFirst({
+            where: { id, companyId: req.user!.companyId }
+        });
         if (!student) return res.status(404).json({ error: 'Student not found' });
 
         await prisma.$transaction(async (tx) => {

@@ -4,19 +4,20 @@ import fs from 'fs';
 import { PDFService } from './pdf.service';
 import axios from 'axios';
 import prisma from '../prisma/client';
+import { getCompanyIdFromContext, runWithoutCompanyContext } from '../utils/context';
+import { QueueService } from './queue.service';
 
-// --- Microsoft Graph API Helpers ---
+// --- Token Refresh Helpers ---
 
-const getMicrosoftAccessToken = async () => {
+const getMicrosoftAccessToken = async (clientId: string, clientSecret: string, refreshToken: string, tenantId: string = 'common') => {
     try {
         const params = new URLSearchParams();
-        params.append('client_id', process.env.MICROSOFT_CLIENT_ID!);
-        params.append('client_secret', process.env.MICROSOFT_CLIENT_SECRET!);
-        params.append('refresh_token', process.env.MICROSOFT_REFRESH_TOKEN!);
+        params.append('client_id', clientId);
+        params.append('client_secret', clientSecret);
+        params.append('refresh_token', refreshToken);
         params.append('grant_type', 'refresh_token');
         params.append('scope', 'https://graph.microsoft.com/.default');
 
-        const tenantId = process.env.MICROSOFT_TENANT_ID || 'common';
         const tokenEndpoint = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
 
         const response = await axios.post(tokenEndpoint, params, {
@@ -26,36 +27,55 @@ const getMicrosoftAccessToken = async () => {
         return response.data.access_token;
     } catch (error: any) {
         console.error('❌ Failed to refresh Microsoft Token:', error.response?.data || error.message);
-        if (error.response?.data?.error === 'invalid_grant') {
-            console.error('💡 TIP: The refresh token might be expired or invalid for this Redirect URI. Please re-authorize.');
-        }
         return null;
     }
 };
 
-const getDefaultFromAddress = (fromOverride?: string): string => {
-    return fromOverride
-        || process.env.EMAIL_INFO
-        || process.env.EMAIL_FROM
-        || process.env.SMTP_USER
-        || '';
+const getGoogleAccessToken = async (clientId: string, clientSecret: string, refreshToken: string) => {
+    try {
+        const response = await axios.post('https://oauth2.googleapis.com/token', {
+            client_id: clientId,
+            client_secret: clientSecret,
+            refresh_token: refreshToken,
+            grant_type: 'refresh_token',
+        });
+        return response.data.access_token;
+    } catch (error: any) {
+        console.error('❌ Failed to refresh Google Token:', error.response?.data || error.message);
+        return null;
+    }
 };
 
-const toRecipientArray = (to: string | string[]): { emailAddress: { address: string } }[] =>
-    (Array.isArray(to) ? to : [to]).map(t => ({ emailAddress: { address: t } }));
+const toRecipientArray = (to: string | string[]): { emailAddress: { address: string } }[] => {
+    const rawList = Array.isArray(to) ? to : [to];
+    const addresses: string[] = [];
+    for (const item of rawList) {
+        if (typeof item === 'string') {
+            const parts = item.split(/[,;]/).map(s => s.trim()).filter(Boolean);
+            addresses.push(...parts);
+        }
+    }
+    return addresses.map(addr => ({ emailAddress: { address: addr } }));
+};
 
-const sendViaMicrosoftGraph = async (to: string, subject: string, html: string, attachments: any[] = [], fromOverride?: string, cc?: string | string[], bcc?: string | string[]) => {
-    const accessToken = await getMicrosoftAccessToken();
+// --- Direct Multi-Provider Dispatchers ---
+
+const sendViaMicrosoftGraphDirect = async (
+    to: string, 
+    subject: string, 
+    html: string, 
+    config: any, 
+    attachments: any[] = [], 
+    cc?: string | string[], 
+    bcc?: string | string[]
+) => {
+    const { microsoftClientId, microsoftClientSecret, microsoftRefreshToken, microsoftTenantId, defaultFrom } = config;
+    const accessToken = await getMicrosoftAccessToken(microsoftClientId, microsoftClientSecret, microsoftRefreshToken, microsoftTenantId || 'common');
     if (!accessToken) {
         throw new Error('Could not retrieve access token for Microsoft Graph');
     }
 
-    const fromAddress = getDefaultFromAddress(fromOverride);
-    if (!fromAddress) {
-        throw new Error('No sender email configured (set EMAIL_ACCOUNTS or EMAIL_FROM in server env)');
-    }
-
-    // Convert Attachments to Graph API Format (Base64)
+    const fromAddress = defaultFrom;
     const graphAttachments = attachments.map(att => ({
         '@odata.type': '#microsoft.graph.fileAttachment',
         name: att.filename,
@@ -97,8 +117,6 @@ const sendViaMicrosoftGraph = async (to: string, subject: string, html: string, 
         return { messageId: `graph-${Date.now()}`, from: fromAddress };
     } catch (error: any) {
         console.warn('❌ Graph API /me/sendMail failed, retrying shared mailbox endpoint...', error.response?.data?.error?.message || error.message);
-
-        // Retry using shared mailbox endpoint (same as invoice/quotation test script)
         if (fromAddress) {
             try {
                 await axios.post(`https://graph.microsoft.com/v1.0/users/${encodeURIComponent(fromAddress)}/sendMail`, emailData, { headers });
@@ -113,27 +131,426 @@ const sendViaMicrosoftGraph = async (to: string, subject: string, html: string, 
     }
 };
 
-// --- Legacy SMTP Transporter (Gmail / Fallback) ---
-const createTransporter = () => {
-    // Only use SMTP for non-Microsoft providers
-    if (process.env.SMTP_SERVICE_PROVIDER === 'MICROSOFT') {
-        return null;
+const sendViaGoogleOAuthDirect = async (
+    to: string, 
+    subject: string, 
+    html: string, 
+    config: any, 
+    attachments: any[] = [], 
+    cc?: string | string[], 
+    bcc?: string | string[]
+) => {
+    const { googleClientId, googleClientSecret, googleRefreshToken, defaultFrom } = config;
+    const accessToken = await getGoogleAccessToken(googleClientId, googleClientSecret, googleRefreshToken);
+    if (!accessToken) {
+        throw new Error('Could not retrieve access token for Google Workspace');
     }
 
-    return nodemailer.createTransport({
-        host: process.env.SMTP_HOST || 'smtp.gmail.com',
-        port: parseInt(process.env.SMTP_PORT || '587'),
-        secure: false,
+    const transporter = nodemailer.createTransport({
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true,
         auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS,
+            type: 'OAuth2',
+            user: defaultFrom,
+            clientId: googleClientId,
+            clientSecret: googleClientSecret,
+            refreshToken: googleRefreshToken,
+            accessToken
+        }
+    } as any);
+
+    const info = await transporter.sendMail({
+        from: `"${process.env.COMPANY_NAME || 'Applizor ERP'}" <${defaultFrom}>`,
+        to,
+        cc,
+        bcc,
+        subject,
+        html,
+        attachments
+    });
+    return info;
+};
+
+const sendViaSESDirect = async (
+    to: string, 
+    subject: string, 
+    html: string, 
+    config: any, 
+    attachments: any[] = [], 
+    cc?: string | string[], 
+    bcc?: string | string[]
+) => {
+    const { sesSmtpHost, sesSmtpPort, sesSmtpUser, sesSmtpPass, defaultFrom } = config;
+    const transporter = nodemailer.createTransport({
+        host: sesSmtpHost || `email-smtp.${config.sesRegion || 'us-east-1'}.amazonaws.com`,
+        port: parseInt(sesSmtpPort || '587'),
+        secure: parseInt(sesSmtpPort || '587') === 465,
+        auth: {
+            user: sesSmtpUser,
+            pass: sesSmtpPass,
         },
+    });
+
+    const info = await transporter.sendMail({
+        from: `"${process.env.COMPANY_NAME || 'Applizor ERP'}" <${defaultFrom}>`,
+        to,
+        cc,
+        bcc,
+        subject,
+        html,
+        attachments
+    });
+    return info;
+};
+
+const sendViaSendGridDirect = async (
+    to: string, 
+    subject: string, 
+    html: string, 
+    config: any, 
+    attachments: any[] = [], 
+    cc?: string | string[], 
+    bcc?: string | string[]
+) => {
+    const { sendgridApiKey, defaultFrom } = config;
+    
+    const sgAttachments = attachments.map(att => ({
+        content: Buffer.isBuffer(att.content) ? att.content.toString('base64') : Buffer.from(att.content).toString('base64'),
+        filename: att.filename,
+        type: att.contentType || 'application/octet-stream',
+        disposition: 'attachment'
+    }));
+
+    await axios.post('https://api.sendgrid.com/v3/mail/send', {
+        personalizations: [{ 
+            to: (Array.isArray(to) ? to : [to]).map(e => ({ email: e })),
+            cc: cc ? (Array.isArray(cc) ? cc : [cc]).map(e => ({ email: e })) : undefined,
+            bcc: bcc ? (Array.isArray(bcc) ? bcc : [bcc]).map(e => ({ email: e })) : undefined
+        }],
+        from: { email: defaultFrom, name: process.env.COMPANY_NAME || 'Applizor ERP' },
+        subject,
+        content: [{ type: 'text/html', value: html }],
+        attachments: sgAttachments.length > 0 ? sgAttachments : undefined
+    }, {
+        headers: { Authorization: `Bearer ${sendgridApiKey}` }
     });
 };
 
-const transporter = createTransporter();
+const sendViaMailgunDirect = async (
+    to: string, 
+    subject: string, 
+    html: string, 
+    config: any, 
+    attachments: any[] = [], 
+    cc?: string | string[], 
+    bcc?: string | string[]
+) => {
+    const { mailgunApiKey, mailgunDomain, mailgunHost, defaultFrom } = config;
+    const apiHost = mailgunHost || 'api.mailgun.net';
 
-// Helper to get company name
+    const FormData = require('form-data');
+    const form = new FormData();
+    form.append('from', `"${process.env.COMPANY_NAME || 'Applizor ERP'}" <${defaultFrom}>`);
+    form.append('to', Array.isArray(to) ? to.join(',') : to);
+    if (cc) form.append('cc', Array.isArray(cc) ? cc.join(',') : cc);
+    if (bcc) form.append('bcc', Array.isArray(bcc) ? bcc.join(',') : bcc);
+    form.append('subject', subject);
+    form.append('html', html);
+
+    attachments.forEach((att) => {
+        const fileContent = Buffer.isBuffer(att.content) ? att.content : Buffer.from(att.content);
+        form.append('attachment', fileContent, {
+            filename: att.filename,
+            contentType: att.contentType || 'application/octet-stream'
+        });
+    });
+
+    await axios.post(`https://${apiHost}/v3/${mailgunDomain}/messages`, form, {
+        headers: {
+            ...form.getHeaders(),
+            Authorization: `Basic ${Buffer.from(`api:${mailgunApiKey}`).toString('base64')}`
+        }
+    });
+};
+
+const sendViaSMTPDirect = async (
+    to: string, 
+    subject: string, 
+    html: string, 
+    config: any, 
+    attachments: any[] = [], 
+    cc?: string | string[], 
+    bcc?: string | string[]
+) => {
+    const transporter = nodemailer.createTransport({
+        host: config.smtpHost || 'smtp.gmail.com',
+        port: parseInt(config.smtpPort || '587'),
+        secure: config.smtpSecure || false,
+        auth: {
+            user: config.smtpUser,
+            pass: config.smtpPass,
+        },
+    });
+
+    const fromAddress = config.defaultFrom || config.smtpUser;
+    const mailOptions: any = {
+        from: `"${process.env.COMPANY_NAME || 'Applizor ERP'}" <${fromAddress}>`,
+        to,
+        cc,
+        bcc,
+        subject,
+        html,
+        attachments
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    return info;
+};
+
+// --- Dynamic Config Resolver ---
+
+export const resolveEmailConfig = async (companyId?: string, department?: string): Promise<any> => {
+    if (companyId) {
+        const company = await prisma.company.findUnique({
+            where: { id: companyId },
+            select: { emailConfig: true }
+        });
+
+        if (company?.emailConfig) {
+            const config = company.emailConfig as any;
+            
+            // Check department override
+            if (department && config.departments && config.departments[department]) {
+                const deptConfig = config.departments[department];
+                if (deptConfig.provider) {
+                    return deptConfig;
+                }
+            }
+
+            // Fallback to tenant default
+            if (config.default && config.default.provider) {
+                return config.default;
+            }
+        }
+    }
+
+    // Platform default config
+    const provider = process.env.SMTP_SERVICE_PROVIDER === 'MICROSOFT' ? 'microsoft' : 'smtp';
+    if (provider === 'microsoft') {
+        return {
+            provider: 'microsoft',
+            defaultFrom: process.env.EMAIL_FROM || process.env.SMTP_USER,
+            microsoftTenantId: process.env.MICROSOFT_TENANT_ID || 'common',
+            microsoftClientId: process.env.MICROSOFT_CLIENT_ID || '',
+            microsoftClientSecret: process.env.MICROSOFT_CLIENT_SECRET || '',
+            microsoftRefreshToken: process.env.MICROSOFT_REFRESH_TOKEN || '',
+        };
+    }
+
+    return {
+        provider: 'smtp',
+        defaultFrom: process.env.EMAIL_FROM || process.env.SMTP_USER,
+        smtpHost: process.env.SMTP_HOST || 'smtp.gmail.com',
+        smtpPort: process.env.SMTP_PORT || '587',
+        smtpSecure: process.env.SMTP_SECURE === 'true',
+        smtpUser: process.env.SMTP_USER || '',
+        smtpPass: process.env.SMTP_PASS || '',
+    };
+};
+
+export const sendEmailDirect = async (
+    to: string | string[],
+    subject: string,
+    content: string,
+    config: any,
+    attachments?: any[],
+    cc?: string | string[],
+    bcc?: string | string[]
+) => {
+    const provider = config.provider || 'smtp';
+    const emailTo = Array.isArray(to) ? to.join(',') : to;
+
+    if (provider === 'microsoft') {
+        return await sendViaMicrosoftGraphDirect(emailTo, subject, content, config, attachments, cc, bcc);
+    } else if (provider === 'google') {
+        return await sendViaGoogleOAuthDirect(emailTo, subject, content, config, attachments, cc, bcc);
+    } else if (provider === 'ses') {
+        return await sendViaSESDirect(emailTo, subject, content, config, attachments, cc, bcc);
+    } else if (provider === 'sendgrid') {
+        return await sendViaSendGridDirect(emailTo, subject, content, config, attachments, cc, bcc);
+    } else if (provider === 'mailgun') {
+        return await sendViaMailgunDirect(emailTo, subject, content, config, attachments, cc, bcc);
+    } else {
+        return await sendViaSMTPDirect(emailTo, subject, content, config, attachments, cc, bcc);
+    }
+};
+
+// --- Outbox Queue & Send Methods ---
+
+export const sendEmail = async (
+    to: string | string[], 
+    subject: string, 
+    content: string, 
+    attachments?: any[], 
+    fromOverride?: string,
+    cc?: string | string[],
+    bcc?: string | string[],
+    isHtml: boolean = true,
+    companyId?: string,
+    department?: string
+) => {
+    const resolvedCompanyId = companyId || getCompanyIdFromContext();
+
+    let resolvedDept = department || 'default';
+    if (!department && fromOverride) {
+        const fromLower = fromOverride.toLowerCase();
+        if (fromLower.includes('accounts')) resolvedDept = 'accounts';
+        else if (fromLower.includes('hr')) resolvedDept = 'hr';
+        else if (fromLower.includes('support')) resolvedDept = 'support';
+        else if (fromLower.includes('sales')) resolvedDept = 'sales';
+        else if (fromLower.includes('info')) resolvedDept = 'info';
+        else if (fromLower.includes('connect')) resolvedDept = 'connect';
+    }
+
+    let finalCompanyId = resolvedCompanyId;
+    if (!finalCompanyId) {
+        const firstCompany = await prisma.company.findFirst({ select: { id: true } });
+        finalCompanyId = firstCompany?.id;
+    }
+
+    if (!finalCompanyId) {
+        throw new Error('No company ID found for logging email');
+    }
+
+    const sender = fromOverride || 'Applizor ERP';
+    const recipient = Array.isArray(to) ? to.join(',') : to;
+    const ccString = cc ? (Array.isArray(cc) ? cc.join(',') : cc) : null;
+    const bccString = bcc ? (Array.isArray(bcc) ? bcc.join(',') : bcc) : null;
+
+    const emailLog = await prisma.emailLog.create({
+        data: {
+            companyId: finalCompanyId,
+            recipient,
+            sender,
+            subject,
+            department: resolvedDept,
+            status: 'pending',
+            body: isHtml ? content : null,
+            attempts: 0,
+            cc: ccString,
+            bcc: bccString
+        }
+    });
+
+    QueueService.enqueueOrExecute(
+        'email_dispatch',
+        `email-${emailLog.id}`,
+        { logId: emailLog.id, attachments, cc, bcc },
+        async () => {
+            processSingleQueuedEmail(emailLog.id, attachments, cc, bcc).catch(err => {
+                console.error(`[EmailQueue] Immediate queue processing failed for log ${emailLog.id}:`, err);
+            });
+        }
+    ).catch(err => {
+        console.error('[EmailQueue] Queue dispatch failed:', err);
+    });
+
+    return { messageId: emailLog.id, status: 'queued' };
+};
+
+export const processSingleQueuedEmail = async (
+    logId: string,
+    attachments?: any[],
+    ccOverride?: string | string[],
+    bccOverride?: string | string[]
+) => {
+    const log = await prisma.emailLog.findUnique({
+        where: { id: logId }
+    });
+
+    if (!log || log.status === 'sent') return;
+
+    await prisma.emailLog.update({
+        where: { id: logId },
+        data: {
+            attempts: { increment: 1 },
+            lastAttempt: new Date()
+        }
+    });
+
+    try {
+        const config = await resolveEmailConfig(log.companyId, log.department);
+        
+        const cc = ccOverride !== undefined ? ccOverride : (log.cc ? log.cc.split(',') : undefined);
+        const bcc = bccOverride !== undefined ? bccOverride : (log.bcc ? log.bcc.split(',') : undefined);
+
+        await sendEmailDirect(
+            log.recipient.split(','),
+            log.subject,
+            log.body || '',
+            config,
+            attachments,
+            cc,
+            bcc
+        );
+
+        await prisma.emailLog.update({
+            where: { id: logId },
+            data: {
+                status: 'sent',
+                errorMessage: null
+            }
+        });
+        console.log(`[EmailQueue] Email log ${logId} sent successfully!`);
+    } catch (err: any) {
+        console.error(`[EmailQueue] Email log ${logId} error:`, err.message);
+        await prisma.emailLog.update({
+            where: { id: logId },
+            data: {
+                status: log.attempts >= 4 ? 'failed' : 'pending',
+                errorMessage: err.message || 'Unknown sending error'
+            }
+        });
+    }
+};
+
+export const processEmailQueue = async () => {
+    try {
+        const pendingEmails = await prisma.emailLog.findMany({
+            where: {
+                status: 'pending',
+                attempts: { lt: 5 }
+            },
+            take: 10
+        });
+
+        if (pendingEmails.length === 0) return;
+
+        console.log(`[EmailQueue] Background worker processing ${pendingEmails.length} pending emails...`);
+
+        for (const email of pendingEmails) {
+            await processSingleQueuedEmail(email.id);
+        }
+    } catch (error) {
+        console.error('[EmailQueue] Worker error:', error);
+    }
+};
+
+export const initEmailQueue = () => {
+    console.log('[EmailQueue] Initializing background email processor worker...');
+
+    // Register BullMQ Worker with bypassed request context
+    QueueService.registerWorker('email_dispatch', async (job) => {
+        await runWithoutCompanyContext(async () => {
+            await processSingleQueuedEmail(job.data.logId, job.data.attachments, job.data.cc, job.data.bcc);
+        });
+    });
+
+    // Fallback interval processor
+    setInterval(processEmailQueue, 30000);
+};
+
 const getCompanyName = async (companyId?: string) => {
     if (companyId) {
         const company = await prisma.company.findUnique({
@@ -142,16 +559,10 @@ const getCompanyName = async (companyId?: string) => {
         });
         if (company?.name) return company.name;
     }
-
-    // Fallback to finding first company (System Default)
-    const defaultCompany = await prisma.company.findFirst({
-        select: { name: true }
-    });
-
+    const defaultCompany = await prisma.company.findFirst({ select: { name: true } });
     return defaultCompany?.name || process.env.COMPANY_NAME || 'Applizor Softech LLP';
 };
 
-// Helper to get company email
 const getCompanyEmail = async (companyId?: string) => {
     if (companyId) {
         const company = await prisma.company.findUnique({
@@ -160,12 +571,7 @@ const getCompanyEmail = async (companyId?: string) => {
         });
         if (company?.email) return company.email;
     }
-
-    // Fallback
-    const defaultCompany = await prisma.company.findFirst({
-        select: { email: true }
-    });
-
+    const defaultCompany = await prisma.company.findFirst({ select: { email: true } });
     return defaultCompany?.email || process.env.EMAIL_FROM || process.env.SMTP_USER;
 };
 
@@ -327,54 +733,6 @@ const getBaseTemplate = (
 </div>
 </body>
 </html>`;
-};
-
-export const sendEmail = async (
-    to: string | string[], 
-    subject: string, 
-    content: string, 
-    attachments?: any[], 
-    fromOverride?: string,
-    cc?: string | string[],
-    bcc?: string | string[],
-    isHtml: boolean = true
-) => {
-    try {
-        // MICROSOFT GRAPH PATH
-        if (process.env.SMTP_SERVICE_PROVIDER === 'MICROSOFT') {
-            // Note: Graph API now supports CC/BCC via the updated helper above.
-            return await sendViaMicrosoftGraph(to.toString(), subject, content, attachments, fromOverride, cc, bcc);
-        }
-
-        // GMAIL / SMTP PATH
-        if (!transporter) throw new Error('SMTP Transporter not initialized');
-
-        const mailOptions: any = {
-            from: fromOverride
-                ? `"${process.env.COMPANY_NAME || 'Applizor ERP'}" <${fromOverride}>`
-                : `"${process.env.COMPANY_NAME || 'Applizor ERP'}" <${getDefaultFromAddress()}>`,
-            to,
-            cc,
-            bcc,
-            subject,
-            attachments
-        };
-
-        if (isHtml) {
-            mailOptions.html = content;
-        } else {
-            mailOptions.text = content;
-        }
-
-        const info = await transporter.sendMail(mailOptions);
-        console.log('Message sent: %s', info.messageId);
-        return info;
-
-    } catch (error: any) {
-        console.error('❌ Error sending email:', error.response?.data || error.message);
-        if (error.stack) console.error(error.stack);
-        throw error;
-    }
 };
 
 export const sendInvoiceEmail = async (to: string, invoiceData: any, pdfBuffer?: Buffer, isReminder?: boolean, publicUrl?: string) => {

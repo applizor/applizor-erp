@@ -40,10 +40,10 @@ export const getInvoiceByToken = async (req: Request, res: Response) => {
         const { StorageService } = await import('../services/storage.service');
 
         if (invoice.company) {
-            if (invoice.company.logo) invoice.company.logo = StorageService.getFileUrl(invoice.company.logo);
-            if (invoice.company.digitalSignature) invoice.company.digitalSignature = StorageService.getFileUrl(invoice.company.digitalSignature);
-            if (invoice.company.letterhead) invoice.company.letterhead = StorageService.getFileUrl(invoice.company.letterhead);
-            if (invoice.company.continuationSheet) invoice.company.continuationSheet = StorageService.getFileUrl(invoice.company.continuationSheet);
+            if (invoice.company.logo) invoice.company.logo = await StorageService.getFileUrl(invoice.company.logo, invoice.companyId);
+            if (invoice.company.digitalSignature) invoice.company.digitalSignature = await StorageService.getFileUrl(invoice.company.digitalSignature, invoice.companyId);
+            if (invoice.company.letterhead) invoice.company.letterhead = await StorageService.getFileUrl(invoice.company.letterhead, invoice.companyId);
+            if (invoice.company.continuationSheet) invoice.company.continuationSheet = await StorageService.getFileUrl(invoice.company.continuationSheet, invoice.companyId);
         }
 
         // Update Analytics: View Count

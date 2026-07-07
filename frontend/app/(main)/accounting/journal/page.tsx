@@ -14,7 +14,7 @@ interface JournalLineForm {
 
 export default function JournalEntryPage() {
     const toast = useToast();
-    const [entries, setEntries] = useState<JournalEntry[]>([]); // TODO: Fetch recent entries
+    const [entries, setEntries] = useState<JournalEntry[]>([]);
     const [accounts, setAccounts] = useState<LedgerAccount[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);

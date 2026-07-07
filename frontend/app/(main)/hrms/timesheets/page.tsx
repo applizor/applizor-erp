@@ -71,7 +71,7 @@ export default function TimesheetsPage() {
             if (filterStatus) url += `status=${filterStatus}&`;
 
             const res = await api.get(url);
-            setTimesheets(res.data);
+            setTimesheets(res.data?.data || res.data || []);
         } catch (error) {
             console.error(error);
             showError('Failed to fetch timesheets');

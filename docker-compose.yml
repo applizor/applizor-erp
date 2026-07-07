@@ -23,6 +23,11 @@ services:
       file: docker-compose.dev.yml
       service: frontend
 
+  redis:
+    extends:
+      file: docker-compose.dev.yml
+      service: redis
+
 volumes:
   postgres_data:
 

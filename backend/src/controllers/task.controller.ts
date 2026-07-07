@@ -164,7 +164,11 @@ export const createTask = async (req: AuthRequest, res: Response) => {
                 assigneeEmail: task.assignee?.email || undefined,
                 assigneeName: task.assignee ? `${task.assignee.firstName} ${task.assignee.lastName}` : undefined,
                 companyId: req.user!.companyId,
-                newStatus: status || 'todo'
+                newStatus: status || 'todo',
+                description: description || undefined,
+                creatorName: `${req.user!.firstName} ${req.user!.lastName}`,
+                priority: task.priority || undefined,
+                type: task.type || undefined
             }).catch(err => console.error('Automation error:', err));
 
             // In-app notification for assignee
@@ -189,7 +193,11 @@ export const createTask = async (req: AuthRequest, res: Response) => {
                     assigneeId: primaryAssigneeId,
                     assigneeEmail: task.assignee?.email || undefined,
                     assigneeName: task.assignee ? `${task.assignee.firstName} ${task.assignee.lastName}` : undefined,
-                    companyId: req.user!.companyId
+                    companyId: req.user!.companyId,
+                    description: description || undefined,
+                    creatorName: `${req.user!.firstName} ${req.user!.lastName}`,
+                    priority: task.priority || undefined,
+                    type: task.type || undefined
                 }).catch(err => console.error('Assign automation error:', err));
             }
 
@@ -207,6 +215,13 @@ export const createTask = async (req: AuthRequest, res: Response) => {
 export const updateTask = async (req: AuthRequest, res: Response) => {
     try {
         const { id } = req.params;
+
+        const taskExists = await prisma.task.findFirst({
+            where: { id, OR: [{ project: { companyId: req.user!.companyId } }, { projectId: null }] },
+            select: { id: true }
+        });
+        if (!taskExists) return res.status(404).json({ error: 'Task not found' });
+
         const {
             title, description, status, priority, type, tags,
             assigneeId, assigneeIds, dueDate, milestoneId,
@@ -282,7 +297,8 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
                     assignee: { select: { firstName: true, lastName: true, email: true } },
                     assignees: { include: { user: { select: { id: true, firstName: true, lastName: true, email: true } } } },
                     epic: { select: { title: true } },
-                    parent: { select: { title: true } }
+                    parent: { select: { title: true } },
+                    creator: { select: { firstName: true, lastName: true } }
                 }
             });
 
@@ -323,7 +339,12 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
                     newStatus: task.status,
                     taskTitle: task.title,
                     assigneeEmail: task.assignee?.email || undefined,
-                    companyId: req.user!.companyId
+                    assigneeName: task.assignee ? `${task.assignee.firstName} ${task.assignee.lastName}` : undefined,
+                    companyId: req.user!.companyId,
+                    description: task.description || undefined,
+                    creatorName: task.creator ? `${task.creator.firstName} ${task.creator.lastName}` : undefined,
+                    priority: task.priority || undefined,
+                    type: task.type || undefined
                 }).catch(err => console.error('Status change automation error:', err));
             }
         }
@@ -339,7 +360,11 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
                     oldAssigneeId: oldTask.assignedToId || undefined,
                     assigneeEmail: task.assignee?.email || undefined,
                     assigneeName: task.assignee ? `${task.assignee.firstName} ${task.assignee.lastName}` : undefined,
-                    companyId: req.user!.companyId
+                    companyId: req.user!.companyId,
+                    description: task.description || undefined,
+                    creatorName: task.creator ? `${task.creator.firstName} ${task.creator.lastName}` : undefined,
+                    priority: task.priority || undefined,
+                    type: task.type || undefined
                 }).catch(err => console.error('Assignee change automation error:', err));
             }
         }
@@ -359,6 +384,13 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
 export const deleteTask = async (req: AuthRequest, res: Response) => {
     try {
         const { id } = req.params;
+
+        const taskExists = await prisma.task.findFirst({
+            where: { id, OR: [{ project: { companyId: req.user!.companyId } }, { projectId: null }] },
+            select: { id: true }
+        });
+        if (!taskExists) return res.status(404).json({ error: 'Task not found' });
+
         const task = await prisma.task.findUnique({
             where: { id },
             select: { id: true, projectId: true, assignedToId: true, createdById: true }
@@ -571,8 +603,8 @@ export const getTaskById = async (req: AuthRequest, res: Response) => {
         const scope = PermissionService.getPermissionScope(req.user, 'ProjectTask', 'read');
         const userId = req.user!.id;
 
-        const task = await prisma.task.findUnique({
-            where: { id },
+        const task = await prisma.task.findFirst({
+            where: { id, OR: [{ project: { companyId: req.user!.companyId } }, { projectId: null }] },
             include: {
                 assignee: { select: { id: true, firstName: true, lastName: true } },
                 assignees: { include: { user: { select: { id: true, firstName: true, lastName: true, email: true } } } },
@@ -650,7 +682,10 @@ export const bulkUpdateTasks = async (req: AuthRequest, res: Response) => {
 
         // Verify permissions for each task
         const tasks = await prisma.task.findMany({
-            where: { id: { in: taskIds } },
+            where: {
+                id: { in: taskIds },
+                OR: [{ project: { companyId: req.user!.companyId } }, { projectId: null }]
+            },
             select: { id: true, projectId: true, assignedToId: true, createdById: true }
         });
 
@@ -667,7 +702,10 @@ export const bulkUpdateTasks = async (req: AuthRequest, res: Response) => {
         }
 
         await prisma.task.updateMany({
-            where: { id: { in: taskIds } },
+            where: {
+                id: { in: taskIds },
+                OR: [{ project: { companyId: req.user!.companyId } }, { projectId: null }]
+            },
             data: { status }
         });
 
@@ -681,6 +719,13 @@ export const bulkUpdateTasks = async (req: AuthRequest, res: Response) => {
 export const addComment = async (req: AuthRequest, res: Response) => {
     try {
         const { id } = req.params; // taskId
+
+        const taskExists = await prisma.task.findFirst({
+            where: { id, OR: [{ project: { companyId: req.user!.companyId } }, { projectId: null }] },
+            select: { id: true }
+        });
+        if (!taskExists) return res.status(404).json({ error: 'Task not found' });
+
         const { content, parentId, isInternal } = req.body;
 
         // Flatten logic: If parentId is provided, ensure it's the absolute root parent
@@ -715,7 +760,8 @@ export const addComment = async (req: AuthRequest, res: Response) => {
             include: {
                 project: true,
                 assignee: { select: { id: true, email: true, firstName: true } },
-                assignees: { include: { user: { select: { id: true, email: true, firstName: true } } } }
+                assignees: { include: { user: { select: { id: true, email: true, firstName: true } } } },
+                creator: { select: { firstName: true, lastName: true } }
             }
         });
 
@@ -737,7 +783,11 @@ export const addComment = async (req: AuthRequest, res: Response) => {
                     commentContent: content,
                     assigneeEmail: allAssigneeEmails[0] || task.assignee?.email || undefined,
                     assigneeId: task.assignedToId || undefined,
-                    companyId: (req.user as any).companyId
+                    companyId: (req.user as any).companyId,
+                    description: task.description || undefined,
+                    creatorName: task.creator ? `${task.creator.firstName} ${task.creator.lastName}` : undefined,
+                    priority: task.priority || undefined,
+                    type: task.type || undefined
                 }).catch(err => console.error('Comment automation error:', err));
             }
 
@@ -755,6 +805,13 @@ export const addComment = async (req: AuthRequest, res: Response) => {
 export const getComments = async (req: AuthRequest, res: Response) => {
     try {
         const { id } = req.params; // taskId
+
+        const taskExists = await prisma.task.findFirst({
+            where: { id, OR: [{ project: { companyId: req.user!.companyId } }, { projectId: null }] },
+            select: { id: true }
+        });
+        if (!taskExists) return res.status(404).json({ error: 'Task not found' });
+
         const comments = await prisma.taskComment.findMany({
             where: {
                 taskId: id,
@@ -782,6 +839,13 @@ export const getComments = async (req: AuthRequest, res: Response) => {
 export const getTaskHistory = async (req: AuthRequest, res: Response) => {
     try {
         const { id } = req.params;
+
+        const taskExists = await prisma.task.findFirst({
+            where: { id, OR: [{ project: { companyId: req.user!.companyId } }, { projectId: null }] },
+            select: { id: true }
+        });
+        if (!taskExists) return res.status(404).json({ error: 'Task not found' });
+
         const history = await prisma.taskHistory.findMany({
             where: { taskId: id },
             include: {
@@ -801,8 +865,8 @@ export const deleteTaskComment = async (req: AuthRequest, res: Response) => {
         const { id, commentId } = req.params;
         const userId = req.user!.id;
 
-        const comment = await prisma.taskComment.findUnique({
-            where: { id: commentId }
+        const comment = await prisma.taskComment.findFirst({
+            where: { id: commentId, task: { OR: [{ project: { companyId: req.user!.companyId } }, { projectId: null }] } },
         });
 
         if (!comment) return res.status(404).json({ error: 'Comment not found' });
@@ -839,7 +903,8 @@ export const getMyTaskAnalysis = async (req: AuthRequest, res: Response) => {
                 OR: [
                     { assignedToId: userId },
                     { assignees: { some: { userId } } }
-                ]
+                ],
+                project: { companyId: req.user!.companyId }
             },
             include: { project: { select: { name: true } } }
         });

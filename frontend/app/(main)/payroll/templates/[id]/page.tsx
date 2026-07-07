@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, use } from 'react';
+import { useEffect, useState } from 'react';
 import { useToast } from '@/hooks/useToast';
 import { useRouter } from 'next/navigation';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
@@ -26,8 +26,8 @@ const evaluateFormula = (formula: string, context: Record<string, number>): numb
     }
 };
 
-export default function EditSalaryTemplatePage({ params }: { params: Promise<{ id: string }> }) {
-    const { id } = use(params);
+export default function EditSalaryTemplatePage({ params }: { params: { id: string } }) {
+    const { id } = params;
     const toast = useToast();
     const router = useRouter();
     const { formatCurrency } = useCurrency();

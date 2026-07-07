@@ -33,8 +33,7 @@ export default function HelpdeskPage() {
             const res = await api.get('/tickets', { params: { status: filterStatus } });
             setTickets(res.data);
 
-            // Calculate stats (Mock or basic calc)
-            // Ideally backend returns stats
+            // Calculate stats from fetched tickets
             const open = res.data.filter((t: any) => t.status === 'open').length;
             const resolved = res.data.filter((t: any) => t.status === 'resolved').length;
             setStats({ open, resolved, total: res.data.length });

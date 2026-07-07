@@ -44,7 +44,7 @@ export default function TaskTimesheetList({ taskId, projectId }: TaskTimesheetLi
             setLoading(true);
             // Ideally backend supports finding by taskId, for now we filter locally if needed or rely on backend filter
             const res = await api.get(`/timesheets?taskId=${taskId}`);
-            setTimesheets(res.data);
+            setTimesheets(res.data?.data || res.data || []);
         } catch (err) {
             console.error(err);
         } finally {

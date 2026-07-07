@@ -4,6 +4,7 @@ import prisma from '../prisma/client';
 import { AuthRequest } from '../middleware/auth';
 import { PermissionService } from '../services/permission.service';
 import { InvoiceService } from '../services/invoice.service';
+import { CurrencyService } from '../services/currency.service';
 
 // Create Quotation
 // Create Quotation
@@ -167,6 +168,19 @@ export const createQuotation = async (req: AuthRequest, res: Response) => {
             }
         }
 
+        // Calculate exchange rate and base currency amount
+        let exchangeRate = 1.0;
+        let baseCurrencyAmount = total;
+        const company = await prisma.company.findUnique({
+            where: { id: user.companyId },
+            select: { currency: true }
+        });
+        if (company && company.currency && company.currency.toUpperCase() !== currency.toUpperCase()) {
+            const rateInfo = await CurrencyService.convert(total, currency, company.currency, new Date());
+            exchangeRate = rateInfo.rate;
+            baseCurrencyAmount = rateInfo.convertedAmount;
+        }
+
         // Create quotation
         const quotation = await prisma.quotation.create({
             data: {
@@ -179,6 +193,8 @@ export const createQuotation = async (req: AuthRequest, res: Response) => {
                 description,
                 quotationDate: new Date(),
                 validUntil: new Date(validUntil),
+                exchangeRate,
+                baseCurrencyAmount,
                 subtotal,
                 tax: totalTax,
                 discount: overallDiscount,
@@ -500,10 +516,33 @@ export const updateQuotation = async (req: AuthRequest, res: Response) => {
             const overallDiscount = Number(discount || 0);
             const total = subtotal + totalTax - totalDiscount - overallDiscount;
 
+            // Recalculate exchange rate and base currency amount
+            const existingQuotation = await prisma.quotation.findFirst({
+                where: { id, companyId: user.companyId },
+                select: { currency: true }
+            });
+            const quoCurrency = existingQuotation?.currency || 'INR';
+
+            const company = await prisma.company.findUnique({
+                where: { id: user.companyId },
+                select: { currency: true }
+            });
+
+            let exchangeRate = 1.0;
+            let baseCurrencyAmount = total;
+
+            if (company && company.currency && company.currency.toUpperCase() !== quoCurrency.toUpperCase()) {
+                const rateInfo = await CurrencyService.convert(total, quoCurrency, company.currency, new Date());
+                exchangeRate = rateInfo.rate;
+                baseCurrencyAmount = rateInfo.convertedAmount;
+            }
+
             updateData.subtotal = subtotal;
             updateData.tax = totalTax;
             updateData.discount = overallDiscount;
             updateData.total = total;
+            updateData.exchangeRate = exchangeRate;
+            updateData.baseCurrencyAmount = baseCurrencyAmount;
 
             // Delete existing items and create new ones
             await prisma.quotationItem.deleteMany({

@@ -16,7 +16,7 @@ export const createPolicy = async (req: AuthRequest, res: Response) => {
         let fileUrl = null;
         if (req.file) {
             const safeName = req.file.originalname.replace(/[^a-zA-Z0-9-_\.]/g, '_');
-            const fileName = `policies / ${companyId}_${Date.now()}_${safeName} `;
+            const fileName = `policies/${companyId}_${Date.now()}_${safeName}`;
             fileUrl = await StorageService.uploadFile(req.file.buffer, fileName, req.file.mimetype);
         } else if (req.body.fileUrl) {
             fileUrl = req.body.fileUrl;
@@ -84,7 +84,7 @@ export const updatePolicy = async (req: AuthRequest, res: Response) => {
         let fileUrl = existing.fileUrl;
         if (req.file) {
             const safeName = req.file.originalname.replace(/[^a-zA-Z0-9-_\.]/g, '_');
-            const fileName = `policies / ${companyId}_${Date.now()}_${safeName} `;
+            const fileName = `policies/${companyId}_${Date.now()}_${safeName}`;
             fileUrl = await StorageService.uploadFile(req.file.buffer, fileName, req.file.mimetype);
         } else if (req.body.fileUrl) {
             fileUrl = req.body.fileUrl;

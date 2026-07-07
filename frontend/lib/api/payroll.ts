@@ -23,10 +23,13 @@ export interface Payroll {
     month: number;
     year: number;
     grossSalary: number;
-    totalDeductions: number;
+    deductions: number;
+    totalDeductions?: number; // backwards compat
     netSalary: number;
-    status: 'draft' | 'paid';
+    status: 'draft' | 'processed' | 'paid';
     processedAt: string;
+    earningsBreakdown?: Record<string, number>;
+    deductionsBreakdown?: Record<string, number>;
 }
 
 export interface EmployeeSalaryStructure {

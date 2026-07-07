@@ -1,6 +1,7 @@
 import prisma from '../prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import * as accountingService from './accounting.service';
+import { CurrencyService } from './currency.service';
 
 export interface InvoiceItemInput {
     description: string;
@@ -151,6 +152,24 @@ export class InvoiceService {
 
         const invoiceNumber = `${prefix}-${currentYear}-${String(nextNumber).padStart(5, '0')}`;
 
+        // Check currency and calculate conversion
+        let exchangeRate: Decimal | null = null;
+        let baseCurrencyAmount: Decimal | null = null;
+        if (invoiceData.currency) {
+            const company = await prisma.company.findUnique({
+                where: { id: invoiceData.companyId },
+                select: { currency: true }
+            });
+            if (company && company.currency && company.currency.toUpperCase() !== invoiceData.currency.toUpperCase()) {
+                const rateInfo = await CurrencyService.convert(total, invoiceData.currency, company.currency, invoiceDate);
+                exchangeRate = new Decimal(rateInfo.rate);
+                baseCurrencyAmount = new Decimal(rateInfo.convertedAmount);
+            } else {
+                exchangeRate = new Decimal(1.0);
+                baseCurrencyAmount = new Decimal(total);
+            }
+        }
+
         try {
             const result = await prisma.$transaction(async (tx) => {
                 const invoice = await tx.invoice.create({
@@ -163,6 +182,8 @@ export class InvoiceService {
                         tax: new Decimal(totalTax),
                         discount: new Decimal(overallDiscount),
                         total: new Decimal(total),
+                        exchangeRate,
+                        baseCurrencyAmount,
                         status: invoiceData.type === 'quotation' ? 'sent' : 'draft',
                         isRecurring: invoiceData.isRecurring || false,
                         recurringInterval: invoiceData.recurringInterval,
@@ -237,7 +258,7 @@ export class InvoiceService {
             // Auto-post outside transaction for visibility
             if (result.type !== 'quotation' && result.status === 'sent') {
                 try {
-                    await accountingService.postInvoiceToLedger(result.id);
+                    await accountingService.postInvoiceToLedger(result.id, result.companyId);
                 } catch (err) {
                     console.error('Failed to auto-post created invoice to ledger:', err);
                 }
@@ -254,17 +275,12 @@ export class InvoiceService {
      * Delete an invoice and its associated items
      */
     static async deleteInvoice(id: string, companyId: string) {
-        // Find the invoice first to check its status and paidAmount
-        const invoice = await prisma.invoice.findUnique({
-            where: { id },
+        const invoice = await prisma.invoice.findFirst({
+            where: { id, companyId },
         });
 
         if (!invoice) {
             throw new Error('Invoice not found');
-        }
-
-        if (invoice.companyId !== companyId) {
-            throw new Error('Unauthorized access to this invoice');
         }
 
         // ALLOW FORCE DELETE: User requested ability to delete sent/paid invoices
@@ -301,6 +317,9 @@ export class InvoiceService {
 
             // Cleanup ledger: Use invoiceNumber directly (it matches what postInvoiceToLedger uses)
             await accountingService.deleteLedgerPostings(invoice.invoiceNumber, tx);
+
+            const invoiceToDelete = await tx.invoice.findFirst({ where: { id, companyId } });
+            if (!invoiceToDelete) throw new Error('Invoice not found');
 
             return await tx.invoice.delete({
                 where: { id }
@@ -339,10 +358,10 @@ export class InvoiceService {
     /**
      * Record a payment for an invoice
      */
-    static async recordPayment(invoiceId: string, amount: number, paymentMethod: string, transactionId?: string) {
+    static async recordPayment(invoiceId: string, amount: number, paymentMethod: string, transactionId?: string, companyId?: string) {
         const result = await prisma.$transaction(async (tx) => {
-            const invoice = await tx.invoice.findUnique({
-                where: { id: invoiceId }
+            const invoice = await tx.invoice.findFirst({
+                where: { id: invoiceId, companyId }
             });
 
             if (!invoice) throw new Error('Invoice not found');
@@ -355,6 +374,9 @@ export class InvoiceService {
             } else if (newPaidAmount > 0) {
                 status = 'partial';
             }
+
+            const existingInvoice = await tx.invoice.findFirst({ where: { id: invoiceId, companyId } });
+            if (!existingInvoice) throw new Error('Invoice not found');
 
             const updatedInvoice = await tx.invoice.update({
                 where: { id: invoiceId },
@@ -380,11 +402,11 @@ export class InvoiceService {
 
         // Post to Ledger outside transaction
         try {
-            if (result.paymentRecordId) {
-                await accountingService.postPaymentToLedger(result.paymentRecordId);
+            if (result.paymentRecordId && companyId) {
+                await accountingService.postPaymentToLedger(result.paymentRecordId, companyId);
             }
-            if (result.status !== 'draft') {
-                await accountingService.postInvoiceToLedger(invoiceId);
+            if (result.status !== 'draft' && companyId) {
+                await accountingService.postInvoiceToLedger(invoiceId, companyId);
             }
         } catch (err) {
             console.error('Failed to sync ledger after payment record:', err);
@@ -477,10 +499,9 @@ export class InvoiceService {
     /**
      * Convert a quotation into a full invoice
      */
-    static async convertQuotationToInvoice(quotationId: string) {
-        // Correctly fetch from Quotation model
-        const quotation = await prisma.quotation.findUnique({
-            where: { id: quotationId },
+    static async convertQuotationToInvoice(quotationId: string, companyId: string) {
+        const quotation = await prisma.quotation.findFirst({
+            where: { id: quotationId, companyId },
             include: {
                 items: {
                     include: {
@@ -533,7 +554,9 @@ export class InvoiceService {
             type: 'invoice'
         });
 
-        // Mark quotation as accepted and link to invoice
+        const existingQuotation = await prisma.quotation.findFirst({ where: { id: quotationId, companyId } });
+        if (!existingQuotation) throw new Error('Quotation not found');
+
         await prisma.quotation.update({
             where: { id: quotationId },
             data: {
@@ -633,13 +656,35 @@ export class InvoiceService {
         const overallDiscount = Number(invoiceData.discount || 0);
         const total = subtotal + totalTax - totalItemDiscount - overallDiscount;
 
+        // Check currency and calculate conversion
+        let exchangeRate: Decimal | null = null;
+        let baseCurrencyAmount: Decimal | null = null;
+        if (invoiceData.currency) {
+            const company = await prisma.company.findUnique({
+                where: { id: invoiceData.companyId },
+                select: { currency: true }
+            });
+            if (company && company.currency && company.currency.toUpperCase() !== invoiceData.currency.toUpperCase()) {
+                const rateInfo = await CurrencyService.convert(total, invoiceData.currency, company.currency, invoiceDate);
+                exchangeRate = new Decimal(rateInfo.rate);
+                baseCurrencyAmount = new Decimal(rateInfo.convertedAmount);
+            } else {
+                exchangeRate = new Decimal(1.0);
+                baseCurrencyAmount = new Decimal(total);
+            }
+        }
+
         const result = await prisma.$transaction(async (tx) => {
-            // Delete existing items
+            const existingInvoice = await tx.invoice.findFirst({ where: { id, companyId: invoiceData.companyId } });
+            if (!existingInvoice) throw new Error('Invoice not found');
+
             await tx.invoiceItem.deleteMany({
-                where: { invoiceId: id }
+                where: {
+                    invoiceId: id,
+                    invoice: { companyId: invoiceData.companyId }
+                }
             });
 
-            // Update invoice and create new items
             const invoice = await tx.invoice.update({
                 where: { id },
                 data: {
@@ -650,6 +695,8 @@ export class InvoiceService {
                     tax: new Decimal(totalTax),
                     discount: new Decimal(overallDiscount), // Only store the overall/global discount
                     total: new Decimal(total),
+                    exchangeRate,
+                    baseCurrencyAmount,
                     isRecurring: invoiceData.isRecurring || false,
                     recurringInterval: invoiceData.recurringInterval,
                     recurringStartDate: invoiceData.recurringStartDate ? new Date(invoiceData.recurringStartDate) : undefined,
@@ -697,7 +744,7 @@ export class InvoiceService {
 
         // Sync ledger outside transaction
         try {
-            await accountingService.postInvoiceToLedger(id);
+            await accountingService.postInvoiceToLedger(id, invoiceData.companyId);
         } catch (err) {
             console.error('Failed to sync ledger after invoice update:', err);
         }

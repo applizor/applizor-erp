@@ -101,5 +101,18 @@ export const useAuth = () => {
     initAuth();
   }, []);
 
-  return { user, loading, isAuthenticated: !!user };
+  const refresh = async () => {
+    try {
+      const res = await api.get('/auth/profile');
+      if (res.data.user) {
+        const updatedUser = res.data.user;
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+        setUser(updatedUser);
+      }
+    } catch (error) {
+      console.error("Auth refresh failed", error);
+    }
+  };
+
+  return { user, loading, isAuthenticated: !!user, refresh };
 };

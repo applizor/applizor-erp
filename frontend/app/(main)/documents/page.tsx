@@ -3,14 +3,14 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
-import { Plus, Edit, Trash2, FileText, Search, Settings, Copy, Info, X, LayoutTemplate, PenTool } from 'lucide-react';
+import { Plus, Edit, Trash2, FileText, Search, Settings, Copy, Info, X, LayoutTemplate, PenTool, Eye, Check, Download, Send, Scale } from 'lucide-react';
 import api from '@/lib/api';
 import { Button } from '@/components/ui/Button';
-import { Dialog } from '@/components/ui/Dialog';
 import { Label } from '@/components/ui/Label';
 import { Input } from '@/components/ui/Input';
 import { Drawer } from '@/components/ui/Drawer';
 import RichTextEditor from '@/components/ui/RichTextEditor';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 // Variable Groups for Templates
 const VARIABLE_GROUPS = {
@@ -42,6 +42,17 @@ const VARIABLE_GROUPS = {
         'DATE', 
         'HR_MANAGER',
         'AUTHORIZED_SIGNATORY_SIGNATURE'
+    ],
+    'Client Details': [
+        'CLIENT_NAME',
+        'CLIENT_EMAIL',
+        'CLIENT_PHONE',
+        'CLIENT_ADDRESS',
+        'CLIENT_CITY',
+        'CLIENT_STATE',
+        'CLIENT_GSTIN',
+        'CLIENT_PAN',
+        'CLIENT_WEBSITE'
     ]
 };
 
@@ -52,6 +63,11 @@ export default function DocumentsPage() {
     const { confirm } = useConfirm();
     const [activeTab, setActiveTab] = useState<'instant' | 'templates'>('instant');
 
+    // --- DIRECTORY & COMPANY STATE ---
+    const [employees, setEmployees] = useState<any[]>([]);
+    const [clients, setClients] = useState<any[]>([]);
+    const [company, setCompany] = useState<any>(null);
+
     // --- TEMPLATE STATE ---
     const [templates, setTemplates] = useState<any[]>([]);
     const [loadingTemplates, setLoadingTemplates] = useState(false);
@@ -59,18 +75,60 @@ export default function DocumentsPage() {
     const [savingTemplate, setSavingTemplate] = useState(false);
     const [editorContent, setEditorContent] = useState('');
     const [editorRevision, setEditorRevision] = useState(0); // Key to reset editor only on open
-    const [templateForm, setTemplateForm] = useState({ id: '', name: '', type: 'General', variables: [] as string[] });
+    const [templateForm, setTemplateForm] = useState({ 
+        id: '', 
+        name: '', 
+        type: 'General', 
+        variables: [] as string[],
+        pdfMarginTop: 180,
+        pdfMarginBottom: 80,
+        pdfMarginLeft: 40,
+        pdfMarginRight: 40,
+        pdfContinuationTop: 80
+    });
 
     // --- INSTANT WRITE STATE ---
     const [generating, setGenerating] = useState(false);
     const [useLetterhead, setUseLetterhead] = useState(true);
     const [instantContent, setInstantContent] = useState('');
-    const [instantForm, setInstantForm] = useState({
-        recipientName: '',
-        designation: '',
-        subject: '',
-        date: new Date().toISOString().split('T')[0]
-    });
+    const [documentTitle, setDocumentTitle] = useState('');
+
+    // --- GENERATION WIZARD STATE ---
+    const [isWizardOpen, setIsWizardOpen] = useState(false);
+    const [wizardTemplate, setWizardTemplate] = useState<any>(null);
+    const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
+    const [selectedClientId, setSelectedClientId] = useState('');
+    const [wizardUseLetterhead, setWizardUseLetterhead] = useState(true);
+    const [previewHtml, setPreviewHtml] = useState('');
+    const [loadingPreview, setLoadingPreview] = useState(false);
+    const [forging, setForging] = useState(false);
+
+    const loadDirectory = async () => {
+        try {
+            const empRes = await api.get('/employees');
+            setEmployees(empRes.data || []);
+        } catch (error) {
+            console.error('Failed to load employees:', error);
+        }
+
+        try {
+            const clientRes = await api.get('/clients');
+            setClients(clientRes.data || []);
+        } catch (error) {
+            console.error('Failed to load clients:', error);
+        }
+
+        try {
+            const companyRes = await api.get('/company');
+            setCompany(companyRes.data || null);
+        } catch (error) {
+            console.error('Failed to load company details:', error);
+        }
+    };
+
+    useEffect(() => {
+        loadDirectory();
+    }, []);
 
     useEffect(() => {
         if (activeTab === 'templates') {
@@ -125,14 +183,34 @@ export default function DocumentsPage() {
     };
 
     const openCreateTemplate = () => {
-        setTemplateForm({ id: '', name: '', type: 'General', variables: [] });
+        setTemplateForm({ 
+            id: '', 
+            name: '', 
+            type: 'General', 
+            variables: [],
+            pdfMarginTop: 180,
+            pdfMarginBottom: 80,
+            pdfMarginLeft: 40,
+            pdfMarginRight: 40,
+            pdfContinuationTop: 80
+        });
         setEditorContent('<p>Start designing...</p>');
         setEditorRevision(prev => prev + 1);
         setIsTemplateModalOpen(true);
     };
 
     const openEditTemplate = (t: any) => {
-        setTemplateForm({ id: t.id, name: t.name, type: t.type, variables: t.variables || [] });
+        setTemplateForm({ 
+            id: t.id, 
+            name: t.name, 
+            type: t.type, 
+            variables: t.variables || [],
+            pdfMarginTop: t.pdfMarginTop !== null && t.pdfMarginTop !== undefined ? t.pdfMarginTop : 180,
+            pdfMarginBottom: t.pdfMarginBottom !== null && t.pdfMarginBottom !== undefined ? t.pdfMarginBottom : 80,
+            pdfMarginLeft: t.pdfMarginLeft !== null && t.pdfMarginLeft !== undefined ? t.pdfMarginLeft : 40,
+            pdfMarginRight: t.pdfMarginRight !== null && t.pdfMarginRight !== undefined ? t.pdfMarginRight : 40,
+            pdfContinuationTop: t.pdfContinuationTop !== null && t.pdfContinuationTop !== undefined ? t.pdfContinuationTop : 80
+        });
         setEditorContent(t.content || '');
         setEditorRevision(prev => prev + 1);
         setIsTemplateModalOpen(true);
@@ -144,7 +222,10 @@ export default function DocumentsPage() {
         setGenerating(true);
         try {
             const payload = {
-                ...instantForm,
+                recipientName: documentTitle || 'Document',
+                designation: '',
+                subject: documentTitle || 'Document',
+                date: new Date().toISOString().split('T')[0],
                 content: instantContent,
                 useLetterhead
             };
@@ -152,7 +233,7 @@ export default function DocumentsPage() {
             const url = window.URL.createObjectURL(new Blob([response.data]));
             const link = document.createElement('a');
             link.href = url;
-            link.setAttribute('download', `${instantForm.recipientName}_Letter.pdf`);
+            link.setAttribute('download', `${(documentTitle || 'Document').replace(/\s+/g, '_')}_Letter.pdf`);
             document.body.appendChild(link);
             link.click();
             link.remove(); // Clean up
@@ -166,13 +247,125 @@ export default function DocumentsPage() {
         }
     };
 
-    // --- UTILS ---
-    const editorRef = useRef<any>(null);
-
+    // --- GENERATION WIZARD ACTIONS ---
     const extractVariables = (html: string) => {
         const matches = html.match(/\[([A-Z_]+)\]/g);
         return matches ? Array.from(new Set(matches.map(m => m.replace(/[\[\]]/g, '')))) : [];
     };
+
+    const needsEmployee = useMemo(() => {
+        if (!wizardTemplate) return false;
+        const vars = extractVariables(wizardTemplate.content || '');
+        return vars.some(v => 
+            v.startsWith('EMPLOYEE_') || 
+            ['DESIGNATION', 'DEPARTMENT', 'JOINING_DATE', 'EXIT_DATE', 'SALARY', 'CTC_ANNUAL', 'BASIC_SALARY', 'HRA', 'ALLOWANCES', 'DATE_OF_BIRTH', 'GENDER', 'BLOOD_GROUP', 'MARITAL_STATUS', 'CURRENT_ADDRESS', 'PERMANENT_ADDRESS', 'EMPLOYEE_STATUS', 'WORK_LOCATION', 'EMPLOYMENT_TYPE'].includes(v)
+        );
+    }, [wizardTemplate]);
+
+    const needsClient = useMemo(() => {
+        if (!wizardTemplate) return false;
+        const vars = extractVariables(wizardTemplate.content || '');
+        return vars.some(v => 
+            v.startsWith('CLIENT_') || 
+            ['CLIENT_NAME', 'CLIENT_EMAIL', 'CLIENT_PHONE', 'CLIENT_ADDRESS', 'CLIENT_COMPANY', 'CLIENT_GSTIN', 'CLIENT_PAN', 'CLIENT_WEBSITE'].includes(v)
+        );
+    }, [wizardTemplate]);
+
+    const loadPreview = async () => {
+        if (!wizardTemplate) return;
+        
+        // Wait until required values are selected
+        if (needsEmployee && !selectedEmployeeId) {
+            setPreviewHtml('<p class="text-slate-400 font-medium text-xs text-center py-20 uppercase tracking-wider">Select an employee from the dropdown to load preview.</p>');
+            return;
+        }
+        if (needsClient && !selectedClientId) {
+            setPreviewHtml('<p class="text-slate-400 font-medium text-xs text-center py-20 uppercase tracking-wider">Select a client from the dropdown to load preview.</p>');
+            return;
+        }
+
+        try {
+            setLoadingPreview(true);
+            const res = await api.post('/documents/preview', {
+                templateId: wizardTemplate.id,
+                employeeId: selectedEmployeeId || undefined,
+                clientId: selectedClientId || undefined,
+                useLetterhead: wizardUseLetterhead
+            });
+            setPreviewHtml(res.data?.html || '<p class="text-slate-400 font-medium text-xs text-center py-20">Empty document preview.</p>');
+        } catch (error) {
+            console.error('Failed to load preview:', error);
+            setPreviewHtml('<p class="text-rose-500 font-bold p-4 text-center">Failed to render template preview</p>');
+        } finally {
+            setLoadingPreview(false);
+        }
+    };
+
+    useEffect(() => {
+        if (isWizardOpen) {
+            loadPreview();
+        }
+    }, [isWizardOpen, wizardTemplate, selectedEmployeeId, selectedClientId, wizardUseLetterhead]);
+
+    const openGenerateWizard = (t: any) => {
+        setWizardTemplate(t);
+        setSelectedEmployeeId('');
+        setSelectedClientId('');
+        setWizardUseLetterhead(true);
+        setPreviewHtml('');
+        setIsWizardOpen(true);
+    };
+
+    const handleDownloadPdf = async () => {
+        if (!wizardTemplate) return;
+        try {
+            setForging(true);
+            const response = await api.post('/documents/generate-from-template', {
+                templateId: wizardTemplate.id,
+                employeeId: selectedEmployeeId || undefined,
+                clientId: selectedClientId || undefined,
+                useLetterhead: wizardUseLetterhead
+            }, { responseType: 'blob' });
+            
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `${wizardTemplate.name.replace(/\s+/g, '_')}_Forged.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+            toast.success('Document downloaded successfully');
+        } catch (error) {
+            console.error(error);
+            toast.error('Failed to download PDF');
+        } finally {
+            setForging(false);
+        }
+    };
+
+    const handleSaveAndIssue = async () => {
+        if (!wizardTemplate) return;
+        try {
+            setForging(true);
+            await api.post('/documents', {
+                templateId: wizardTemplate.id,
+                employeeId: selectedEmployeeId || undefined,
+                clientId: selectedClientId || undefined,
+                useLetterhead: wizardUseLetterhead,
+                saveAsDraft: false
+            });
+            toast.success('Document forged and saved to profile files');
+            setIsWizardOpen(false);
+        } catch (error: any) {
+            toast.error(error.response?.data?.error || 'Failed to save document');
+        } finally {
+            setForging(false);
+        }
+    };
+
+    // --- UTILS ---
+    const editorRef = useRef<any>(null);
 
     const insertVariable = (variable: string) => {
         if (editorRef.current) {
@@ -181,6 +374,37 @@ export default function DocumentsPage() {
             console.warn('Lexical instance not ready');
         }
     };
+
+    // Computed letterhead variables for live preview
+    const showLetterheadBackground = wizardUseLetterhead && company?.letterhead && !company.letterhead.toLowerCase().endsWith('.pdf');
+
+    const previewTopPadding = useMemo(() => {
+        if (!wizardUseLetterhead) return 40;
+        return wizardTemplate?.pdfMarginTop !== null && wizardTemplate?.pdfMarginTop !== undefined
+            ? Number(wizardTemplate.pdfMarginTop)
+            : (company?.pdfMarginTop || 180);
+    }, [wizardUseLetterhead, wizardTemplate, company]);
+
+    const previewBottomPadding = useMemo(() => {
+        if (!wizardUseLetterhead) return 40;
+        return wizardTemplate?.pdfMarginBottom !== null && wizardTemplate?.pdfMarginBottom !== undefined
+            ? Number(wizardTemplate.pdfMarginBottom)
+            : (company?.pdfMarginBottom || 80);
+    }, [wizardUseLetterhead, wizardTemplate, company]);
+
+    const previewLeftPadding = useMemo(() => {
+        if (!wizardUseLetterhead) return 40;
+        return wizardTemplate?.pdfMarginLeft !== null && wizardTemplate?.pdfMarginLeft !== undefined
+            ? Number(wizardTemplate.pdfMarginLeft)
+            : (company?.pdfMarginLeft || 40);
+    }, [wizardUseLetterhead, wizardTemplate, company]);
+
+    const previewRightPadding = useMemo(() => {
+        if (!wizardUseLetterhead) return 40;
+        return wizardTemplate?.pdfMarginRight !== null && wizardTemplate?.pdfMarginRight !== undefined
+            ? Number(wizardTemplate.pdfMarginRight)
+            : (company?.pdfMarginRight || 40);
+    }, [wizardUseLetterhead, wizardTemplate, company]);
 
     return (
         <div className="max-w-7xl mx-auto p-4 md:p-8 animate-fade-in pb-20 space-y-6">
@@ -233,25 +457,14 @@ export default function DocumentsPage() {
                     </div>
 
                     <form onSubmit={handleInstantGenerate} className="space-y-6 max-w-5xl mx-auto">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="ent-form-group">
-                                <Label>Recipient Identity *</Label>
-                                <Input value={instantForm.recipientName} onChange={e => setInstantForm({ ...instantForm, recipientName: e.target.value })} required placeholder="e.g. John Doe" />
-                            </div>
-                            <div className="ent-form-group">
-                                <Label>Professional Designation *</Label>
-                                <Input value={instantForm.designation} onChange={e => setInstantForm({ ...instantForm, designation: e.target.value })} required placeholder="e.g. Senior Manager" />
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="ent-form-group">
-                                <Label>Issue Date *</Label>
-                                <Input type="date" value={instantForm.date} onChange={e => setInstantForm({ ...instantForm, date: e.target.value })} required />
-                            </div>
-                            <div className="ent-form-group">
-                                <Label>Subject *</Label>
-                                <Input value={instantForm.subject} onChange={e => setInstantForm({ ...instantForm, subject: e.target.value })} required placeholder="e.g. Appointment Letter" />
-                            </div>
+                        <div className="ent-form-group">
+                            <Label>Document Title *</Label>
+                            <Input
+                                value={documentTitle}
+                                onChange={e => setDocumentTitle(e.target.value)}
+                                required
+                                placeholder="e.g. Appointment Letter, Non-Disclosure Agreement, Company Policy, etc."
+                            />
                         </div>
 
                         <div className="ent-form-group">
@@ -305,9 +518,17 @@ export default function DocumentsPage() {
                                         </div>
                                         <h3 className="text-base font-black text-slate-900 uppercase tracking-tight mb-2 truncate pr-4">{t.name}</h3>
                                         <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-6">{extractVariables(t.content || '').length} Variables</p>
-                                        <div className="mt-auto pt-4 border-t border-slate-50 flex justify-end gap-1 relative z-10">
-                                            <button onClick={() => openEditTemplate(t)} className="p-2 text-slate-400 hover:text-primary-600 hover:bg-slate-50 rounded-md transition-colors"><Edit size={14} /></button>
-                                            <button onClick={() => handleDeleteTemplate(t.id)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors"><Trash2 size={14} /></button>
+                                        <div className="mt-auto pt-4 border-t border-slate-50 flex items-center justify-between gap-1 relative z-10">
+                                            <button
+                                                onClick={() => openGenerateWizard(t)}
+                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-900 text-white rounded-md text-[9px] font-black uppercase tracking-widest hover:bg-primary-800 transition-all shadow-sm active:scale-95"
+                                            >
+                                                <PenTool size={11} /> Generate
+                                            </button>
+                                            <div className="flex gap-0.5">
+                                                <button onClick={() => openEditTemplate(t)} className="p-1.5 text-slate-400 hover:text-primary-600 hover:bg-slate-50 rounded transition-colors"><Edit size={13} /></button>
+                                                <button onClick={() => handleDeleteTemplate(t.id)} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"><Trash2 size={13} /></button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -354,6 +575,65 @@ export default function DocumentsPage() {
                                             <option>Notice</option>
                                             <option>Certificate</option>
                                         </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Layout Settings (A4) */}
+                            <div className="space-y-4 pt-4 border-t border-slate-100">
+                                <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+                                    <Scale size={14} className="text-primary-600" /> Layout & Margins
+                                </h4>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <Label className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-1 block">First Page Top (px)</Label>
+                                        <Input
+                                            type="number"
+                                            value={templateForm.pdfMarginTop}
+                                            onChange={e => setTemplateForm({ ...templateForm, pdfMarginTop: parseInt(e.target.value) || 0 })}
+                                            required
+                                            className="font-medium text-xs"
+                                        />
+                                    </div>
+                                    <div>
+                                        <Label className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-1 block">Continuation Top (px)</Label>
+                                        <Input
+                                            type="number"
+                                            value={templateForm.pdfContinuationTop}
+                                            onChange={e => setTemplateForm({ ...templateForm, pdfContinuationTop: parseInt(e.target.value) || 0 })}
+                                            required
+                                            className="font-medium text-xs"
+                                        />
+                                    </div>
+                                    <div>
+                                        <Label className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-1 block">Bottom Margin (px)</Label>
+                                        <Input
+                                            type="number"
+                                            value={templateForm.pdfMarginBottom}
+                                            onChange={e => setTemplateForm({ ...templateForm, pdfMarginBottom: parseInt(e.target.value) || 0 })}
+                                            required
+                                            className="font-medium text-xs"
+                                        />
+                                    </div>
+                                    <div>
+                                        <Label className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-1 block">Left Margin (px)</Label>
+                                        <Input
+                                            type="number"
+                                            value={templateForm.pdfMarginLeft}
+                                            onChange={e => setTemplateForm({ ...templateForm, pdfMarginLeft: parseInt(e.target.value) || 0 })}
+                                            required
+                                            className="font-medium text-xs"
+                                        />
+                                    </div>
+                                    <div className="col-span-2">
+                                        <Label className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-1 block">Right Margin (px)</Label>
+                                        <Input
+                                            type="number"
+                                            value={templateForm.pdfMarginRight}
+                                            onChange={e => setTemplateForm({ ...templateForm, pdfMarginRight: parseInt(e.target.value) || 0 })}
+                                            required
+                                            className="font-medium text-xs"
+                                        />
                                     </div>
                                 </div>
                             </div>
@@ -410,6 +690,153 @@ export default function DocumentsPage() {
                         </Button>
                     </div>
                 </form>
+            </Drawer>
+
+
+            {/* DOCUMENT FORGE WIZARD DRAWER */}
+            <Drawer isOpen={isWizardOpen} onClose={() => setIsWizardOpen(false)} title="Document Forge Wizard">
+                <div className="h-full flex flex-col bg-slate-50">
+                    <div className="flex-1 flex overflow-hidden">
+                        
+                        {/* Control Panel Sidebar */}
+                        <div className="w-80 flex-shrink-0 border-r border-slate-200 bg-white overflow-y-auto p-6 space-y-6">
+                            <div>
+                                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Selected Template</h3>
+                                <p className="text-sm font-black text-slate-900 mt-1 uppercase truncate">{wizardTemplate?.name}</p>
+                                <span className="inline-block text-[8px] font-black uppercase bg-primary-50 text-primary-700 px-2 py-0.5 rounded border border-primary-100 mt-1.5">{wizardTemplate?.type}</span>
+                            </div>
+
+                            <hr className="border-slate-100" />
+
+                            <div className="space-y-4">
+                                <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-1.5">
+                                    <PenTool size={12} className="text-primary-600" /> Recipient Context
+                                </h4>
+
+                                {needsEmployee && (
+                                    <div className="ent-form-group">
+                                        <Label className="text-[9px] font-black text-slate-500 uppercase tracking-wider block mb-1">Target Employee *</Label>
+                                        <CustomSelect
+                                            options={[
+                                                { label: 'Select Employee', value: '' },
+                                                ...employees.map(e => ({ label: `${e.firstName} ${e.lastName || ''} (${e.email || 'No email'})`, value: e.id }))
+                                            ]}
+                                            value={selectedEmployeeId}
+                                            onChange={setSelectedEmployeeId}
+                                            className="w-full text-xs font-bold"
+                                        />
+                                    </div>
+                                )}
+
+                                {needsClient && (
+                                    <div className="ent-form-group">
+                                        <Label className="text-[9px] font-black text-slate-500 uppercase tracking-wider block mb-1">Target Client *</Label>
+                                        <CustomSelect
+                                            options={[
+                                                { label: 'Select Client', value: '' },
+                                                ...clients.map(c => ({ label: `${c.name} (${c.email || 'No email'})`, value: c.id }))
+                                            ]}
+                                            value={selectedClientId}
+                                            onChange={setSelectedClientId}
+                                            className="w-full text-xs font-bold"
+                                        />
+                                    </div>
+                                )}
+
+                                {!needsEmployee && !needsClient && (
+                                    <div className="p-3 bg-slate-50 rounded-lg border border-slate-200/50">
+                                        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider leading-relaxed">
+                                            This template contains no recipient variables. It can be forged directly without employee or client context.
+                                        </p>
+                                    </div>
+                                )}
+
+                                <div className="flex items-center justify-between p-3 bg-slate-50/50 border border-slate-200/40 rounded-lg">
+                                    <Label htmlFor="wiz-lh" className="text-[9px] font-black uppercase text-slate-600 cursor-pointer select-none">Overlay Letterhead</Label>
+                                    <input
+                                        id="wiz-lh"
+                                        type="checkbox"
+                                        checked={wizardUseLetterhead}
+                                        onChange={e => setWizardUseLetterhead(e.target.checked)}
+                                        className="toggle toggle-primary toggle-sm"
+                                    />
+                                </div>
+                            </div>
+
+                            <hr className="border-slate-100" />
+
+                            <div className="space-y-2">
+                                <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Template Variables</h4>
+                                <div className="flex flex-wrap gap-1">
+                                    {wizardTemplate && extractVariables(wizardTemplate.content || '').map(v => (
+                                        <span key={v} className="text-[8px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                                            {v}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Live Sandbox Preview Area */}
+                        <div className="flex-1 flex flex-col bg-slate-200 p-6 overflow-y-auto">
+                            <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block mb-3">Live Document Preview (A4 Sheet Simulation)</span>
+                            
+                            <div className="flex-1 flex items-start justify-center min-h-[900px] w-full">
+                                {loadingPreview ? (
+                                    <div className="w-full h-96 flex items-center justify-center bg-white rounded-xl shadow border border-slate-200">
+                                        <div className="text-center">
+                                            <LoadingSpinner size="lg" className="mx-auto mb-2 text-primary-900" />
+                                            <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Populating Context Variables...</p>
+                                        </div>
+                                    </div>
+                                ) : !previewHtml ? (
+                                    <div className="w-full h-96 flex items-center justify-center bg-white rounded-xl shadow border border-slate-200">
+                                        <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Please select recipient context to load preview</p>
+                                    </div>
+                                ) : (
+                                    <div 
+                                        className="a4-preview-sheet select-none bg-white shadow-lg border border-slate-300 rounded max-w-[800px] w-full min-h-[1100px] relative"
+                                        style={{
+                                            backgroundImage: showLetterheadBackground ? `url('${company.letterhead}')` : 'none',
+                                            backgroundSize: '100% 100%',
+                                            backgroundRepeat: 'no-repeat',
+                                            paddingTop: `${previewTopPadding}px`,
+                                            paddingBottom: `${previewBottomPadding}px`,
+                                            paddingLeft: `${previewLeftPadding}px`,
+                                            paddingRight: `${previewRightPadding}px`
+                                        }}
+                                    >
+                                        <div className="prose prose-sm max-w-none text-slate-900" dangerouslySetInnerHTML={{ __html: previewHtml }} />
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                    </div>
+
+                    {/* Footer Actions */}
+                    <div className="flex-shrink-0 px-8 py-4 bg-white border-t border-slate-200 flex justify-end gap-3 z-10 shadow-sm">
+                        <Button type="button" variant="outline" onClick={() => setIsWizardOpen(false)} className="px-6 text-[10px] font-black uppercase tracking-wider">
+                            Cancel
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={handleDownloadPdf}
+                            disabled={forging || (needsEmployee && !selectedEmployeeId) || (needsClient && !selectedClientId)}
+                            className="bg-slate-900 text-white hover:bg-slate-800 text-[10px] font-black uppercase tracking-widest px-6 inline-flex items-center gap-1.5"
+                        >
+                            {forging ? <LoadingSpinner size="sm" /> : <><Download size={13} /> Download PDF</>}
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={handleSaveAndIssue}
+                            disabled={forging || (needsEmployee && !selectedEmployeeId) || (needsClient && !selectedClientId)}
+                            className="btn-primary text-[10px] font-black uppercase tracking-widest px-8 inline-flex items-center gap-1.5"
+                        >
+                            {forging ? <LoadingSpinner size="sm" /> : <><Check size={13} /> Save & Issue</>}
+                        </Button>
+                    </div>
+                </div>
             </Drawer>
 
         </div>

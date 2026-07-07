@@ -1,9 +1,7 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prisma/client';
 import { PermissionService } from '../services/permission.service';
-
-const prisma = new PrismaClient();
 
 // Get Holidays
 export const getHolidays = async (req: AuthRequest, res: Response) => {
@@ -17,12 +15,20 @@ export const getHolidays = async (req: AuthRequest, res: Response) => {
         }
 
         const { year } = req.query;
+        const companyId = req.user!.companyId;
         const where: any = {};
 
         if (year) {
             const start = new Date(`${year}-01-01`);
             const end = new Date(`${year}-12-31`);
             where.date = { gte: start, lte: end };
+        }
+
+        if (companyId) {
+            where.OR = [
+                { companyId },
+                { companyId: null }
+            ];
         }
 
         const holidays = await prisma.holiday.findMany({
@@ -48,13 +54,15 @@ export const createHoliday = async (req: AuthRequest, res: Response) => {
         }
 
         const { name, date, type } = req.body;
+        const companyId = req.user!.companyId;
 
         const holiday = await prisma.holiday.create({
             data: {
                 name,
                 date: new Date(date),
                 type: type || 'national',
-                isActive: true
+                isActive: true,
+                companyId
             }
         });
 
@@ -77,6 +85,12 @@ export const updateHoliday = async (req: AuthRequest, res: Response) => {
 
         const { id } = req.params;
         const { name, date, type, isActive } = req.body;
+        const companyId = req.user!.companyId;
+
+        const existing = await prisma.holiday.findFirst({
+            where: { id, OR: [{ companyId }, { companyId: null }] }
+        });
+        if (!existing) return res.status(404).json({ error: 'Holiday not found' });
 
         const holiday = await prisma.holiday.update({
             where: { id },
@@ -106,6 +120,13 @@ export const deleteHoliday = async (req: AuthRequest, res: Response) => {
         }
 
         const { id } = req.params;
+        const companyId = req.user!.companyId;
+
+        const existing = await prisma.holiday.findFirst({
+            where: { id, OR: [{ companyId }, { companyId: null }] }
+        });
+        if (!existing) return res.status(404).json({ error: 'Holiday not found' });
+
         await prisma.holiday.delete({ where: { id } });
         res.json({ message: 'Holiday deleted' });
     } catch (error) {

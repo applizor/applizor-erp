@@ -213,8 +213,8 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
             // This is required even for self-upload to be explicit vs inferred
             uploadData.append('employeeId', params.id);
 
-            // Use documentsApi.upload (Document.create permission) instead of employeesApi (Employee.update permission)
-            await documentsApi.upload(uploadData);
+            // Use employeesApi.uploadDocument to link to this employee
+            await employeesApi.uploadDocument(params.id, uploadData);
 
             loadData(); // Reload to show new doc
             toast.success('Document uploaded successfully');

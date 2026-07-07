@@ -894,7 +894,6 @@ export class PDFService {
             processedHtml = processedHtml.replace(new RegExp(key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), value);
         });
 
-        // 2. Wrap in Standard Layout if not present
         if (!processedHtml.includes('<html')) {
             const backgroundCSS = await this.getBackgroundCSS(data.company, data.useLetterhead);
             processedHtml = `
@@ -1228,7 +1227,7 @@ ${(!hasEmbeddedCompanySig || !hasEmbeddedClientSig) ? `
                 </div>
             </div>
 
-            <div class="emp-details-grid">
+            <div class="emp-details-grid" style="grid-template-columns: 1fr 1fr 1fr;">
                 <div class="emp-item">
                     <span class="emp-label">Personnel Name</span>
                     <span class="emp-value">${data.employee.firstName} ${data.employee.lastName}</span>
@@ -1244,6 +1243,18 @@ ${(!hasEmbeddedCompanySig || !hasEmbeddedClientSig) ? `
                 <div class="emp-item">
                     <span class="emp-label">Designation</span>
                     <span class="emp-value">${data.employee.position?.title || 'GENERAL STAFF'}</span>
+                </div>
+                <div class="emp-item">
+                    <span class="emp-label">UAN</span>
+                    <span class="emp-value">${data.uan || 'NA'}</span>
+                </div>
+                <div class="emp-item">
+                    <span class="emp-label">PF Number</span>
+                    <span class="emp-value">${data.pfNumber || 'NA'}</span>
+                </div>
+                <div class="emp-item">
+                    <span class="emp-label">ESI Number</span>
+                    <span class="emp-value">${data.esiNumber || 'NA'}</span>
                 </div>
                 <div class="emp-item">
                     <span class="emp-label">Account Number</span>
@@ -1283,7 +1294,23 @@ ${(!hasEmbeddedCompanySig || !hasEmbeddedClientSig) ? `
                 </tbody>
             </table>
 
-            <div class="summary-section">
+            <div class="summary-section" style="flex-direction: column; gap: 16px;">
+                ${data.ytd ? `
+                <div style="display: flex; gap: 20px; justify-content: flex-end;">
+                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px 20px; border-radius: 8px; text-align: center; min-width: 140px;">
+                        <div style="font-size: 9px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.1em;">YTD Gross</div>
+                        <div style="font-size: 16px; font-weight: 900; color: #0f172a; margin-top: 4px;">${formatCurrency(data.ytd.gross)}</div>
+                    </div>
+                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px 20px; border-radius: 8px; text-align: center; min-width: 140px;">
+                        <div style="font-size: 9px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.1em;">YTD Deductions</div>
+                        <div style="font-size: 16px; font-weight: 900; color: #e11d48; margin-top: 4px;">${formatCurrency(data.ytd.deductions)}</div>
+                    </div>
+                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px 20px; border-radius: 8px; text-align: center; min-width: 140px;">
+                        <div style="font-size: 9px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.1em;">YTD Net</div>
+                        <div style="font-size: 16px; font-weight: 900; color: #059669; margin-top: 4px;">${formatCurrency(data.ytd.net)}</div>
+                    </div>
+                </div>
+                ` : ''}
                 <div class="net-pay-card">
                     <div class="net-label">Net Take Home</div>
                     <div class="net-amount">${formatCurrency(data.netSalary)}</div>
@@ -1301,7 +1328,42 @@ ${(!hasEmbeddedCompanySig || !hasEmbeddedClientSig) ? `
 
     public static async generatePayslip(payroll: any, company: any): Promise<Buffer> {
         const useLetterhead = !!company.letterhead;
-        const html = await this.generatePayslipHTML(payroll, company, useLetterhead);
+
+        // Fetch YTD totals from previous payroll records
+        const previousPayrolls = await prisma.payroll.findMany({
+            where: {
+                employeeId: payroll.employeeId,
+                year: payroll.year,
+                month: { lte: payroll.month }
+            },
+            select: {
+                grossSalary: true,
+                deductions: true,
+                netSalary: true,
+                month: true
+            }
+        });
+
+        const ytd = previousPayrolls.reduce((acc, p) => ({
+            gross: acc.gross + Number(p.grossSalary),
+            deductions: acc.deductions + Number(p.deductions),
+            net: acc.net + Number(p.netSalary)
+        }), { gross: 0, deductions: 0, net: 0 });
+
+        // Extract UAN/PF/ESI from employee skills
+        const skills = (payroll.employee.skills as any) || {};
+        const enrichedData = {
+            ...payroll,
+            ytd,
+            uan: skills.uan || '',
+            pfNumber: skills.pfNumber || '',
+            esiNumber: skills.esiNumber || '',
+            workingDays: payroll.absentDays !== undefined
+                ? { present: (payroll.employee._attendanceStats?.presentDays || 0), lop: payroll.absentDays }
+                : undefined
+        };
+
+        const html = await this.generatePayslipHTML(enrichedData, company, useLetterhead);
         const contentPdf = await this.convertHTMLToPDF(html);
 
         if (useLetterhead) {

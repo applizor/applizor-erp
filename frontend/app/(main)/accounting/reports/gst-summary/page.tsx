@@ -4,7 +4,9 @@ import { useState, useEffect } from 'react';
 import { accountingApi } from '@/lib/api/accounting';
 import { FileText, Download, Calendar, ArrowUpRight, ArrowDownLeft, RefreshCw, ShieldCheck, PieChart as PieChartIcon, BarChart as BarChartIcon } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
-import { startOfMonth, endOfMonth, format } from 'date-fns';
+import { startOfMonth } from 'date-fns/startOfMonth';
+import { endOfMonth } from 'date-fns/endOfMonth';
+import { format } from 'date-fns/format';
 import {
     BarChart,
     Bar,

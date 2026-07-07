@@ -1,5 +1,6 @@
 import express from 'express';
 import { authenticate, checkPermission } from '../middleware/auth';
+import { enforcePlanLimit } from '../middleware/enforcePlanLimit';
 import {
     createEmployee,
     getEmployees,
@@ -14,7 +15,7 @@ const router = express.Router();
 
 router.use(authenticate);
 
-router.post('/', checkPermission('Employee', 'create'), createEmployee);
+router.post('/', authenticate, enforcePlanLimit('maxUsers'), checkPermission('Employee', 'create'), createEmployee);
 router.get('/', checkPermission('Employee', 'read'), getEmployees);
 router.get('/:id', checkPermission('Employee', 'read'), getEmployeeById);
 router.put('/:id', checkPermission('Employee', 'update'), updateEmployee);

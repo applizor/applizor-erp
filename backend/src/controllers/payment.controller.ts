@@ -12,15 +12,15 @@ export const createPaymentLink = async (req: AuthRequest, res: Response) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const { invoiceId, amount, description, customer } = req.body;
+    const { invoiceId, amount, description } = req.body;
 
     if (!invoiceId || !amount) {
       return res.status(400).json({ error: 'Invoice ID and amount are required' });
     }
 
     // Get invoice
-    const invoice = await prisma.invoice.findUnique({
-      where: { id: invoiceId },
+    const invoice = await prisma.invoice.findFirst({
+      where: { id: invoiceId, companyId: req.user!.companyId },
       include: { client: true },
     });
 
@@ -28,22 +28,84 @@ export const createPaymentLink = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'Invoice not found' });
     }
 
-    // Create payment link
-    const paymentLink = await paymentService.createPaymentLink({
-      amount: Number(amount || invoice.total),
-      currency: 'INR',
-      description: description || `Payment for Invoice ${invoice.invoiceNumber}`,
-      customer: {
-        name: invoice.client.name,
-        email: invoice.client.email || '',
-        contact: invoice.client.phone || '',
-      },
-      notes: {
-        invoiceId: invoice.id,
-        invoiceNumber: invoice.invoiceNumber,
-      },
-      callback_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/callback`,
+    // Load company settings to get payment credentials
+    const company = await prisma.company.findUnique({
+      where: { id: req.user!.companyId },
+      select: { paymentConfig: true },
     });
+
+    const paymentConfig = (company?.paymentConfig as any) || {};
+    const preferredGateway = paymentConfig.preferredGateway || 'razorpay';
+
+    let paymentLinkData: { id: string; short_url: string; amount: number };
+    let gatewayMethod = preferredGateway;
+
+    if (preferredGateway === 'cashfree') {
+      const returnUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/callback?gateway=cashfree`;
+      const cfOrder = await paymentService.createCashfreeOrder(
+        Number(amount || invoice.total),
+        invoice.clientId || 'guest',
+        invoice.client.phone || '9999999999',
+        invoice.client.email || 'customer@acme.com',
+        returnUrl,
+        paymentConfig
+      );
+
+      const isProd = process.env.NODE_ENV === 'production';
+      const checkoutUrl = isProd
+        ? `https://api.cashfree.com/pg/view/checkout?session_id=${cfOrder.payment_session_id}`
+        : `https://sandbox.cashfree.com/pg/view/checkout?session_id=${cfOrder.payment_session_id}`;
+
+      paymentLinkData = {
+        id: cfOrder.order_id ?? '',
+        short_url: checkoutUrl,
+        amount: Number(amount || invoice.total),
+      };
+    } else if (preferredGateway === 'paypal') {
+      const paypalOrder = await paymentService.createPaypalOrder(
+        Number(amount || invoice.total),
+        invoice.currency || 'USD',
+        paymentConfig
+      );
+
+      const approveLink = paypalOrder.links.find((l: any) => l.rel === 'approve')?.href;
+      if (!approveLink) {
+        throw new Error('PayPal approval link missing');
+      }
+
+      paymentLinkData = {
+        id: paypalOrder.id,
+        short_url: approveLink,
+        amount: Number(amount || invoice.total),
+      };
+    } else {
+      // Default to Razorpay
+      const rzpLink = await paymentService.createPaymentLink(
+        {
+          amount: Number(amount || invoice.total),
+          currency: 'INR',
+          description: description || `Payment for Invoice ${invoice.invoiceNumber}`,
+          customer: {
+            name: invoice.client.name,
+            email: invoice.client.email || '',
+            contact: invoice.client.phone || '',
+          },
+          notes: {
+            invoiceId: invoice.id,
+            invoiceNumber: invoice.invoiceNumber,
+          },
+          callback_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/callback?gateway=razorpay`,
+        },
+        paymentConfig
+      );
+
+      paymentLinkData = {
+        id: rzpLink.id,
+        short_url: rzpLink.short_url,
+        amount: Number(rzpLink.amount) / 100,
+      };
+      gatewayMethod = 'razorpay';
+    }
 
     // Save payment record
     const payment = await prisma.payment.create({
@@ -51,20 +113,16 @@ export const createPaymentLink = async (req: AuthRequest, res: Response) => {
         invoiceId: invoice.id,
         amount: Number(amount || invoice.total),
         paymentDate: new Date(),
-        paymentMethod: 'razorpay',
-        gateway: 'razorpay',
-        gatewayOrderId: paymentLink.id,
+        paymentMethod: gatewayMethod,
+        gateway: gatewayMethod,
+        gatewayOrderId: paymentLinkData.id,
         status: 'pending',
       },
     });
 
     res.json({
       message: 'Payment link created successfully',
-      paymentLink: {
-        id: paymentLink.id,
-        short_url: paymentLink.short_url,
-        amount: Number(paymentLink.amount) / 100,
-      },
+      paymentLink: paymentLinkData,
       payment,
     });
   } catch (error: any) {
@@ -75,41 +133,84 @@ export const createPaymentLink = async (req: AuthRequest, res: Response) => {
 
 export const handlePaymentWebhook = async (req: Request, res: Response) => {
   try {
-    const webhookSignature = req.headers['x-razorpay-signature'] as string;
     const webhookBody = JSON.stringify(req.body);
+    const razorpaySignature = req.headers['x-razorpay-signature'] as string;
+    const cfSignature = req.headers['x-webhook-signature'] as string;
+    const cfTimestamp = req.headers['x-webhook-timestamp'] as string;
 
-    // Verify webhook signature
-    const expectedSignature = crypto
-      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || '')
-      .update(webhookBody)
-      .digest('hex');
+    let matchedPaymentId: string | null = null;
+    let matchedTransactionId: string | null = null;
+    let amountPaid = 0;
+    let isVerified = false;
 
-    if (webhookSignature !== expectedSignature) {
-      return res.status(400).json({ error: 'Invalid webhook signature' });
+    if (cfSignature && cfTimestamp) {
+      // Cashfree Webhook
+      const orderId = req.body.data?.order?.order_id;
+      if (orderId) {
+        const paymentRecord = await prisma.payment.findFirst({
+          where: { gatewayOrderId: orderId },
+          include: { invoice: true },
+        });
+
+        if (paymentRecord && paymentRecord.invoice) {
+          const company = await prisma.company.findUnique({
+            where: { id: paymentRecord.invoice.companyId },
+            select: { paymentConfig: true },
+          });
+
+          const paymentConfig = (company?.paymentConfig as any) || {};
+          isVerified = paymentService.verifyCashfreeSignature(
+            cfTimestamp,
+            webhookBody,
+            cfSignature,
+            paymentConfig
+          );
+
+          if (isVerified && req.body.event === 'ORDER_PAID') {
+            matchedPaymentId = paymentRecord.id;
+            matchedTransactionId = req.body.data?.payment?.cf_payment_id || orderId;
+            amountPaid = Number(req.body.data?.payment?.payment_amount || paymentRecord.amount);
+          }
+        }
+      }
+    } else if (razorpaySignature) {
+      // Razorpay Webhook
+      // Verify webhook signature
+      const expectedSignature = crypto
+        .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || '')
+        .update(webhookBody)
+        .digest('hex');
+
+      if (razorpaySignature === expectedSignature && req.body.event === 'payment.captured') {
+        const rzpPayment = req.body.payload.payment.entity;
+        const paymentRecord = await prisma.payment.findFirst({
+          where: { gatewayOrderId: rzpPayment.order_id },
+          include: { invoice: true },
+        });
+
+        if (paymentRecord) {
+          isVerified = true;
+          matchedPaymentId = paymentRecord.id;
+          matchedTransactionId = rzpPayment.id;
+          amountPaid = Number(rzpPayment.amount) / 100;
+        }
+      }
     }
 
-    const event = req.body.event;
-    const payload = req.body.payload;
-
-    if (event === 'payment.captured') {
-      const payment = payload.payment.entity;
-
+    if (isVerified && matchedPaymentId) {
       // Find payment record
-      const paymentRecord = await prisma.payment.findFirst({
-        where: {
-          gatewayOrderId: payment.order_id,
-          transactionId: payment.id,
-        },
+      const paymentRecord = await prisma.payment.findUnique({
+        where: { id: matchedPaymentId },
         include: { invoice: true },
       });
 
-      if (paymentRecord) {
+      if (paymentRecord && paymentRecord.status !== 'success') {
         // Update payment status
         await prisma.payment.update({
           where: { id: paymentRecord.id },
           data: {
             status: 'success',
-            transactionId: payment.id,
+            transactionId: matchedTransactionId,
           },
         });
 
@@ -122,7 +223,7 @@ export const handlePaymentWebhook = async (req: Request, res: Response) => {
 
         // Update invoice
         if (paymentRecord.invoice) {
-          const newPaidAmount = Number(paymentRecord.invoice.paidAmount) + (payment.amount / 100);
+          const newPaidAmount = Number(paymentRecord.invoice.paidAmount) + amountPaid;
           const status = newPaidAmount >= Number(paymentRecord.invoice.total) ? 'paid' : 'partial';
 
           await prisma.invoice.update({
@@ -145,36 +246,72 @@ export const handlePaymentWebhook = async (req: Request, res: Response) => {
 
 export const verifyPayment = async (req: AuthRequest, res: Response) => {
   try {
-    const { paymentId, orderId, signature } = req.body;
+    const { gateway, paymentId, orderId, signature } = req.body;
 
-    if (!paymentId || !orderId || !signature) {
-      return res.status(400).json({ error: 'Payment ID, Order ID, and Signature are required' });
+    const company = await prisma.company.findUnique({
+      where: { id: req.user!.companyId },
+      select: { paymentConfig: true },
+    });
+    const paymentConfig = (company?.paymentConfig as any) || {};
+    const selectedGateway = gateway || paymentConfig.preferredGateway || 'razorpay';
+
+    let isSuccess = false;
+    let gatewayTxnId = paymentId;
+    let localGatewayOrderId = orderId;
+    let details: any = null;
+
+    if (selectedGateway === 'cashfree') {
+      if (!orderId) {
+        return res.status(400).json({ error: 'Cashfree order ID is required' });
+      }
+      const cf = paymentService.getCashfreeClient(paymentConfig);
+      const resCf = await (cf as any).PGFetchOrder(orderId);
+      details = resCf.data;
+      isSuccess = details.order_status === 'PAID';
+      localGatewayOrderId = orderId;
+      gatewayTxnId = orderId;
+    } else if (selectedGateway === 'paypal') {
+      if (!orderId) {
+        return res.status(400).json({ error: 'PayPal order ID is required' });
+      }
+      const captureResult = await paymentService.capturePaypalOrder(orderId, paymentConfig);
+      details = captureResult;
+      isSuccess = details.status === 'COMPLETED';
+      localGatewayOrderId = orderId;
+      gatewayTxnId = details.purchase_units?.[0]?.payments?.captures?.[0]?.id || orderId;
+    } else {
+      // Default to Razorpay
+      if (!paymentId || !orderId || !signature) {
+        return res.status(400).json({ error: 'Razorpay parameters missing' });
+      }
+      isSuccess = paymentService.verifyPaymentSignature(orderId, paymentId, signature, paymentConfig);
+      if (isSuccess) {
+        details = await paymentService.getPaymentDetails('razorpay', paymentId, paymentConfig);
+      }
     }
 
-    // Verify signature
-    const isValid = paymentService.verifyPaymentSignature(orderId, paymentId, signature);
-
-    if (!isValid) {
-      return res.status(400).json({ error: 'Invalid payment signature' });
+    if (!isSuccess) {
+      return res.status(400).json({ error: 'Payment verification failed' });
     }
 
-    // Get payment details from Razorpay
-    const paymentDetails = await paymentService.getPaymentDetails('razorpay', paymentId);
-
-    // Find payment record
+    // Find local payment record
     const payment = await prisma.payment.findFirst({
       where: {
-        transactionId: paymentId,
+        OR: [
+          { gatewayOrderId: localGatewayOrderId },
+          { transactionId: gatewayTxnId },
+        ],
       },
       include: { invoice: true },
     });
 
-    if (payment && payment.invoice) {
+    if (payment && payment.status !== 'success') {
       // Update payment status
       await prisma.payment.update({
         where: { id: payment.id },
         data: {
           status: 'success',
+          transactionId: gatewayTxnId,
         },
       });
 
@@ -186,23 +323,25 @@ export const verifyPayment = async (req: AuthRequest, res: Response) => {
       }
 
       // Update invoice
-      // payment.amount is Decimal, we need to convert. paymentDetails.amount is from Razorpay (paise)
-      // We should rely on stored payment amount if correct, or paymentDetails
-      const newPaidAmount = Number(payment.invoice.paidAmount) + Number(payment.amount);
-      const status = newPaidAmount >= Number(payment.invoice.total) ? 'paid' : 'partial';
+      if (payment.invoice) {
+        const newPaidAmount = Number(payment.invoice.paidAmount) + Number(payment.amount);
+        const status = newPaidAmount >= Number(payment.invoice.total) ? 'paid' : 'partial';
 
-      await prisma.invoice.update({
-        where: { id: payment.invoiceId! },
-        data: {
-          paidAmount: newPaidAmount,
-          status,
-        },
-      });
+        await prisma.invoice.update({
+          where: { id: payment.invoiceId! },
+          data: {
+            paidAmount: newPaidAmount,
+            status,
+          },
+        });
+      }
     }
 
     res.json({
       message: 'Payment verified successfully',
-      payment: paymentDetails,
+      status: 'success',
+      transactionId: gatewayTxnId,
+      details,
     });
   } catch (error: any) {
     console.error('Verify payment error:', error);
@@ -219,7 +358,9 @@ export const getPayments = async (req: AuthRequest, res: Response) => {
 
     const { invoiceId, status, page = 1, limit = 10 } = req.query;
 
-    const where: any = {};
+    const where: any = {
+      invoice: { companyId: req.user!.companyId }
+    };
 
     if (invoiceId) {
       where.invoiceId = invoiceId;
@@ -273,8 +414,8 @@ export const deletePayment = async (req: AuthRequest, res: Response) => {
     }
 
     // Find payment first to check permissions and get amount
-    const payment = await prisma.payment.findUnique({
-      where: { id },
+    const payment = await prisma.payment.findFirst({
+      where: { id, invoice: { companyId: req.user!.companyId } },
       include: { invoice: true }
     });
 

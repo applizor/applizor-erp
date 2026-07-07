@@ -33,7 +33,7 @@ export default function MyPayslipsPage() {
             setPayrolls(data);
         } catch (error) {
             console.error('Failed to load payslips:', error);
-            // toast.error('Failed to load history'); 
+            toast.error('Failed to load history');
         } finally {
             setLoading(false);
         }
@@ -86,7 +86,7 @@ export default function MyPayslipsPage() {
                                 <div className="p-2 bg-emerald-50 text-emerald-600 rounded-md">
                                     <Activity size={20} />
                                 </div>
-                                <span className={`ent-badge ${payroll.status === 'paid' ? 'ent-badge-success' : 'ent-badge-warning'}`}>
+                                <span className={`ent-badge ${payroll.status === 'paid' ? 'ent-badge-success' : payroll.status === 'processed' ? 'ent-badge-warning' : 'ent-badge-default'}`}>
                                     {payroll.status.toUpperCase()}
                                 </span>
                             </div>

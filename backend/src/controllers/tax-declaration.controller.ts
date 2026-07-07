@@ -6,6 +6,12 @@ import { PermissionService } from '../services/permission.service';
 export const getTaxDeclarations = async (req: AuthRequest, res: Response) => {
     try {
         const { employeeId } = req.params;
+
+        const employee = await prisma.employee.findFirst({
+            where: { id: employeeId, companyId: req.user!.companyId }
+        });
+        if (!employee) return res.status(404).json({ error: 'Employee not found' });
+
         const declarations = await prisma.taxDeclaration.findMany({
             where: { employeeId },
             include: { investments: true }
@@ -19,6 +25,11 @@ export const getTaxDeclarations = async (req: AuthRequest, res: Response) => {
 export const submitTaxDeclaration = async (req: AuthRequest, res: Response) => {
     try {
         const { employeeId, financialYear, regime, investments } = req.body;
+
+        const employee = await prisma.employee.findFirst({
+            where: { id: employeeId, companyId: req.user!.companyId }
+        });
+        if (!employee) return res.status(404).json({ error: 'Employee not found' });
 
         // Ensure single declaration per FY
         const declaration = await prisma.taxDeclaration.upsert({
@@ -46,12 +57,56 @@ export const submitTaxDeclaration = async (req: AuthRequest, res: Response) => {
     }
 };
 
+export const getPendingReviews = async (req: AuthRequest, res: Response) => {
+    try {
+        const companyId = req.user!.companyId;
+        const declarations = await prisma.taxDeclaration.findMany({
+            where: {
+                status: 'submitted',
+                employee: { companyId }
+            },
+            include: {
+                investments: {
+                    where: { status: 'pending' }
+                },
+                employee: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        employeeId: true
+                    }
+                }
+            }
+        });
+
+        const result = declarations.map(d => ({
+            ...d,
+            employeeName: `${d.employee.firstName} ${d.employee.lastName}`,
+            employeeId: d.employee.employeeId
+        }));
+
+        res.json(result);
+    } catch (error) {
+        console.error('Get pending reviews error:', error);
+        res.status(500).json({ error: 'Failed to fetch pending reviews' });
+    }
+};
+
 export const reviewInvestment = async (req: AuthRequest, res: Response) => {
     try {
         const { id } = req.params;
         const { approvedAmount, status, rejectionReason } = req.body;
 
-        const investment = await prisma.taxInvestment.update({
+        const investment = await prisma.taxInvestment.findFirst({
+            where: {
+                id,
+                declaration: { employee: { companyId: req.user!.companyId } }
+            }
+        });
+        if (!investment) return res.status(404).json({ error: 'Investment not found' });
+
+        await prisma.taxInvestment.update({
             where: { id },
             data: { approvedAmount, status, rejectionReason }
         });

@@ -103,6 +103,10 @@ model Company {
   city               String?
   state              String?
   country            String              @default("India")
+  countryId          String?
+  stateId            String?
+  timezone           String?             @default("Asia/Kolkata")
+  locale             String?             @default("en-IN")
   pincode            String?
   gstin              String?
   pan                String?
@@ -133,8 +137,14 @@ model Company {
   bankBranch         String?
   accountingLockDate DateTime?
   offDays            String?             @default("Saturday, Sunday")
+  emailConfig        Json?
+  paymentConfig      Json?
+  storageConfig      Json?
+  ssoConfig          Json?
+  samlConfig         SamlConfig?
   assets             Asset[]
   auditLogs          AuditLog[]
+  emailLogs          EmailLog[]
   branches           Branch[]
   candidates         Candidate[]
   clients            Client[]
@@ -146,10 +156,12 @@ model Company {
   documentTemplates  DocumentTemplate[]
   emailTemplates     EmailTemplate[]
   employees          Employee[]
+  holidays           Holiday[]
   invoices           Invoice[]
   jobOpenings        JobOpening[]
-  performanceReviews PerformanceReview[]
-  okrs               OKR[]
+  performanceReviews        PerformanceReview[]
+  performanceReviewCycles   PerformanceReviewCycle[]
+  okrs                      OKR[]
   journalEntries     JournalEntry[]
   leads              Lead[]
   accounts           LedgerAccount[]
@@ -168,6 +180,11 @@ model Company {
   tickets            Ticket[]
   unitTypes          UnitType[]
   users              User[]
+  expenses           Expense[]
+  expenseApprovalConfigs ExpenseApprovalConfig[]
+  countryData        Country?            @relation(fields: [countryId], references: [id])
+  stateData          State?              @relation(fields: [stateId], references: [id])
+  tenantSubscription TenantSubscription?
   quotationTemplates    QuotationTemplate[]
   certificateTemplates  CertificateTemplate[]
   certificates          Certificate[]
@@ -177,6 +194,7 @@ model Company {
   onlineClasses         OnlineClass[]
   lectures              Lecture[]
   exams                 Exam[]
+  statutoryRules        StatutoryRule[]
 }
 
 model Branch {
@@ -368,6 +386,8 @@ model Quotation {
   discount             Decimal             @default(0) @db.Decimal(12, 2)
   total                Decimal             @db.Decimal(12, 2)
   currency             String              @default("INR")
+  exchangeRate         Decimal?            @db.Decimal(18, 8)
+  baseCurrencyAmount   Decimal?            @db.Decimal(12, 2)
   paymentTerms         String?
   deliveryTerms        String?
   notes                String?
@@ -549,8 +569,21 @@ model AutomationRule {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  logs          AutomationLog[]
 
   @@index([projectId])
+}
+
+model AutomationLog {
+  id          String   @id @default(uuid())
+  ruleId      String
+  status      String   // "success" | "failed"
+  message     String?
+  executedAt  DateTime @default(now())
+  details     Json?
+  rule        AutomationRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+
+  @@index([ruleId])
 }
 
 model Task {
@@ -674,6 +707,7 @@ model Notification {
 
   @@index([userId])
   @@index([companyId])
+  @@index([userId, isRead])
   @@map("notifications")
 }
 
@@ -827,6 +861,7 @@ model Timesheet {
   @@index([projectId])
   @@index([taskId])
   @@index([date])
+  @@index([employeeId, status])
 }
 
 model Department {
@@ -927,6 +962,8 @@ model Employee {
   okrs                   OKR[]
   exitDetail             ExitDetail?
   certificates           Certificate[]
+  expenses               Expense[]
+  expenseApprovals       ExpenseApproval[]
 
   @@unique([companyId, employeeId])
   @@index([companyId])
@@ -1089,10 +1126,13 @@ model LeaveRequest {
   @@index([employeeId])
   @@index([status])
   @@index([startDate])
+  @@index([employeeId, status])
+  @@index([startDate, endDate])
 }
 
 model Holiday {
   id        String   @id @default(uuid())
+  companyId String?
   name      String
   date      DateTime @unique @db.Date
   type      String   @default("national")
@@ -1100,7 +1140,10 @@ model Holiday {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  company Company? @relation(fields: [companyId], references: [id])
+
   @@index([date])
+  @@index([companyId])
 }
 
 model ShiftRoster {
@@ -1137,6 +1180,7 @@ model Payroll {
   employee            Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@index([year, month])
+  @@index([employeeId])
 }
 
 model SalaryComponent {
@@ -1308,6 +1352,8 @@ model Invoice {
   status             String            @default("draft")
   type               String            @default("invoice")
   currency           String            @default("INR")
+  exchangeRate       Decimal?          @db.Decimal(18, 8)
+  baseCurrencyAmount Decimal?          @db.Decimal(12, 2)
   terms              String?
   subtotal           Decimal           @db.Decimal(12, 2)
   tax                Decimal           @default(0) @db.Decimal(12, 2)
@@ -1600,8 +1646,10 @@ model Candidate {
   updatedAt    DateTime     @updatedAt
   company      Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
   jobOpening   JobOpening?  @relation(fields: [jobOpeningId], references: [id], onDelete: Cascade)
-  interviews   Interview[]
-  offerLetter  OfferLetter?
+  interviews             Interview[]
+  offerLetter            OfferLetter?
+  backgroundVerification BackgroundVerification?
+  onboardingChecklist    OnboardingChecklist?
 
   @@index([companyId])
   @@index([jobOpeningId])
@@ -1741,6 +1789,7 @@ model JournalEntryLine {
   debit          Decimal       @default(0) @db.Decimal(15, 2)
   credit         Decimal       @default(0) @db.Decimal(15, 2)
   description    String?
+  reconciledAt   DateTime?
   account        LedgerAccount @relation(fields: [accountId], references: [id])
   journalEntry   JournalEntry  @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
 
@@ -1897,38 +1946,63 @@ model TicketMessage {
 }
 
 model DocumentTemplate {
-  id        String   @id @default(uuid())
-  companyId String
-  name      String
-  type      String
-  filePath  String?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  content   String?
-  variables String[]
-  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  id                 String   @id @default(uuid())
+  companyId          String
+  name               String
+  type               String
+  filePath           String?
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  content            String?
+  variables          String[]
+  pdfMarginTop       Int?
+  pdfMarginBottom    Int?
+  pdfMarginLeft      Int?
+  pdfMarginRight     Int?
+  pdfContinuationTop Int?
+  company            Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+}
+
+model PerformanceReviewCycle {
+  id          String               @id @default(uuid())
+  companyId   String
+  name        String
+  period      String               // quarterly, half_yearly, annual
+  startDate   DateTime
+  endDate     DateTime
+  description String?
+  status      String               @default("active") // active, closed
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  reviews     PerformanceReview[]
+  company     Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId])
 }
 
 model PerformanceReview {
-  id         String   @id @default(uuid())
+  id         String                 @id @default(uuid())
   companyId  String
   employeeId String
   reviewerId String
+  cycleId    String?
+  cycle      PerformanceReviewCycle? @relation(fields: [cycleId], references: [id])
   reviewDate DateTime
   rating     Float?
   feedback   String?
   goals      Json?
-  status     String   @default("draft")
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  status     String                 @default("draft")
+  createdAt  DateTime               @default(now())
+  updatedAt  DateTime               @updatedAt
+  employee   Employee               @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  company    Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId])
   @@index([employeeId])
+  @@index([cycleId])
 }
 
 model OKR {
@@ -2280,4 +2354,311 @@ model ExamSubmission {
   @@map("exam_submissions")
 }
 
+// =============================================================================
+// SaaS Platform Models
+// =============================================================================
 
+model Country {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  code      String   @unique // ISO 3166-1 alpha-2: IN, US, GB, AE, SG
+  code3     String?  // ISO 3166-1 alpha-3: IND, USA, GBR
+  numeric   String?  // ISO 3166-1 numeric: 356, 840
+  phoneCode String?  // +91, +1, +44
+  currencyId String?
+  currency  Currency? @relation(fields: [currencyId], references: [id])
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  states          State[]
+  companies       Company[]
+  statutoryRules  StatutoryRule[]
+  coaTemplates    CoaTemplate[]
+
+  @@index([code])
+  @@map("countries")
+}
+
+model State {
+  id        String   @id @default(uuid())
+  countryId String
+  name      String
+  code      String   // ISO 3166-2: IN-MH, US-CA, GB-ENG
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  country   Country  @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  companies Company[]
+
+  @@unique([countryId, code])
+  @@index([countryId])
+  @@map("states")
+}
+
+model Currency {
+  id            String   @id @default(uuid())
+  code          String   @unique // ISO 4217: INR, USD, GBP, AED, SGD
+  name          String
+  symbol        String   // ₹, $, £, د.إ, S$
+  decimalPlaces Int      @default(2)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  countries     Country[]
+
+  @@index([code])
+  @@map("currencies")
+}
+
+model ExchangeRate {
+  id             String   @id @default(uuid())
+  baseCurrency   String   // ISO 4217: INR, USD, GBP
+  targetCurrency String   // ISO 4217: USD, AED, GBP
+  rate           Decimal  @db.Decimal(18, 8) // Rates need high precision e.g. 0.01195734
+  date           DateTime @db.Date           // The date this rate is valid for
+  source         String   @default("api")    // 'api' | 'manual'
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([baseCurrency, targetCurrency, date])
+  @@index([baseCurrency, targetCurrency, date])
+  @@map("exchange_rates")
+}
+
+model TenantPlan {
+  id                String              @id @default(uuid())
+  name              String              // Starter, Growth, Enterprise
+  code              String              @unique // starter_monthly, growth_monthly, enterprise_yearly
+  description       String?
+  price             Decimal             @db.Decimal(12, 2)
+  currency          String              @default("USD")
+  billingInterval   String              @default("monthly") // monthly, quarterly, yearly
+  maxUsers          Int                 @default(5)
+  maxStorageGb      Int                 @default(1)
+  maxCompanies      Int                 @default(1) // for multi-entity companies
+  enabledModules    Json?               // which modules are available
+  features          Json?               // feature flags
+  isActive          Boolean             @default(true)
+  isPublic          Boolean             @default(true)
+  sortOrder         Int                 @default(0)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  subscriptions     TenantSubscription[]
+
+  @@index([code])
+  @@index([isActive])
+  @@map("tenant_plans")
+}
+
+model TenantSubscription {
+  id              String      @id @default(uuid())
+  companyId       String      @unique
+  planId          String
+  status          String      @default("active") // active, paused, cancelled, expired, trial
+  trialEndsAt     DateTime?
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  cancelledAt     DateTime?
+  autoRenew       Boolean     @default(true)
+  paymentMethod   String?     // stripe, razorpay, manual
+  paymentGatewayId String?    // external subscription ID
+  notes           String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  company         Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  plan            TenantPlan  @relation(fields: [planId], references: [id])
+
+  @@index([companyId])
+  @@index([planId])
+  @@index([status])
+  @@map("tenant_subscriptions")
+}
+
+// ─── Statutory Rules Engine ──────────────────────────────────────────────────
+
+model StatutoryRule {
+  id              String    @id @default(uuid())
+  countryId       String
+  companyId       String?
+  code            String    // 'pf', 'esi', 'social_security', 'medicare', 'paye', 'nic', 'cpf'
+  name            String
+  category        String    // 'retirement', 'health', 'tax', 'social'
+  ruleType        String    // 'percentage', 'slab', 'fixed'
+  employeeRate    Decimal?  @db.Decimal(5, 2)
+  employerRate    Decimal?  @db.Decimal(5, 2)
+  wageCeiling     Decimal?  @db.Decimal(12, 2)
+  slabData        Json?     // Array of { min, max, amount } or { min, max, rate }
+  effectiveFrom   DateTime
+  effectiveTo     DateTime?
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  country         Country   @relation(fields: [countryId], references: [id])
+  company         Company?  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([countryId, code, effectiveFrom])
+  @@index([companyId])
+  @@map("statutory_rules")
+}
+
+// ─── Chart of Accounts Templates ────────────────────────────────────────────
+
+model CoaTemplate {
+  id          String             @id @default(uuid())
+  countryId   String
+  name        String             // e.g. "Indian GST (Schedule III)"
+  version     String             // e.g. "1.0"
+  isActive    Boolean            @default(true)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  country     Country            @relation(fields: [countryId], references: [id])
+  entries     CoaTemplateEntry[]
+
+  @@unique([countryId, version])
+  @@map("coa_templates")
+}
+
+model CoaTemplateEntry {
+  id          String      @id @default(uuid())
+  templateId  String
+  code        String      // e.g. "1200"
+  name        String      // e.g. "Sundry Debtors"
+  type        String      // asset, liability, income, expense, equity
+  parentCode  String?     // e.g. "1000" for hierarchical grouping
+  description String?
+  isActive    Boolean     @default(true)
+  template    CoaTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@unique([templateId, code])
+  @@index([templateId])
+  @@map("coa_template_entries")
+}
+
+model EmailLog {
+  id           String    @id @default(uuid())
+  companyId    String
+  recipient    String
+  sender       String
+  subject      String
+  department   String
+  status       String
+  errorMessage String?
+  sentAt       DateTime  @default(now())
+  body         String?
+  attempts     Int       @default(0)
+  lastAttempt  DateTime?
+  cc           String?
+  bcc          String?
+
+  company      Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([status])
+  @@index([sentAt])
+  @@map("email_logs")
+}
+
+// ─── Expense Management ───────────────────────────────────────────────
+
+model Expense {
+  id              String            @id @default(uuid())
+  companyId       String
+  employeeId      String
+  title           String
+  description     String?
+  category        String            // e.g. Travel, Meals, Software, Equipment
+  amount          Decimal           @db.Decimal(12, 2)
+  currency        String            @default("INR")
+  receiptUrl      String?           // Uploaded receipt/bill file URL
+  expenseDate     DateTime          @db.Date
+  status          String            @default("pending") // pending | under_review | approved | rejected | paid
+  currentLevel    Int               @default(1)         // Which approval level we are at
+  totalLevels     Int               @default(1)         // How many approval levels are required
+  rejectionReason String?
+  paidAt          DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  company         Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employee        Employee          @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  approvals       ExpenseApproval[]
+
+  @@index([companyId])
+  @@index([employeeId])
+  @@index([status])
+  @@index([companyId, status])
+}
+
+model ExpenseApproval {
+  id           String    @id @default(uuid())
+  expenseId    String
+  approverId   String    // Employee ID of the approver
+  level        Int       // 1 = direct manager, 2 = dept head, 3 = finance, etc.
+  status       String    @default("pending") // pending | approved | rejected
+  comments     String?
+  actionAt     DateTime?
+  createdAt    DateTime  @default(now())
+
+  expense      Expense   @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  approver     Employee  @relation(fields: [approverId], references: [id])
+
+  @@unique([expenseId, level])
+  @@index([expenseId])
+  @@index([approverId])
+  @@index([approverId, status])
+}
+
+model ExpenseApprovalConfig {
+  id          String   @id @default(uuid())
+  companyId   String
+  level       Int      // Approval level (1, 2, 3...)
+  approverId  String   // Employee ID responsible for this level
+  maxAmount   Decimal? @db.Decimal(12, 2) // null = applies to all amounts above previous level
+  minAmount   Decimal? @db.Decimal(12, 2)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, level])
+  @@index([companyId])
+}
+
+model BackgroundVerification {
+  id               String    @id @default(uuid())
+  candidateId      String    @unique
+  status           String    @default("pending") // pending | in_progress | passed | failed
+  agencyName       String?
+  reportUrl        String?
+  notes            String?
+  completedAt      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  candidate        Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+}
+
+model OnboardingChecklist {
+  id          String    @id @default(uuid())
+  candidateId String    @unique
+  items       Json      // List of tasks: { "id", "task", "status" (pending|completed), "updatedAt" }
+  status      String    @default("pending") // pending | completed
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+}
+
+model SamlConfig {
+  id             String   @id @default(uuid())
+  companyId      String   @unique
+  entryPoint     String   // IdP Sign-in URL
+  issuer         String   // Service Provider Entity ID
+  cert           String   // IdP Public Certificate
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("saml_configs")
+}

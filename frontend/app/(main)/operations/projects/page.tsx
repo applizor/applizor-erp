@@ -136,18 +136,7 @@ export default function ProjectCommandCenter() {
 
     const fetchProjects = async () => {
         try {
-            // Assuming getProjects now returns limited data, we might need a separate 'dashboard' endpoint
-            // Or we iterate and fetch details. For now, let's use the basic list and maybe enhance backend later
-            // The implementation plan implies we use getProjects.
             const res = await api.get('/projects');
-
-            // Upgrade: Fetch detailed stats for each (In a real app, do this in one bulk API call)
-            // For this demo, we'll map and fetch (careful with rate limits)
-            // Ideally backend getProjects should support ?includeStats=true
-            // Let's assume standard list for now, and fetch stats on the fly or just mock for "Project Command Center" 
-            // speed view.
-            // Wait, I updated `getProjectById` to return stats. `getProjects` does not returns stats.
-            // I will just display basic info for now to avoid N+1.
             setProjects(res.data);
         } catch (error) {
             console.error(error);

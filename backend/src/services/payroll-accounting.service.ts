@@ -23,6 +23,18 @@ export class PayrollAccountingService {
             throw new Error('No processed payroll records found for the selected period.');
         }
 
+        // Check for existing posting to prevent duplicates
+        const existingEntry = await prisma.journalEntry.findFirst({
+            where: {
+                companyId,
+                reference: `PAYROLL-${year}-${month.toString().padStart(2, '0')}`,
+                status: 'posted'
+            }
+        });
+        if (existingEntry) {
+            throw new Error(`Payroll for ${month}/${year} has already been posted to accounting (Journal: ${existingEntry.id}).`);
+        }
+
         // 2. Fetch Mappings (Salary Components & Statutory Config)
         const [components, statutoryConfig] = await Promise.all([
             prisma.salaryComponent.findMany({
@@ -57,6 +69,7 @@ export class PayrollAccountingService {
         let totalGross = 0;
         let totalNet = 0;
         let totalPF = 0;
+        let totalESI = 0;
         let totalPT = 0;
         let totalTDS = 0;
 
@@ -80,10 +93,12 @@ export class PayrollAccountingService {
 
             // Statutory Deductions -> Credit Liability
             for (const [name, amount] of Object.entries(deductions)) {
-                // Determine if it's PF, PT, or TDS based on helpers (imported or inline)
+                // Determine if it's PF, PT, TDS, or ESI based on helpers (imported or inline)
                 const n = name.toUpperCase();
                 if (n.includes('PF') || n.includes('PROVIDENT FUND')) {
                     totalPF += amount;
+                } else if (n.includes('ESI') || n.includes('ESIC')) {
+                    totalESI += amount;
                 } else if (n.includes('PT') || n.includes('PROFESSIONAL TAX')) {
                     totalPT += amount;
                 } else if (n === 'TDS' || n.includes('INCOME TAX')) {
@@ -100,6 +115,9 @@ export class PayrollAccountingService {
         // Add Statutory Credits if mapped
         if (totalPF > 0 && (statutoryConfig as any).pfPayableAccountId) {
             addAmount((statutoryConfig as any).pfPayableAccountId, totalPF, false);
+        }
+        if (totalESI > 0 && (statutoryConfig as any).esiPayableAccountId) {
+            addAmount((statutoryConfig as any).esiPayableAccountId, totalESI, false);
         }
         if (totalPT > 0 && (statutoryConfig as any).ptPayableAccountId) {
             addAmount((statutoryConfig as any).ptPayableAccountId, totalPT, false);

@@ -384,7 +384,7 @@ export default function ContractDetailsPage({ params }: { params: { id: string }
                         </div>
 
                         <div className="space-y-6">
-                            {/* Client Device Info (Mockup for now as we don't track device details deeply yet) */}
+                            {/* Client Device Info derived from activity userAgent */}
                             <div className="ent-card p-6">
                                 <h3 className="text-xs font-black uppercase tracking-widest text-slate-900 mb-4">Device Analytics</h3>
                                 <div className="space-y-4">

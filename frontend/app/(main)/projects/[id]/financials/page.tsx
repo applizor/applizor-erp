@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useProjectPermissions } from '@/hooks/useProjectPermissions';
 import AccessDenied from '@/components/AccessDenied';
+import { PieChart as ReChartsPie, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 
 export default function ProjectFinancials({ params }: { params: { id: string } }) {
     const toast = useToast();
@@ -115,9 +116,46 @@ export default function ProjectFinancials({ params }: { params: { id: string } }
                         <PieChart size={14} className="text-primary-600" />
                         Cost Breakdown
                     </h3>
-                    <div className="flex flex-col items-center justify-center h-48 text-center text-gray-400">
-                        <p className="text-xs font-bold uppercase">Chart Visualization Pending</p>
-                        <p className="text-[9px]">Detailed expense categorization will appear here.</p>
+                    <div className="h-56 w-full">
+                        {Number(stats.budget) > 0 || Number(stats.expenses) > 0 ? (
+                            <ResponsiveContainer width="100%" height="100%">
+                                <ReChartsPie>
+                                    <Pie
+                                        data={[
+                                            { name: 'Expenses', value: Number(stats.expenses) },
+                                            { name: 'Remaining Budget', value: Math.max(0, stats.budget - stats.expenses) }
+                                        ]}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={60}
+                                        outerRadius={80}
+                                        paddingAngle={5}
+                                        dataKey="value"
+                                    >
+                                        {[
+                                            { name: 'Expenses', value: Number(stats.expenses) },
+                                            { name: 'Remaining Budget', value: Math.max(0, stats.budget - stats.expenses) }
+                                        ].map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={index === 0 ? '#ef4444' : '#10b981'} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip
+                                        contentStyle={{ borderRadius: '8px', border: 'none' }}
+                                        formatter={(val: any) => format(val)}
+                                    />
+                                    <Legend
+                                        verticalAlign="bottom"
+                                        height={36}
+                                        formatter={(val: any) => <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">{val}</span>}
+                                    />
+                                </ReChartsPie>
+                            </ResponsiveContainer>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center h-48 text-center text-gray-400">
+                                <p className="text-xs font-bold uppercase">No Budget or Expense Data</p>
+                                <p className="text-[9px]">Set a project budget to view breakdown.</p>
+                            </div>
+                        )}
                     </div>
                 </div>
 

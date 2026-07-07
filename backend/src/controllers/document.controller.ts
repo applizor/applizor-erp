@@ -44,84 +44,122 @@ export const healthCheck = async (req: any, res: Response) => {
     res.json({ status: 'Document Engine Service is Ready' });
 };
 
-const prepareDocumentData = (employee: any) => {
+const buildDocumentContext = async (employeeId?: string, clientId?: string, companyId?: string) => {
+    let employee: any = null;
+    let client: any = null;
+    let company: any = null;
+
+    if (employeeId) {
+        employee = await prisma.employee.findUnique({
+            where: { id: employeeId },
+            include: { department: true, position: true, company: true }
+        });
+        if (employee) company = employee.company;
+    }
+
+    if (clientId) {
+        client = await prisma.client.findUnique({
+            where: { id: clientId }
+        });
+        if (client && !company) {
+            company = await prisma.company.findUnique({ where: { id: client.companyId } });
+        }
+    }
+
+    if (!company && companyId) {
+        company = await prisma.company.findUnique({ where: { id: companyId } });
+    }
+
     return {
-        employee: {
+        employee: employee ? {
             ...employee,
             salary: employee.salary ? employee.salary.toString() : '',
             joiningDate: employee.dateOfJoining,
-        },
-        company: employee.company,
-        departmentName: employee.department?.name,
-        positionTitle: employee.position?.title,
-        companyName: employee.company?.name,
-        dateOfJoining: employee.dateOfJoining ? new Date(employee.dateOfJoining).toLocaleDateString() : '',
-        salary: employee.salary ? employee.salary.toString() : '',
+        } : null,
+        client,
+        company,
+        departmentName: employee?.department?.name || '',
+        positionTitle: employee?.position?.title || '',
+        companyName: company?.name || '',
+        dateOfJoining: employee?.dateOfJoining ? new Date(employee.dateOfJoining).toLocaleDateString() : '',
+        salary: employee?.salary ? employee.salary.toString() : '',
         currentDate: new Date().toLocaleDateString(),
+    };
+};
+
+const getTemplateReplacements = async (data: any) => {
+    const companySignatureBase64 = await PDFService.getImageBase64(data.company?.digitalSignature);
+    const companyLogoBase64 = await PDFService.getImageBase64(data.company?.logo);
+
+    return {
+        '[DATE]': new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }),
+        '[CURRENT_DATE]': new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }),
+        '[COMPANY_NAME]': data.company?.name || '',
+        '[COMPANY_ADDRESS]': data.company?.address || '',
+        '[EMPLOYEE_NAME]': data.employee ? `${data.employee.firstName} ${data.employee.lastName || ''}`.trim() : '',
+        '[EMPLOYEE_ID]': data.employee?.employeeId || '',
+        '[DESIGNATION]': data.employee?.position?.title || '',
+        '[DEPARTMENT]': data.employee?.department?.name || '',
+        '[JOINING_DATE]': data.employee?.joiningDate ? new Date(data.employee.joiningDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : '',
+        '[EXIT_DATE]': data.employee?.exitDate ? new Date(data.employee.exitDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : '',
+        '[SALARY]': data.employee?.salary ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: data.company?.currency || 'INR' }).format(Number(data.employee.salary)) : '',
+        '[CTC_ANNUAL]': data.employee?.salary ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: data.company?.currency || 'INR' }).format(Number(data.employee.salary)) : '',
+        '[SIGNATURE]': companySignatureBase64 ? `<img src="${companySignatureBase64}" style="max-height: 60px; display: block;" />` : '[SIGNATURE]',
+        '[COMPANY_SIGNATURE]': companySignatureBase64 ? `<img src="${companySignatureBase64}" style="max-height: 60px; display: block;" />` : '[COMPANY_SIGNATURE]',
+        '[AUTHORIZED_SIGNATORY_SIGNATURE]': companySignatureBase64 ? `<img src="${companySignatureBase64}" style="max-height: 60px; display: block;" />` : '[AUTHORIZED_SIGNATORY_SIGNATURE]',
+        '[EMPLOYEE_EMAIL]': data.employee?.email || '',
+        '[EMPLOYEE_PHONE]': data.employee?.phone || '',
+        '[GENDER]': data.employee?.gender || '',
+        '[DATE_OF_BIRTH]': data.employee?.dateOfBirth ? new Date(data.employee.dateOfBirth).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : '',
+        '[COMPANY_LOGO]': companyLogoBase64 ? `<img src="${companyLogoBase64}" style="max-height: 60px; display: block;" />` : '[COMPANY_LOGO]',
+        '[BLOOD_GROUP]': data.employee?.bloodGroup || '',
+        '[MARITAL_STATUS]': data.employee?.maritalStatus || '',
+        '[CURRENT_ADDRESS]': data.employee?.currentAddress || '',
+        '[PERMANENT_ADDRESS]': data.employee?.permanentAddress || '',
+        '[EMPLOYEE_STATUS]': data.employee?.status || '',
+        '[WORK_LOCATION]': data.employee?.workLocation || '',
+        '[EMPLOYMENT_TYPE]': data.employee?.employmentType || '',
+
+        // Client Replacements
+        '[CLIENT_NAME]': data.client?.name || '',
+        '[CLIENT_EMAIL]': data.client?.email || '',
+        '[CLIENT_PHONE]': data.client?.phone || data.client?.mobile || '',
+        '[CLIENT_ADDRESS]': data.client?.address || '',
+        '[CLIENT_CITY]': data.client?.city || '',
+        '[CLIENT_STATE]': data.client?.state || '',
+        '[CLIENT_GSTIN]': data.client?.gstin || '',
+        '[CLIENT_PAN]': data.client?.pan || '',
+        '[CLIENT_WEBSITE]': data.client?.website || '',
     };
 };
 
 export const previewDocument = async (req: AuthRequest, res: Response) => {
     try {
-        const { templateId, employeeId, useLetterhead } = req.body;
+        const { templateId, employeeId, clientId, useLetterhead } = req.body;
         const user = req.user;
 
         if (!PermissionService.hasBasicPermission(user, 'Document', 'read')) {
             return res.status(403).json({ error: 'Access denied' });
         }
 
-        if (!templateId || !employeeId) {
-            return res.status(400).json({ error: 'templateId and employeeId are required' });
+        if (!templateId) {
+            return res.status(400).json({ error: 'templateId is required' });
         }
 
         const template = await prisma.documentTemplate.findUnique({ where: { id: templateId } });
         if (!template) return res.status(404).json({ error: 'Template not found' });
 
-        const employee = await prisma.employee.findUnique({
-            where: { id: employeeId },
-            include: { department: true, position: true, company: true }
-        });
-        if (!employee) return res.status(404).json({ error: 'Employee not found' });
-
-        const data = {
-            ...prepareDocumentData(employee),
-            useLetterhead: !!useLetterhead
-        };
+                const data: any = await buildDocumentContext(employeeId, clientId, user.companyId);
+        data.useLetterhead = !!useLetterhead;
+        data.pdfMarginTop = template.pdfMarginTop;
+        data.pdfMarginBottom = template.pdfMarginBottom;
+        data.pdfMarginLeft = template.pdfMarginLeft;
+        data.pdfMarginRight = template.pdfMarginRight;
+        data.pdfContinuationTop = template.pdfContinuationTop;
 
         if (template.content) {
             let processedHtml = template.content;
-            const companySignatureBase64 = await PDFService.getImageBase64(data.company?.digitalSignature);
-            const companyLogoBase64 = await PDFService.getImageBase64(data.company?.logo);
-
-            const replacements: Record<string, string> = {
-                '[DATE]': new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }),
-                '[CURRENT_DATE]': new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }),
-                '[COMPANY_NAME]': data.company?.name || '',
-                '[COMPANY_ADDRESS]': data.company?.address || '',
-                '[EMPLOYEE_NAME]': data.employee?.firstName ? `${data.employee.firstName} ${data.employee.lastName || ''}` : '',
-                '[EMPLOYEE_ID]': data.employee?.employeeId || '',
-                '[DESIGNATION]': data.employee?.position?.title || '',
-                '[DEPARTMENT]': data.employee?.department?.name || '',
-                '[JOINING_DATE]': data.employee?.joiningDate ? new Date(data.employee.joiningDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : '',
-                '[EXIT_DATE]': data.employee?.exitDate ? new Date(data.employee.exitDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : '',
-                '[SALARY]': data.employee?.salary ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: data.company?.currency || 'INR' }).format(Number(data.employee.salary)) : '',
-                '[CTC_ANNUAL]': data.employee?.salary ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: data.company?.currency || 'INR' }).format(Number(data.employee.salary)) : '',
-                '[SIGNATURE]': companySignatureBase64 ? `<img src="${companySignatureBase64}" style="max-height: 60px; display: block;" />` : '[SIGNATURE]',
-                '[COMPANY_SIGNATURE]': companySignatureBase64 ? `<img src="${companySignatureBase64}" style="max-height: 60px; display: block;" />` : '[COMPANY_SIGNATURE]',
-                '[AUTHORIZED_SIGNATORY_SIGNATURE]': companySignatureBase64 ? `<img src="${companySignatureBase64}" style="max-height: 60px; display: block;" />` : '[AUTHORIZED_SIGNATORY_SIGNATURE]',
-                '[EMPLOYEE_EMAIL]': data.employee?.email || '',
-                '[EMPLOYEE_PHONE]': data.employee?.phone || '',
-                '[GENDER]': data.employee?.gender || '',
-                '[DATE_OF_BIRTH]': data.employee?.dateOfBirth ? new Date(data.employee.dateOfBirth).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : '',
-                '[COMPANY_LOGO]': companyLogoBase64 ? `<img src="${companyLogoBase64}" style="max-height: 60px; display: block;" />` : '[COMPANY_LOGO]',
-                '[BLOOD_GROUP]': data.employee?.bloodGroup || '',
-                '[MARITAL_STATUS]': data.employee?.maritalStatus || '',
-                '[CURRENT_ADDRESS]': data.employee?.currentAddress || '',
-                '[PERMANENT_ADDRESS]': data.employee?.permanentAddress || '',
-                '[EMPLOYEE_STATUS]': data.employee?.status || '',
-                '[WORK_LOCATION]': data.employee?.workLocation || '',
-                '[EMPLOYMENT_TYPE]': data.employee?.employmentType || '',
-            };
+            const replacements = await getTemplateReplacements(data);
 
             Object.entries(replacements).forEach(([key, value]) => {
                 processedHtml = processedHtml.replace(new RegExp(key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), value);
@@ -137,30 +175,27 @@ export const previewDocument = async (req: AuthRequest, res: Response) => {
 
 export const createDocument = async (req: AuthRequest, res: Response) => {
     try {
-        const { templateId, employeeId, useLetterhead, customContent, saveAsDraft } = req.body;
+        const { templateId, employeeId, clientId, useLetterhead, customContent, saveAsDraft } = req.body;
         const user = req.user;
 
         if (!PermissionService.hasBasicPermission(user, 'Document', 'create')) {
             return res.status(403).json({ error: 'Access denied' });
         }
 
-        if (!templateId || !employeeId) {
-            return res.status(400).json({ error: 'templateId and employeeId are required' });
+        if (!templateId) {
+            return res.status(400).json({ error: 'templateId is required' });
         }
 
         const template = await prisma.documentTemplate.findUnique({ where: { id: templateId } });
         if (!template) return res.status(404).json({ error: 'Template not found' });
 
-        const employee = await prisma.employee.findUnique({
-            where: { id: employeeId },
-            include: { department: true, position: true, company: true }
-        });
-        if (!employee) return res.status(404).json({ error: 'Employee not found' });
-
-        const data = {
-            ...prepareDocumentData(employee),
-            useLetterhead: !!useLetterhead
-        };
+        const data: any = await buildDocumentContext(employeeId, clientId, user.companyId);
+        data.useLetterhead = !!useLetterhead;
+        data.pdfMarginTop = template.pdfMarginTop;
+        data.pdfMarginBottom = template.pdfMarginBottom;
+        data.pdfMarginLeft = template.pdfMarginLeft;
+        data.pdfMarginRight = template.pdfMarginRight;
+        data.pdfContinuationTop = template.pdfContinuationTop;
 
         let pdfBuffer: Buffer | null = null;
         const finalContent = customContent || template.content;
@@ -168,7 +203,6 @@ export const createDocument = async (req: AuthRequest, res: Response) => {
         if (finalContent) {
             pdfBuffer = await PDFService.generateGenericPDF(finalContent, data);
         } else if (template.filePath) {
-            // Fetch template buffer via StorageService
             const templateBuffer = await StorageService.getFileBuffer(template.filePath);
             if (templateBuffer) {
                 const docxBuffer = await DocumentGenerationService.generateDocx(templateBuffer, data);
@@ -177,20 +211,22 @@ export const createDocument = async (req: AuthRequest, res: Response) => {
         }
 
         if (!pdfBuffer) {
-            return res.status(500).json({ error: 'Content missing or failed to fetch template' });
+            return res.status(500).json({ error: 'Content missing or failed to generate PDF' });
         }
 
-        const fileName = `documents/${employee.firstName}_${template.name.replace(/\s+/g, '_')}_${Date.now()}.pdf`;
+        const recipientName = data.employee 
+            ? `${data.employee.firstName}_${data.employee.lastName || ''}`
+            : (data.client ? data.client.name : 'Document');
+        const fileName = `documents/${recipientName.replace(/\s+/g, '_')}_${template.name.replace(/\s+/g, '_')}_${Date.now()}.pdf`;
 
-        // Upload via StorageService
         const fileUrl = await StorageService.uploadFile(pdfBuffer, fileName, 'application/pdf');
-
         const status = saveAsDraft ? 'draft' : 'pending_signature';
 
         const document = await prisma.document.create({
             data: {
-                company: employee.companyId ? { connect: { id: employee.companyId } } : undefined,
-                employee: { connect: { id: employee.id } },
+                company: data.company?.id ? { connect: { id: data.company.id } } : undefined,
+                employee: employeeId ? { connect: { id: employeeId } } : undefined,
+                client: clientId ? { connect: { id: clientId } } : undefined,
                 name: `${template.name} - ${new Date().toLocaleDateString()}`,
                 type: template.type,
                 filePath: fileUrl,
@@ -261,6 +297,9 @@ export const reviewDocument = async (req: AuthRequest, res: Response) => {
             return res.status(400).json({ error: 'Invalid status' });
         }
 
+        const existing = await prisma.document.findFirst({ where: { id, companyId: req.user!.companyId } });
+        if (!existing) return res.status(404).json({ error: 'Not found' });
+
         const updated = await prisma.document.update({
             where: { id },
             data: {
@@ -296,7 +335,7 @@ export const deleteDocument = async (req: AuthRequest, res: Response) => {
             return res.status(403).json({ error: 'Access denied' });
         }
 
-        const document = await prisma.document.findUnique({ where: { id } });
+        const document = await prisma.document.findFirst({ where: { id, companyId: req.user!.companyId } });
         if (!document) return res.status(404).json({ error: 'Document not found' });
 
         // Check Scope: If user has 'delete: all', allow. 
@@ -349,7 +388,7 @@ export const publishDocument = async (req: AuthRequest, res: Response) => {
 
 export const generateFromTemplate = async (req: AuthRequest, res: Response) => {
     try {
-        const { templateId, employeeId, useLetterhead } = req.body;
+        const { templateId, employeeId, clientId, useLetterhead } = req.body;
         const user = req.user;
 
         if (!PermissionService.hasBasicPermission(user, 'Document', 'create')) {
@@ -359,16 +398,13 @@ export const generateFromTemplate = async (req: AuthRequest, res: Response) => {
         const template = await prisma.documentTemplate.findUnique({ where: { id: templateId } });
         if (!template) return res.status(404).json({ error: 'Template not found' });
 
-        const employee = await prisma.employee.findUnique({
-            where: { id: employeeId },
-            include: { department: true, position: true, company: true }
-        });
-        if (!employee) return res.status(404).json({ error: 'Employee not found' });
-
-        const data = {
-            ...prepareDocumentData(employee),
-            useLetterhead: !!useLetterhead
-        };
+        const data: any = await buildDocumentContext(employeeId, clientId, user.companyId);
+        data.useLetterhead = !!useLetterhead;
+        data.pdfMarginTop = template.pdfMarginTop;
+        data.pdfMarginBottom = template.pdfMarginBottom;
+        data.pdfMarginLeft = template.pdfMarginLeft;
+        data.pdfMarginRight = template.pdfMarginRight;
+        data.pdfContinuationTop = template.pdfContinuationTop;
 
         let pdfBuffer: Buffer | null = null;
         if (template.content) {
@@ -382,11 +418,15 @@ export const generateFromTemplate = async (req: AuthRequest, res: Response) => {
         }
 
         if (!pdfBuffer) {
-            return res.status(500).json({ error: 'Content missing or failed to fetch template' });
+            return res.status(500).json({ error: 'Content missing or failed to generate PDF' });
         }
 
+        const recipientName = data.employee 
+            ? `${data.employee.firstName}_${data.employee.lastName || ''}`
+            : (data.client ? data.client.name : 'Document');
+
         res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename=${employee.firstName}_${template.type}.pdf`);
+        res.setHeader('Content-Disposition', `attachment; filename=${recipientName.replace(/\s+/g, '_')}_${template.type}.pdf`);
         res.send(pdfBuffer);
     } catch (error: any) {
         res.status(500).json({ error: error.message });

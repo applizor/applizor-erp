@@ -57,7 +57,11 @@ export const getTemplates = async (req: AuthRequest, res: Response) => {
 export const updateTemplate = async (req: AuthRequest, res: Response) => {
     try {
         const { id } = req.params;
+        const companyId = req.user!.companyId;
         const { name, subject, body, isActive } = req.body;
+
+        const existing = await prisma.emailTemplate.findFirst({ where: { id, companyId } });
+        if (!existing) return res.status(404).json({ error: 'Template not found' });
 
         const template = await prisma.emailTemplate.update({
             where: { id },
@@ -75,6 +79,11 @@ export const updateTemplate = async (req: AuthRequest, res: Response) => {
 export const deleteTemplate = async (req: AuthRequest, res: Response) => {
     try {
         const { id } = req.params;
+        const companyId = req.user!.companyId;
+
+        const existing = await prisma.emailTemplate.findFirst({ where: { id, companyId } });
+        if (!existing) return res.status(404).json({ error: 'Template not found' });
+
         await prisma.emailTemplate.delete({ where: { id } });
         res.json({ message: 'Template deleted' });
     } catch (error) {

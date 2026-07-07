@@ -39,16 +39,7 @@ export default function CalendarPage() {
                     resource: 'holiday',
                     color: '#10B981' // Emerald
                 })),
-                // Mock Project Deadlines for now as projectApi fetch needs logic
-                {
-                    id: 'proj-1',
-                    title: 'PROJECT: CRM Launch',
-                    start: new Date(new Date().setDate(15)),
-                    end: new Date(new Date().setDate(15)),
-                    allDay: true,
-                    resource: 'project',
-                    color: '#3B82F6' // Blue
-                }
+                // Project deadlines will be added via projectApi integration
             ];
 
             setEvents(calendarEvents);

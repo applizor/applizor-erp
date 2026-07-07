@@ -109,9 +109,11 @@ export class ContractService {
         }
     }
 
-    static async getContractById(id: string) {
-        return await prisma.contract.findUnique({
-            where: { id },
+    static async getContractById(id: string, companyId?: string) {
+        const whereClause: any = { id };
+        if (companyId) whereClause.companyId = companyId;
+        return await prisma.contract.findFirst({
+            where: whereClause,
             include: {
                 client: true,
                 company: true,
@@ -124,14 +126,15 @@ export class ContractService {
         });
     }
 
-    static async updateContract(id: string, data: any) {
-        // Prevent editing if already signed
-        const existing = await prisma.contract.findUnique({ where: { id } });
-        if (existing?.status === 'signed') {
+    static async updateContract(id: string, data: any, companyId?: string) {
+        const whereClause: any = { id };
+        if (companyId) whereClause.companyId = companyId;
+        const existing = await prisma.contract.findFirst({ where: whereClause });
+        if (!existing) throw new Error('Contract not found');
+        if (existing.status === 'signed') {
             throw new Error('Cannot edit a signed contract');
         }
 
-        // Handle empty strings for optional relation IDs to avoid FK errors
         const updateData = { ...data };
         if (updateData.projectId === '') updateData.projectId = null;
         if (updateData.templateId === '') updateData.templateId = null;
@@ -149,9 +152,12 @@ export class ContractService {
         signerId?: string;
         type?: 'client' | 'company';
         useLetterhead?: boolean;
-    }) {
-        const contract = await prisma.contract.findUnique({
-            where: { id },
+    }, companyId?: string) {
+        const whereClause: any = { id };
+        if (companyId) whereClause.companyId = companyId;
+
+        const contract = await prisma.contract.findFirst({
+            where: whereClause,
             include: {
                 company: true,
                 client: true
@@ -204,8 +210,12 @@ export class ContractService {
         return updatedContract;
     }
 
-    static async deleteContract(id: string) {
-        // Also delete activities (cascade should handle it but good to be explicit if needed, here cascade is set)
+    static async deleteContract(id: string, companyId?: string) {
+        const whereClause: any = { id };
+        if (companyId) whereClause.companyId = companyId;
+        const contract = await prisma.contract.findFirst({ where: whereClause });
+        if (!contract) throw new Error('Contract not found');
+
         return await prisma.contract.delete({ where: { id } });
     }
 }

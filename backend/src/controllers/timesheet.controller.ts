@@ -134,7 +134,7 @@ export const getTimesheets = async (req: AuthRequest, res: Response) => {
             return res.json([]);
         }
 
-        const { projectId, taskId, startDate, endDate, employeeId } = req.query;
+        const { projectId, taskId, startDate, endDate, employeeId, page, limit } = req.query;
 
         if (projectId) where.projectId = String(projectId);
         if (taskId) where.taskId = String(taskId);
@@ -147,17 +147,34 @@ export const getTimesheets = async (req: AuthRequest, res: Response) => {
             if (endDate) where.date.lte = new Date(String(endDate));
         }
 
-        const timesheets = await prisma.timesheet.findMany({
-            where,
-            include: {
-                project: { select: { id: true, name: true } },
-                task: { select: { id: true, title: true } },
-                employee: { select: { id: true, firstName: true, lastName: true, email: true } }
-            },
-            orderBy: { date: 'desc' }
-        });
+        const p = page ? parseInt(page as string) : 1;
+        const l = limit ? Math.min(100, parseInt(limit as string)) : 20;
+        const skip = (p - 1) * l;
 
-        res.json(timesheets);
+        const [timesheets, totalCount] = await Promise.all([
+            prisma.timesheet.findMany({
+                where,
+                include: {
+                    project: { select: { id: true, name: true } },
+                    task: { select: { id: true, title: true } },
+                    employee: { select: { id: true, firstName: true, lastName: true, email: true } }
+                },
+                orderBy: { date: 'desc' },
+                take: l,
+                skip
+            }),
+            prisma.timesheet.count({ where })
+        ]);
+
+        res.json({
+            data: timesheets,
+            pagination: {
+                total: totalCount,
+                page: p,
+                limit: l,
+                totalPages: Math.ceil(totalCount / l)
+            }
+        });
 
     } catch (error) {
         console.error(error);
@@ -174,10 +191,11 @@ export const updateTimeEntry = async (req: AuthRequest, res: Response) => {
             return res.status(403).json({ error: 'Access denied: No update rights' });
         }
 
-        const entry = await prisma.timesheet.findUnique({ where: { id } });
+        const entry = await prisma.timesheet.findFirst({
+            where: { id, companyId: user.companyId }
+        });
         if (!entry) return res.status(404).json({ error: 'Entry not found' });
 
-        // Scoping
         const scope = PermissionService.getPermissionScope(user, 'Timesheet', 'update');
 
         // Block if not all and not owned
@@ -228,7 +246,9 @@ export const deleteTimeEntry = async (req: AuthRequest, res: Response) => {
             return res.status(403).json({ error: 'Access denied: No delete rights' });
         }
 
-        const entry = await prisma.timesheet.findUnique({ where: { id } });
+        const entry = await prisma.timesheet.findFirst({
+            where: { id, companyId: user.companyId }
+        });
         if (!entry) return res.status(404).json({ error: 'Entry not found' });
 
         const scope = PermissionService.getPermissionScope(user, 'Timesheet', 'delete');
@@ -380,7 +400,9 @@ export const getTaskTimers = async (req: AuthRequest, res: Response) => {
 export const pauseTimer = async (req: AuthRequest, res: Response) => {
     try {
         const { id: timerId } = req.params;
-        const timer = await prisma.activeTimer.findUnique({ where: { id: timerId } });
+        const timer = await prisma.activeTimer.findFirst({
+            where: { id: timerId, companyId: req.user!.companyId }
+        });
         if (!timer) return res.status(404).json({ error: 'Timer not found' });
 
         if (timer.isPaused) return res.json(timer);
@@ -408,7 +430,9 @@ export const pauseTimer = async (req: AuthRequest, res: Response) => {
 export const resumeTimer = async (req: AuthRequest, res: Response) => {
     try {
         const { id: timerId } = req.params;
-        const timer = await prisma.activeTimer.findUnique({ where: { id: timerId } });
+        const timer = await prisma.activeTimer.findFirst({
+            where: { id: timerId, companyId: req.user!.companyId }
+        });
         if (!timer) return res.status(404).json({ error: 'Timer not found' });
 
         if (!timer.isPaused) return res.json(timer);
@@ -443,8 +467,8 @@ export const stopTimer = async (req: AuthRequest, res: Response) => {
         if (!employeeId) return res.status(400).json({ error: 'Employee profile not found' });
 
         const { id: timerId } = req.params;
-        const activeTimer = await prisma.activeTimer.findUnique({
-            where: { id: timerId }
+        const activeTimer = await prisma.activeTimer.findFirst({
+            where: { id: timerId, companyId: user.companyId }
         });
 
         if (!activeTimer) {
@@ -528,7 +552,8 @@ export const submitTimesheets = async (req: AuthRequest, res: Response) => {
             where: {
                 id: { in: ids },
                 employeeId: user.employee?.id, // Can only submit own
-                status: 'draft' // Can only submit drafts
+                status: 'draft', // Can only submit drafts
+                companyId: user.companyId
             },
             data: {
                 status: 'submitted',
@@ -553,7 +578,8 @@ export const approveTimesheets = async (req: AuthRequest, res: Response) => {
         const timesheets = await prisma.timesheet.findMany({
             where: {
                 id: { in: ids },
-                status: 'submitted'
+                status: 'submitted',
+                companyId: user.companyId
             }
         });
 
@@ -586,7 +612,8 @@ export const approveTimesheets = async (req: AuthRequest, res: Response) => {
 
         const result = await prisma.timesheet.updateMany({
             where: {
-                id: { in: timesheets.map(t => t.id) }
+                id: { in: timesheets.map(t => t.id) },
+                companyId: user.companyId
             },
             data: {
                 status: 'approved',
@@ -614,7 +641,8 @@ export const rejectTimesheets = async (req: AuthRequest, res: Response) => {
         const timesheets = await prisma.timesheet.findMany({
             where: {
                 id: { in: ids },
-                status: 'submitted'
+                status: 'submitted',
+                companyId: user.companyId
             }
         });
 
@@ -647,7 +675,8 @@ export const rejectTimesheets = async (req: AuthRequest, res: Response) => {
 
         const result = await prisma.timesheet.updateMany({
             where: {
-                id: { in: timesheets.map(t => t.id) }
+                id: { in: timesheets.map(t => t.id) },
+                companyId: user.companyId
             },
             data: {
                 status: 'rejected',

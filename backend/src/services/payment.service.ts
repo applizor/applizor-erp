@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import { Cashfree, CFEnvironment } from 'cashfree-pg';
 import paypal from '@paypal/checkout-server-sdk';
 
-// Initialize Razorpay
+// Initialize global fallbacks for legacy static code
 let razorpay: Razorpay | null = null;
 if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
   razorpay = new Razorpay({
@@ -12,7 +12,6 @@ if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
   });
 }
 
-// Initialize Cashfree
 let cashfree: Cashfree | null = null;
 if (process.env.CASHFREE_APP_ID && process.env.CASHFREE_SECRET_KEY) {
   cashfree = new Cashfree(
@@ -22,7 +21,6 @@ if (process.env.CASHFREE_APP_ID && process.env.CASHFREE_SECRET_KEY) {
   );
 }
 
-// Initialize PayPal
 let paypalClient: paypal.core.PayPalHttpClient | null = null;
 if (process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET) {
   const Environment = process.env.NODE_ENV === 'production'
@@ -34,6 +32,15 @@ if (process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET) {
     process.env.PAYPAL_CLIENT_SECRET
   );
   paypalClient = new paypal.core.PayPalHttpClient(env);
+}
+
+export interface GatewayConfig {
+  razorpayKeyId?: string;
+  razorpayKeySecret?: string;
+  cashfreeAppId?: string;
+  cashfreeSecretKey?: string;
+  paypalClientId?: string;
+  paypalClientSecret?: string;
 }
 
 export interface PaymentLinkOptions {
@@ -52,15 +59,56 @@ export interface PaymentLinkOptions {
 
 export class PaymentService {
   /**
+   * Helper to retrieve Razorpay client
+   */
+  getRazorpayClient(config?: GatewayConfig): Razorpay {
+    const keyId = config?.razorpayKeyId || process.env.RAZORPAY_KEY_ID;
+    const keySecret = config?.razorpayKeySecret || process.env.RAZORPAY_KEY_SECRET;
+    if (!keyId || !keySecret) {
+      throw new Error('Razorpay is not configured');
+    }
+    return new Razorpay({ key_id: keyId, key_secret: keySecret });
+  }
+
+  /**
+   * Helper to retrieve Cashfree client
+   */
+  getCashfreeClient(config?: GatewayConfig): Cashfree {
+    const appId = config?.cashfreeAppId || process.env.CASHFREE_APP_ID;
+    const secretKey = config?.cashfreeSecretKey || process.env.CASHFREE_SECRET_KEY;
+    if (!appId || !secretKey) {
+      throw new Error('Cashfree is not configured');
+    }
+    return new Cashfree(
+      process.env.NODE_ENV === 'production' ? CFEnvironment.PRODUCTION : CFEnvironment.SANDBOX,
+      appId,
+      secretKey
+    );
+  }
+
+  /**
+   * Helper to retrieve PayPal client
+   */
+  getPaypalClient(config?: GatewayConfig): paypal.core.PayPalHttpClient {
+    const clientId = config?.paypalClientId || process.env.PAYPAL_CLIENT_ID;
+    const clientSecret = config?.paypalClientSecret || process.env.PAYPAL_CLIENT_SECRET;
+    if (!clientId || !clientSecret) {
+      throw new Error('PayPal is not configured');
+    }
+    const Environment = process.env.NODE_ENV === 'production'
+      ? paypal.core.LiveEnvironment
+      : paypal.core.SandboxEnvironment;
+    const env = new Environment(clientId, clientSecret);
+    return new paypal.core.PayPalHttpClient(env);
+  }
+
+  /**
    * RAZORPAY: Create Payment Link
    */
-  async createPaymentLink(options: PaymentLinkOptions) {
+  async createPaymentLink(options: PaymentLinkOptions, config?: GatewayConfig) {
     try {
-      if (!razorpay) {
-        throw new Error('Razorpay is not configured. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET');
-      }
-
-      const paymentLink = await razorpay.paymentLink.create({
+      const rzp = this.getRazorpayClient(config);
+      const paymentLink = await rzp.paymentLink.create({
         amount: options.amount * 100, // Convert to paise
         currency: options.currency || 'INR',
         description: options.description,
@@ -85,10 +133,10 @@ export class PaymentService {
   /**
    * RAZORPAY: Create Order
    */
-  async createOrder(amount: number, currency: string = 'INR', receipt?: string) {
+  async createOrder(amount: number, currency: string = 'INR', receipt?: string, config?: GatewayConfig) {
     try {
-      if (!razorpay) throw new Error('Razorpay is not configured');
-      return await razorpay.orders.create({
+      const rzp = this.getRazorpayClient(config);
+      return await rzp.orders.create({
         amount: amount * 100,
         currency,
         receipt: receipt || `receipt_${Date.now()}`,
@@ -102,10 +150,11 @@ export class PaymentService {
   /**
    * RAZORPAY: Verify Signature
    */
-  verifyPaymentSignature(orderId: string, paymentId: string, signature: string): boolean {
+  verifyPaymentSignature(orderId: string, paymentId: string, signature: string, config?: GatewayConfig): boolean {
     const text = `${orderId}|${paymentId}`;
+    const keySecret = config?.razorpayKeySecret || process.env.RAZORPAY_KEY_SECRET || '';
     const generatedSignature = crypto
-      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || '')
+      .createHmac('sha256', keySecret)
       .update(text)
       .digest('hex');
     return generatedSignature === signature;
@@ -114,9 +163,16 @@ export class PaymentService {
   /**
    * CASHFREE: Create Order
    */
-  async createCashfreeOrder(amount: number, customerId: string, customerPhone: string, customerEmail: string, returnUrl?: string) {
+  async createCashfreeOrder(
+    amount: number,
+    customerId: string,
+    customerPhone: string,
+    customerEmail: string,
+    returnUrl?: string,
+    config?: GatewayConfig
+  ) {
     try {
-      if (!cashfree) throw new Error('Cashfree is not configured');
+      const cf = this.getCashfreeClient(config);
 
       const request = {
         order_amount: amount,
@@ -131,7 +187,7 @@ export class PaymentService {
         }
       };
 
-      const response = await cashfree.PGCreateOrder(request);
+      const response = await cf.PGCreateOrder(request);
       return response.data;
     } catch (error: any) {
       console.error('Cashfree order creation error:', error);
@@ -142,19 +198,19 @@ export class PaymentService {
   /**
    * CASHFREE: Verify Webhook Signature
    */
-  verifyCashfreeSignature(timestamp: string, rawBody: string, signature: string): boolean {
-    const dbSecret = process.env.CASHFREE_SECRET_KEY || '';
+  verifyCashfreeSignature(timestamp: string, rawBody: string, signature: string, config?: GatewayConfig): boolean {
+    const secretKey = config?.cashfreeSecretKey || process.env.CASHFREE_SECRET_KEY || '';
     const data = timestamp + rawBody;
-    const genSignature = crypto.createHmac('sha256', dbSecret).update(data).digest('base64');
+    const genSignature = crypto.createHmac('sha256', secretKey).update(data).digest('base64');
     return genSignature === signature;
   }
 
   /**
    * PAYPAL: Create Order
    */
-  async createPaypalOrder(amount: number, currency: string = 'USD') {
+  async createPaypalOrder(amount: number, currency: string = 'USD', config?: GatewayConfig) {
     try {
-      if (!paypalClient) throw new Error('PayPal is not configured');
+      const pClient = this.getPaypalClient(config);
 
       const request = new paypal.orders.OrdersCreateRequest();
       request.prefer("return=representation");
@@ -168,7 +224,7 @@ export class PaymentService {
         }]
       });
 
-      const response = await paypalClient.execute(request);
+      const response = await pClient.execute(request);
       return response.result;
     } catch (error: any) {
       console.error('PayPal order creation error:', error);
@@ -179,14 +235,14 @@ export class PaymentService {
   /**
    * PAYPAL: Capture Order
    */
-  async capturePaypalOrder(orderId: string) {
+  async capturePaypalOrder(orderId: string, config?: GatewayConfig) {
     try {
-      if (!paypalClient) throw new Error('PayPal is not configured');
+      const pClient = this.getPaypalClient(config);
 
       const request = new paypal.orders.OrdersCaptureRequest(orderId);
       request.requestBody({} as any);
 
-      const response = await paypalClient.execute(request);
+      const response = await pClient.execute(request);
       return response.result;
     } catch (error: any) {
       console.error('PayPal capture error:', error);
@@ -195,20 +251,18 @@ export class PaymentService {
   }
 
   /**
-   * GENERIC: Get Payment Details (Generic wrapper logic could go here)
+   * GENERIC: Get Payment Details
    */
-  async getGenericPaymentDetails(provider: 'razorpay' | 'cashfree' | 'paypal', id: string) {
-    // Placeholder for unified fetch logic
+  async getGenericPaymentDetails(provider: 'razorpay' | 'cashfree' | 'paypal', id: string, config?: GatewayConfig) {
     if (provider === 'razorpay') {
-      if (!razorpay) throw new Error('Razorpay not configured');
-      return await razorpay.payments.fetch(id);
+      const rzp = this.getRazorpayClient(config);
+      return await rzp.payments.fetch(id);
     }
-    // Add others if SDKs support direct fetch by ID simply
     throw new Error('Provider details fetch not implemented');
   }
 
-  async getPaymentDetails(provider: 'razorpay' | 'cashfree' | 'paypal', id: string) {
-    return this.getGenericPaymentDetails(provider, id);
+  async getPaymentDetails(provider: 'razorpay' | 'cashfree' | 'paypal', id: string, config?: GatewayConfig) {
+    return this.getGenericPaymentDetails(provider, id, config);
   }
 }
 

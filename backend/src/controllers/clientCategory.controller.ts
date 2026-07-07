@@ -49,8 +49,20 @@ export const getCategories = async (req: AuthRequest, res: Response) => {
 
 export const createSubCategory = async (req: AuthRequest, res: Response) => {
     try {
+        const userId = req.userId;
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        if (!user || !user.companyId) return res.status(400).json({ error: 'User must belong to a company' });
+
         const { categoryId, name } = req.body;
         if (!categoryId || !name) return res.status(400).json({ error: 'Category ID and name are required' });
+
+        // Verify parent category belongs to user's company
+        const category = await prisma.clientCategory.findFirst({
+            where: { id: categoryId, companyId: user.companyId }
+        });
+        if (!category) return res.status(404).json({ error: 'Category not found' });
 
         const subCategory = await prisma.clientSubCategory.create({
             data: {
@@ -67,9 +79,15 @@ export const createSubCategory = async (req: AuthRequest, res: Response) => {
 
 export const getSubCategories = async (req: AuthRequest, res: Response) => {
     try {
+        const userId = req.userId;
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        if (!user || !user.companyId) return res.status(400).json({ error: 'User must belong to a company' });
+
         const { categoryId } = req.params;
         const subCategories = await prisma.clientSubCategory.findMany({
-            where: { categoryId },
+            where: { categoryId, category: { companyId: user.companyId } },
             orderBy: { name: 'asc' },
         });
 

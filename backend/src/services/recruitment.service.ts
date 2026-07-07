@@ -5,14 +5,13 @@ export class RecruitmentService {
      * Mock AI Resume Parsing
      * Extracts skills, experience, and education from a mock file path.
      */
-    static async parseResume(candidateId: string) {
-        const candidate = await prisma.candidate.findUnique({
-            where: { id: candidateId }
+    static async parseResume(candidateId: string, companyId: string) {
+        const candidate = await prisma.candidate.findFirst({
+            where: { id: candidateId, companyId }
         });
 
         if (!candidate) throw new Error('Candidate not found');
 
-        // Simulated AI Parsing Logic
         const mockSkills = ['React', 'Node.js', 'Typescript', 'PostgreSQL', 'AWS'];
         const mockExperience = '5 years of full-stack development';
         const mockEducation = 'B.Tech in Computer Science';
@@ -40,9 +39,9 @@ export class RecruitmentService {
      * Smart Match Engine (AI Scoring)
      * Scores a candidate against a job's requirements.
      */
-    static async getMatchScore(candidateId: string, jobOpeningId: string) {
-        const candidate = await prisma.candidate.findUnique({ where: { id: candidateId } });
-        const job = await prisma.jobOpening.findUnique({ where: { id: jobOpeningId } });
+    static async getMatchScore(candidateId: string, jobOpeningId: string, companyId: string) {
+        const candidate = await prisma.candidate.findFirst({ where: { id: candidateId, companyId } });
+        const job = await prisma.jobOpening.findFirst({ where: { id: jobOpeningId, companyId } });
 
         if (!candidate || !job) throw new Error('Candidate or Job not found');
 

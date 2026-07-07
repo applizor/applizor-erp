@@ -46,6 +46,9 @@ export const updateClass = async (req: AuthRequest, res: Response) => {
         const { id } = req.params;
         const { title, description, schedule, meetingUrl, status } = req.body;
 
+        const existing = await prisma.onlineClass.findFirst({ where: { id, companyId: req.user.companyId } });
+        if (!existing) return res.status(404).json({ error: 'Not found' });
+
         const onlineClass = await prisma.onlineClass.update({
             where: { id },
             data: {
@@ -101,8 +104,8 @@ export const getClassById = async (req: AuthRequest, res: Response) => {
         }
 
         const { id } = req.params;
-        const onlineClass = await prisma.onlineClass.findUnique({
-            where: { id },
+        const onlineClass = await prisma.onlineClass.findFirst({
+            where: { id, companyId: req.user.companyId },
             include: {
                 course: true
             }
@@ -123,6 +126,10 @@ export const deleteClass = async (req: AuthRequest, res: Response) => {
         }
 
         const { id } = req.params;
+
+        const existing = await prisma.onlineClass.findFirst({ where: { id, companyId: req.user.companyId } });
+        if (!existing) return res.status(404).json({ error: 'Not found' });
+
         await prisma.onlineClass.delete({ where: { id } });
         res.json({ message: 'Online class schedule deleted successfully' });
     } catch (error: any) {

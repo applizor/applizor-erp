@@ -78,7 +78,7 @@ export default function ProjectTimesheetPage({ params }: { params: { id: string 
             if (filterEndDate) url += `&endDate=${filterEndDate}`;
 
             const res = await api.get(url);
-            setTimesheets(res.data);
+            setTimesheets(res.data?.data || res.data || []);
         } catch (error) {
             console.error(error);
             showError('Failed to load timesheets');

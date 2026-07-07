@@ -37,8 +37,10 @@ api.interceptors.response.use(
   },
   (error) => {
     if (error.response?.status === 401) {
-      // Token expired or invalid
-      if (typeof window !== 'undefined') {
+      const isLoginRequest = error.config?.url?.includes('/auth/login') || error.config?.url?.includes('/portal/login');
+      
+      if (!isLoginRequest && typeof window !== 'undefined') {
+        // Token expired or invalid
         localStorage.removeItem('token');
         localStorage.removeItem('user');
 

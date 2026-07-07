@@ -1,10 +1,17 @@
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
+import helmet from 'helmet';
 import http from 'http';
 import path from 'path';
 import fs from 'fs';
+import passport from 'passport';
 import { initSocket } from './socket';
+import { errorHandler } from './middleware/errorHandler';
+import prisma from './prisma/client';
+import { config } from './config/env';
+import { apiLimiter, authLimiter, tenantApiLimiter } from './middleware/rateLimiter';
+import { initEmailQueue } from './services/email.service';
+import { configurePassport } from './config/passport';
 
 // Routes
 import authRoutes from './routes/auth.routes';
@@ -14,35 +21,47 @@ import clientRoutes from './routes/client.routes';
 import clientCategoryRoutes from './routes/clientCategory.routes';
 import paymentRoutes from './routes/payment.routes';
 
-// Load environment variables
-const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env.development';
-dotenv.config({ path: path.resolve(process.cwd(), envFile) });
-dotenv.config();
-
 const app = express();
-const PORT = process.env.PORT || 5000;
 
 // Middleware
+// CORS - properly restrictive
+const allowedOrigins = [
+    config.FRONTEND_URL,
+    'http://localhost:3000',
+    'http://localhost:3001',
+].filter(Boolean);
+
 app.use(cors({
-  origin: function (origin, callback) {
-    const allowedOrigins = [
-      process.env.FRONTEND_URL || 'http://localhost:3000',
-      'http://localhost:3001'
-    ];
-    if (!origin) return callback(null, true);
-    const isAllowedLocalhost = origin.includes('localhost:3000') || origin.includes('localhost:3001');
-    const isDevTunnel = origin.endsWith('.devtunnels.ms');
-    const isLocalIP = /^http:\/\/(\d{1,3}\.){3}\d{1,3}(:\d+)?$/.test(origin);
-    if (allowedOrigins.indexOf(origin) !== -1 || isAllowedLocalhost || isDevTunnel || isLocalIP) {
-      callback(null, true);
-    } else {
-      callback(null, true);
-    }
-  },
-  credentials: true
+    origin: function (origin, callback) {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            console.warn(`[CORS] Blocked origin: ${origin}`);
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
 }));
+
+// Security headers
+app.use(helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+}));
+
+// Rate limiting
+app.use('/api/', tenantApiLimiter);
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// Initialize Passport for SSO
+app.use(passport.initialize());
+configurePassport();
 
 // Serve static files
 const uploadsDirs = [
@@ -68,11 +87,22 @@ app.use('/uploads', express.static(path.join(process.cwd(), 'uploads'), {
   }
 }));
 
-app.get('/health', (req, res) => {
+app.get('/health', async (req, res) => {
+  let dbStatus = 'ok';
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+  } catch {
+    dbStatus = 'error';
+  }
   res.json({
-    status: 'ok',
-    message: 'Applizor ERP Backend API is running',
-    timestamp: new Date().toISOString()
+    status: dbStatus === 'ok' ? 'ok' : 'degraded',
+    message: 'Applizor ERP Backend API',
+    version: '1.0.0',
+    timestamp: new Date().toISOString(),
+    checks: {
+      database: dbStatus,
+      uptime: process.uptime()
+    }
   });
 });
 
@@ -180,15 +210,24 @@ app.use('/api/portal/contracts', portalContractRouter);
 import projectRoutes from './routes/project.routes';
 import taskRoutes from './routes/task.routes';
 import timesheetRoutes from './routes/timesheet.routes';
+import expenseRoutes from './routes/expense.routes';
+import exitRoutes from './routes/exit.routes';
+import onboardingRoutes from './routes/onboarding.routes';
 app.use('/api/projects', projectRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/timesheets', timesheetRoutes);
+app.use('/api/expenses', expenseRoutes);
+app.use('/api/exit', exitRoutes);
+app.use('/api/onboarding', onboardingRoutes);
 
 import settingsRoutes from './routes/settings.routes';
 app.use('/api/settings', settingsRoutes);
 
 import notificationRoutes from './routes/notification.routes';
 app.use('/api/notifications', notificationRoutes);
+
+import searchRoutes from './routes/search.routes';
+app.use('/api/search', searchRoutes);
 
 import emailRoutes from './routes/email.routes';
 app.use('/api/emails', emailRoutes);
@@ -202,6 +241,12 @@ app.use('/api/services', serviceRoutes);
 import certificateRoutes from './routes/certificate.routes';
 app.use('/api/certificates', certificateRoutes);
 
+import experienceLetterRoutes from './routes/experience-letter.routes';
+app.use('/api/employees', experienceLetterRoutes);
+
+import reconciliationRoutes from './routes/reconciliation.routes';
+app.use('/api/accounting', reconciliationRoutes);
+
 import studentRoutes from './routes/student.routes';
 import courseRoutes from './routes/course.routes';
 import enrollmentRoutes from './routes/enrollment.routes';
@@ -214,6 +259,20 @@ app.use('/api/lms/enrollments', enrollmentRoutes);
 app.use('/api/lms/classes', classRoutes);
 app.use('/api/lms/lectures', lectureRoutes);
 app.use('/api/lms/exams', examRoutes);
+
+import coaTemplateRoutes from './routes/coa-template.routes';
+app.use('/api/platform/coa', coaTemplateRoutes);
+
+import platformRoutes from './routes/platform.routes';
+app.use('/api/platform', platformRoutes);
+
+import currencyRoutes from './routes/currency.routes';
+app.use('/api/currencies', currencyRoutes);
+
+import bulkImportRoutes from './routes/bulk-import.routes';
+app.use('/api/bulk-import', bulkImportRoutes);
+
+
 
 function resolveSwaggerDocPath(): string | null {
   const candidates = [
@@ -241,25 +300,59 @@ app.get('/api/system/docs', (req, res) => {
   }
 });
 
+// Global error handler (must be last middleware)
+app.use(errorHandler);
+
+// Handle unhandled rejections
+process.on('unhandledRejection', (reason: Error) => {
+    console.error('UNHANDLED REJECTION:', reason);
+});
+
+process.on('uncaughtException', (err: Error) => {
+    console.error('UNCAUGHT EXCEPTION:', err);
+    process.exit(1);
+});
+
 import { SchedulerService } from './services/scheduler.service';
 SchedulerService.init();
 
 const server = http.createServer(app);
 initSocket(server);
 
-server.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📊 Health check: http://localhost:${PORT}/health`);
-  console.log(`🔐 Auth API: http://localhost:${PORT}/api/auth`);
-  console.log(`🏢 Company API: http://localhost:${PORT}/api/company`);
-  console.log(`📄 Invoice API: http://localhost:${PORT}/api/invoices`);
-  console.log(`👥 Client API: http://localhost:${PORT}/api/clients`);
-  console.log(`📈 Lead API: http://localhost:${PORT}/api/leads`);
-  console.log(`💳 Payment API: http://localhost:${PORT}/api/payments`);
-  console.log(`👥 Department API: http://localhost:${PORT}/api/departments`);
-  console.log(`👔 Position API: http://localhost:${PORT}/api/positions`);
-  console.log(`👨‍💼 Employee API: http://localhost:${PORT}/api/employees`);
-  console.log(`🤝 Recruitment API: http://localhost:${PORT}/api/recruitment`);
-  // Removed AI routes
+// Graceful shutdown
+const gracefulShutdown = (signal: string) => {
+    console.log(`\n${signal} received. Shutting down gracefully...`);
+    server.close(() => {
+        prisma.$disconnect().then(() => {
+            console.log('Database connections closed.');
+            process.exit(0);
+        });
+    });
+    // Force shutdown after 10 seconds
+    setTimeout(() => {
+        console.error('Forced shutdown after timeout.');
+        process.exit(1);
+    }, 10000);
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+server.listen(config.PORT, () => {
+  console.log(`🚀 Server running on port ${config.PORT}`);
+  console.log(`📊 Health check: http://localhost:${config.PORT}/health`);
+  console.log(`🔐 Auth API: http://localhost:${config.PORT}/api/auth`);
+  console.log(`🏢 Company API: http://localhost:${config.PORT}/api/company`);
+  console.log(`📄 Invoice API: http://localhost:${config.PORT}/api/invoices`);
+  console.log(`👥 Client API: http://localhost:${config.PORT}/api/clients`);
+  console.log(`📈 Lead API: http://localhost:${config.PORT}/api/leads`);
+  console.log(`💳 Payment API: http://localhost:${config.PORT}/api/payments`);
+  console.log(`👥 Department API: http://localhost:${config.PORT}/api/departments`);
+  console.log(`👔 Position API: http://localhost:${config.PORT}/api/positions`);
+  console.log(`👨‍💼 Employee API: http://localhost:${config.PORT}/api/employees`);
+  console.log(`🤝 Recruitment API: http://localhost:${config.PORT}/api/recruitment`);
+
+  // Start background email queue processor
+  initEmailQueue();
 });
 

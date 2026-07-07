@@ -64,6 +64,12 @@ export const updateCandidateStage = async (req: AuthRequest, res: Response) => {
         const { candidateId } = req.params;
         const { stage, status } = req.body; // stage: 'Screening', 'Interview'; status: 'Active', 'Rejected'
 
+        // Verify candidate belongs to user's company
+        const existingCandidate = await prisma.candidate.findFirst({
+            where: { id: candidateId, companyId: req.user!.companyId }
+        });
+        if (!existingCandidate) return res.status(404).json({ error: 'Candidate not found' });
+
         // 1. Update Candidate & Fetch Job Details
         const candidate = await prisma.candidate.update({
             where: { id: candidateId },

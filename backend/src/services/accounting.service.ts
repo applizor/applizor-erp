@@ -448,11 +448,13 @@ export const deleteLedgerPostings = async (reference: string, prismaTx?: any) =>
 /**
  * Deletes a single journal entry and reverts balances
  */
-export const deleteJournalEntry = async (id: string, userId?: string) => {
+export const deleteJournalEntry = async (id: string, userId?: string, companyId?: string) => {
     return await prisma.$transaction(async (tx) => {
-        // 1. Find the entry
-        const entry = await tx.journalEntry.findUnique({
-            where: { id },
+        const whereClause: any = { id };
+        if (companyId) whereClause.companyId = companyId;
+
+        const entry = await tx.journalEntry.findFirst({
+            where: whereClause,
             include: { lines: { include: { account: true } } }
         });
 
@@ -510,9 +512,12 @@ export const deleteJournalEntry = async (id: string, userId?: string) => {
 /**
  * Automates GST-compliant Ledger posting for Invoices
  */
-export const postInvoiceToLedger = async (invoiceId: string) => {
-    const invoice = await prisma.invoice.findUnique({
-        where: { id: invoiceId },
+export const postInvoiceToLedger = async (invoiceId: string, companyId?: string) => {
+    const whereClause: any = { id: invoiceId };
+    if (companyId) whereClause.companyId = companyId;
+
+    const invoice = await prisma.invoice.findFirst({
+        where: whereClause,
         include: {
             client: true,
             items: { include: { appliedTaxes: true } }
@@ -531,15 +536,15 @@ export const postInvoiceToLedger = async (invoiceId: string) => {
     // Sync Logic: Only 'sent', 'paid', or 'partial' invoices should have ledger entries.
     if (!['sent', 'paid', 'partial'].includes(invoice.status)) return;
 
-    const companyId = invoice.companyId;
+    const ownerCompanyId = invoice.companyId;
 
     // Resolve IDs for common accounts
-    const debtorsAcc = await ensureAccount(companyId, '1200', 'Sundry Debtors', 'asset');
-    const salesAcc = await ensureAccount(companyId, '4000', 'Sales Revenue', 'income');
-    const cgstAcc = await ensureAccount(companyId, '2200', 'Output CGST', 'liability');
-    const sgstAcc = await ensureAccount(companyId, '2201', 'Output SGST', 'liability');
-    const igstAcc = await ensureAccount(companyId, '2202', 'Output IGST', 'liability');
-    const discountAcc = await ensureAccount(companyId, '5201', 'Discount Allowed', 'expense');
+    const debtorsAcc = await ensureAccount(ownerCompanyId, '1200', 'Sundry Debtors', 'asset');
+    const salesAcc = await ensureAccount(ownerCompanyId, '4000', 'Sales Revenue', 'income');
+    const cgstAcc = await ensureAccount(ownerCompanyId, '2200', 'Output CGST', 'liability');
+    const sgstAcc = await ensureAccount(ownerCompanyId, '2201', 'Output SGST', 'liability');
+    const igstAcc = await ensureAccount(ownerCompanyId, '2202', 'Output IGST', 'liability');
+    const discountAcc = await ensureAccount(ownerCompanyId, '5201', 'Discount Allowed', 'expense');
 
     const lines: JournalLineInput[] = [];
 
@@ -592,7 +597,7 @@ export const postInvoiceToLedger = async (invoiceId: string) => {
     }
 
     return await createJournalEntry(
-        companyId,
+        ownerCompanyId,
         new Date(invoice.invoiceDate),
         `Invoice ${invoice.invoiceNumber} to ${invoice.client?.name || 'Client'}`,
         reference,
@@ -604,9 +609,12 @@ export const postInvoiceToLedger = async (invoiceId: string) => {
 /**
  * Automates Ledger posting for Payments
  */
-export const postPaymentToLedger = async (paymentId: string) => {
-    const payment = await prisma.payment.findUnique({
-        where: { id: paymentId },
+export const postPaymentToLedger = async (paymentId: string, companyId?: string) => {
+    const whereClause: any = { id: paymentId };
+    if (companyId) whereClause.companyId = companyId;
+
+    const payment = await prisma.payment.findFirst({
+        where: whereClause,
         include: { invoice: { include: { client: true } } }
     });
 
@@ -619,10 +627,10 @@ export const postPaymentToLedger = async (paymentId: string) => {
     await deleteLedgerPostings(reference);
 
     // Resolve accounts
-    const companyId = payment.invoice.companyId;
-    const bankAcc = await ensureAccount(companyId, '1001', 'Bank Account', 'asset');
-    const cashAcc = await ensureAccount(companyId, '1000', 'Cash', 'asset');
-    const debtorsAcc = await ensureAccount(companyId, '1200', 'Sundry Debtors', 'asset');
+    const ownerCompanyId = payment.invoice.companyId;
+    const bankAcc = await ensureAccount(ownerCompanyId, '1001', 'Bank Account', 'asset');
+    const cashAcc = await ensureAccount(ownerCompanyId, '1000', 'Cash', 'asset');
+    const debtorsAcc = await ensureAccount(ownerCompanyId, '1200', 'Sundry Debtors', 'asset');
 
     const method = payment.paymentMethod?.toLowerCase() || 'bank';
     const receivingAcc = (method === 'cash') ? cashAcc : bankAcc;
@@ -633,7 +641,7 @@ export const postPaymentToLedger = async (paymentId: string) => {
     ];
 
     return await createJournalEntry(
-        companyId,
+        ownerCompanyId,
         new Date(payment.paymentDate),
         `Payment received for Invoice ${payment.invoice.invoiceNumber}`,
         reference,

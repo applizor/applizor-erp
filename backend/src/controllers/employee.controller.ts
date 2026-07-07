@@ -4,8 +4,21 @@ import { StorageService } from '../services/storage.service';
 import prisma from '../prisma/client';
 import { AuthRequest } from '../middleware/auth';
 import { PermissionService } from '../services/permission.service';
+import { encryptPII, decryptPII } from '../utils/crypto.util';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret';
+
+function decryptEmployeePII(emp: any) {
+    if (!emp) return emp;
+    return {
+        ...emp,
+        accountNumber: decryptPII(emp.accountNumber),
+        ifscCode: decryptPII(emp.ifscCode),
+        panNumber: decryptPII(emp.panNumber),
+        aadhaarNumber: decryptPII(emp.aadhaarNumber)
+    };
+}
+
 
 // Create Employee (with optional User account)
 export const createEmployee = async (req: AuthRequest, res: Response) => {
@@ -133,11 +146,14 @@ export const createEmployee = async (req: AuthRequest, res: Response) => {
                     departmentId,
                     positionId,
                     status: status || 'active',
-                    // Advanced Fields
                     gender, bloodGroup, maritalStatus,
                     currentAddress, permanentAddress,
                     emergencyContact,
-                    bankName, accountNumber, ifscCode, panNumber, aadhaarNumber,
+                    bankName,
+                    accountNumber: encryptPII(accountNumber),
+                    ifscCode: encryptPII(ifscCode),
+                    panNumber: encryptPII(panNumber),
+                    aadhaarNumber: encryptPII(aadhaarNumber),
                     // New Fields
                     hourlyRate: hourlyRate ? parseFloat(hourlyRate) : undefined,
                     employmentType: finalEmploymentType,
@@ -245,7 +261,7 @@ export const createEmployee = async (req: AuthRequest, res: Response) => {
             });
         }
 
-        res.status(201).json(result);
+        res.status(201).json(decryptEmployeePII(result));
     } catch (error: any) {
         console.error('Create employee error:', error);
         if (error.code === 'P2002') {
@@ -308,7 +324,11 @@ export const updateEmployee = async (req: AuthRequest, res: Response) => {
                 gender, bloodGroup, maritalStatus,
                 currentAddress, permanentAddress,
                 emergencyContact,
-                bankName, accountNumber, ifscCode, panNumber, aadhaarNumber,
+                bankName,
+                accountNumber: accountNumber !== undefined ? encryptPII(accountNumber) : undefined,
+                ifscCode: ifscCode !== undefined ? encryptPII(ifscCode) : undefined,
+                panNumber: panNumber !== undefined ? encryptPII(panNumber) : undefined,
+                aadhaarNumber: aadhaarNumber !== undefined ? encryptPII(aadhaarNumber) : undefined,
                 // New Fields Update
                 hourlyRate: hourlyRate ? parseFloat(hourlyRate) : null,
                 employmentType,
@@ -406,7 +426,7 @@ export const updateEmployee = async (req: AuthRequest, res: Response) => {
             changes: req.body
         });
 
-        res.json(employee);
+        res.json(decryptEmployeePII(employee));
     } catch (error: any) {
         console.error('Update employee error:', error);
         if (error.code === 'P2002') {
@@ -518,6 +538,13 @@ export const getEmployees = async (req: AuthRequest, res: Response) => {
             }
         }
 
+        const page = req.query.page ? parseInt(req.query.page as string) : undefined;
+        const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+        const isPaginated = page !== undefined && limit !== undefined && !isNaN(page) && !isNaN(limit);
+
+        const skip = isPaginated ? (page - 1) * limit : undefined;
+        const take = isPaginated ? limit : undefined;
+
         // Query Employees WITHOUT user relation to avoid "Unknown field" error on stale clients
         const employeesRaw = await prisma.employee.findMany({
             where: whereClause,
@@ -526,7 +553,9 @@ export const getEmployees = async (req: AuthRequest, res: Response) => {
                 position: true,
                 // user: true -- REMOVED to prevent crash
             },
-            orderBy: { createdAt: 'desc' }
+            orderBy: { createdAt: 'desc' },
+            skip,
+            take
         });
 
         // Manual Join: Fetch Users
@@ -565,7 +594,22 @@ export const getEmployees = async (req: AuthRequest, res: Response) => {
             });
         }
 
-        res.json(employees);
+        const decryptedEmployees = employees.map(decryptEmployeePII);
+
+        if (isPaginated) {
+            const totalCount = await prisma.employee.count({ where: whereClause });
+            res.json({
+                data: decryptedEmployees,
+                pagination: {
+                    total: totalCount,
+                    page,
+                    limit,
+                    totalPages: Math.ceil(totalCount / limit)
+                }
+            });
+        } else {
+            res.json(decryptedEmployees);
+        }
     } catch (error) {
         // ... error handling
         res.status(500).json({ error: 'Failed to fetch employees', details: (error as any).message });
@@ -580,8 +624,8 @@ export const getEmployeeById = async (req: AuthRequest, res: Response) => {
 
         const { id } = req.params;
 
-        const employee = await prisma.employee.findUnique({
-            where: { id },
+        const employee = await prisma.employee.findFirst({
+            where: { id, companyId: req.user!.companyId },
             include: {
                 department: true,
                 position: true,
@@ -603,7 +647,7 @@ export const getEmployeeById = async (req: AuthRequest, res: Response) => {
             return res.status(404).json({ error: 'Employee not found' });
         }
 
-        res.json(employee);
+        res.json(decryptEmployeePII(employee));
     } catch (error: any) {
         console.error('Get employee error:', error);
         res.status(500).json({ error: 'Failed to fetch employee', details: error.message });
@@ -683,8 +727,8 @@ export const deleteEmployee = async (req: AuthRequest, res: Response) => {
         const count = await prisma.employee.count({ where: { AND: [{ id }, scopeFilter] } });
         if (count === 0) return res.status(403).json({ error: 'Access denied: No permission to delete this record' });
 
-        const employee = await prisma.employee.findUnique({
-            where: { id },
+        const employee = await prisma.employee.findFirst({
+            where: { id, companyId: req.user!.companyId },
             include: {
                 // @ts-ignore - Prisma Client types stale
                 user: {
@@ -720,9 +764,8 @@ export const deleteEmployee = async (req: AuthRequest, res: Response) => {
         // Transaction
         await prisma.$transaction(async (tx) => {
             await tx.employee.delete({ where: { id } });
-            if (employee.userId) {
-                await tx.user.delete({ where: { id: employee.userId } });
-            }
+            // Soft-unlink: do NOT delete the User record as it may be pre-existing
+            // Just remove the employee reference
         });
 
         // Audit Log

@@ -18,6 +18,7 @@ export default function PayslipsPage() {
     const [year, setYear] = useState(new Date().getFullYear());
     const [loading, setLoading] = useState(false);
     const [payrolls, setPayrolls] = useState<Payroll[]>([]);
+    const [search, setSearch] = useState('');
 
     useEffect(() => {
         loadPayrolls();
@@ -127,7 +128,13 @@ export default function PayslipsPage() {
                         <div className="md:col-span-2">
                             <div className="relative">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
-                                <input type="text" placeholder="FILTER BY RESOURCE ID OR NAME..." className="ent-input w-full py-2.5 pl-9 pr-3 text-[10px] font-black uppercase tracking-widest" />
+                                <input
+                                                                    type="text"
+                                                                    placeholder="FILTER BY RESOURCE ID OR NAME..."
+                                                                    className="ent-input w-full py-2.5 pl-9 pr-3 text-[10px] font-black uppercase tracking-widest"
+                                                                    value={search}
+                                                                    onChange={(e) => setSearch(e.target.value)}
+                                                                />
                             </div>
                         </div>
                     </div>
@@ -161,7 +168,13 @@ export default function PayslipsPage() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {payrolls.map((payroll) => (
+                                    {payrolls
+                                        .filter(p =>
+                                            !search ||
+                                            `${p.employee.firstName} ${p.employee.lastName} ${p.employee.employeeId}`
+                                                .toUpperCase().includes(search.toUpperCase())
+                                        )
+                                        .map((payroll) => (
                                         <tr key={payroll.id}>
                                             <td className="flex items-center gap-3">
                                                 <div className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center font-black text-[10px] text-gray-500 border border-gray-200 uppercase">
@@ -186,7 +199,7 @@ export default function PayslipsPage() {
                                             </td>
                                             <td>
                                                 <div className="text-[10px] font-black text-rose-500 bg-rose-50 px-2 py-0.5 rounded border border-rose-100 inline-block uppercase">
-                                                    -{formatCurrency(payroll.totalDeductions)}
+                                                    -{formatCurrency(payroll.deductions ?? payroll.totalDeductions ?? 0)}
                                                 </div>
                                             </td>
                                             <td>
@@ -195,14 +208,14 @@ export default function PayslipsPage() {
                                                 </div>
                                             </td>
                                             <td>
-                                                <span className={`ent-badge ${payroll.status === 'paid' ? 'ent-badge-success' : 'ent-badge-warning'
+                                                <span className={`ent-badge ${payroll.status === 'paid' ? 'ent-badge-success' : payroll.status === 'processed' ? 'ent-badge-warning' : 'ent-badge-default'
                                                     }`}>
                                                     {payroll.status?.toUpperCase()}
                                                 </span>
                                             </td>
                                             <td className="text-right">
                                                 <div className="flex justify-end gap-3 px-2">
-                                                    {payroll.status === 'draft' && (
+                                                    {payroll.status === 'processed' && (
                                                         <button
                                                             onClick={() => handleApprove(payroll.id)}
                                                             className="text-[9px] font-black text-emerald-600 uppercase tracking-[0.15em] hover:text-emerald-700 transition-all flex items-center gap-1.5"

@@ -58,7 +58,7 @@ export default function StatutoryConfigPage() {
 
     const loadAccounts = async () => {
         try {
-            const res = await api.get('/settings/accounts'); // Assuming this endpoint exists for trial balance or similar
+            const res = await api.get('/accounting/accounts');
             setAccounts(res.data || []);
         } catch (error) {
             console.error('Failed to load accounts:', error);

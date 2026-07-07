@@ -3,6 +3,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { JWT_SECRET } from '../utils/jwt';
 import prisma from '../prisma/client'; // Fix: Import directly
+import { companyContextStore } from '../utils/context';
 
 export interface AuthRequest extends Request {
   userId?: string;
@@ -60,7 +61,18 @@ export const authenticate = async (
 
     req.userId = decoded.userId;
     req.user = user;
-    next();
+
+    const companyId = user.companyId;
+    if (companyId) {
+      companyContextStore.run({
+        companyId,
+        userId: decoded.userId,
+        userAgent: req.headers['user-agent'] as string,
+        ipAddress: req.ip || (req.headers['x-forwarded-for'] as string)
+      }, () => next());
+    } else {
+      next();
+    }
   } catch (error: any) {
     if (error.name === 'TokenExpiredError') {
       return res.status(401).json({ error: 'Token expired' });
@@ -169,6 +181,10 @@ export const combinedAuth = async (req: Request, res: Response, next: NextFuncti
       (req as any).userId = decoded.userId;
       (req as any).user = user;
       (req as any).userType = 'employee';
+      const companyId = user.companyId;
+      if (companyId) {
+        return companyContextStore.run({ companyId }, () => next());
+      }
       return next();
     }
 
@@ -191,6 +207,10 @@ export const combinedAuth = async (req: Request, res: Response, next: NextFuncti
         roles: [] // Add empty roles array for permission checks
       };
       (req as any).userType = 'client';
+      const companyId = client.companyId;
+      if (companyId) {
+        return companyContextStore.run({ companyId }, () => next());
+      }
       return next();
     }
 

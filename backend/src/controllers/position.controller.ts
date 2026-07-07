@@ -94,6 +94,11 @@ export const updatePosition = async (req: AuthRequest, res: Response) => {
         const { id } = req.params;
         const { title, description, isActive, departmentId } = req.body;
 
+        const existing = await prisma.position.findFirst({
+            where: { id, department: { companyId: req.user!.companyId } }
+        });
+        if (!existing) return res.status(404).json({ error: 'Position not found' });
+
         const position = await prisma.position.update({
             where: { id },
             data: {
@@ -125,6 +130,11 @@ export const deletePosition = async (req: AuthRequest, res: Response) => {
         }
 
         const { id } = req.params;
+
+        const existing = await prisma.position.findFirst({
+            where: { id, department: { companyId: req.user!.companyId } }
+        });
+        if (!existing) return res.status(404).json({ error: 'Position not found' });
 
         await prisma.position.delete({
             where: { id },

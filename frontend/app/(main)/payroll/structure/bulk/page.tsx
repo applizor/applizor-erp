@@ -37,7 +37,7 @@ export default function BulkAssignPage() {
             const [empsRes, deptsRes, templatesRes] = await Promise.all([
                 api.get('/employees?status=active'), // Only active employees
                 departmentsApi.getAll(),
-                api.get('/salary-templates')
+                api.get('/payroll/templates')
             ]);
             setEmployees(empsRes.data);
             setDepartments(deptsRes);
@@ -220,7 +220,7 @@ export default function BulkAssignPage() {
                             <div className="ent-form-group">
                                 <label className="ent-label">Select Salary Template</label>
                                 <CustomSelect
-                                    options={[{ label: 'Select Template', value: '' }, ...templates.map(t => ({ label: `${t.name} (${t.structureType})`, value: t.id }))]}
+                                    options={[{ label: 'Select Template', value: '' }, ...templates.map(t => ({ label: t.name, value: t.id }))]}
                                     value={selectedTemplate}
                                     onChange={setSelectedTemplate}
                                     className="w-full"
