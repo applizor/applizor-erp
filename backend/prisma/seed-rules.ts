@@ -65,11 +65,14 @@ async function seedIndiaRules() {
   ];
 
   for (const rule of rules) {
-    await prisma.statutoryRule.upsert({
-      where: { countryId_code_effectiveFrom: { countryId: india.id, code: rule.code, effectiveFrom: rule.effectiveFrom } },
-      update: {},
-      create: { ...rule, countryId: india.id },
+    const existing = await prisma.statutoryRule.findFirst({
+      where: { countryId: india.id, code: rule.code, effectiveFrom: rule.effectiveFrom }
     });
+    if (!existing) {
+      await prisma.statutoryRule.create({
+        data: { ...rule, countryId: india.id }
+      });
+    }
   }
   console.log(`✓ Seeded ${rules.length} Indian statutory rules`);
 }
@@ -117,11 +120,14 @@ async function seedUSRules() {
   ];
 
   for (const rule of rules) {
-    await prisma.statutoryRule.upsert({
-      where: { countryId_code_effectiveFrom: { countryId: us.id, code: rule.code, effectiveFrom: rule.effectiveFrom } },
-      update: {},
-      create: { ...rule, countryId: us.id },
+    const existing = await prisma.statutoryRule.findFirst({
+      where: { countryId: us.id, code: rule.code, effectiveFrom: rule.effectiveFrom }
     });
+    if (!existing) {
+      await prisma.statutoryRule.create({
+        data: { ...rule, countryId: us.id }
+      });
+    }
   }
   console.log(`✓ Seeded ${rules.length} US statutory rules`);
 }
@@ -157,11 +163,14 @@ async function seedUKRules() {
   ];
 
   for (const rule of rules) {
-    await prisma.statutoryRule.upsert({
-      where: { countryId_code_effectiveFrom: { countryId: uk.id, code: rule.code, effectiveFrom: rule.effectiveFrom } },
-      update: {},
-      create: { ...rule, countryId: uk.id },
+    const existing = await prisma.statutoryRule.findFirst({
+      where: { countryId: uk.id, code: rule.code, effectiveFrom: rule.effectiveFrom }
     });
+    if (!existing) {
+      await prisma.statutoryRule.create({
+        data: { ...rule, countryId: uk.id }
+      });
+    }
   }
   console.log(`✓ Seeded ${rules.length} UK statutory rules`);
 }
@@ -183,11 +192,14 @@ async function seedUAERules() {
   ];
 
   for (const rule of rules) {
-    await prisma.statutoryRule.upsert({
-      where: { countryId_code_effectiveFrom: { countryId: uae.id, code: rule.code, effectiveFrom: rule.effectiveFrom } },
-      update: {},
-      create: { ...rule, countryId: uae.id },
+    const existing = await prisma.statutoryRule.findFirst({
+      where: { countryId: uae.id, code: rule.code, effectiveFrom: rule.effectiveFrom }
     });
+    if (!existing) {
+      await prisma.statutoryRule.create({
+        data: { ...rule, countryId: uae.id }
+      });
+    }
   }
   console.log(`✓ Seeded ${rules.length} UAE statutory rules`);
 }
@@ -210,11 +222,14 @@ async function seedSGRules() {
   ];
 
   for (const rule of rules) {
-    await prisma.statutoryRule.upsert({
-      where: { countryId_code_effectiveFrom: { countryId: sg.id, code: rule.code, effectiveFrom: rule.effectiveFrom } },
-      update: {},
-      create: { ...rule, countryId: sg.id },
+    const existing = await prisma.statutoryRule.findFirst({
+      where: { countryId: sg.id, code: rule.code, effectiveFrom: rule.effectiveFrom }
     });
+    if (!existing) {
+      await prisma.statutoryRule.create({
+        data: { ...rule, countryId: sg.id }
+      });
+    }
   }
   console.log(`✓ Seeded ${rules.length} Singapore statutory rules`);
 }

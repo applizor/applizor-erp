@@ -106,6 +106,25 @@ export default function CertificatesPage() {
         }
     };
 
+    const handleDownload = async (id: string, certificateNo: string) => {
+        try {
+            setActionLoadingId(id);
+            const response = await certificateApi.downloadPdf(id);
+            const url = window.URL.createObjectURL(new Blob([response]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `CERTIFICATE_${certificateNo}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            toast.success('Download started');
+        } catch (error: any) {
+            toast.error(error.response?.data?.error || 'Failed to download PDF');
+        } finally {
+            setActionLoadingId(null);
+        }
+    };
+
     const handleIssue = async (id: string) => {
         try {
             setActionLoadingId(id);
@@ -285,14 +304,13 @@ export default function CertificatesPage() {
                                                                         <FileText size={14} />
                                                                     </button>
                                                                 ) : (
-                                                                    <a
-                                                                        href={certificateApi.downloadUrl(cert.id)}
-                                                                        download
+                                                                    <button
+                                                                        onClick={() => handleDownload(cert.id, cert.certificateNo)}
                                                                         title="Download PDF"
                                                                         className="p-1.5 text-green-600 hover:text-green-900 hover:bg-green-50 rounded"
                                                                     >
                                                                         <Download size={14} />
-                                                                    </a>
+                                                                    </button>
                                                                 )}
                                                                 <button
                                                                     onClick={() => handleSendEmail(cert.id)}

@@ -8,13 +8,12 @@ import PageHeader from '@/components/ui/PageHeader';
 import { usePermission } from '@/hooks/usePermission';
 import AccessDenied from '@/components/AccessDenied';
 
-import { useEffect, useState, use } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { certificateApi, Certificate } from '@/lib/api/certificate';
 
-export default function CertificateDetailsPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
-    const params = use(paramsPromise);
+export default function CertificateDetailsPage({ params }: { params: { id: string } }) {
     const router = useRouter();
     const toast = useToast();
     const { confirm } = useConfirm();
@@ -94,6 +93,26 @@ export default function CertificateDetailsPage({ params: paramsPromise }: { para
             loadCertificate();
         } catch (error: any) {
             toast.error(error.response?.data?.error || 'Failed to email certificate');
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const handleDownload = async () => {
+        if (!certificate) return;
+        try {
+            setActionLoading(true);
+            const response = await certificateApi.downloadPdf(certificate.id);
+            const url = window.URL.createObjectURL(new Blob([response]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `CERTIFICATE_${certificate.certificateNo}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            toast.success('Download started');
+        } catch (error: any) {
+            toast.error(error.response?.data?.error || 'Failed to download PDF');
         } finally {
             setActionLoading(false);
         }
@@ -227,13 +246,12 @@ export default function CertificateDetailsPage({ params: paramsPromise }: { para
 
                                 {certificate.pdfPath && (
                                     <>
-                                        <a
-                                            href={certificateApi.downloadUrl(certificate.id)}
-                                            download
+                                        <button
+                                            onClick={handleDownload}
                                             className="bg-green-600 text-white hover:bg-green-700 py-1.5 px-3 text-[10px] font-bold uppercase tracking-wider rounded-md flex items-center gap-1.5 shadow-sm"
                                         >
                                             <Download size={12} /> Download
-                                        </a>
+                                        </button>
 
                                         <button
                                             onClick={handleSendEmail}
@@ -425,13 +443,12 @@ export default function CertificateDetailsPage({ params: paramsPromise }: { para
                                     <div className="bg-green-50/50 border border-green-100 rounded-md p-3 text-center">
                                         <FileText className="h-8 w-8 text-green-600 mx-auto mb-2" />
                                         <span className="text-xs font-bold text-green-800 block">PDF Generated</span>
-                                        <a
-                                            href={certificateApi.downloadUrl(certificate.id)}
-                                            download
+                                        <button
+                                            onClick={handleDownload}
                                             className="mt-2.5 inline-flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white font-black uppercase tracking-wider text-[9px] py-1.5 px-3 rounded-md shadow-sm"
                                         >
                                             <Download size={10} /> Download PDF
-                                        </a>
+                                        </button>
                                     </div>
                                 </div>
                             ) : (

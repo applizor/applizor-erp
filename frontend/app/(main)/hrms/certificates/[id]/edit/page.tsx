@@ -7,7 +7,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import { usePermission } from '@/hooks/usePermission';
 import AccessDenied from '@/components/AccessDenied';
 
-import { useEffect, useState, use } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import api from '@/lib/api';
@@ -28,8 +28,7 @@ interface Candidate {
     email: string;
 }
 
-export default function EditCertificatePage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
-    const params = use(paramsPromise);
+export default function EditCertificatePage({ params }: { params: { id: string } }) {
     const router = useRouter();
     const toast = useToast();
     const { can, user } = usePermission();

@@ -141,6 +141,11 @@ export const certificateApi = {
     sendEmail: (id: string) =>
         api.post<{ success: boolean; message: string }>(`/certificates/${id}/send-email`),
 
+    downloadPdf: async (id: string) => {
+        const response = await api.get(`/certificates/${id}/download`, { responseType: 'blob' });
+        return response.data;
+    },
+
     downloadUrl: (id: string) =>
         `${process.env.NEXT_PUBLIC_API_URL}/certificates/${id}/download`,
 };
