@@ -6,6 +6,7 @@ import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { CustomSelect } from '@/components/ui/CustomSelect';
 import { Mail, Send, History, RefreshCw, AlertTriangle, CheckCircle, Clock, Search, Users, Plus, ShieldCheck, Scale } from 'lucide-react';
+import RichTextEditor from '@/components/ui/RichTextEditor';
 
 interface EmailLog {
   id: string;
@@ -107,6 +108,10 @@ export default function EmailCenterPage() {
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!body || body.trim() === '' || body === '<p><br></p>') {
+      toast.error('Email body is required');
+      return;
+    }
     try {
       setSending(true);
       await api.post('/emails/send', {
@@ -353,12 +358,11 @@ export default function EmailCenterPage() {
 
                   <div className="ent-form-group col-span-2">
                     <label className="ent-label">Email Body (HTML supported)</label>
-                    <textarea
-                      required
-                      placeholder="Write your email here..."
-                      className="ent-input min-h-[220px]"
+                    <RichTextEditor
                       value={body}
-                      onChange={e => setBody(e.target.value)}
+                      onChange={setBody}
+                      placeholder="Write your email here..."
+                      className="min-h-[250px]"
                     />
                   </div>
                 </div>
