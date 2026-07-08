@@ -224,7 +224,7 @@ export const createDocument = async (req: AuthRequest, res: Response) => {
 
         const document = await prisma.document.create({
             data: {
-                company: data.company?.id ? { connect: { id: data.company.id } } : undefined,
+                companyId: data.company?.id || undefined,
                 employee: employeeId ? { connect: { id: employeeId } } : undefined,
                 client: clientId ? { connect: { id: clientId } } : undefined,
                 name: `${template.name} - ${new Date().toLocaleDateString()}`,
