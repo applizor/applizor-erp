@@ -77,12 +77,18 @@ const PROVIDERS: { value: Provider; label: string; icon: any; color: string }[] 
 ];
 
 const DEPARTMENTS = [
-  { key: 'accounts', label: 'Accounts / Billing', icon: '💰', desc: 'Invoices, payment receipts, billing reminders' },
-  { key: 'hr', label: 'HR / Payroll', icon: '👤', desc: 'Leave approvals, payslips, onboarding' },
-  { key: 'support', label: 'Support / Helpdesk', icon: '🎫', desc: 'Ticket notifications, customer replies' },
-  { key: 'sales', label: 'Sales / CRM', icon: '🎯', desc: 'Quotations, contracts, lead follow-ups' },
-  { key: 'info', label: 'Info / General', icon: '📢', desc: 'Announcements, policies, general notifications' },
-  { key: 'connect', label: 'Connect / Outreach', icon: '🤝', desc: 'Marketing, onboarding, outreach campaigns' },
+  { key: 'accounts', label: 'Accounts Department', icon: '💼', desc: 'Finance, Billing, GST, Payments' },
+  { key: 'billing', label: 'Billing Desk', icon: '🧾', desc: 'Invoice dispatch & payment reminders' },
+  { key: 'connect', label: 'Business Connect', icon: '🤝', desc: 'Business enquiries, partnerships' },
+  { key: 'dl', label: 'DL - Direct Link', icon: '🔗', desc: 'Internal operations, project updates, AI agent reports' },
+  { key: 'info', label: 'Information Desk', icon: '📢', desc: 'General company enquiries' },
+  { key: 'careers', label: 'Careers Team', icon: '🎓', desc: 'Job applications & internships' },
+  { key: 'hr', label: 'Human Resources', icon: '👤', desc: 'Recruitment, onboarding, HR' },
+  { key: 'sales', label: 'Sales Team', icon: '🎯', desc: 'Sales, quotations, follow-ups' },
+  { key: 'support', label: 'Customer Support', icon: '🎫', desc: 'Technical support & maintenance' },
+  { key: 'marketing', label: 'Marketing Team', icon: '📈', desc: 'Social media, branding, campaigns' },
+  { key: 'projects', label: 'Project Management Office', icon: '📁', desc: 'Client projects & delivery' },
+  { key: 'legal', label: 'Legal Department', icon: '⚖️', desc: 'Contracts & compliance' },
 ];
 
 const EMPTY_CONFIG: ProviderConfig = {

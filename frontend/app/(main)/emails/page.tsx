@@ -272,12 +272,18 @@ export default function EmailCenterPage() {
                     <label className="ent-label">From Department (Sender Mailbox)</label>
                     <CustomSelect
                       options={[
-                        { label: 'Accounts & Billing (accounts@)', value: 'accounts' },
+                        { label: 'Accounts Department (accounts@)', value: 'accounts' },
+                        { label: 'Billing Desk (billing@)', value: 'billing' },
+                        { label: 'Business Connect (connect@)', value: 'connect' },
+                        { label: 'DL - Direct Link (dl@)', value: 'dl' },
+                        { label: 'Information Desk (info@)', value: 'info' },
+                        { label: 'Careers Team (careers@)', value: 'careers' },
                         { label: 'Human Resources (hr@)', value: 'hr' },
-                        { label: 'Support Services (support@)', value: 'support' },
-                        { label: 'Sales & Marketing (sales@)', value: 'sales' },
-                        { label: 'General Info (info@)', value: 'info' },
-                        { label: 'Connect Outreach (connect@)', value: 'connect' }
+                        { label: 'Sales Team (sales@)', value: 'sales' },
+                        { label: 'Customer Support (support@)', value: 'support' },
+                        { label: 'Marketing Team (marketing@)', value: 'marketing' },
+                        { label: 'Project Management Office (projects@)', value: 'projects' },
+                        { label: 'Legal Department (legal@)', value: 'legal' }
                       ]}
                       value={department}
                       onChange={setDepartment}
@@ -610,11 +616,17 @@ export default function EmailCenterPage() {
                   options={[
                     { label: 'All Departments', value: 'all' },
                     { label: 'Accounts', value: 'accounts' },
-                    { label: 'HR', value: 'hr' },
-                    { label: 'Support', value: 'support' },
-                    { label: 'Sales', value: 'sales' },
+                    { label: 'Billing', value: 'billing' },
+                    { label: 'Connect', value: 'connect' },
+                    { label: 'DL', value: 'dl' },
                     { label: 'Info', value: 'info' },
-                    { label: 'Connect', value: 'connect' }
+                    { label: 'Careers', value: 'careers' },
+                    { label: 'HR', value: 'hr' },
+                    { label: 'Sales', value: 'sales' },
+                    { label: 'Support', value: 'support' },
+                    { label: 'Marketing', value: 'marketing' },
+                    { label: 'Projects', value: 'projects' },
+                    { label: 'Legal', value: 'legal' }
                   ]}
                   value={deptFilter}
                   onChange={setDeptFilter}

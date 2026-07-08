@@ -413,11 +413,17 @@ export const sendEmail = async (
     if (!department && fromOverride) {
         const fromLower = fromOverride.toLowerCase();
         if (fromLower.includes('accounts')) resolvedDept = 'accounts';
-        else if (fromLower.includes('hr')) resolvedDept = 'hr';
-        else if (fromLower.includes('support')) resolvedDept = 'support';
-        else if (fromLower.includes('sales')) resolvedDept = 'sales';
-        else if (fromLower.includes('info')) resolvedDept = 'info';
+        else if (fromLower.includes('billing')) resolvedDept = 'billing';
         else if (fromLower.includes('connect')) resolvedDept = 'connect';
+        else if (fromLower.includes('dl')) resolvedDept = 'dl';
+        else if (fromLower.includes('info')) resolvedDept = 'info';
+        else if (fromLower.includes('careers')) resolvedDept = 'careers';
+        else if (fromLower.includes('hr')) resolvedDept = 'hr';
+        else if (fromLower.includes('sales')) resolvedDept = 'sales';
+        else if (fromLower.includes('support')) resolvedDept = 'support';
+        else if (fromLower.includes('marketing')) resolvedDept = 'marketing';
+        else if (fromLower.includes('projects')) resolvedDept = 'projects';
+        else if (fromLower.includes('legal')) resolvedDept = 'legal';
     }
 
     let finalCompanyId = resolvedCompanyId;
@@ -787,8 +793,7 @@ export const sendInvoiceEmail = async (to: string, invoiceData: any, pdfBuffer?:
         content: pdfBuffer
     }] : [];
 
-    const from = process.env.EMAIL_ACCOUNTS;
-    return sendEmail(to, subject, html, attachments, from);
+    return sendEmail(to, subject, html, attachments, undefined, undefined, undefined, true, invoiceData.companyId, 'billing');
 };
 
 // Send Quotation Email to Client
@@ -828,7 +833,7 @@ export const sendQuotationToClient = async (quotationData: any, publicUrl: strin
         heroLabel: 'Proposal',
         heroSub: `Quotation #${quotationData.quotationNumber}`
     });
-    return sendEmail(quotationData.lead?.email || quotationData.client?.email, subject, html);
+    return sendEmail(quotationData.lead?.email || quotationData.client?.email, subject, html, [], undefined, undefined, undefined, true, quotationData.companyId, 'sales');
 };
 
 // Send Contract Notification to Client
@@ -861,7 +866,7 @@ export const sendContractNotification = async (contract: any, publicUrl: string)
         heroLabel: 'Legal Document',
         heroSub: contract.title
     });
-    return sendEmail(contract.client.email, subject, html);
+    return sendEmail(contract.client.email, subject, html, [], undefined, undefined, undefined, true, contract.companyId, 'legal');
 };
 
 // Send Notification to Company when Client signs
