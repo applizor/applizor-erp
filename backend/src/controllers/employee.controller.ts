@@ -62,29 +62,30 @@ export const createEmployee = async (req: AuthRequest, res: Response) => {
 
         // Auto-generate Employee ID if not provided
         if (!finalEmployeeId) {
-            const lastEmployee = await prisma.employee.findFirst({
-                where: { companyId: adminUser.companyId },
-                orderBy: { createdAt: 'desc' }
-            });
+            finalEmployeeId = 'EMP-0001';
+        }
 
-            if (lastEmployee && lastEmployee.employeeId && lastEmployee.employeeId.startsWith('EMP-')) {
-                const parts = lastEmployee.employeeId.split('-');
-                if (parts.length === 2) {
-                    const num = parseInt(parts[1], 10);
-                    if (!isNaN(num)) {
-                        finalEmployeeId = `EMP-${(num + 1).toString().padStart(4, '0')}`;
+        // Use transaction with retry for atomicity + unique constraint safety
+        const result = await prisma.$transaction(async (tx) => {
+            let newUserId = null;
+
+            // Auto-generate inside transaction to avoid race conditions
+            if (!employeeId) {
+                const lastEmployee = await tx.employee.findFirst({
+                    where: { companyId: adminUser.companyId, employeeId: { startsWith: 'EMP-' } },
+                    orderBy: { employeeId: 'desc' }
+                });
+
+                if (lastEmployee && lastEmployee.employeeId) {
+                    const parts = lastEmployee.employeeId.split('-');
+                    if (parts.length === 2) {
+                        const num = parseInt(parts[1], 10);
+                        if (!isNaN(num)) {
+                            finalEmployeeId = `EMP-${(num + 1).toString().padStart(4, '0')}`;
+                        }
                     }
                 }
             }
-
-            if (!finalEmployeeId) {
-                finalEmployeeId = 'EMP-0001';
-            }
-        }
-
-        // Use transaction to ensure atomicity
-        const result = await prisma.$transaction(async (tx) => {
-            let newUserId = null;
 
             // 1. Create User if password provided
             if (password) {

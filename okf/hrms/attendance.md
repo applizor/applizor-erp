@@ -1,9 +1,9 @@
 ---
 type: Documentation
 title: Attendance Management
-description: Attendance tracking, shift roster, and status types
-tags: [attendance, roster, shifts]
-timestamp: 2026-06-29T23:00:00Z
+description: Attendance tracking, shift roster, geo-security, bulk import
+tags: [attendance, roster, shifts, tracking]
+timestamp: 2026-07-08T20:00:00Z
 ---
 
 # Attendance Management
@@ -15,6 +15,19 @@ timestamp: 2026-06-29T23:00:00Z
 | absent | Marked absent (no leave) | LOP |
 | half-day | Half-day attendance | 0.5 day pay |
 | onLeaveButPresent | On approved leave but came to work | Full pay (counts as present) |
+| week-off | Weekly off day | No impact |
+| holiday | Company holiday | Full pay |
+
+## Check-in/Check-out
+- Geo-tagged: latitude/longitude captured
+- IP address logged
+- `AttendanceSecurityService` detects "impossible travel" (Haversine formula) to prevent fraud
+- Distance check: compares current GPS against last known location within time window
+
+## Manual Attendance
+- Admin can manually mark attendance for any employee/date
+- Bulk marking via register page
+- CSV bulk import via `/api/bulk-import/attendance`
 
 ## Half-Day Logic
 - Applied via `durationType: 'half-day'` on attendance record
@@ -34,3 +47,11 @@ lopAmount = (componentAmount / totalDays) * absentDays
 - Virtual attendance entries via `createRosterAttendance`
 - Supports half-day roster patterns with `durationType`
 - Auto-generates attendance records from shift assignments
+- CSV upload for batch roster assignment
+- Batch update via `POST /api/shift-rosters/batch`
+
+## Roster Validation (`RosterValidatorService`)
+- Night-shift crossing detection
+- Rest period violations (minimum gap between consecutive shifts)
+- Company off-day compliance
+- Overlapping shift detection
