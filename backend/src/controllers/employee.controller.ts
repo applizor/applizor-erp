@@ -61,31 +61,25 @@ export const createEmployee = async (req: AuthRequest, res: Response) => {
 
         let finalEmployeeId = employeeId;
 
-        // Auto-generate Employee ID if not provided
-        if (!finalEmployeeId) {
-            finalEmployeeId = 'EMP-0001';
-        }
-
         // Use transaction with retry for atomicity + unique constraint safety
         const result = await prisma.$transaction(async (tx) => {
             let newUserId = null;
 
-            // Auto-generate inside transaction to avoid race conditions
+            // Auto-generate employeeId inside transaction — finds MAX numeric value to avoid duplicates
             if (!employeeId) {
-                const lastEmployee = await tx.employee.findFirst({
-                    where: { companyId, employeeId: { startsWith: 'EMP-' } },
-                    orderBy: { employeeId: 'desc' }
+                const existingIds = await tx.employee.findMany({
+                    where: { companyId },
+                    select: { employeeId: true }
                 });
-
-                if (lastEmployee && lastEmployee.employeeId) {
-                    const parts = lastEmployee.employeeId.split('-');
-                    if (parts.length === 2) {
-                        const num = parseInt(parts[1], 10);
-                        if (!isNaN(num)) {
-                            finalEmployeeId = `EMP-${(num + 1).toString().padStart(4, '0')}`;
-                        }
+                let maxNum = 0;
+                for (const emp of existingIds) {
+                    const match = emp.employeeId.match(/^EMP-(\d+)$/);
+                    if (match) {
+                        const num = parseInt(match[1], 10);
+                        if (num > maxNum) maxNum = num;
                     }
                 }
+                finalEmployeeId = `EMP-${(maxNum + 1).toString().padStart(4, '0')}`;
             }
 
             // 1. Create User if password provided
