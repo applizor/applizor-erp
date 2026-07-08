@@ -27,7 +27,8 @@ export const createEmployee = async (req: AuthRequest, res: Response) => {
         if (!adminUserId) return res.status(401).json({ error: 'Unauthorized' });
 
         const adminUser = await prisma.user.findUnique({ where: { id: adminUserId } });
-        if (!adminUser?.companyId) return res.status(400).json({ error: 'User does not belong to a company' });
+        if (!adminUser || !adminUser.companyId) return res.status(400).json({ error: 'User does not belong to a company' });
+        const companyId = adminUser.companyId;
 
         const {
             firstName,
@@ -72,7 +73,7 @@ export const createEmployee = async (req: AuthRequest, res: Response) => {
             // Auto-generate inside transaction to avoid race conditions
             if (!employeeId) {
                 const lastEmployee = await tx.employee.findFirst({
-                    where: { companyId: adminUser.companyId, employeeId: { startsWith: 'EMP-' } },
+                    where: { companyId, employeeId: { startsWith: 'EMP-' } },
                     orderBy: { employeeId: 'desc' }
                 });
 
@@ -102,7 +103,7 @@ export const createEmployee = async (req: AuthRequest, res: Response) => {
                         firstName,
                         lastName,
                         phone,
-                        companyId: adminUser.companyId,
+                        companyId,
                         // Default role could be 'employee', but roles logic handles that or permissions
                     }
                 });
@@ -136,7 +137,7 @@ export const createEmployee = async (req: AuthRequest, res: Response) => {
                 data: {
                     userId: newUserId ? newUserId : undefined,
                     createdById: adminUserId ? adminUserId : undefined,
-                    companyId: adminUser.companyId as string,
+                    companyId,
                     firstName,
                     lastName,
                     email,
