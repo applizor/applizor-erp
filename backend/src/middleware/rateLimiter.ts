@@ -34,7 +34,7 @@ function tenantKeyGenerator(req: Request): string {
  */
 export const tenantApiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: isDev ? 10000 : 300,
+    max: isDev ? 10000 : 1000, // Increased from 300 to 1000
     keyGenerator: tenantKeyGenerator,
     standardHeaders: true,
     legacyHeaders: false,
@@ -50,11 +50,11 @@ export const tenantApiLimiter = rateLimit({
 
 /**
  * IP-based general API limiter — kept for unauthenticated/public routes.
- * Production: 100 req / 15min per IP. Dev: relaxed.
+ * Production: 500 req / 15min per IP. Dev: relaxed.
  */
 export const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: isDev ? 10000 : 100,
+    max: isDev ? 10000 : 500, // Increased from 100 to 500
     standardHeaders: true,
     legacyHeaders: false,
     message: {
@@ -65,11 +65,11 @@ export const apiLimiter = rateLimit({
 
 /**
  * Strict IP-based limiter for authentication endpoints.
- * Production: 10 attempts / 15min per IP.
+ * Production: 30 attempts / 15min per IP.
  */
 export const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: isDev ? 10000 : 10,
+    max: isDev ? 10000 : 30, // Increased from 10 to 30
     standardHeaders: true,
     legacyHeaders: false,
     message: {

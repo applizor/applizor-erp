@@ -13,11 +13,14 @@ export const uploadEditorAsset = async (req: AuthRequest, res: Response) => {
         const fileName = `editor/${Date.now()}_${file.originalname.replace(/[^a-zA-Z0-9-_\.]/g, '_')}`;
         const fileUrl = await StorageService.uploadFile(file.buffer, fileName, file.mimetype);
 
-        const baseUrl = process.env.BACKEND_URL 
-            ? process.env.BACKEND_URL.replace(/\/$/, '') 
-            : `${req.protocol}://${req.get('host')}`;
-        const cleanFileUrl = fileUrl.startsWith('/') ? fileUrl.substring(1) : fileUrl;
-        const url = `${baseUrl}/api/upload/editor/${cleanFileUrl}`;
+        let url = fileUrl;
+        if (!fileUrl.startsWith('http')) {
+            const baseUrl = process.env.BACKEND_URL 
+                ? process.env.BACKEND_URL.replace(/\/$/, '') 
+                : `${req.protocol}://${req.get('host')}`;
+            const cleanFileUrl = fileUrl.startsWith('/') ? fileUrl.substring(1) : fileUrl;
+            url = `${baseUrl}/api/upload/editor/${cleanFileUrl}`;
+        }
 
         res.json({
             url: url,

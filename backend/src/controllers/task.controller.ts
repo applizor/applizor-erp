@@ -664,6 +664,15 @@ export const getTaskById = async (req: AuthRequest, res: Response) => {
             }
         }
 
+        // Resolve URLs for task attachments (handles S3/local paths dynamically)
+        if (task.documents && Array.isArray(task.documents)) {
+            for (const doc of task.documents) {
+                if (doc.filePath) {
+                    doc.filePath = await StorageService.getFileUrl(doc.filePath, req.user!.companyId);
+                }
+            }
+        }
+
         res.json(task);
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch task details' });

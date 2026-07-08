@@ -13,16 +13,49 @@ import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext
 import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
 import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary';
 import { $generateHtmlFromNodes, $generateNodesFromDOM } from '@lexical/html';
-import { $getRoot, $insertNodes, $getSelection, COMMAND_PRIORITY_CRITICAL, FORMAT_TEXT_COMMAND, SELECTION_CHANGE_COMMAND, ParagraphNode, TextNode, FORMAT_ELEMENT_COMMAND } from 'lexical';
+import { $getRoot, $insertNodes, $getSelection, COMMAND_PRIORITY_CRITICAL, FORMAT_TEXT_COMMAND, SELECTION_CHANGE_COMMAND, ParagraphNode, TextNode, FORMAT_ELEMENT_COMMAND, $isTextNode, LexicalNode } from 'lexical';
 import { HeadingNode, QuoteNode, $createHeadingNode, $createQuoteNode } from '@lexical/rich-text';
 import { TableNode, TableCellNode, TableRowNode } from '@lexical/table';
 import { ListItemNode, ListNode } from '@lexical/list';
-import { LinkNode, AutoLinkNode } from '@lexical/link';
+import { LinkNode, AutoLinkNode, TOGGLE_LINK_COMMAND } from '@lexical/link';
+import { AutoLinkPlugin } from '@lexical/react/LexicalAutoLinkPlugin';
+
+const URL_REGEX = /((https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,}))/gi;
+const EMAIL_REGEX = /(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))/gi;
+
+const MATCHERS = [
+  (text: string) => {
+    const match = URL_REGEX.exec(text);
+    if (match === null) {
+      return null;
+    }
+    const fullMatch = match[0];
+    return {
+      index: match.index,
+      length: fullMatch.length,
+      text: fullMatch,
+      url: fullMatch.startsWith('http') ? fullMatch : `https://${fullMatch}`,
+    };
+  },
+  (text: string) => {
+    const match = EMAIL_REGEX.exec(text);
+    if (match === null) {
+      return null;
+    }
+    const fullMatch = match[0];
+    return {
+      index: match.index,
+      length: fullMatch.length,
+      text: fullMatch,
+      url: `mailto:${fullMatch}`,
+    };
+  },
+];
 import { TRANSFORMERS } from '@lexical/markdown';
 import { CodeNode, CodeHighlightNode } from '@lexical/code';
 import { ImageNode } from './Editor/ImageNode';
 import { ImagePlugin } from './Editor/EditorPlugins';
-import { Copy, Bold, Italic, Underline as UnderlineIcon, Undo, Redo, FileText, Layout, ChevronDown, Type, Palette, Highlighter, AlignLeft, AlignCenter, AlignRight, Heading1, Heading2, Quote } from 'lucide-react';
+import { Copy, Bold, Italic, Underline as UnderlineIcon, Undo, Redo, FileText, Layout, ChevronDown, Type, Palette, Highlighter, AlignLeft, AlignCenter, AlignRight, Heading1, Heading2, Quote, Link as LinkIcon } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
 import { $patchStyleText } from '@lexical/selection';
 
@@ -100,6 +133,27 @@ const PagedRichTextEditor = forwardRef(({
         nodes: EDITOR_NODES,
         onError: (error: Error) => console.error(error),
         editable: !readOnly,
+        html: {
+            import: {
+                span: (domNode: HTMLElement) => {
+                    return {
+                        conversion: (domNode: HTMLElement) => {
+                            const style = domNode.getAttribute('style');
+                            return {
+                                forChild: (lexicalNode: LexicalNode) => {
+                                    if ($isTextNode(lexicalNode) && style) {
+                                        lexicalNode.setStyle(style);
+                                    }
+                                    return lexicalNode;
+                                },
+                                node: null,
+                            };
+                        },
+                        priority: 1 as const,
+                    };
+                },
+            },
+        },
     };
 
     const variables = [
@@ -209,6 +263,7 @@ const PagedRichTextEditor = forwardRef(({
                         <InitialContentPlugin html={value} />
                         <LexicalOnChange htmlOnChange={onChange} />
                         <ImagePlugin />
+                        <AutoLinkPlugin matchers={MATCHERS} />
 
                         {/* Bridge for Ref */}
                         <EditorRefBridge ref={ref} />
@@ -318,6 +373,31 @@ const Toolbar = () => {
     const [fontSizeOpen, setFontSizeOpen] = useState(false);
     const [textColorOpen, setTextColorOpen] = useState(false);
     const [bgColorOpen, setBgColorOpen] = useState(false);
+    const [linkPopoverOpen, setLinkPopoverOpen] = useState(false);
+    const [linkUrl, setLinkUrl] = useState('');
+
+    const handleLinkClick = () => {
+        if (!linkPopoverOpen) {
+            editor.getEditorState().read(() => {
+                const selection = $getSelection();
+                if (selection) {
+                    const text = selection.getTextContent();
+                    setLinkUrl(text.startsWith('http') || text.includes('.') ? text : 'https://');
+                }
+            });
+        }
+        setLinkPopoverOpen(!linkPopoverOpen);
+        setFontSizeOpen(false);
+        setTextColorOpen(false);
+        setBgColorOpen(false);
+    };
+
+    const applyLink = () => {
+        if (linkUrl) {
+            editor.dispatchCommand(TOGGLE_LINK_COMMAND, linkUrl);
+        }
+        setLinkPopoverOpen(false);
+    };
 
     const fontSizes = ['12px', '14px', '16px', '18px', '20px', '24px', '28px', '32px', '36px', '48px'];
     const textColors = [
@@ -459,6 +539,48 @@ const Toolbar = () => {
             <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => align('left')} className="p-2 rounded hover:bg-slate-100 text-slate-600 transition-all" title="Align Left"><AlignLeft size={16} /></button>
             <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => align('center')} className="p-2 rounded hover:bg-slate-100 text-slate-600 transition-all" title="Align Center"><AlignCenter size={16} /></button>
             <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => align('right')} className="p-2 rounded hover:bg-slate-100 text-slate-600 transition-all" title="Align Right"><AlignRight size={16} /></button>
+
+            <div className="w-px h-6 bg-slate-200 mx-1" />
+
+            <div className="flex items-center relative">
+                <div className="relative">
+                    <button
+                        type="button"
+                        onClick={handleLinkClick}
+                        className={`p-2 rounded transition-all flex items-center ${linkPopoverOpen ? 'bg-primary-50 text-primary-600' : 'text-slate-600 hover:bg-slate-100'}`}
+                        title="Insert Link"
+                    >
+                        <LinkIcon size={16} />
+                    </button>
+                    {linkPopoverOpen && (
+                        <>
+                            <div className="fixed inset-0 z-40" onClick={() => setLinkPopoverOpen(false)} />
+                            <div className="absolute left-0 mt-1 p-2 bg-white border border-slate-200 rounded shadow-lg z-50 flex items-center gap-1.5 w-64">
+                                <input
+                                    type="text"
+                                    value={linkUrl}
+                                    onChange={(e) => setLinkUrl(e.target.value)}
+                                    placeholder="Enter URL..."
+                                    className="flex-1 text-xs border border-slate-200 rounded px-2 py-1 outline-none focus:border-primary-500"
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            applyLink();
+                                        }
+                                    }}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={applyLink}
+                                    className="bg-primary-600 hover:bg-primary-700 text-white text-[10px] font-black uppercase tracking-widest px-2 py-1.5 rounded shadow-sm"
+                                >
+                                    Apply
+                                </button>
+                            </div>
+                        </>
+                    )}
+                </div>
+            </div>
 
             <div className="w-px h-6 bg-slate-200 mx-1" />
 

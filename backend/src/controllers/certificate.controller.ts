@@ -2,6 +2,7 @@ import { Response } from 'express';
 import prisma from '../prisma/client';
 import { AuthRequest } from '../middleware/auth';
 import { PermissionService } from '../services/permission.service';
+import { StorageService } from '../services/storage.service';
 import path from 'path';
 import fs from 'fs';
 
@@ -461,8 +462,7 @@ export const deleteCertificate = async (req: AuthRequest, res: Response) => {
 
         // Delete PDF file if exists
         if (existing.pdfPath) {
-            const fullPath = path.join(process.cwd(), 'uploads', existing.pdfPath);
-            if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
+            await StorageService.deleteFile(existing.pdfPath, user.companyId);
         }
 
         await prisma.certificate.delete({ where: { id } });
@@ -622,24 +622,18 @@ export const generateCertificatePDF = async (req: AuthRequest, res: Response) =>
                 { headers: form.getHeaders(), responseType: 'arraybuffer', timeout: 30000 },
             );
 
-            // Save PDF
-            const uploadsDir = path.join(process.cwd(), 'uploads', 'certificates');
-            fs.mkdirSync(uploadsDir, { recursive: true });
-            const fileName = `${cert.certificateNo.replace(/[^a-zA-Z0-9-]/g, '_')}_${Date.now()}.pdf`;
-            const filePath = path.join(uploadsDir, fileName);
-            fs.writeFileSync(filePath, Buffer.from(pdfResponse.data));
-
-            const pdfPath = `certificates/${fileName}`;
+            // Save PDF to S3 storage
+            const fileName = `certificates/${cert.certificateNo.replace(/[^a-zA-Z0-9-]/g, '_')}_${Date.now()}.pdf`;
+            const fileUrl = await StorageService.uploadFile(Buffer.from(pdfResponse.data), fileName, 'application/pdf', cert.companyId);
 
             // Old PDF cleanup
             if (cert.pdfPath) {
-                const oldPath = path.join(process.cwd(), 'uploads', cert.pdfPath);
-                if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+                await StorageService.deleteFile(cert.pdfPath, cert.companyId);
             }
 
-            await prisma.certificate.update({ where: { id }, data: { pdfPath } });
+            await prisma.certificate.update({ where: { id }, data: { pdfPath: fileUrl } });
 
-            return res.json({ success: true, pdfPath, message: 'PDF generated successfully' });
+            return res.json({ success: true, pdfPath: fileUrl, message: 'PDF generated successfully' });
         } catch (pdfError: any) {
             console.error('PDF generation error:', pdfError.message);
             return res.status(500).json({ error: 'PDF generation failed', details: pdfError.message });
@@ -663,14 +657,14 @@ export const downloadCertificatePDF = async (req: AuthRequest, res: Response) =>
         if (!cert) return res.status(404).json({ error: 'Certificate not found' });
         if (!cert.pdfPath) return res.status(404).json({ error: 'PDF not generated yet. Generate PDF first.' });
 
-        const fullPath = path.join(process.cwd(), 'uploads', cert.pdfPath);
-        if (!fs.existsSync(fullPath)) {
-            return res.status(404).json({ error: 'PDF file not found on server' });
+        const stream = await StorageService.getFileStream(cert.pdfPath, cert.companyId);
+        if (!stream) {
+            return res.status(404).json({ error: 'PDF file not found on storage' });
         }
 
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="${cert.certificateNo}.pdf"`);
-        fs.createReadStream(fullPath).pipe(res);
+        stream.pipe(res);
     } catch (error: any) {
         res.status(500).json({ error: 'Failed to download PDF' });
     }
@@ -698,9 +692,9 @@ export const sendCertificateEmail = async (req: AuthRequest, res: Response) => {
         const recipientEmail = cert.student?.email || cert.employee?.email;
         if (!recipientEmail) return res.status(400).json({ error: 'Recipient email not found' });
 
-        const pdfPath = path.join(process.cwd(), 'uploads', cert.pdfPath);
-        if (!fs.existsSync(pdfPath)) {
-            return res.status(404).json({ error: 'PDF file not found. Regenerate PDF first.' });
+        const pdfBuffer = await StorageService.getFileBuffer(cert.pdfPath, cert.companyId);
+        if (!pdfBuffer) {
+            return res.status(404).json({ error: 'PDF file not found on storage. Regenerate PDF first.' });
         }
 
         // Use existing email service
@@ -721,7 +715,7 @@ export const sendCertificateEmail = async (req: AuthRequest, res: Response) => {
             recipientEmail,
             subject,
             body,
-            [{ filename: `${cert.certificateNo}.pdf`, path: pdfPath }]
+            [{ filename: `${cert.certificateNo}.pdf`, content: pdfBuffer }]
         );
 
         await prisma.certificate.update({ where: { id }, data: { emailSentAt: new Date() } });
