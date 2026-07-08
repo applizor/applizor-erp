@@ -323,8 +323,15 @@ export const resolveEmailConfig = async (companyId?: string, department?: string
             // Check department override
             if (department && config.departments && config.departments[department]) {
                 const deptConfig = config.departments[department];
-                if (deptConfig.provider) {
-                    return deptConfig;
+                if (deptConfig && (deptConfig.provider || deptConfig.defaultFrom)) {
+                    const defaultConfig = config.default || {};
+                    const merged = { ...defaultConfig };
+                    for (const key of Object.keys(deptConfig)) {
+                        if (deptConfig[key] !== undefined && deptConfig[key] !== null && deptConfig[key] !== '') {
+                            merged[key] = deptConfig[key];
+                        }
+                    }
+                    return merged;
                 }
             }
 

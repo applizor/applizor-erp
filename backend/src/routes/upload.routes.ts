@@ -5,6 +5,9 @@ import * as uploadController from '../controllers/upload.controller';
 
 const router = Router();
 
+// Public route to view/stream editor assets
+router.get('/editor/*', uploadController.getEditorAsset);
+
 router.use(authenticate);
 
 // Editor Assets (Images, Files)

@@ -235,6 +235,7 @@ export default function EmailSettingsPage() {
   ) => {
     const p = config.provider;
     const toggleSecret = (key: string) => setShowSecrets(s => ({ ...s, [key]: !s[key] }));
+    const isDept = prefix.startsWith('dept-');
 
     return (
       <div className="space-y-4 mt-4">
@@ -242,12 +243,12 @@ export default function EmailSettingsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-1">
             <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide">From Email</label>
-            <input type="email" className="input-field" placeholder="noreply@yourcompany.com"
+            <input type="email" className="input-field" placeholder={isDept ? (defaultConfig.defaultFrom || "noreply@yourcompany.com") : "noreply@yourcompany.com"}
               value={config.defaultFrom} onChange={e => onChange('defaultFrom', e.target.value)} />
           </div>
           <div className="space-y-1">
             <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide">From Name</label>
-            <input type="text" className="input-field" placeholder="Applizor ERP"
+            <input type="text" className="input-field" placeholder={isDept ? (defaultConfig.fromName || "Applizor ERP") : "Applizor ERP"}
               value={config.fromName} onChange={e => onChange('fromName', e.target.value)} />
           </div>
         </div>
@@ -258,26 +259,27 @@ export default function EmailSettingsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide">SMTP Host</label>
-                <input className="input-field" placeholder="smtp.gmail.com"
+                <input className="input-field" placeholder={isDept ? (defaultConfig.smtpHost || "smtp.gmail.com") : "smtp.gmail.com"}
                   value={config.smtpHost} onChange={e => onChange('smtpHost', e.target.value)} />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide">SMTP Port</label>
-                <input className="input-field" placeholder="587"
+                <input className="input-field" placeholder={isDept ? (defaultConfig.smtpPort || "587") : "587"}
                   value={config.smtpPort} onChange={e => onChange('smtpPort', e.target.value)} />
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide">SMTP Username</label>
-                <input className="input-field" placeholder="user@gmail.com"
+                <input className="input-field" placeholder={isDept ? (defaultConfig.smtpUser || "user@gmail.com") : "user@gmail.com"}
                   value={config.smtpUser} onChange={e => onChange('smtpUser', e.target.value)} />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide">SMTP Password</label>
                 <div className="relative">
                   <input type={showSecrets[`${prefix}-smtpPass`] ? 'text' : 'password'} className="input-field pr-10"
-                    placeholder="App password" value={config.smtpPass} onChange={e => onChange('smtpPass', e.target.value)} />
+                    placeholder={isDept ? (defaultConfig.smtpPass ? "•••••••• (Inherited)" : "App password") : "App password"}
+                    value={config.smtpPass} onChange={e => onChange('smtpPass', e.target.value)} />
                   <button type="button" onClick={() => toggleSecret(`${prefix}-smtpPass`)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
                     {showSecrets[`${prefix}-smtpPass`] ? <EyeOff size={14} /> : <Eye size={14} />}
                   </button>
@@ -293,12 +295,12 @@ export default function EmailSettingsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide">Tenant ID</label>
-                <input className="input-field" placeholder="your-tenant-id or common"
+                <input className="input-field" placeholder={isDept ? (defaultConfig.microsoftTenantId || "your-tenant-id or common") : "your-tenant-id or common"}
                   value={config.microsoftTenantId} onChange={e => onChange('microsoftTenantId', e.target.value)} />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide">Client ID</label>
-                <input className="input-field" placeholder="Application (client) ID"
+                <input className="input-field" placeholder={isDept ? (defaultConfig.microsoftClientId || "Application (client) ID") : "Application (client) ID"}
                   value={config.microsoftClientId} onChange={e => onChange('microsoftClientId', e.target.value)} />
               </div>
             </div>
@@ -307,7 +309,8 @@ export default function EmailSettingsPage() {
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide">Client Secret</label>
                 <div className="relative">
                   <input type={showSecrets[`${prefix}-msSecret`] ? 'text' : 'password'} className="input-field pr-10"
-                    placeholder="Client Secret Value" value={config.microsoftClientSecret} onChange={e => onChange('microsoftClientSecret', e.target.value)} />
+                    placeholder={isDept ? (defaultConfig.microsoftClientSecret ? "•••••••• (Inherited)" : "Client Secret Value") : "Client Secret Value"}
+                    value={config.microsoftClientSecret} onChange={e => onChange('microsoftClientSecret', e.target.value)} />
                   <button type="button" onClick={() => toggleSecret(`${prefix}-msSecret`)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
                     {showSecrets[`${prefix}-msSecret`] ? <EyeOff size={14} /> : <Eye size={14} />}
                   </button>
@@ -317,7 +320,8 @@ export default function EmailSettingsPage() {
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide">Refresh Token</label>
                 <div className="relative">
                   <input type={showSecrets[`${prefix}-msRefresh`] ? 'text' : 'password'} className="input-field pr-10"
-                    placeholder="OAuth2 Refresh Token" value={config.microsoftRefreshToken} onChange={e => onChange('microsoftRefreshToken', e.target.value)} />
+                    placeholder={isDept ? (defaultConfig.microsoftRefreshToken ? "•••••••• (Inherited)" : "OAuth2 Refresh Token") : "OAuth2 Refresh Token"}
+                    value={config.microsoftRefreshToken} onChange={e => onChange('microsoftRefreshToken', e.target.value)} />
                   <button type="button" onClick={() => toggleSecret(`${prefix}-msRefresh`)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
                     {showSecrets[`${prefix}-msRefresh`] ? <EyeOff size={14} /> : <Eye size={14} />}
                   </button>
@@ -333,14 +337,15 @@ export default function EmailSettingsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide">Client ID</label>
-                <input className="input-field" placeholder="Google Client ID"
+                <input className="input-field" placeholder={isDept ? (defaultConfig.googleClientId || "Google Client ID") : "Google Client ID"}
                   value={config.googleClientId} onChange={e => onChange('googleClientId', e.target.value)} />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide">Client Secret</label>
                 <div className="relative">
                   <input type={showSecrets[`${prefix}-gSecret`] ? 'text' : 'password'} className="input-field pr-10"
-                    placeholder="Google Client Secret" value={config.googleClientSecret} onChange={e => onChange('googleClientSecret', e.target.value)} />
+                    placeholder={isDept ? (defaultConfig.googleClientSecret ? "•••••••• (Inherited)" : "Google Client Secret") : "Google Client Secret"}
+                    value={config.googleClientSecret} onChange={e => onChange('googleClientSecret', e.target.value)} />
                   <button type="button" onClick={() => toggleSecret(`${prefix}-gSecret`)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
                     {showSecrets[`${prefix}-gSecret`] ? <EyeOff size={14} /> : <Eye size={14} />}
                   </button>
@@ -351,7 +356,8 @@ export default function EmailSettingsPage() {
               <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide">Refresh Token</label>
               <div className="relative">
                 <input type={showSecrets[`${prefix}-gRefresh`] ? 'text' : 'password'} className="input-field pr-10"
-                  placeholder="Google Refresh Token" value={config.googleRefreshToken} onChange={e => onChange('googleRefreshToken', e.target.value)} />
+                  placeholder={isDept ? (defaultConfig.googleRefreshToken ? "•••••••• (Inherited)" : "Google Refresh Token") : "Google Refresh Token"}
+                  value={config.googleRefreshToken} onChange={e => onChange('googleRefreshToken', e.target.value)} />
                 <button type="button" onClick={() => toggleSecret(`${prefix}-gRefresh`)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
                   {showSecrets[`${prefix}-gRefresh`] ? <EyeOff size={14} /> : <Eye size={14} />}
                 </button>
@@ -366,31 +372,32 @@ export default function EmailSettingsPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide">SES Region</label>
-                <input className="input-field" placeholder="us-east-1"
+                <input className="input-field" placeholder={isDept ? (defaultConfig.sesRegion || "us-east-1") : "us-east-1"}
                   value={config.sesRegion} onChange={e => onChange('sesRegion', e.target.value)} />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide">SMTP Host</label>
-                <input className="input-field" placeholder="email-smtp.us-east-1.amazonaws.com"
+                <input className="input-field" placeholder={isDept ? (defaultConfig.sesSmtpHost || "email-smtp.us-east-1.amazonaws.com") : "email-smtp.us-east-1.amazonaws.com"}
                   value={config.sesSmtpHost} onChange={e => onChange('sesSmtpHost', e.target.value)} />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide">SMTP Port</label>
-                <input className="input-field" placeholder="587"
+                <input className="input-field" placeholder={isDept ? (defaultConfig.sesSmtpPort || "587") : "587"}
                   value={config.sesSmtpPort} onChange={e => onChange('sesSmtpPort', e.target.value)} />
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide">SMTP Username</label>
-                <input className="input-field" placeholder="SES SMTP Username"
+                <input className="input-field" placeholder={isDept ? (defaultConfig.sesSmtpUser || "SES SMTP Username") : "SES SMTP Username"}
                   value={config.sesSmtpUser} onChange={e => onChange('sesSmtpUser', e.target.value)} />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide">SMTP Password</label>
                 <div className="relative">
                   <input type={showSecrets[`${prefix}-sesPass`] ? 'text' : 'password'} className="input-field pr-10"
-                    placeholder="SES SMTP Password" value={config.sesSmtpPass} onChange={e => onChange('sesSmtpPass', e.target.value)} />
+                    placeholder={isDept ? (defaultConfig.sesSmtpPass ? "•••••••• (Inherited)" : "SES SMTP Password") : "SES SMTP Password"}
+                    value={config.sesSmtpPass} onChange={e => onChange('sesSmtpPass', e.target.value)} />
                   <button type="button" onClick={() => toggleSecret(`${prefix}-sesPass`)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
                     {showSecrets[`${prefix}-sesPass`] ? <EyeOff size={14} /> : <Eye size={14} />}
                   </button>
@@ -406,7 +413,8 @@ export default function EmailSettingsPage() {
             <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide">SendGrid API Key</label>
             <div className="relative">
               <input type={showSecrets[`${prefix}-sgKey`] ? 'text' : 'password'} className="input-field pr-10"
-                placeholder="SG.xxxxxxx" value={config.sendgridApiKey} onChange={e => onChange('sendgridApiKey', e.target.value)} />
+                placeholder={isDept ? (defaultConfig.sendgridApiKey ? "•••••••• (Inherited)" : "SG.xxxxxxx") : "SG.xxxxxxx"}
+                value={config.sendgridApiKey} onChange={e => onChange('sendgridApiKey', e.target.value)} />
               <button type="button" onClick={() => toggleSecret(`${prefix}-sgKey`)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
                 {showSecrets[`${prefix}-sgKey`] ? <EyeOff size={14} /> : <Eye size={14} />}
               </button>
@@ -422,7 +430,8 @@ export default function EmailSettingsPage() {
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide">API Key</label>
                 <div className="relative">
                   <input type={showSecrets[`${prefix}-mgKey`] ? 'text' : 'password'} className="input-field pr-10"
-                    placeholder="key-xxxxxxx" value={config.mailgunApiKey} onChange={e => onChange('mailgunApiKey', e.target.value)} />
+                    placeholder={isDept ? (defaultConfig.mailgunApiKey ? "•••••••• (Inherited)" : "key-xxxxxxx") : "key-xxxxxxx"}
+                    value={config.mailgunApiKey} onChange={e => onChange('mailgunApiKey', e.target.value)} />
                   <button type="button" onClick={() => toggleSecret(`${prefix}-mgKey`)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
                     {showSecrets[`${prefix}-mgKey`] ? <EyeOff size={14} /> : <Eye size={14} />}
                   </button>
@@ -430,13 +439,13 @@ export default function EmailSettingsPage() {
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide">Domain</label>
-                <input className="input-field" placeholder="mg.yourcompany.com"
+                <input className="input-field" placeholder={isDept ? (defaultConfig.mailgunDomain || "mg.yourcompany.com") : "mg.yourcompany.com"}
                   value={config.mailgunDomain} onChange={e => onChange('mailgunDomain', e.target.value)} />
               </div>
             </div>
             <div className="space-y-1">
               <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide">API Host (Optional)</label>
-              <input className="input-field" placeholder="api.mailgun.net (default) or api.eu.mailgun.net"
+              <input className="input-field" placeholder={isDept ? (defaultConfig.mailgunHost || "api.mailgun.net (default)") : "api.mailgun.net (default) or api.eu.mailgun.net"}
                 value={config.mailgunHost} onChange={e => onChange('mailgunHost', e.target.value)} />
             </div>
           </div>
@@ -570,9 +579,15 @@ export default function EmailSettingsPage() {
                       </div>
                     </div>
 
-                    {/* Expanded config */}
+                     {/* Expanded config */}
                     {isEnabled && isExpanded && deptConfig && (
                       <div className="px-4 pb-4 border-t border-slate-200/80">
+                        {/* Tip Banner */}
+                        <div className="mt-3 p-3 bg-blue-50/50 border border-blue-100 rounded-md text-[10px] text-blue-700 font-bold uppercase tracking-wider flex items-center gap-2">
+                          <span className="text-sm">💡</span>
+                          <span>Credentials (Tenant ID, Client ID, secrets, tokens, passwords) will inherit the global default config if left blank.</span>
+                        </div>
+
                         {/* Provider selector for dept */}
                         <div className="space-y-1 mt-4">
                           <label className="text-[10px] font-black text-slate-500 uppercase tracking-wide">Provider for {dept.label}</label>
