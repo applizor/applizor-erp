@@ -225,15 +225,15 @@ export const createDocument = async (req: AuthRequest, res: Response) => {
         const document = await prisma.document.create({
             data: {
                 companyId: data.company?.id || undefined,
-                employee: employeeId ? { connect: { id: employeeId } } : undefined,
-                client: clientId ? { connect: { id: clientId } } : undefined,
+                employeeId: employeeId || undefined,
+                clientId: clientId || undefined,
                 name: `${template.name} - ${new Date().toLocaleDateString()}`,
                 type: template.type,
                 filePath: fileUrl,
                 fileSize: pdfBuffer.length,
                 status: status,
                 workflowType: 'signature_required',
-                uploadedBy: { connect: { id: user.id } }
+                uploadedById: user.id
             }
         });
 
@@ -474,16 +474,16 @@ export const uploadGenericDocument = async (req: AuthRequest, res: Response) => 
 
         const document = await prisma.document.create({
             data: {
-                company: { connect: { id: employee.companyId } },
-                employee: { connect: { id: targetEmployeeId } },
+                companyId: employee.companyId,
+                employeeId: targetEmployeeId,
                 name: name || req.file.originalname,
                 type: type || 'General',
                 filePath: fileUrl,
                 fileSize: req.file.size,
                 mimeType: req.file.mimetype,
-                status: 'submitted', // Auto-submit generic uploads
+                status: 'submitted',
                 workflowType: 'standard',
-                uploadedBy: { connect: { id: user.id } }
+                uploadedById: user.id
             }
         });
 

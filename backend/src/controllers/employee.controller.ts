@@ -673,14 +673,13 @@ export const uploadEmployeeDocument = async (req: AuthRequest, res: Response) =>
 
         const document = await prisma.document.create({
             data: {
-                company: { connect: { id: employee.companyId } },
-                employee: { connect: { id } },
+                companyId: employee.companyId,
+                employeeId: id,
                 name: name || req.file.originalname,
                 type: type || 'other',
                 filePath: fileUrl,
                 fileSize: req.file.size,
                 mimeType: req.file.mimetype,
-                // Personal/Standard Upload Workflow
                 status: 'submitted',
                 workflowType: 'standard'
             }

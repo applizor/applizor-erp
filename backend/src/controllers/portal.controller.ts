@@ -1112,8 +1112,8 @@ export const uploadDocument = async (req: ClientAuthRequest, res: Response) => {
 
         const document = await prisma.document.create({
             data: {
-                company: { connect: { id: client.companyId } },
-                client: { connect: { id: client.id } },
+                companyId: client.companyId,
+                clientId: client.id,
                 name: name || req.file.originalname,
                 type: type || 'Client Upload',
                 filePath: fileUrl,

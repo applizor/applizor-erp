@@ -50,15 +50,15 @@ export const createPortalTask = async (req: ClientAuthRequest, res: Response) =>
 
                 return prisma.document.create({
                     data: {
-                        project: { connect: { id: projectId } },
-                        task: { connect: { id: task.id } },
+                        projectId: projectId,
+                        taskId: task.id,
                         name: file.originalname,
                         type: 'task_attachment',
                         filePath: fileUrl,
                         fileSize: file.size,
                         mimeType: file.mimetype,
-                        company: { connect: { id: req.client.companyId } },
-                        client: { connect: { id: clientId } }
+                        companyId: req.client.companyId,
+                        clientId: clientId
                     }
                 });
             }));
@@ -208,15 +208,15 @@ export const uploadPortalTaskDocument = async (req: ClientAuthRequest, res: Resp
 
             return prisma.document.create({
                 data: {
-                    project: { connect: { id: task.projectId! } },
-                    task: { connect: { id: task.id } },
+                    projectId: task.projectId!,
+                    taskId: task.id,
                     name: file.originalname,
                     type: 'task_attachment',
                     filePath: fileUrl,
                     fileSize: file.size,
                     mimeType: file.mimetype,
-                    company: { connect: { id: req.client.companyId } },
-                    client: { connect: { id: clientId } }
+                    companyId: req.client.companyId,
+                    clientId: clientId
                 }
             });
         }));

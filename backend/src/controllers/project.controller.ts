@@ -706,16 +706,16 @@ export const uploadProjectDocument = async (req: AuthRequest, res: Response) => 
 
         const document = await prisma.document.create({
             data: {
-                project: { connect: { id } },
+                projectId: id,
                 name: req.file.originalname,
-                type: 'project_file', // Generic type
+                type: 'project_file',
                 category: category || 'General',
                 filePath: fileUrl,
                 fileSize: req.file.size,
                 mimeType: req.file.mimetype,
-                company: { connect: { id: req.user!.companyId } },
-                ...(employeeId ? { employee: { connect: { id: employeeId } } } : {}),
-                uploadedBy: { connect: { id: req.user!.id } },
+                companyId: req.user!.companyId,
+                employeeId: employeeId || undefined,
+                uploadedById: req.user!.id,
                 tags: tags ? JSON.parse(tags) : []
             }
         });

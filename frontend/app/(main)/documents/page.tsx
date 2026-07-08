@@ -106,9 +106,17 @@ export default function DocumentsPage() {
     const loadDirectory = async () => {
         try {
             const empRes = await api.get('/employees');
-            setEmployees(empRes.data || []);
-        } catch (error) {
+            if (Array.isArray(empRes.data)) {
+                setEmployees(empRes.data);
+            } else if (empRes.data?.data && Array.isArray(empRes.data.data)) {
+                setEmployees(empRes.data.data);
+            } else {
+                console.warn('Unexpected employees response format:', empRes.data);
+                setEmployees([]);
+            }
+        } catch (error: any) {
             console.error('Failed to load employees:', error);
+            toast.error(error?.response?.data?.error || 'Failed to load employees');
         }
 
         try {

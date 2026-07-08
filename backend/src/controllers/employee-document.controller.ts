@@ -24,13 +24,13 @@ export const uploadDocument = async (req: AuthRequest, res: Response) => {
         const document = await prisma.document.create({
             data: {
                 name: name || file.originalname,
-                type: type || 'document', // id_proof, address_proof, etc.
+                type: type || 'document',
                 filePath: fileUrl,
                 fileSize: file.size,
                 mimeType: file.mimetype,
-                company: { connect: { id: req.user!.companyId } },
-                employee: { connect: { id: employeeId } }, // Important: Link to employee
-                uploadedBy: { connect: { id: (req.user as any).id } }
+                companyId: req.user!.companyId,
+                employeeId: employeeId,
+                uploadedById: (req.user as any).id
             }
         });
 

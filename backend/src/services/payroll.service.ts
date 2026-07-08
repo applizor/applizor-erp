@@ -99,7 +99,7 @@ export class PayrollService {
                     tdsPayableAccountId: data.tdsPayableAccountId || undefined,
                 },
                 create: {
-                    company: { connect: { id: companyId } },
+                    companyId: companyId,
                     pfEmployeeRate: clean(data.pfEmployeeRate, 12),
                     pfEmployerRate: clean(data.pfEmployerRate, 12),
                     pfBasicLimit: clean(data.pfBasicLimit, 15000),

@@ -41,18 +41,18 @@ export const uploadTaskDocument = async (req: AuthRequest, res: Response) => {
             const employeeId = req.user?.employee?.id;
 
             const documentData: any = {
-                task: { connect: { id: task.id } },
+                taskId: task.id,
                 name: file.originalname,
                 type: 'task_attachment',
                 filePath: fileUrl,
                 fileSize: file.size,
                 mimeType: file.mimetype,
-                company: { connect: { id: req.user!.companyId } },
-                ...(employeeId ? { employee: { connect: { id: employeeId } } } : {}),
-                uploadedBy: { connect: { id: req.user!.id } }
+                companyId: req.user!.companyId,
+                employeeId: employeeId || undefined,
+                uploadedById: req.user!.id
             };
             if (task.projectId) {
-                documentData.project = { connect: { id: task.projectId } };
+                documentData.projectId = task.projectId;
             }
 
             return prisma.document.create({ data: documentData });
@@ -135,17 +135,17 @@ export const createTask = async (req: AuthRequest, res: Response) => {
                 const fileUrl = await StorageService.uploadFile(file.buffer, fileName, file.mimetype);
 
                 const documentData: any = {
-                    task: { connect: { id: task.id } },
+                    taskId: task.id,
                     name: file.originalname,
                     type: 'task_attachment',
                     filePath: fileUrl,
                     fileSize: file.size,
                     mimeType: file.mimetype,
-                    company: { connect: { id: req.user!.companyId } },
-                    ...(req.user?.employee?.id ? { employee: { connect: { id: req.user.employee.id } } } : {})
+                    companyId: req.user!.companyId,
+                    employeeId: req.user?.employee?.id || undefined
                 };
                 if (task.projectId) {
-                    documentData.project = { connect: { id: task.projectId } };
+                    documentData.projectId = task.projectId;
                 }
 
                 return prisma.document.create({
