@@ -897,7 +897,7 @@ export const sendContractSignedNotificationToCompany = async (contract: any) => 
     const companyEmail = contract.company?.email || process.env.SMTP_USER;
     if (!companyEmail) return;
 
-    return sendEmail(companyEmail, subject, html);
+    return sendEmail(companyEmail, subject, html, [], undefined, undefined, undefined, true, contract.companyId, 'legal');
 };
 
 // Send Acceptance Confirmation to Client
@@ -930,7 +930,7 @@ export const sendQuotationAcceptanceToClient = async (quotationData: any) => {
         heroLabel: 'Confirmation',
         heroSub: `Quotation #${quotationData.quotationNumber}`
     });
-    return sendEmail(quotationData.clientEmail, subject, html);
+    return sendEmail(quotationData.clientEmail, subject, html, [], undefined, undefined, undefined, true, quotationData.companyId, 'sales');
 };
 
 // Send Acceptance Notification to Company
@@ -1028,7 +1028,7 @@ export const sendQuotationReminder = async (quotationData: any, publicUrl: strin
         heroLabel: 'Follow-up',
         heroSub: `Quotation #${quotationData.quotationNumber} is awaiting your response`
     });
-    return sendEmail(quotationData.lead?.email || quotationData.clientEmail, subject, html);
+    return sendEmail(quotationData.lead?.email || quotationData.clientEmail, subject, html, [], undefined, undefined, undefined, true, quotationData.companyId, 'sales');
 };
 // --- Task Notifications ---
 
@@ -1059,7 +1059,7 @@ export const notifyTaskAssigned = async (to: string, task: any, project: any) =>
         heroLabel: 'Task Assigned',
         heroSub: project.name
     });
-    return sendEmail(to, subject, html, undefined, companyEmail);
+    return sendEmail(to, subject, html, [], undefined, undefined, undefined, true, project.companyId, 'projects');
 };
 
 export const notifyTaskUpdated = async (assignee: any, task: any, project: any, changes: string[]) => {
@@ -1087,7 +1087,7 @@ export const notifyTaskUpdated = async (assignee: any, task: any, project: any, 
         heroLabel: 'Task Update',
         heroSub: project.name
     });
-    return sendEmail(assignee.email, subject, html, undefined, companyEmail);
+    return sendEmail(assignee.email, subject, html, [], undefined, undefined, undefined, true, project.companyId, 'projects');
 };
 
 export const notifyNewTask = async (to: string, task: any, project: any) => {
@@ -1114,7 +1114,7 @@ export const notifyNewTask = async (to: string, task: any, project: any) => {
         heroLabel: 'New Task',
         heroSub: project.name
     });
-    return sendEmail(to, subject, html);
+    return sendEmail(to, subject, html, [], undefined, undefined, undefined, true, project.companyId, 'projects');
 };
 
 export const notifyMention = async (recipient: { email: string, firstName: string }, author: string, task: any, project: any, commentContent: string) => {
@@ -1144,7 +1144,7 @@ export const notifyMention = async (recipient: { email: string, firstName: strin
         heroLabel: 'Mention',
         heroSub: `${author} tagged you in ${project.name}`
     });
-    return sendEmail(recipient.email, subject, html);
+    return sendEmail(recipient.email, subject, html, [], undefined, undefined, undefined, true, project.companyId, 'projects');
 };
 
 export const notifyTaskReminder = async (to: string, task: any, project: any, daysRemaining: number) => {
@@ -1175,7 +1175,7 @@ export const notifyTaskReminder = async (to: string, task: any, project: any, da
         heroLabel: isOverdue ? 'Task Overdue ⚠️' : 'Due Soon',
         heroSub: task.title
     });
-    return sendEmail(to, subject, html);
+    return sendEmail(to, subject, html, [], undefined, undefined, undefined, true, project.companyId, 'projects');
 };
 
 export const sendInterviewInvite = async (
@@ -1214,7 +1214,7 @@ export const sendInterviewInvite = async (
         heroLabel: 'Recruitment',
         heroSub: `Round ${details.round} Interview`
     });
-    return sendEmail(to, subject, html);
+    return sendEmail(to, subject, html, [], undefined, undefined, undefined, true, details.companyId, 'careers');
 };
 
 // Send Payslip Email
@@ -1262,7 +1262,7 @@ export const sendPayslipEmail = async (
         contentType: 'application/pdf'
     }];
 
-    return sendEmail(to, subject, html, attachments);
+    return sendEmail(to, subject, html, attachments, undefined, undefined, undefined, true, details.companyId, 'hr');
 };
 
 // --- Leave Notifications ---
@@ -1293,7 +1293,7 @@ export const notifyLeaveRequested = async (leave: any, employee: any, managerEma
         heroLabel: 'Leave Request',
         heroSub: `${empName} · ${leave.leaveType?.name || 'Leave'}`
     });
-    return sendEmail(managerEmail, subject, html);
+    return sendEmail(managerEmail, subject, html, [], undefined, undefined, undefined, true, employee.companyId, 'hr');
 };
 
 export const notifyLeaveStatusUpdate = async (leave: any, employee: any) => {
@@ -1321,7 +1321,7 @@ export const notifyLeaveStatusUpdate = async (leave: any, employee: any) => {
         heroLabel: 'Leave Update',
         heroSub: isApproved ? 'Your leave has been approved' : 'Your leave was not approved'
     });
-    return sendEmail(employee.email, subject, html);
+    return sendEmail(employee.email, subject, html, [], undefined, undefined, undefined, true, employee.companyId, 'hr');
 };
 
 // --- Support Notifications ---
@@ -1350,7 +1350,7 @@ export const notifyNewTicket = async (ticket: any, creatorName: string, supportE
         heroLabel: 'Support',
         heroSub: `Ticket #${ticket.id.slice(0, 8)}`
     });
-    return sendEmail(supportEmail, subject, html);
+    return sendEmail(supportEmail, subject, html, [], undefined, undefined, undefined, true, ticket.companyId, 'support');
 };
 
 export const notifyTicketReply = async (ticket: any, reply: any, recipientEmail: string) => {
@@ -1378,7 +1378,7 @@ export const notifyTicketReply = async (ticket: any, reply: any, recipientEmail:
         heroLabel: 'Support Update',
         heroSub: `Ticket #${ticket.id.slice(0, 8)}`
     });
-    return sendEmail(recipientEmail, subject, html);
+    return sendEmail(recipientEmail, subject, html, [], undefined, undefined, undefined, true, ticket.companyId, 'support');
 };
 
 // --- CRM & Asset Notifications ---
@@ -1406,7 +1406,7 @@ export const notifyLeadAssigned = async (lead: any, assignee: any) => {
         heroLabel: 'CRM',
         heroSub: `New lead: ${lead.name}`
     });
-    return sendEmail(assignee.email, subject, html);
+    return sendEmail(assignee.email, subject, html, [], undefined, undefined, undefined, true, lead.companyId, 'sales');
 };
 
 export const notifyAssetAssigned = async (asset: any, employee: any) => {
@@ -1433,7 +1433,7 @@ export const notifyAssetAssigned = async (asset: any, employee: any) => {
         heroLabel: 'Asset Management',
         heroSub: asset.name
     });
-    return sendEmail(employee.email, subject, html);
+    return sendEmail(employee.email, subject, html, [], undefined, undefined, undefined, true, asset.companyId, 'hr');
 };
 
 // --- Performance & HR Notifications ---
@@ -1461,7 +1461,7 @@ export const notifyPerformanceReview = async (review: any, employee: any) => {
         heroLabel: 'Performance',
         heroSub: `${employee.firstName}'s Review is Ready`
     });
-    return sendEmail(employee.email, subject, html);
+    return sendEmail(employee.email, subject, html, [], undefined, undefined, undefined, true, review.companyId || employee.companyId, 'hr');
 };
 
 export const notifyExitInitiated = async (employee: any, exitDate: Date) => {
@@ -1485,7 +1485,7 @@ export const notifyExitInitiated = async (employee: any, exitDate: Date) => {
         heroLabel: 'HR Update',
         heroSub: 'Exit Process Initiated'
     });
-    return sendEmail(employee.email, subject, html);
+    return sendEmail(employee.email, subject, html, [], undefined, undefined, undefined, true, employee.companyId, 'hr');
 };
 
 // --- Document Notifications ---
@@ -1520,7 +1520,7 @@ export const notifyDocumentStatus = async (document: any, recipientEmail: string
         heroLabel: 'Document Status',
         heroSub: document.name
     });
-    return sendEmail(recipientEmail, subject, html);
+    return sendEmail(recipientEmail, subject, html, [], undefined, undefined, undefined, true, document.companyId, 'info');
 };
 
 export const notifyDocumentUploaded = async (document: any, uploaderName: string, recipientEmail: string) => {
@@ -1546,5 +1546,5 @@ export const notifyDocumentUploaded = async (document: any, uploaderName: string
         heroLabel: 'Documents',
         heroSub: `${uploaderName} uploaded a file`
     });
-    return sendEmail(recipientEmail, subject, html);
+    return sendEmail(recipientEmail, subject, html, [], undefined, undefined, undefined, true, document.companyId, 'info');
 };
