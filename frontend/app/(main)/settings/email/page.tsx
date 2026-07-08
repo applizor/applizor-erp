@@ -77,8 +77,8 @@ const PROVIDERS: { value: Provider; label: string; icon: any; color: string }[] 
 ];
 
 const DEPARTMENTS = [
-  { key: 'accounts', label: 'Accounts Department', icon: '💼', desc: 'Finance, Billing, GST, Payments' },
-  { key: 'billing', label: 'Billing Desk', icon: '🧾', desc: 'Invoice dispatch & payment reminders' },
+  { key: 'accounts', label: 'Accounts Department', icon: '💼', desc: 'General finance, GST, tax compliance, and bookkeeping' },
+  { key: 'billing', label: 'Billing Desk', icon: '🧾', desc: 'Invoice dispatch, client billing inquiries, and automated payment reminders' },
   { key: 'connect', label: 'Business Connect', icon: '🤝', desc: 'Business enquiries, partnerships' },
   { key: 'dl', label: 'DL - Direct Link', icon: '🔗', desc: 'Internal operations, project updates, AI agent reports' },
   { key: 'info', label: 'Information Desk', icon: '📢', desc: 'General company enquiries' },
