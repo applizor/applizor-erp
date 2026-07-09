@@ -326,6 +326,39 @@ export const reviewDocument = async (req: AuthRequest, res: Response) => {
     }
 };
 
+export const updateDocument = async (req: AuthRequest, res: Response) => {
+    try {
+        const { id } = req.params;
+        const user = req.user;
+
+        if (!PermissionService.hasBasicPermission(user, 'Document', 'update')) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        const document = await prisma.document.findFirst({ where: { id, companyId: req.user!.companyId } });
+        if (!document) return res.status(404).json({ error: 'Document not found' });
+
+        const { workflowType } = req.body;
+        const data: any = {};
+        if (workflowType && ['standard', 'signature_required'].includes(workflowType)) {
+            data.workflowType = workflowType;
+        }
+
+        if (Object.keys(data).length === 0) {
+            return res.status(400).json({ error: 'No valid fields to update' });
+        }
+
+        const updated = await prisma.document.update({
+            where: { id },
+            data
+        });
+
+        res.json(updated);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
 export const deleteDocument = async (req: AuthRequest, res: Response) => {
     try {
         const { id } = req.params;

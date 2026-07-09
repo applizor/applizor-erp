@@ -679,6 +679,27 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
                                                                             </>
                                                                         )}
 
+                                                                        {/* TOGGLE WORKFLOW TYPE: Switch between standard and signature_required */}
+                                                                        {!isOwnProfile && canManageDocs && (
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={async () => {
+                                                                                    try {
+                                                                                        const newType = doc.workflowType === 'signature_required' ? 'standard' : 'signature_required';
+                                                                                        await api.patch(`/documents/${doc.id}`, { workflowType: newType });
+                                                                                        toast.success(`Workflow changed to ${newType === 'signature_required' ? 'Signature Required' : 'Direct Review'}`);
+                                                                                        loadData();
+                                                                                    } catch (err: any) {
+                                                                                        toast.error(err.response?.data?.error || 'Failed to update');
+                                                                                    }
+                                                                                }}
+                                                                                className={`p-1.5 rounded ${doc.workflowType === 'signature_required' ? 'text-amber-600 hover:bg-amber-50' : 'text-slate-400 hover:bg-slate-100'}`}
+                                                                                title={doc.workflowType === 'signature_required' ? 'Switch to Direct Review' : 'Require Signed Copy'}
+                                                                            >
+                                                                                <FileSignature size={16} />
+                                                                            </button>
+                                                                        )}
+
                                                                         {/* DELETE ACTION */}
                                                                         {/* Allow delete if Admin OR (Owner AND (Draft or Rejected)) */}
                                                                         {(canEdit || (isOwnProfile && ['draft', 'rejected', 'submitted'].includes(doc.status || ''))) && (

@@ -14,7 +14,7 @@ router.get('/health', healthCheck);
 // 'file' matches the form-data key
 router.post('/generate', authenticate, enforcePlanLimit('maxStorageGb'), upload.single('file'), generateDocument);
 
-import { generateFromTemplate, previewDocument, createDocument, uploadSignedDocument, reviewDocument, deleteDocument, publishDocument } from '../controllers/document.controller';
+import { generateFromTemplate, previewDocument, createDocument, uploadSignedDocument, reviewDocument, deleteDocument, publishDocument, updateDocument } from '../controllers/document.controller';
 router.post('/generate-from-template', authenticate, generateFromTemplate);
 router.post('/preview', authenticate, previewDocument);
 router.post('/publish', authenticate, createDocument);
@@ -23,6 +23,7 @@ router.post('/publish', authenticate, createDocument);
 router.post('/:id/publish', authenticate, publishDocument);
 router.post('/:id/sign', authenticate, enforcePlanLimit('maxStorageGb'), upload.single('file'), uploadSignedDocument);
 router.post('/:id/review', authenticate, reviewDocument);
+router.patch('/:id', authenticate, updateDocument);
 router.delete('/:id', authenticate, deleteDocument);
 
 // Generic Upload (Employee Self-Service)
