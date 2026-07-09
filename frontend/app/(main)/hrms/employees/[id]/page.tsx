@@ -626,7 +626,8 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
                                                                                 )}
                                                                             </div>
                                                                         ) : (
-                                                                            (doc.status === 'pending_signature' || doc.status === 'rejected') && (isOwnProfile || canManageDocs) ? (
+                                                                            ((doc.status === 'pending_signature' || doc.status === 'rejected') && (isOwnProfile || canManageDocs)) ||
+                                                                            (doc.status === 'approved' && canManageDocs) ? (
                                                                                 <button
                                                                                     type="button"
                                                                                     onClick={() => {
