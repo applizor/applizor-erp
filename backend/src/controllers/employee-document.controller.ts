@@ -3,6 +3,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import prisma from '../prisma/client';
 import { StorageService } from '../services/storage.service';
+import { PermissionService } from '../services/permission.service';
 
 export const uploadDocument = async (req: AuthRequest, res: Response) => {
     try {
@@ -43,11 +44,22 @@ export const uploadDocument = async (req: AuthRequest, res: Response) => {
 
 export const getMyDocuments = async (req: AuthRequest, res: Response) => {
     try {
+        const employeeId = req.user?.employee?.id;
+        if (!employeeId) return res.json([]);
+
+        const scope = PermissionService.getPermissionScope(req.user, 'Document', 'read');
+        const where: any = { employeeId };
+
+        if (!scope.all) {
+            if (scope.owned || scope.added) {
+                where.uploadedById = req.user!.id;
+            } else {
+                where.status = { not: 'draft' };
+            }
+        }
+
         const documents = await prisma.document.findMany({
-            where: {
-                employeeId: req.user?.employee?.id,
-                status: { not: 'draft' },
-            },
+            where,
             orderBy: { createdAt: 'desc' }
         });
         res.json(documents);

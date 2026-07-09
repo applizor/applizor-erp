@@ -625,13 +625,24 @@ export const getEmployeeById = async (req: AuthRequest, res: Response) => {
 
         const { id } = req.params;
 
+        // Permission-based document filtering
+        const scope = PermissionService.getPermissionScope(req.user, 'Document', 'read');
+        let documentsWhere: any = {};
+        if (scope.all) {
+            documentsWhere = {};
+        } else if (scope.owned || scope.added) {
+            documentsWhere = { uploadedById: req.user!.id };
+        } else {
+            documentsWhere = { status: { not: 'draft' } };
+        }
+
         const employee = await prisma.employee.findFirst({
             where: { id, companyId: req.user!.companyId },
             include: {
                 department: true,
                 position: true,
                 company: true,
-                documents: true,
+                documents: { where: documentsWhere },
                 user: {
                     include: {
                         roles: {
