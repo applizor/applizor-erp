@@ -662,7 +662,7 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
                                                                                 <Send size={16} />
                                                                             </button>
                                                                         )}
-                                                                        {!isOwnProfile && canEdit && (doc.status === 'submitted' || (doc.status === 'draft' && doc.workflowType !== 'signature_required')) && (
+                                                                        {!isOwnProfile && canEdit && (doc.status !== 'draft' && doc.status !== 'pending_signature') && (
                                                                             <>
                                                                                 <button
                                                                                     type="button"
