@@ -46,7 +46,7 @@ export const getMyDocuments = async (req: AuthRequest, res: Response) => {
         const documents = await prisma.document.findMany({
             where: {
                 employeeId: req.user?.employee?.id,
-                // Optional: Filter by specific types if needed, or get all
+                status: { not: 'draft' },
             },
             orderBy: { createdAt: 'desc' }
         });
