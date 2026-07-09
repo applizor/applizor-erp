@@ -630,9 +630,9 @@ export const getEmployeeById = async (req: AuthRequest, res: Response) => {
         let documentsWhere: any = {};
         if (scope.all) {
             documentsWhere = {};
-        } else if (scope.owned || scope.added) {
+        } else if (scope.added && !scope.owned) {
             documentsWhere = { uploadedById: req.user!.id };
-        } else {
+        } else if (!scope.added && !scope.owned) {
             documentsWhere = { status: { not: 'draft' } };
         }
 

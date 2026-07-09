@@ -51,9 +51,9 @@ export const getMyDocuments = async (req: AuthRequest, res: Response) => {
         const where: any = { employeeId };
 
         if (!scope.all) {
-            if (scope.owned || scope.added) {
+            if (scope.added && !scope.owned) {
                 where.uploadedById = req.user!.id;
-            } else {
+            } else if (!scope.added && !scope.owned) {
                 where.status = { not: 'draft' };
             }
         }
