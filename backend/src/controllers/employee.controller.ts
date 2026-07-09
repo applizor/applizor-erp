@@ -631,9 +631,7 @@ export const getEmployeeById = async (req: AuthRequest, res: Response) => {
                 department: true,
                 position: true,
                 company: true,
-                documents: {
-                    where: { status: { not: 'draft' } }
-                },
+                documents: true,
                 user: {
                     include: {
                         roles: {
