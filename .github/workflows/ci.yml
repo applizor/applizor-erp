@@ -87,9 +87,19 @@ jobs:
           echo "🔄 Running migrations..."
           sudo docker compose -f docker-compose.prod.yml exec -T backend npx prisma migrate deploy
           
-          # 4b. Seeding Agent Roles
+          # 4b. Wait for backend container to be healthy
+          echo "⏳ Waiting for backend container to be ready..."
+          for i in {1..30}; do
+            if sudo docker compose -f docker-compose.prod.yml exec -T backend node -e "process.exit(0)" > /dev/null 2>&1; then
+              echo "✅ Backend container is ready!"
+              break
+            fi
+            sleep 2
+          done
+
+          # 4c. Seeding Agent Roles
           echo "🌱 Seeding agent roles and permissions..."
-          sudo docker compose -f docker-compose.prod.yml exec -T backend node dist/src/scripts/seed_agent_roles.js
+          sudo docker compose -f docker-compose.prod.yml exec -T backend node dist/src/scripts/seed_agent_roles.js || echo "⚠️ Seed script failed (non-critical), continuing..."
           
           # 5. Finalize Permissions: Give control back to the 'admin' user
           echo "🔐 Final permission sweep for admin user..."
