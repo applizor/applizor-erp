@@ -387,6 +387,11 @@ export const updateEmployee = async (req: AuthRequest, res: Response) => {
                     if (portalActive !== undefined) {
                         userData.isActive = portalActive;
                     }
+                    // Sync employee profile fields to user record
+                    userData.email = currentEmployee.email;
+                    userData.firstName = currentEmployee.firstName;
+                    userData.lastName = currentEmployee.lastName;
+                    if (currentEmployee.phone) userData.phone = currentEmployee.phone;
 
                     if (Object.keys(userData).length > 0) {
                         await tx.user.update({
