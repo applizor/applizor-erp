@@ -406,14 +406,21 @@ export const publishDocument = async (req: AuthRequest, res: Response) => {
 
         const document = await prisma.document.findUnique({ where: { id } });
         if (!document) return res.status(404).json({ error: 'Document not found' });
-        if (document.status !== 'draft') return res.status(400).json({ error: 'Only drafts can be published' });
-
-        const updated = await prisma.document.update({
-            where: { id },
-            data: { status: 'pending_signature' }
-        });
-
-        res.json(updated);
+        if (document.status === 'draft') {
+            const updated = await prisma.document.update({
+                where: { id },
+                data: { status: 'pending_signature' }
+            });
+            return res.json(updated);
+        }
+        if (document.status === 'submitted' && document.workflowType === 'signature_required') {
+            const updated = await prisma.document.update({
+                where: { id },
+                data: { status: 'pending_signature' }
+            });
+            return res.json(updated);
+        }
+        return res.status(400).json({ error: 'Document cannot be published in its current state' });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }

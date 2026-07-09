@@ -652,17 +652,17 @@ export default function EmployeeDetailsPage({ params }: { params: { id: string }
                                                                 <td className="p-4 text-right">
                                                                     <div className="flex justify-end gap-1">
                                                                         {/* ADMIN ACTIONS: Approve/Reject/Publish */}
-                                                                        {!isOwnProfile && canManageDocs && doc.status === 'draft' && (
+                                                                        {(doc.status === 'draft' || (doc.status === 'submitted' && doc.workflowType === 'signature_required')) && !isOwnProfile && canManageDocs && (
                                                                             <button
                                                                                 type="button"
                                                                                 onClick={() => handlePublishDocument(doc.id)}
                                                                                 className="p-1.5 text-primary-600 hover:bg-primary-50 rounded"
-                                                                                title="Publish to Employee"
+                                                                                title={doc.status === 'draft' ? 'Publish to Employee' : 'Send for Signature'}
                                                                             >
                                                                                 <Send size={16} />
                                                                             </button>
                                                                         )}
-                                                                        {!isOwnProfile && canEdit && (doc.status !== 'draft' && doc.status !== 'pending_signature') && (
+                                                                        {!isOwnProfile && canEdit && (doc.status !== 'draft' && doc.status !== 'pending_signature') && !(doc.status === 'submitted' && doc.workflowType === 'signature_required') && (
                                                                             <>
                                                                                 <button
                                                                                     type="button"
