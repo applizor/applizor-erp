@@ -56,12 +56,24 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
     const handleSendEmail = async () => {
         try {
             setActionLoading(true);
-            setActionLoading(true);
             await invoicesApi.sendEmail(params.id, { useLetterhead });
             toast.success('Document transmitted successfully');
             loadInvoice();
         } catch (error) {
             toast.error('Transmission sequence failed');
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const handleSendReminder = async () => {
+        try {
+            setActionLoading(true);
+            await invoicesApi.sendEmail(params.id, { useLetterhead, isReminder: true });
+            toast.success('Reminder transmitted successfully');
+            loadInvoice();
+        } catch (error) {
+            toast.error('Reminder transmission failed');
         } finally {
             setActionLoading(false);
         }
@@ -305,6 +317,11 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
                     <button onClick={handleSendEmail} disabled={actionLoading} className="flex-1 lg:flex-none px-3 py-1.5 bg-white border border-gray-200 rounded text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 flex items-center justify-center gap-2 transition-all">
                         <Mail size={14} /> {actionLoading ? 'Sending...' : 'Transmit'}
                     </button>
+                    {!isPaid && !isQuotation && (
+                        <button onClick={handleSendReminder} disabled={actionLoading} className="flex-1 lg:flex-none px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded text-[10px] font-black uppercase tracking-widest hover:bg-amber-100 flex items-center justify-center gap-2 transition-all shadow-sm">
+                            <Clock size={14} /> {actionLoading ? 'Reminding...' : 'Send Reminder'}
+                        </button>
+                    )}
                     <button onClick={handleDuplicate} disabled={actionLoading} className="flex-1 lg:flex-none px-3 py-1.5 bg-white border border-gray-200 rounded text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 flex items-center justify-center gap-2 transition-all">
                         <Copy size={14} /> Duplicate
                     </button>
