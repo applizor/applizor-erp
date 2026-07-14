@@ -83,6 +83,9 @@ jobs:
             sleep 2
           done
           
+          echo "🧹 Cleaning up any failed custom payment link migration if exists..."
+          sudo docker compose -f docker-compose.prod.yml exec -T postgres psql -U applizor -d applizor_erp -c "DELETE FROM _prisma_migrations WHERE migration_name = '20260714132856_add_custom_payment_url' AND finished_at IS NULL;" || true
+
           # 4. Database Migrations
           echo "🔄 Running migrations..."
           sudo docker compose -f docker-compose.prod.yml exec -T backend npx prisma migrate deploy
