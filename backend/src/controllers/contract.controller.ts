@@ -3,7 +3,7 @@ import { ContractService } from '../services/contract.service';
 import { AuthRequest } from '../middleware/auth';
 import { ClientAuthRequest } from '../middleware/client.auth';
 import { PDFService } from '../services/pdf.service';
-import { sendContractNotification } from '../services/email.service';
+import { sendContractNotification, sendContractReminder } from '../services/email.service';
 
 // Admin Controllers
 export const createContract = async (req: AuthRequest, res: Response) => {
@@ -74,7 +74,12 @@ export const sendContractToClient = async (req: Request, res: Response) => {
 
         // Send notification
         try {
-            await sendContractNotification(contract, publicUrl);
+            const isReminder = req.body.isReminder === true;
+            if (isReminder) {
+                await sendContractReminder(contract, publicUrl);
+            } else {
+                await sendContractNotification(contract, publicUrl);
+            }
         } catch (emailError) {
             console.error('Failed to send email:', emailError);
             // Don't fail the request, just log it

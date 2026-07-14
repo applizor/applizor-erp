@@ -574,7 +574,8 @@ export const sendInvoice = async (req: AuthRequest, res: Response) => {
     const publicUrl = `${frontendUrl}/portal/invoices/${invoice.id}`;
 
     // Send in background and update status
-    emailService.sendInvoiceEmail(invoice.client.email, invoice, pdfBuffer, false, publicUrl)
+    const isReminder = req.body.isReminder === true;
+    emailService.sendInvoiceEmail(invoice.client.email, invoice, pdfBuffer, isReminder, publicUrl)
       .then(async () => {
         if (invoice.status === 'draft') {
           await prisma.invoice.update({
