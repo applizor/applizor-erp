@@ -1,6 +1,6 @@
 import cron from 'node-cron';
 import prisma from '../prisma/client';
-import { sendQuotationReminder, sendInvoiceEmail, sendEmail } from './email.service';
+import { sendQuotationReminder, sendInvoiceEmail, sendEmail, sendContractReminder } from './email.service';
 import { leaveAccrualService } from './leave-accrual.service';
 import { InvoiceService } from './invoice.service';
 import { AutomationService } from './automation.service';
@@ -57,6 +57,22 @@ export class SchedulerService {
                 console.log('⏰ Running daily CRM lead alert and quotation expiration check...');
                 await this.checkLeadFollowUps();
                 await this.expireQuotations();
+            });
+        });
+
+        // Invoice Reminders: Run daily at 10:00 AM
+        cron.schedule('0 10 * * *', async () => {
+            await CronLockService.withCronLock('invoice_reminders', async () => {
+                console.log('⏰ Running daily invoice reminder check...');
+                await this.sendInvoiceReminders();
+            });
+        });
+
+        // Contract Reminders: Run daily at 10:30 AM
+        cron.schedule('30 10 * * *', async () => {
+            await CronLockService.withCronLock('contract_reminders', async () => {
+                console.log('⏰ Running daily contract reminder check...');
+                await this.sendContractReminders();
             });
         });
     }
@@ -147,7 +163,42 @@ export class SchedulerService {
     }
 
     static async sendInvoiceReminders() {
-        // ... (existing code preserved)
+        try {
+            console.log('[Scheduler] Processing automatic invoice reminders...');
+            const results = await InvoiceService.sendOverdueReminders();
+            console.log(`[Scheduler] Sent ${results.length} automatic invoice reminders.`);
+        } catch (error) {
+            console.error('[Scheduler] Error processing automatic invoice reminders:', error);
+        }
+    }
+
+    static async sendContractReminders() {
+        try {
+            console.log('[Scheduler] Processing automatic contract reminders...');
+            const today = new Date();
+            const threeDaysAgo = new Date(today.getTime() - 3 * 24 * 60 * 60 * 1000);
+            
+            const contracts = await prisma.contract.findMany({
+                where: {
+                    status: 'sent',
+                    sentAt: { lte: threeDaysAgo }
+                },
+                include: { client: true, company: true }
+            });
+
+            console.log(`[Scheduler] Found ${contracts.length} contracts awaiting signature reminder.`);
+
+            for (const contract of contracts) {
+                if (contract.client?.email) {
+                    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+                    const publicUrl = `${frontendUrl}/portal/contracts/${contract.id}`;
+                    await sendContractReminder(contract, publicUrl);
+                }
+            }
+            console.log(`[Scheduler] Finished processing contract reminders.`);
+        } catch (error) {
+            console.error('[Scheduler] Error processing contract reminders:', error);
+        }
     }
 
     static async processTaskReminders() {
