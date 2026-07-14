@@ -165,8 +165,90 @@ export class SchedulerService {
     static async sendInvoiceReminders() {
         try {
             console.log('[Scheduler] Processing automatic invoice reminders...');
-            const results = await InvoiceService.sendOverdueReminders();
-            console.log(`[Scheduler] Sent ${results.length} automatic invoice reminders.`);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            // Fetch all sent or partial invoices
+            const invoices = await prisma.invoice.findMany({
+                where: {
+                    status: { in: ['sent', 'partial'] }
+                },
+                include: {
+                    client: true,
+                    company: true,
+                    items: { include: { appliedTaxes: true } }
+                }
+            });
+
+            console.log(`[Scheduler] Found ${invoices.length} active invoices for reminder evaluation.`);
+            let count = 0;
+
+            for (const invoice of invoices) {
+                if (!invoice.client?.email) continue;
+
+                const company = invoice.company;
+                const emailConfig = company.emailConfig as any;
+                
+                // Read configuration with safe defaults
+                const reminderSettings = emailConfig?.reminderSettings || {
+                    invoice: {
+                        enabled: true,
+                        frequencyDays: [1, 3, 7, 14, 30],
+                        beforeDueDateDays: [3, 1]
+                    }
+                };
+
+                const invoiceSettings = reminderSettings.invoice;
+                if (!invoiceSettings?.enabled) continue;
+
+                // Calculate days difference
+                const dueDate = new Date(invoice.dueDate);
+                dueDate.setHours(0, 0, 0, 0);
+
+                const diffTime = today.getTime() - dueDate.getTime();
+                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)); // positive if overdue, negative if upcoming
+
+                let shouldSend = false;
+
+                if (diffDays > 0) {
+                    // Overdue reminders
+                    if (invoiceSettings.frequencyDays?.includes(diffDays)) {
+                        shouldSend = true;
+                    }
+                } else if (diffDays < 0) {
+                    // Pre-due warnings
+                    const absDays = Math.abs(diffDays);
+                    if (invoiceSettings.beforeDueDateDays?.includes(absDays)) {
+                        shouldSend = true;
+                    }
+                }
+
+                if (shouldSend) {
+                    console.log(`[Scheduler] Triggering payment reminder for Invoice #${invoice.invoiceNumber} (Day ${diffDays} from due date)`);
+                    try {
+                        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+                        const publicUrl = `${frontendUrl}/portal/invoices/${invoice.id}`;
+                        const pdfBuffer = await (require('./pdf.service').PDFService.generateInvoicePDF(invoice as any));
+                        await sendInvoiceEmail(invoice.client.email, invoice, pdfBuffer, true, publicUrl);
+                        
+                        // Log activity
+                        await prisma.invoiceActivity.create({
+                            data: {
+                                invoiceId: invoice.id,
+                                type: 'REMINDER_SENT',
+                                metadata: {
+                                    sentAt: new Date(),
+                                    diffDays
+                                }
+                            }
+                        });
+                        count++;
+                    } catch (e) {
+                        console.error(`Failed to send automated reminder for ${invoice.invoiceNumber}`, e);
+                    }
+                }
+            }
+            console.log(`[Scheduler] Sent ${count} automatic invoice reminders.`);
         } catch (error) {
             console.error('[Scheduler] Error processing automatic invoice reminders:', error);
         }
@@ -176,26 +258,68 @@ export class SchedulerService {
         try {
             console.log('[Scheduler] Processing automatic contract reminders...');
             const today = new Date();
-            const threeDaysAgo = new Date(today.getTime() - 3 * 24 * 60 * 60 * 1000);
-            
+            today.setHours(0, 0, 0, 0);
+
+            // Fetch all sent contracts
             const contracts = await prisma.contract.findMany({
-                where: {
-                    status: 'sent',
-                    sentAt: { lte: threeDaysAgo }
-                },
+                where: { status: 'sent' },
                 include: { client: true, company: true }
             });
 
-            console.log(`[Scheduler] Found ${contracts.length} contracts awaiting signature reminder.`);
+            console.log(`[Scheduler] Found ${contracts.length} active contracts for reminder evaluation.`);
+            let count = 0;
 
             for (const contract of contracts) {
-                if (contract.client?.email) {
-                    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-                    const publicUrl = `${frontendUrl}/portal/contracts/${contract.id}`;
-                    await sendContractReminder(contract, publicUrl);
+                if (!contract.client?.email) continue;
+
+                const company = contract.company;
+                const emailConfig = company.emailConfig as any;
+                
+                const reminderSettings = emailConfig?.reminderSettings || {
+                    contract: {
+                        enabled: true,
+                        frequencyDays: 3 // every 3 days
+                    }
+                };
+
+                const contractSettings = reminderSettings.contract;
+                if (!contractSettings?.enabled) continue;
+
+                // Calculate days since sent
+                const sentAt = new Date(contract.sentAt || contract.createdAt);
+                sentAt.setHours(0, 0, 0, 0);
+
+                const diffTime = today.getTime() - sentAt.getTime();
+                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+                const frequency = contractSettings.frequencyDays || 3;
+                
+                // Remind every N days (e.g. 3, 6, 9...)
+                if (diffDays > 0 && diffDays % frequency === 0) {
+                    console.log(`[Scheduler] Triggering signature reminder for Contract "${contract.title}" (Day ${diffDays} since sent)`);
+                    try {
+                        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+                        const publicUrl = `${frontendUrl}/portal/contracts/${contract.id}`;
+                        await sendContractReminder(contract, publicUrl);
+                        
+                        // Log activity
+                        await prisma.contractActivity.create({
+                            data: {
+                                contractId: contract.id,
+                                type: 'REMINDER_SENT',
+                                metadata: {
+                                    sentAt: new Date(),
+                                    diffDays
+                                }
+                            }
+                        });
+                        count++;
+                    } catch (e) {
+                        console.error(`Failed to send automated reminder for contract "${contract.title}"`, e);
+                    }
                 }
             }
-            console.log(`[Scheduler] Finished processing contract reminders.`);
+            console.log(`[Scheduler] Sent ${count} automatic contract reminders.`);
         } catch (error) {
             console.error('[Scheduler] Error processing contract reminders:', error);
         }
