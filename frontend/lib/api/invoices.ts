@@ -51,6 +51,7 @@ export const invoicesApi = {
     tax?: number;
     discount?: number;
     notes?: string;
+    customPaymentUrl?: string;
   }) => {
     const response = await api.post('/invoices', data);
     return response.data;

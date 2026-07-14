@@ -227,7 +227,19 @@ export class SchedulerService {
                     console.log(`[Scheduler] Triggering payment reminder for Invoice #${invoice.invoiceNumber} (Day ${diffDays} from due date)`);
                     try {
                         const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-                        const publicUrl = `${frontendUrl}/portal/invoices/${invoice.id}`;
+                        
+                        // Resolve public URL using token (generate one if missing)
+                        let publicToken = invoice.publicToken;
+                        if (!publicToken) {
+                            const { v4: uuidv4 } = require('uuid');
+                            publicToken = uuidv4();
+                            await prisma.invoice.update({
+                                where: { id: invoice.id },
+                                data: { publicToken, isPublicEnabled: true }
+                            });
+                        }
+                        const publicUrl = `${frontendUrl}/public/invoices/${publicToken}`;
+
                         const pdfBuffer = await (require('./pdf.service').PDFService.generateInvoicePDF(invoice as any));
                         await sendInvoiceEmail(invoice.client.email, invoice, pdfBuffer, true, publicUrl);
                         

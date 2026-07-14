@@ -35,6 +35,7 @@ export interface CreateInvoiceInput {
         planId: string;
         name: string;
     };
+    customPaymentUrl?: string;
 }
 
 export class InvoiceService {

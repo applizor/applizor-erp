@@ -787,6 +787,8 @@ export const sendInvoiceEmail = async (to: string, invoiceData: any, pdfBuffer?:
     let subject = '';
     let content = '';
 
+    const actionUrl = invoiceData.customPaymentUrl || publicUrl;
+
     if (dbTemplate) {
         const replacements = {
             companyName,
@@ -795,8 +797,8 @@ export const sendInvoiceEmail = async (to: string, invoiceData: any, pdfBuffer?:
             typeLabel,
             amount: `${invoiceData.currency} ${Number(invoiceData.total).toLocaleString()}`,
             dueDate: new Date(invoiceData.dueDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
-            publicUrl: publicUrl || '',
-            invoiceUrl: publicUrl || '',
+            publicUrl: actionUrl || '',
+            invoiceUrl: actionUrl || '',
             description: invoiceData.description || ''
         };
         subject = replaceTemplatePlaceholders(dbTemplate.subject, replacements);
@@ -828,7 +830,7 @@ export const sendInvoiceEmail = async (to: string, invoiceData: any, pdfBuffer?:
         `;
     }
 
-    const html = getBaseTemplate(title, content, companyName, publicUrl ? `View & Pay ${typeLabel}` : undefined, publicUrl, {
+    const html = getBaseTemplate(title, content, companyName, actionUrl ? `View & Pay ${typeLabel}` : undefined, actionUrl, {
         themeKey: isReminder ? 'reminder' : 'invoice',
         heroLabel: isReminder ? 'Payment Reminder' : 'Finance',
         heroSub: `${typeLabel} #${invoiceData.invoiceNumber}`

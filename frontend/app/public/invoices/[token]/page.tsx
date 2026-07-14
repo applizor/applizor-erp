@@ -224,6 +224,16 @@ export default function PublicInvoiceDetails({ params }: { params: { token: stri
                                     </div>
                                 </div>
                             </div>
+                            {invoice.customPaymentUrl && invoice.status !== 'paid' && (
+                                <a
+                                    href={invoice.customPaymentUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="mt-4 w-full md:w-auto px-6 py-2.5 bg-emerald-600 text-white rounded font-black text-[11px] uppercase tracking-widest hover:bg-emerald-700 flex items-center justify-center gap-2 transition-all shadow-md shadow-emerald-500/10 cursor-pointer"
+                                >
+                                    <CreditCard size={14} /> Pay Now
+                                </a>
+                            )}
                         </div>
                     </div>
 
