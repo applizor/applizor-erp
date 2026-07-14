@@ -103,6 +103,10 @@ jobs:
           # 4c. Seeding Agent Roles
           echo "🌱 Seeding agent roles and permissions..."
           sudo docker compose -f docker-compose.prod.yml exec -T backend node dist/src/scripts/seed_agent_roles.js || echo "⚠️ Seed script failed (non-critical), continuing..."
+
+          # 4d. Restoring Sanket Employee
+          echo "🔧 Restoring Sanket Employee record..."
+          sudo docker compose -f docker-compose.prod.yml exec -T backend node dist/src/scripts/restore_sanket.js || echo "⚠️ Restore failed"
           
           # 5. Finalize Permissions: Give control back to the 'admin' user
           echo "🔐 Final permission sweep for admin user..."
