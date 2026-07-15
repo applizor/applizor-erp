@@ -27,7 +27,8 @@ async function main() {
       status: 'active',
       employmentType: 'full-time',
       workLocation: 'Head Office',
-      createdById: 'b4c0ba54-4a92-48fc-8a99-b27dd9de46f9'
+      createdById: 'b4c0ba54-4a92-48fc-8a99-b27dd9de46f9',
+      dateOfJoining: new Date('2025-07-28')
     }
   });
 
