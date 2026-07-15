@@ -305,116 +305,108 @@ export const updateEmployee = async (req: AuthRequest, res: Response) => {
             exitDate
         } = req.body;
 
-        const employee = await prisma.employee.update({
-            where: { id },
-            data: {
-                firstName,
-                lastName,
-                email,
-                phone,
-                dateOfJoining: dateOfJoining ? new Date(dateOfJoining) : undefined,
-                dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
-                departmentId,
-                positionId,
-                status,
-                gender, bloodGroup, maritalStatus,
-                currentAddress, permanentAddress,
-                emergencyContact,
-                bankName,
-                accountNumber: accountNumber !== undefined ? encryptPII(accountNumber) : undefined,
-                ifscCode: ifscCode !== undefined ? encryptPII(ifscCode) : undefined,
-                panNumber: panNumber !== undefined ? encryptPII(panNumber) : undefined,
-                aadhaarNumber: aadhaarNumber !== undefined ? encryptPII(aadhaarNumber) : undefined,
-                // New Fields Update
-                hourlyRate: hourlyRate ? parseFloat(hourlyRate) : null,
-                employmentType,
-                skills,
-                slackMemberId,
-                probationEndDate: probationEndDate ? new Date(probationEndDate) : null,
-                noticePeriodStartDate: noticePeriodStartDate ? new Date(noticePeriodStartDate) : null,
-                noticePeriodEndDate: noticePeriodEndDate ? new Date(noticePeriodEndDate) : null,
-                exitDate: exitDate ? new Date(exitDate) : null,
-            },
-        });
+        const employee = await prisma.$transaction(async (tx) => {
+            const emp = await tx.employee.update({
+                where: { id },
+                data: {
+                    firstName,
+                    lastName,
+                    email,
+                    phone,
+                    dateOfJoining: dateOfJoining ? new Date(dateOfJoining) : undefined,
+                    dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
+                    departmentId,
+                    positionId,
+                    status,
+                    gender, bloodGroup, maritalStatus,
+                    currentAddress, permanentAddress,
+                    emergencyContact,
+                    bankName,
+                    accountNumber: accountNumber !== undefined ? encryptPII(accountNumber) : undefined,
+                    ifscCode: ifscCode !== undefined ? encryptPII(ifscCode) : undefined,
+                    panNumber: panNumber !== undefined ? encryptPII(panNumber) : undefined,
+                    aadhaarNumber: aadhaarNumber !== undefined ? encryptPII(aadhaarNumber) : undefined,
+                    // New Fields Update
+                    hourlyRate: hourlyRate ? parseFloat(hourlyRate) : null,
+                    employmentType,
+                    skills,
+                    slackMemberId,
+                    probationEndDate: probationEndDate ? new Date(probationEndDate) : null,
+                    noticePeriodStartDate: noticePeriodStartDate ? new Date(noticePeriodStartDate) : null,
+                    noticePeriodEndDate: noticePeriodEndDate ? new Date(noticePeriodEndDate) : null,
+                    exitDate: exitDate ? new Date(exitDate) : null,
+                },
+            });
 
-        // --- PORTAL ACCESS MANAGEMENT ---
-        if (createAccount !== undefined || password || roleId || portalActive !== undefined) {
-            await prisma.$transaction(async (tx) => {
-                const currentEmployee = await tx.employee.findUnique({
-                    where: { id },
-                    include: { user: true }
+            let targetUserId = emp.userId;
+
+            // 1. Create Account if it doesn't exist but requested
+            if (!targetUserId && createAccount && password) {
+                const existingUser = await tx.user.findUnique({ where: { email: emp.email } });
+                if (existingUser) throw new Error('A user account with this email already exists.');
+
+                const { hashPassword } = await import('../utils/password');
+                const hashedPassword = await hashPassword(password);
+
+                const newUser = await tx.user.create({
+                    data: {
+                        email: emp.email,
+                        password: hashedPassword,
+                        firstName: emp.firstName,
+                        lastName: emp.lastName,
+                        phone: emp.phone,
+                        companyId: emp.companyId,
+                        isActive: true
+                    }
                 });
+                targetUserId = newUser.id;
 
-                if (!currentEmployee) throw new Error('Employee not found');
+                // Link to Employee
+                await tx.employee.update({
+                    where: { id },
+                    data: { userId: targetUserId }
+                });
+            }
 
-                let targetUserId = currentEmployee.userId;
-
-                // 1. Create Account if it doesn't exist but requested
-                if (!targetUserId && createAccount && password) {
-                    const existingUser = await tx.user.findUnique({ where: { email: currentEmployee.email } });
-                    if (existingUser) throw new Error('A user account with this email already exists.');
-
+            // 2. Update existing User / Sync Profile details
+            if (targetUserId) {
+                const userData: any = {};
+                if (password) {
                     const { hashPassword } = await import('../utils/password');
-                    const hashedPassword = await hashPassword(password);
+                    userData.password = await hashPassword(password);
+                }
+                if (portalActive !== undefined) {
+                    userData.isActive = portalActive;
+                }
+                // Sync employee profile fields to user record
+                userData.email = emp.email;
+                userData.firstName = emp.firstName;
+                userData.lastName = emp.lastName;
+                if (emp.phone) userData.phone = emp.phone;
 
-                    const newUser = await tx.user.create({
+                if (Object.keys(userData).length > 0) {
+                    await tx.user.update({
+                        where: { id: targetUserId },
+                        data: userData
+                    });
+                }
+
+                // 3. Update Role
+                if (roleId) {
+                    // Delete previous roles
+                    await tx.userRole.deleteMany({ where: { userId: targetUserId } });
+                    // Assign new
+                    await tx.userRole.create({
                         data: {
-                            email: currentEmployee.email,
-                            password: hashedPassword,
-                            firstName: currentEmployee.firstName,
-                            lastName: currentEmployee.lastName,
-                            phone: currentEmployee.phone,
-                            companyId: currentEmployee.companyId,
-                            isActive: true
+                            userId: targetUserId,
+                            roleId: roleId
                         }
                     });
-                    targetUserId = newUser.id;
-
-                    // Link to Employee
-                    await tx.employee.update({
-                        where: { id },
-                        data: { userId: targetUserId }
-                    });
                 }
+            }
 
-                // 2. Update existing User
-                if (targetUserId) {
-                    const userData: any = {};
-                    if (password) {
-                        const { hashPassword } = await import('../utils/password');
-                        userData.password = await hashPassword(password);
-                    }
-                    if (portalActive !== undefined) {
-                        userData.isActive = portalActive;
-                    }
-                    // Sync employee profile fields to user record
-                    userData.email = currentEmployee.email;
-                    userData.firstName = currentEmployee.firstName;
-                    userData.lastName = currentEmployee.lastName;
-                    if (currentEmployee.phone) userData.phone = currentEmployee.phone;
-
-                    if (Object.keys(userData).length > 0) {
-                        await tx.user.update({
-                            where: { id: targetUserId },
-                            data: userData
-                        });
-                    }
-
-                    // 3. Update Role
-                    if (roleId) {
-                        // Delete previous roles
-                        await tx.userRole.deleteMany({ where: { userId: targetUserId } });
-                        // Assign new
-                        await tx.userRole.create({
-                            data: {
-                                userId: targetUserId,
-                                roleId: roleId
-                            }
-                        });
-                    }
-                }
-            });
-        }
+            return emp;
+        });
 
         // Audit Log
         const { logAction } = await import('../services/audit.service');

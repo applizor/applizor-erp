@@ -221,84 +221,85 @@ export const updateStudent = async (req: AuthRequest, res: Response) => {
         });
         if (!existing) return res.status(404).json({ error: 'Student not found' });
 
-        const student = await prisma.student.update({
-            where: { id },
-            data: {
-                firstName,
-                lastName,
-                email,
-                phone,
-                dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
-                status
-            }
-        });
-
-        if (createAccount !== undefined || password || roleId || portalActive !== undefined) {
-            await prisma.$transaction(async (tx) => {
-                const currentStudent = await tx.student.findUnique({
-                    where: { id },
-                    include: { user: true }
-                });
-
-                if (!currentStudent) throw new Error('Student not found');
-
-                let targetUserId = currentStudent.userId;
-
-                if (!targetUserId && createAccount && password) {
-                    const existingUser = await tx.user.findUnique({ where: { email: currentStudent.email } });
-                    if (existingUser) throw new Error('A user account with this email already exists.');
-
-                    const { hashPassword } = await import('../utils/password');
-                    const hashedPassword = await hashPassword(password);
-
-                    const newUser = await tx.user.create({
-                        data: {
-                            email: currentStudent.email,
-                            password: hashedPassword,
-                            firstName: currentStudent.firstName,
-                            lastName: currentStudent.lastName,
-                            phone: currentStudent.phone,
-                            companyId: currentStudent.companyId,
-                            isActive: true
-                        }
-                    });
-                    targetUserId = newUser.id;
-
-                    await tx.student.update({
-                        where: { id },
-                        data: { userId: targetUserId }
-                    });
-                }
-
-                if (targetUserId) {
-                    const userData: any = {};
-                    if (password) {
-                        const { hashPassword } = await import('../utils/password');
-                        userData.password = await hashPassword(password);
-                    }
-                    if (portalActive !== undefined) {
-                        userData.isActive = portalActive;
-                    }
-
-                    if (Object.keys(userData).length > 0) {
-                        await tx.user.update({
-                            where: { id: targetUserId },
-                            data: userData
-                        });
-                    }
-
-                    if (roleId) {
-                        await tx.userRole.deleteMany({ where: { userId: targetUserId } });
-                        await tx.userRole.create({
-                            data: {
-                                userId: targetUserId,
-                                roleId: roleId
-                            }
-                        });
-                    }
+        const student = await prisma.$transaction(async (tx) => {
+            const std = await tx.student.update({
+                where: { id },
+                data: {
+                    firstName,
+                    lastName,
+                    email,
+                    phone,
+                    dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
+                    status
                 }
             });
-        }
+
+            let targetUserId = std.userId;
+
+            // 1. Create Account if it doesn't exist but requested
+            if (!targetUserId && createAccount && password) {
+                const existingUser = await tx.user.findUnique({ where: { email: std.email } });
+                if (existingUser) throw new Error('A user account with this email already exists.');
+
+                const { hashPassword } = await import('../utils/password');
+                const hashedPassword = await hashPassword(password);
+
+                const newUser = await tx.user.create({
+                    data: {
+                        email: std.email,
+                        password: hashedPassword,
+                        firstName: std.firstName,
+                        lastName: std.lastName,
+                        phone: std.phone,
+                        companyId: std.companyId,
+                        isActive: true
+                    }
+                });
+                targetUserId = newUser.id;
+
+                await tx.student.update({
+                    where: { id },
+                    data: { userId: targetUserId }
+                });
+            }
+
+            // 2. Update existing User / Sync Profile details
+            if (targetUserId) {
+                const userData: any = {};
+                if (password) {
+                    const { hashPassword } = await import('../utils/password');
+                    userData.password = await hashPassword(password);
+                }
+                if (portalActive !== undefined) {
+                    userData.isActive = portalActive;
+                }
+                // ALWAYS Sync student profile fields to user record
+                userData.email = std.email;
+                userData.firstName = std.firstName;
+                userData.lastName = std.lastName;
+                if (std.phone) userData.phone = std.phone;
+
+                if (Object.keys(userData).length > 0) {
+                    await tx.user.update({
+                        where: { id: targetUserId },
+                        data: userData
+                    });
+                }
+
+                // 3. Update Role
+                if (roleId) {
+                    await tx.userRole.deleteMany({ where: { userId: targetUserId } });
+                    await tx.userRole.create({
+                        data: {
+                            userId: targetUserId,
+                            roleId: roleId
+                        }
+                    });
+                }
+            }
+
+            return std;
+        });
 
         // Audit Log
         const { logAction } = await import('../services/audit.service');
