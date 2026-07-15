@@ -51,6 +51,7 @@ export const invoicesApi = {
     tax?: number;
     discount?: number;
     notes?: string;
+    customPaymentUrl?: string;
   }) => {
     const response = await api.post('/invoices', data);
     return response.data;
@@ -73,7 +74,7 @@ export const invoicesApi = {
     return response.data;
   },
 
-  sendEmail: async (id: string, data?: { useLetterhead: boolean }) => {
+  sendEmail: async (id: string, data?: { useLetterhead: boolean; isReminder?: boolean }) => {
     const response = await api.post(`/invoices/${id}/send`, data);
     return response.data;
   },

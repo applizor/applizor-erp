@@ -160,9 +160,169 @@ export async function initializeCompanyDefaults(companyId: string, countryId: st
                 }
             });
         }
+
+        // 4. Create default Email Templates
+        const defaultTemplates = [
+            {
+                name: 'Standard Interview Invite',
+                subject: 'Interview Invitation - {{companyName}}',
+                type: 'interview_invite',
+                body: `<p>Dear {{candidateName}},</p>\n<p>Thank you for applying for the <strong>{{jobTitle}}</strong> position.</p>\n<p>We were impressed by your background and would like to invite you for an interview to discuss this opportunity further.</p>\n<p>Please let us know your availability over the next few days.</p>\n<p>Best regards,<br>HR Team</p>`
+            },
+            {
+                name: 'Standard Job Offer',
+                subject: 'Job Offer: {{jobTitle}} - {{companyName}}',
+                type: 'offer',
+                body: `<p>Dear {{candidateName}},</p>\n<p>We are thrilled to offer you the position of <strong>{{jobTitle}}</strong>.</p>\n<p>We believe your skills and experience will be a great asset to our team. Please find attached the formal offer letter containing details of your compensation and benefits.</p>\n<p>Please review and let us know your acceptance by signing and returning the document.</p>\n<p>Welcome to the team!</p>\n<p>Best regards,<br>HR Team</p>`
+            },
+            {
+                name: 'Standard Rejection Email',
+                subject: 'Update on your application - {{companyName}}',
+                type: 'rejection',
+                body: `<p>Dear {{candidateName}},</p>\n<p>Thank you for taking the time to apply and interview for the <strong>{{jobTitle}}</strong> position.</p>\n<p>We appreciated learning more about your skills and experience. Unfortunately, we have decided to move forward with other candidates whose qualifications closely align with our current needs.</p>\n<p>We will keep your resume on file for future opportunities. We wish you all the best in your career search.</p>\n<p>Best regards,<br>HR Team</p>`
+            },
+            {
+                name: 'Standard Invoice Dispatch',
+                subject: 'Invoice #{{invoiceNumber}} — {{companyName}}',
+                type: 'invoice',
+                body: `<p>Dear {{clientName}},</p>\n<p>We are sharing your invoice details below. A PDF copy is attached for your records.</p>\n<p>Invoice No: #{{invoiceNumber}}<br>Amount Due: {{amount}}<br>Due Date: {{dueDate}}</p>\n<p>You can view and pay your invoice online at: <a href="{{publicUrl}}">{{publicUrl}}</a></p>\n<p>Thank you for choosing {{companyName}}.</p>`
+            },
+            {
+                name: 'Standard Invoice Follow-up',
+                subject: 'Reminder: Invoice #{{invoiceNumber}} is due — {{companyName}}',
+                type: 'invoice_followup',
+                body: `<p>Dear {{clientName}},</p>\n<p>This is a friendly payment reminder. The following invoice is currently due. Please arrange payment at your earliest convenience.</p>\n<p>Invoice No: #{{invoiceNumber}}<br>Amount Due: {{amount}}<br>Due Date: {{dueDate}}</p>\n<p>You can view and pay your invoice online at: <a href="{{publicUrl}}">{{publicUrl}}</a></p>\n<p>Thank you for choosing {{companyName}}.</p>`
+            },
+            {
+                name: 'Standard Quotation Dispatch',
+                subject: 'Quotation #{{quotationNumber}} — {{companyName}}',
+                type: 'quotation',
+                body: `<p>Dear {{clientName}},</p>\n<p>We are pleased to present our formal quotation. Our team has carefully mapped out your requirements to ensure the highest quality of service. Please review the details below.</p>\n<p>Quotation No: #{{quotationNumber}}<br>Total Estimate: {{amount}}<br>Valid Until: {{validUntil}}</p>\n<p>You can review and accept this proposal online at: <a href="{{publicUrl}}">{{publicUrl}}</a></p>\n<p>We look forward to working with you.</p>`
+            },
+            {
+                name: 'Standard Quotation Follow-up',
+                subject: 'Friendly Reminder: Quotation #{{quotationNumber}} — {{companyName}}',
+                type: 'quotation_followup',
+                body: `<p>Dear {{clientName}},</p>\n<p>This is a gentle reminder about the proposal we sent on {{quotationDate}}. We would love to hear your thoughts and move forward together.</p>\n<p>Quotation No: #{{quotationNumber}}<br>Total Estimate: {{amount}}<br>Valid Until: {{validUntil}}</p>\n<p>You can review and accept this proposal online at: <a href="{{publicUrl}}">{{publicUrl}}</a></p>`
+            },
+            {
+                name: 'Standard Contract Dispatch',
+                subject: 'Action Required: Contract for Review - {{companyName}}',
+                type: 'contract',
+                body: `<p>Hello {{clientName}},</p>\n<p>A formal service agreement has been prepared for you. Please review the terms carefully and provide your digital signature at your earliest convenience.</p>\n<p>Document Title: {{contractTitle}}</p>\n<p>You can review and sign the contract online at: <a href="{{publicUrl}}">{{publicUrl}}</a></p>`
+            },
+            {
+                name: 'Standard Contract Follow-up',
+                subject: 'Reminder: Action Required - Contract review is pending - {{companyName}}',
+                type: 'contract_followup',
+                body: `<p>Hello {{clientName}},</p>\n<p>This is a friendly reminder that the contract review and signature for "{{contractTitle}}" is still pending.</p>\n<p>Please review and sign the contract online at: <a href="{{publicUrl}}">{{publicUrl}}</a></p>`
+            }
+        ];
+
+        for (const t of defaultTemplates) {
+            await prisma.emailTemplate.create({
+                data: {
+                    companyId,
+                    name: t.name,
+                    subject: t.subject,
+                    type: t.type,
+                    body: t.body,
+                    isActive: true
+                }
+            });
+        }
+
         console.log(`Successfully auto-initialized company defaults for ${companyId}`);
     } catch (e) {
         console.error(`Failed to auto-initialize company defaults for ${companyId}:`, e);
+    }
+}
+
+export async function bootstrapAllEmailTemplates() {
+    try {
+        const companies = await prisma.company.findMany({ select: { id: true, name: true } });
+        console.log(`[Bootstrap] Verifying email templates for ${companies.length} company/companies...`);
+        
+        const defaultTemplates = [
+            {
+                name: 'Standard Interview Invite',
+                subject: 'Interview Invitation - {{companyName}}',
+                type: 'interview_invite',
+                body: `<p>Dear {{candidateName}},</p>\n<p>Thank you for applying for the <strong>{{jobTitle}}</strong> position.</p>\n<p>We were impressed by your background and would like to invite you for an interview to discuss this opportunity further.</p>\n<p>Please let us know your availability over the next few days.</p>\n<p>Best regards,<br>HR Team</p>`
+            },
+            {
+                name: 'Standard Job Offer',
+                subject: 'Job Offer: {{jobTitle}} - {{companyName}}',
+                type: 'offer',
+                body: `<p>Dear {{candidateName}},</p>\n<p>We are thrilled to offer you the position of <strong>{{jobTitle}}</strong>.</p>\n<p>We believe your skills and experience will be a great asset to our team. Please find attached the formal offer letter containing details of your compensation and benefits.</p>\n<p>Please review and let us know your acceptance by signing and returning the document.</p>\n<p>Welcome to the team!</p>\n<p>Best regards,<br>HR Team</p>`
+            },
+            {
+                name: 'Standard Rejection Email',
+                subject: 'Update on your application - {{companyName}}',
+                type: 'rejection',
+                body: `<p>Dear {{candidateName}},</p>\n<p>Thank you for taking the time to apply and interview for the <strong>{{jobTitle}}</strong> position.</p>\n<p>We appreciated learning more about your skills and experience. Unfortunately, we have decided to move forward with other candidates whose qualifications closely align with our current needs.</p>\n<p>We will keep your resume on file for future opportunities. We wish you all the best in your career search.</p>\n<p>Best regards,<br>HR Team</p>`
+            },
+            {
+                name: 'Standard Invoice Dispatch',
+                subject: 'Invoice #{{invoiceNumber}} — {{companyName}}',
+                type: 'invoice',
+                body: `<p>Dear {{clientName}},</p>\n<p>We are sharing your invoice details below. A PDF copy is attached for your records.</p>\n<p>Invoice No: #{{invoiceNumber}}<br>Amount Due: {{amount}}<br>Due Date: {{dueDate}}</p>\n<p>You can view and pay your invoice online at: <a href="{{publicUrl}}">{{publicUrl}}</a></p>\n<p>Thank you for choosing {{companyName}}.</p>`
+            },
+            {
+                name: 'Standard Invoice Follow-up',
+                subject: 'Reminder: Invoice #{{invoiceNumber}} is due — {{companyName}}',
+                type: 'invoice_followup',
+                body: `<p>Dear {{clientName}},</p>\n<p>This is a friendly payment reminder. The following invoice is currently due. Please arrange payment at your earliest convenience.</p>\n<p>Invoice No: #{{invoiceNumber}}<br>Amount Due: {{amount}}<br>Due Date: {{dueDate}}</p>\n<p>You can view and pay your invoice online at: <a href="{{publicUrl}}">{{publicUrl}}</a></p>\n<p>Thank you for choosing {{companyName}}.</p>`
+            },
+            {
+                name: 'Standard Quotation Dispatch',
+                subject: 'Quotation #{{quotationNumber}} — {{companyName}}',
+                type: 'quotation',
+                body: `<p>Dear {{clientName}},</p>\n<p>We are pleased to present our formal quotation. Our team has carefully mapped out your requirements to ensure the highest quality of service. Please review the details below.</p>\n<p>Quotation No: #{{quotationNumber}}<br>Total Estimate: {{amount}}<br>Valid Until: {{validUntil}}</p>\n<p>You can review and accept this proposal online at: <a href="{{publicUrl}}">{{publicUrl}}</a></p>\n<p>We look forward to working with you.</p>`
+            },
+            {
+                name: 'Standard Quotation Follow-up',
+                subject: 'Friendly Reminder: Quotation #{{quotationNumber}} — {{companyName}}',
+                type: 'quotation_followup',
+                body: `<p>Dear {{clientName}},</p>\n<p>This is a gentle reminder about the proposal we sent on {{quotationDate}}. We would love to hear your thoughts and move forward together.</p>\n<p>Quotation No: #{{quotationNumber}}<br>Total Estimate: {{amount}}<br>Valid Until: {{validUntil}}</p>\n<p>You can review and accept this proposal online at: <a href="{{publicUrl}}">{{publicUrl}}</a></p>`
+            },
+            {
+                name: 'Standard Contract Dispatch',
+                subject: 'Action Required: Contract for Review - {{companyName}}',
+                type: 'contract',
+                body: `<p>Hello {{clientName}},</p>\n<p>A formal service agreement has been prepared for you. Please review the terms carefully and provide your digital signature at your earliest convenience.</p>\n<p>Document Title: {{contractTitle}}</p>\n<p>You can review and sign the contract online at: <a href="{{publicUrl}}">{{publicUrl}}</a></p>`
+            },
+            {
+                name: 'Standard Contract Follow-up',
+                subject: 'Reminder: Action Required - Contract review is pending - {{companyName}}',
+                type: 'contract_followup',
+                body: `<p>Hello {{clientName}},</p>\n<p>This is a friendly reminder that the contract review and signature for "{{contractTitle}}" is still pending.</p>\n<p>Please review and sign the contract online at: <a href="{{publicUrl}}">{{publicUrl}}</a></p>`
+            }
+        ];
+
+        for (const company of companies) {
+            for (const t of defaultTemplates) {
+                const existing = await prisma.emailTemplate.findFirst({
+                    where: { companyId: company.id, type: t.type }
+                });
+                if (!existing) {
+                    await prisma.emailTemplate.create({
+                        data: {
+                            companyId: company.id,
+                            name: t.name,
+                            subject: t.subject,
+                            type: t.type,
+                            body: t.body,
+                            isActive: true
+                        }
+                    });
+                    console.log(`[Bootstrap] Created template '${t.name}' for company ${company.name}`);
+                }
+            }
+        }
+        console.log('[Bootstrap] Email templates verification completed.');
+    } catch (e: any) {
+        console.error('[Bootstrap] Failed to bootstrap email templates:', e.message);
     }
 }
 

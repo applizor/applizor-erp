@@ -39,6 +39,7 @@ const invoiceSchema = z.object({
     recurringStartDate: z.string().optional(),
     recurringEndDate: z.string().optional(),
     includeBankDetails: z.boolean().default(true),
+    customPaymentUrl: z.string().optional(),
 });
 
 type InvoiceFormValues = z.infer<typeof invoiceSchema>;
@@ -67,7 +68,10 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
         formState: { errors },
     } = useForm<InvoiceFormValues>({
         resolver: zodResolver(invoiceSchema),
-        defaultValues: initialData || {
+        defaultValues: initialData ? {
+            ...initialData,
+            customPaymentUrl: initialData.customPaymentUrl || '',
+        } : {
             type: 'invoice',
             clientId: '',
             projectId: '',
@@ -77,6 +81,7 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
             items: [{ description: '', quantity: 1, rate: 0, taxRateIds: [], discount: 0, hsnSacCode: '' }],
             discount: 0,
             includeBankDetails: true,
+            customPaymentUrl: '',
         },
     });
 
@@ -570,6 +575,17 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Supplemental Intelligence */}
                 <div className="space-y-4">
+                    <div className="ent-form-group">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5 mb-2">
+                            Custom Payment URL
+                        </label>
+                        <input
+                            type="text"
+                            {...register('customPaymentUrl')}
+                            className="ent-input w-full text-xs font-medium"
+                            placeholder="e.g. https://link.cashfree.com/your-custom-link"
+                        />
+                    </div>
                     <div className="ent-form-group">
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5 mb-2">
                             Communication Notes

@@ -56,12 +56,24 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
     const handleSendEmail = async () => {
         try {
             setActionLoading(true);
-            setActionLoading(true);
             await invoicesApi.sendEmail(params.id, { useLetterhead });
             toast.success('Document transmitted successfully');
             loadInvoice();
         } catch (error) {
             toast.error('Transmission sequence failed');
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const handleSendReminder = async () => {
+        try {
+            setActionLoading(true);
+            await invoicesApi.sendEmail(params.id, { useLetterhead, isReminder: true });
+            toast.success('Reminder transmitted successfully');
+            loadInvoice();
+        } catch (error) {
+            toast.error('Reminder transmission failed');
         } finally {
             setActionLoading(false);
         }
@@ -305,6 +317,11 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
                     <button onClick={handleSendEmail} disabled={actionLoading} className="flex-1 lg:flex-none px-3 py-1.5 bg-white border border-gray-200 rounded text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 flex items-center justify-center gap-2 transition-all">
                         <Mail size={14} /> {actionLoading ? 'Sending...' : 'Transmit'}
                     </button>
+                    {!isPaid && !isQuotation && (
+                        <button onClick={handleSendReminder} disabled={actionLoading} className="flex-1 lg:flex-none px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded text-[10px] font-black uppercase tracking-widest hover:bg-amber-100 flex items-center justify-center gap-2 transition-all shadow-sm">
+                            <Clock size={14} /> {actionLoading ? 'Reminding...' : 'Send Reminder'}
+                        </button>
+                    )}
                     <button onClick={handleDuplicate} disabled={actionLoading} className="flex-1 lg:flex-none px-3 py-1.5 bg-white border border-gray-200 rounded text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 flex items-center justify-center gap-2 transition-all">
                         <Copy size={14} /> Duplicate
                     </button>
@@ -594,33 +611,51 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
                                     </div>
                                 )}
 
-                                {/* Supplemental Memoranda */}
-                                {(invoice.notes || invoice.terms) && (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10 pt-8 border-t border-gray-100">
-                                        {invoice.notes && (
-                                            <div className="space-y-3">
-                                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                                                    <Info size={12} className="text-primary-500" />
-                                                    Directives
-                                                </h4>
-                                                <p className="text-[11px] font-medium text-gray-600 bg-gray-50 p-3 rounded leading-relaxed border-l-2 border-primary-500 italic">
-                                                    {invoice.notes}
-                                                </p>
-                                            </div>
-                                        )}
-                                        {invoice.terms && (
-                                            <div className="space-y-3">
-                                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                                                    <ShieldCheck size={12} className="text-gray-400" />
-                                                    Commercial Terms
-                                                </h4>
-                                                <p className="text-[11px] font-bold text-gray-400 leading-relaxed uppercase tracking-tight">
-                                                    {invoice.terms}
-                                                </p>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
+                                 {/* Supplemental Memoranda */}
+                                 {(invoice.notes || invoice.terms || invoice.customPaymentUrl) && (
+                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-10 pt-8 border-t border-gray-100">
+                                         {invoice.customPaymentUrl && (
+                                             <div className="space-y-3 md:col-span-2">
+                                                 <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                                                     <CreditCard size={12} className="text-primary-500" />
+                                                     Custom Payment URL
+                                                 </h4>
+                                                 <div className="bg-slate-50 border border-slate-200 rounded p-3 text-xs flex justify-between items-center gap-4">
+                                                     <a
+                                                         href={invoice.customPaymentUrl}
+                                                         target="_blank"
+                                                         rel="noopener noreferrer"
+                                                         className="font-mono text-[11px] text-primary-600 hover:text-primary-800 break-all select-all font-bold"
+                                                     >
+                                                         {invoice.customPaymentUrl}
+                                                     </a>
+                                                 </div>
+                                             </div>
+                                         )}
+                                         {invoice.notes && (
+                                             <div className="space-y-3">
+                                                 <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                                                     <Info size={12} className="text-primary-500" />
+                                                     Directives
+                                                 </h4>
+                                                 <p className="text-[11px] font-medium text-gray-600 bg-gray-50 p-3 rounded leading-relaxed border-l-2 border-primary-500 italic">
+                                                     {invoice.notes}
+                                                 </p>
+                                             </div>
+                                         )}
+                                         {invoice.terms && (
+                                             <div className="space-y-3">
+                                                 <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                                                     <ShieldCheck size={12} className="text-gray-400" />
+                                                     Commercial Terms
+                                                 </h4>
+                                                 <p className="text-[11px] font-bold text-gray-400 leading-relaxed uppercase tracking-tight">
+                                                     {invoice.terms}
+                                                 </p>
+                                             </div>
+                                         )}
+                                     </div>
+                                 )}
                             </div>
                         </div>
                     </div>

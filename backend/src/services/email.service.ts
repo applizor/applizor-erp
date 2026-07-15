@@ -7,6 +7,27 @@ import prisma from '../prisma/client';
 import { getCompanyIdFromContext, runWithoutCompanyContext } from '../utils/context';
 import { QueueService } from './queue.service';
 
+// --- Email Template Resolver Helpers ---
+const getDbTemplate = async (companyId: string, type: string) => {
+    try {
+        return await prisma.emailTemplate.findFirst({
+            where: { companyId, type, isActive: true }
+        });
+    } catch (err) {
+        console.warn(`[EmailService] Failed to fetch template type=${type} for company=${companyId}:`, err);
+        return null;
+    }
+};
+
+const replaceTemplatePlaceholders = (text: string, replacements: Record<string, string>) => {
+    let result = text;
+    for (const key of Object.keys(replacements)) {
+        const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
+        result = result.replace(regex, replacements[key] || '');
+    }
+    return result;
+};
+
 // --- Token Refresh Helpers ---
 
 const getMicrosoftAccessToken = async (clientId: string, clientSecret: string, refreshToken: string, tenantId: string = 'common') => {
@@ -758,31 +779,58 @@ export const sendInvoiceEmail = async (to: string, invoiceData: any, pdfBuffer?:
     const companyName = await getCompanyName(invoiceData.companyId);
     const typeLabel = invoiceData.type === 'quotation' ? 'Quotation' : 'Invoice';
     const title = isReminder ? 'Payment Reminder' : `${typeLabel} Received`;
-    const subject = isReminder
-        ? `Reminder: ${typeLabel} #${invoiceData.invoiceNumber} is due — ${companyName}`
-        : `${typeLabel} #${invoiceData.invoiceNumber} — ${companyName}`;
+    
+    // Look up template in database
+    const templateType = isReminder ? 'invoice_followup' : 'invoice';
+    const dbTemplate = await getDbTemplate(invoiceData.companyId, templateType);
 
-    const content = `
-        <div style="padding-top: 24px;">
-          <p class="greeting">Dear <strong>${invoiceData.client?.name || 'Valued Client'}</strong>,</p>
-          <p class="greeting">${isReminder ? 'This is a friendly payment reminder. The following invoice is currently due. Please arrange payment at your earliest convenience.' : 'We are sharing your invoice details below. A PDF copy is attached for your records.'}</p>
-        </div>
-        <div class="amount-block" style="background: ${isReminder ? '#FFF7ED' : '#ECFDF5'}; border: 1px solid ${isReminder ? '#FED7AA' : '#A7F3D0'};">
-          <div class="amount-label" style="color: ${isReminder ? '#9A3412' : '#065F46'};">Amount ${isReminder ? 'Due' : 'Total'}</div>
-          <div class="amount-value" style="color: ${isReminder ? '#7C2D12' : '#064E3B'};">
-            <span class="amount-currency">${invoiceData.currency}</span>${Number(invoiceData.total).toLocaleString()}
-          </div>
-        </div>
-        <div class="data-card">
-          <div class="data-card-header" style="background: ${isReminder ? '#FFF7ED' : '#ECFDF5'}; color: ${isReminder ? '#9A3412' : '#065F46'};">${typeLabel} Details</div>
-          <div class="data-row"><span class="data-key">${typeLabel} No.</span><span class="data-val">#${invoiceData.invoiceNumber}</span></div>
-          <div class="data-row"><span class="data-key">Due Date</span><span class="data-val" style="color: ${isReminder ? '#DC2626' : 'inherit'}; font-weight: ${isReminder ? '800' : '600'};">${new Date(invoiceData.dueDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span></div>
-          ${invoiceData.description ? `<div class="data-row"><span class="data-key">Description</span><span class="data-val">${invoiceData.description}</span></div>` : ''}
-        </div>
-        <p style="font-size: 13px; color: #64748B; margin-top: 8px;">Thank you for choosing <strong>${companyName}</strong>. We value your business.</p>
-    `;
+    let subject = '';
+    let content = '';
 
-    const html = getBaseTemplate(title, content, companyName, publicUrl ? `View & Pay ${typeLabel}` : undefined, publicUrl, {
+    const actionUrl = invoiceData.customPaymentUrl || publicUrl;
+
+    if (dbTemplate) {
+        const replacements = {
+            companyName,
+            clientName: invoiceData.client?.name || 'Valued Client',
+            invoiceNumber: invoiceData.invoiceNumber,
+            typeLabel,
+            amount: `${invoiceData.currency} ${Number(invoiceData.total).toLocaleString()}`,
+            dueDate: new Date(invoiceData.dueDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+            publicUrl: actionUrl || '',
+            invoiceUrl: actionUrl || '',
+            description: invoiceData.description || ''
+        };
+        subject = replaceTemplatePlaceholders(dbTemplate.subject, replacements);
+        content = replaceTemplatePlaceholders(dbTemplate.body, replacements);
+    } else {
+        // Fallback to hardcoded template
+        subject = isReminder
+            ? `Reminder: ${typeLabel} #${invoiceData.invoiceNumber} is due — ${companyName}`
+            : `${typeLabel} #${invoiceData.invoiceNumber} — ${companyName}`;
+
+        content = `
+            <div style="padding-top: 24px;">
+              <p class="greeting">Dear <strong>${invoiceData.client?.name || 'Valued Client'}</strong>,</p>
+              <p class="greeting">${isReminder ? 'This is a friendly payment reminder. The following invoice is currently due. Please arrange payment at your earliest convenience.' : 'We are sharing your invoice details below. A PDF copy is attached for your records.'}</p>
+            </div>
+            <div class="amount-block" style="background: ${isReminder ? '#FFF7ED' : '#ECFDF5'}; border: 1px solid ${isReminder ? '#FED7AA' : '#A7F3D0'};">
+              <div class="amount-label" style="color: ${isReminder ? '#9A3412' : '#065F46'};">Amount ${isReminder ? 'Due' : 'Total'}</div>
+              <div class="amount-value" style="color: ${isReminder ? '#7C2D12' : '#064E3B'};">
+                <span class="amount-currency">${invoiceData.currency}</span>${Number(invoiceData.total).toLocaleString()}
+              </div>
+            </div>
+            <div class="data-card">
+              <div class="data-card-header" style="background: ${isReminder ? '#FFF7ED' : '#ECFDF5'}; color: ${isReminder ? '#9A3412' : '#065F46'};">${typeLabel} Details</div>
+              <div class="data-row"><span class="data-key">${typeLabel} No.</span><span class="data-val">#${invoiceData.invoiceNumber}</span></div>
+              <div class="data-row"><span class="data-key">Due Date</span><span class="data-val" style="color: ${isReminder ? '#DC2626' : 'inherit'}; font-weight: ${isReminder ? '800' : '600'};">${new Date(invoiceData.dueDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span></div>
+              ${invoiceData.description ? `<div class="data-row"><span class="data-key">Description</span><span class="data-val">${invoiceData.description}</span></div>` : ''}
+            </div>
+            <p style="font-size: 13px; color: #64748B; margin-top: 8px;">Thank you for choosing <strong>${companyName}</strong>. We value your business.</p>
+        `;
+    }
+
+    const html = getBaseTemplate(title, content, companyName, actionUrl ? `View & Pay ${typeLabel}` : undefined, actionUrl, {
         themeKey: isReminder ? 'reminder' : 'invoice',
         heroLabel: isReminder ? 'Payment Reminder' : 'Finance',
         heroSub: `${typeLabel} #${invoiceData.invoiceNumber}`
@@ -805,28 +853,50 @@ export const sendQuotationToClient = async (quotationData: any, publicUrl: strin
 
     const companyName = await getCompanyName(quotationData.companyId);
     const clientName = quotationData.lead?.name || quotationData.client?.name || 'Valued Client';
-    const subject = `Quotation #${quotationData.quotationNumber} from ${companyName}`;
+    
+    // Look up template in database
+    const dbTemplate = await getDbTemplate(quotationData.companyId, 'quotation');
 
-    const content = `
-        <div style="padding-top: 24px;">
-          <p class="greeting">Dear <strong>${clientName}</strong>,</p>
-          <p class="greeting">We are pleased to present our formal quotation. Our team has carefully mapped out your requirements to ensure the highest quality of service. Please review the details below.</p>
-        </div>
-        <div class="amount-block" style="background: #EFF6FF; border: 1px solid #BFDBFE;">
-          <div class="amount-label" style="color: #1E40AF;">Total Estimate</div>
-          <div class="amount-value" style="color: #1E3A5F;">
-            <span class="amount-currency">${quotationData.currency}</span>${Number(quotationData.total).toLocaleString()}
-          </div>
-        </div>
-        <div class="data-card">
-          <div class="data-card-header" style="background: #EFF6FF; color: #1E40AF;">Quotation Summary</div>
-          <div class="data-row"><span class="data-key">Quotation No.</span><span class="data-val">#${quotationData.quotationNumber}</span></div>
-          <div class="data-row"><span class="data-key">Prepared For</span><span class="data-val">${clientName}</span></div>
-          <div class="data-row"><span class="data-key">Prepared By</span><span class="data-val">${companyName}</span></div>
-          ${quotationData.validUntil ? `<div class="data-row"><span class="data-key">Valid Until</span><span class="data-val">${new Date(quotationData.validUntil).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span></div>` : ''}
-        </div>
-        <p style="font-size: 13px; color: #64748B;">You can review the full breakdown and accept this quotation digitally using the button below.</p>
-    `;
+    let subject = '';
+    let content = '';
+
+    if (dbTemplate) {
+        const replacements = {
+            companyName,
+            clientName,
+            quotationNumber: quotationData.quotationNumber,
+            amount: `${quotationData.currency} ${Number(quotationData.total).toLocaleString()}`,
+            validUntil: quotationData.validUntil ? new Date(quotationData.validUntil).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A',
+            publicUrl: publicUrl || '',
+            quotationUrl: publicUrl || ''
+        };
+        subject = replaceTemplatePlaceholders(dbTemplate.subject, replacements);
+        content = replaceTemplatePlaceholders(dbTemplate.body, replacements);
+    } else {
+        // Fallback to hardcoded template
+        subject = `Quotation #${quotationData.quotationNumber} from ${companyName}`;
+
+        content = `
+            <div style="padding-top: 24px;">
+              <p class="greeting">Dear <strong>${clientName}</strong>,</p>
+              <p class="greeting">We are pleased to present our formal quotation. Our team has carefully mapped out your requirements to ensure the highest quality of service. Please review the details below.</p>
+            </div>
+            <div class="amount-block" style="background: #EFF6FF; border: 1px solid #BFDBFE;">
+              <div class="amount-label" style="color: #1E40AF;">Total Estimate</div>
+              <div class="amount-value" style="color: #1E3A5F;">
+                <span class="amount-currency">${quotationData.currency}</span>${Number(quotationData.total).toLocaleString()}
+              </div>
+            </div>
+            <div class="data-card">
+              <div class="data-card-header" style="background: #EFF6FF; color: #1E40AF;">Quotation Summary</div>
+              <div class="data-row"><span class="data-key">Quotation No.</span><span class="data-val">#${quotationData.quotationNumber}</span></div>
+              <div class="data-row"><span class="data-key">Prepared For</span><span class="data-val">${clientName}</span></div>
+              <div class="data-row"><span class="data-key">Prepared By</span><span class="data-val">${companyName}</span></div>
+              ${quotationData.validUntil ? `<div class="data-row"><span class="data-key">Valid Until</span><span class="data-val">${new Date(quotationData.validUntil).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span></div>` : ''}
+            </div>
+            <p style="font-size: 13px; color: #64748B;">You can review the full breakdown and accept this quotation digitally using the button below.</p>
+        `;
+    }
 
     const html = getBaseTemplate('Formal Quotation', content, companyName, 'Review & Accept Quotation', publicUrl, {
         themeKey: 'quotation',
@@ -844,26 +914,98 @@ export const sendContractNotification = async (contract: any, publicUrl: string)
     }
 
     const companyName = await getCompanyName(contract.companyId);
-    const subject = `Action Required: Contract for Review — ${companyName}`;
+    
+    // Look up template in database
+    const dbTemplate = await getDbTemplate(contract.companyId, 'contract');
 
-    const content = `
-        <div style="padding-top: 24px;">
-          <p class="greeting">Hello <strong>${contract.client.name}</strong>,</p>
-          <p class="greeting">A formal service agreement has been prepared for you. Please review the terms carefully and provide your digital signature at your earliest convenience.</p>
-        </div>
-        <div class="data-card">
-          <div class="data-card-header" style="background: #FAFAF9; color: #292524;">Contract Details</div>
-          <div class="data-row"><span class="data-key">Document Title</span><span class="data-val">${contract.title}</span></div>
-          <div class="data-row"><span class="data-key">Prepared By</span><span class="data-val">${companyName}</span></div>
-          <div class="data-row"><span class="data-key">Status</span><span class="data-val"><span class="badge badge-pending">Awaiting Signature</span></span></div>
-          <div class="data-row"><span class="data-key">Date Issued</span><span class="data-val">${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span></div>
-        </div>
-        <p style="font-size: 13px; color: #64748B;">Use the secure link below to read the full document and apply your digital signature. No downloads required.</p>
-    `;
+    let subject = '';
+    let content = '';
+
+    if (dbTemplate) {
+        const replacements = {
+            companyName,
+            clientName: contract.client.name,
+            contractTitle: contract.title,
+            publicUrl: publicUrl || '',
+            contractUrl: publicUrl || ''
+        };
+        subject = replaceTemplatePlaceholders(dbTemplate.subject, replacements);
+        content = replaceTemplatePlaceholders(dbTemplate.body, replacements);
+    } else {
+        // Fallback to hardcoded template
+        subject = `Action Required: Contract for Review — ${companyName}`;
+
+        content = `
+            <div style="padding-top: 24px;">
+              <p class="greeting">Hello <strong>${contract.client.name}</strong>,</p>
+              <p class="greeting">A formal service agreement has been prepared for you. Please review the terms carefully and provide your digital signature at your earliest convenience.</p>
+            </div>
+            <div class="data-card">
+              <div class="data-card-header" style="background: #FAFAF9; color: #292524;">Contract Details</div>
+              <div class="data-row"><span class="data-key">Document Title</span><span class="data-val">${contract.title}</span></div>
+              <div class="data-row"><span class="data-key">Prepared By</span><span class="data-val">${companyName}</span></div>
+              <div class="data-row"><span class="data-key">Status</span><span class="data-val"><span class="badge badge-pending">Awaiting Signature</span></span></div>
+              <div class="data-row"><span class="data-key">Date Issued</span><span class="data-val">${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span></div>
+            </div>
+            <p style="font-size: 13px; color: #64748B;">Use the secure link below to read the full document and apply your digital signature. No downloads required.</p>
+        `;
+    }
 
     const html = getBaseTemplate('Contract for Review & Signature', content, companyName, 'View & Sign Contract', publicUrl, {
         themeKey: 'contract',
         heroLabel: 'Legal Document',
+        heroSub: contract.title
+    });
+    return sendEmail(contract.client.email, subject, html, [], undefined, undefined, undefined, true, contract.companyId, 'legal');
+};
+
+// Send Contract Reminder/Follow-up to Client
+export const sendContractReminder = async (contract: any, publicUrl: string) => {
+    if (contract.client && contract.client.receiveNotifications === false) {
+        console.log(`ℹ️ Client ${contract.client.name} has notifications disabled. Skipping contract reminder email.`);
+        return { messageId: 'skipped-pref' };
+    }
+
+    const companyName = await getCompanyName(contract.companyId);
+    
+    // Look up template in database
+    const dbTemplate = await getDbTemplate(contract.companyId, 'contract_followup');
+
+    let subject = '';
+    let content = '';
+
+    if (dbTemplate) {
+        const replacements = {
+            companyName,
+            clientName: contract.client.name,
+            contractTitle: contract.title,
+            publicUrl: publicUrl || '',
+            contractUrl: publicUrl || ''
+        };
+        subject = replaceTemplatePlaceholders(dbTemplate.subject, replacements);
+        content = replaceTemplatePlaceholders(dbTemplate.body, replacements);
+    } else {
+        // Fallback to hardcoded template
+        subject = `Reminder: Action Required — Contract Review is Pending — ${companyName}`;
+
+        content = `
+            <div style="padding-top: 24px;">
+              <p class="greeting">Hello <strong>${contract.client.name}</strong>,</p>
+              <p class="greeting">This is a friendly reminder that the service agreement prepared for you is still awaiting review and signature. Please review and sign at your earliest convenience.</p>
+            </div>
+            <div class="data-card">
+              <div class="data-card-header" style="background: #FAFAF9; color: #292524;">Contract Details</div>
+              <div class="data-row"><span class="data-key">Document Title</span><span class="data-val">${contract.title}</span></div>
+              <div class="data-row"><span class="data-key">Prepared By</span><span class="data-val">${companyName}</span></div>
+              <div class="data-row"><span class="data-key">Status</span><span class="data-val"><span class="badge badge-pending">Awaiting Signature</span></span></div>
+            </div>
+            <p style="font-size: 13px; color: #64748B;">Please use the secure link below to complete the signing process.</p>
+        `;
+    }
+
+    const html = getBaseTemplate('Contract Signature Pending', content, companyName, 'View & Sign Contract', publicUrl, {
+        themeKey: 'contract',
+        heroLabel: 'Follow-up',
         heroSub: contract.title
     });
     return sendEmail(contract.client.email, subject, html, [], undefined, undefined, undefined, true, contract.companyId, 'legal');
@@ -1007,21 +1149,44 @@ export const sendQuotationReminder = async (quotationData: any, publicUrl: strin
 
     const companyName = await getCompanyName(quotationData.companyId);
     const clientName = quotationData.lead?.name || 'Valued Client';
-    const subject = `Friendly Reminder: Quotation #${quotationData.quotationNumber} — ${companyName}`;
+    
+    // Look up template in database
+    const dbTemplate = await getDbTemplate(quotationData.companyId, 'quotation_followup');
 
-    const content = `
-        <div style="padding-top: 24px;">
-          <p class="greeting">Dear <strong>${clientName}</strong>,</p>
-          <p class="greeting">This is a gentle reminder about the proposal we sent on <strong>${new Date(quotationData.quotationDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</strong>. We would love to hear your thoughts and move forward together.</p>
-        </div>
-        <div class="data-card">
-          <div class="data-card-header" style="background: #FFF7ED; color: #9A3412;">Proposal Details</div>
-          <div class="data-row"><span class="data-key">Proposal No.</span><span class="data-val">#${quotationData.quotationNumber}</span></div>
-          <div class="data-row"><span class="data-key">Total Value</span><span class="data-val" style="font-weight: 800;">${quotationData.currency} ${Number(quotationData.total).toLocaleString()}</span></div>
-          ${quotationData.validUntil ? `<div class="data-row"><span class="data-key">Expires On</span><span class="data-val" style="color: #DC2626; font-weight: 700;">${new Date(quotationData.validUntil).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span></div>` : ''}
-        </div>
-        <p style="font-size: 13px; color: #64748B;">We are keen to partner with you. You can review and accept the proposal using the button below.</p>
-    `;
+    let subject = '';
+    let content = '';
+
+    if (dbTemplate) {
+        const replacements = {
+            companyName,
+            clientName,
+            quotationNumber: quotationData.quotationNumber,
+            amount: `${quotationData.currency} ${Number(quotationData.total).toLocaleString()}`,
+            validUntil: quotationData.validUntil ? new Date(quotationData.validUntil).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A',
+            quotationDate: new Date(quotationData.quotationDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+            publicUrl: publicUrl || '',
+            quotationUrl: publicUrl || ''
+        };
+        subject = replaceTemplatePlaceholders(dbTemplate.subject, replacements);
+        content = replaceTemplatePlaceholders(dbTemplate.body, replacements);
+    } else {
+        // Fallback to hardcoded template
+        subject = `Friendly Reminder: Quotation #${quotationData.quotationNumber} — ${companyName}`;
+
+        content = `
+            <div style="padding-top: 24px;">
+              <p class="greeting">Dear <strong>${clientName}</strong>,</p>
+              <p class="greeting">This is a gentle reminder about the proposal we sent on <strong>${new Date(quotationData.quotationDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</strong>. We would love to hear your thoughts and move forward together.</p>
+            </div>
+            <div class="data-card">
+              <div class="data-card-header" style="background: #FFF7ED; color: #9A3412;">Proposal Details</div>
+              <div class="data-row"><span class="data-key">Proposal No.</span><span class="data-val">#${quotationData.quotationNumber}</span></div>
+              <div class="data-row"><span class="data-key">Total Value</span><span class="data-val" style="font-weight: 800;">${quotationData.currency} ${Number(quotationData.total).toLocaleString()}</span></div>
+              ${quotationData.validUntil ? `<div class="data-row"><span class="data-key">Expires On</span><span class="data-val" style="color: #DC2626; font-weight: 700;">${new Date(quotationData.validUntil).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span></div>` : ''}
+            </div>
+            <p style="font-size: 13px; color: #64748B;">We are keen to partner with you. You can review and accept the proposal using the button below.</p>
+        `;
+    }
 
     const html = getBaseTemplate('Proposal Reminder', content, companyName, 'View Proposal', publicUrl, {
         themeKey: 'reminder',

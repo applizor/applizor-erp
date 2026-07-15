@@ -571,10 +571,24 @@ export const sendInvoice = async (req: AuthRequest, res: Response) => {
     });
 
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    const publicUrl = `${frontendUrl}/portal/invoices/${invoice.id}`;
+    
+    // Resolve public URL using token (generate one if missing)
+    let publicToken = invoice.publicToken;
+    if (!publicToken) {
+      const { v4: uuidv4 } = require('uuid');
+      publicToken = uuidv4();
+      await prisma.invoice.update({
+        where: { id: invoice.id },
+        data: { publicToken, isPublicEnabled: true }
+      });
+      invoice.publicToken = publicToken;
+      invoice.isPublicEnabled = true;
+    }
+    const publicUrl = `${frontendUrl}/public/invoices/${publicToken}`;
 
     // Send in background and update status
-    emailService.sendInvoiceEmail(invoice.client.email, invoice, pdfBuffer, false, publicUrl)
+    const isReminder = req.body.isReminder === true;
+    emailService.sendInvoiceEmail(invoice.client.email, invoice, pdfBuffer, isReminder, publicUrl)
       .then(async () => {
         if (invoice.status === 'draft') {
           await prisma.invoice.update({

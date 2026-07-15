@@ -12,6 +12,7 @@ import { config } from './config/env';
 import { apiLimiter, authLimiter, tenantApiLimiter } from './middleware/rateLimiter';
 import { initEmailQueue } from './services/email.service';
 import { configurePassport } from './config/passport';
+import { bootstrapAllEmailTemplates } from './controllers/platform.controller';
 
 // Routes
 import authRoutes from './routes/auth.routes';
@@ -356,5 +357,8 @@ server.listen(config.PORT, () => {
 
   // Start background email queue processor
   initEmailQueue();
+
+  // Bootstrap missing email templates for all companies/tenants
+  bootstrapAllEmailTemplates();
 });
 

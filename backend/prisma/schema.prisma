@@ -1381,6 +1381,7 @@ model Invoice {
   publicToken        String?           @unique
   viewCount          Int               @default(0)
   includeBankDetails Boolean           @default(true)
+  customPaymentUrl   String?
   documents          Document[]
   client             Client            @relation(fields: [clientId], references: [id])
   company            Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
