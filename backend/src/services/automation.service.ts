@@ -200,9 +200,9 @@ export class AutomationService {
                         await notifyMention({ email: mention.email, firstName: mention.firstName }, payload.commenterName || 'Someone', { title: payload.taskTitle, id: payload.taskId }, project, payload.commentContent || '');
                     }
                 } else if (config.useTemplate === 'assigned') {
-                    await notifyTaskAssigned(payload.assigneeEmail!, { title: payload.taskTitle, description: '', priority: 'medium', status: payload.newStatus || 'todo', type: 'task' }, project);
+                    await notifyTaskAssigned(payload.assigneeEmail!, { id: payload.taskId, title: payload.taskTitle, description: '', priority: 'medium', status: payload.newStatus || 'todo', type: 'task' }, project);
                 } else if (config.useTemplate === 'created') {
-                    await notifyNewTask(email, { title: payload.taskTitle, description: '', priority: 'medium', type: 'task' }, project);
+                    await notifyNewTask(email, { id: payload.taskId, title: payload.taskTitle, description: '', priority: 'medium', type: 'task' }, project);
                 } else if (config.useTemplate === 'status') {
                     await notifyTaskUpdated({ firstName: payload.assigneeName || 'User', email: email }, { title: payload.taskTitle, id: payload.taskId, status: payload.newStatus || 'Updated' }, project, [`Status changed to ${payload.newStatus}`]);
                 } else if (config.useTemplate === 'reminder' || rule.triggerType === 'TASK_REMINDER') {
