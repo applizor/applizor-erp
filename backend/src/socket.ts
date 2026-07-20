@@ -7,17 +7,22 @@ export const initSocket = (server: HttpServer) => {
     io = new SocketIOServer(server, {
         cors: {
             origin: function (origin, callback) {
+                const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').trim().replace(/\/$/, '');
                 const allowedOrigins = [
-                    process.env.FRONTEND_URL || 'http://localhost:3000',
-                    'http://localhost:3001'
+                    frontendUrl,
+                    'http://localhost:3000',
+                    'http://localhost:3001',
+                    'https://iam.applizor.com',
+                    'https://applizor.com'
                 ];
 
+                const isApplizorDomain = origin && (origin.endsWith('.applizor.com') || origin === 'https://applizor.com');
                 const isAllowedLocalhost = origin && (origin.includes('localhost:3000') || origin.includes('localhost:3001'));
                 const isDevTunnel = origin && origin.endsWith('.devtunnels.ms');
                 const isLocalIP = origin && /^http:\/\/(\d{1,3}\.){3}\d{1,3}(:\d+)?$/.test(origin);
 
                 const isProduction = process.env.NODE_ENV === 'production';
-                if (!origin || allowedOrigins.indexOf(origin || '') !== -1 || isAllowedLocalhost || isDevTunnel || isLocalIP) {
+                if (!origin || allowedOrigins.indexOf(origin) !== -1 || isApplizorDomain || isAllowedLocalhost || isDevTunnel || isLocalIP) {
                     callback(null, true);
                 } else if (isProduction) {
                     console.warn(`Socket blocked by CORS: ${origin}`);
