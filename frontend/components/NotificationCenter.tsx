@@ -20,6 +20,17 @@ interface Notification {
     createdAt: string;
 }
 
+const formatNotificationDate = (dateStr?: string) => {
+    if (!dateStr) return '';
+    try {
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return '';
+        return formatDistanceToNow(d, { addSuffix: true });
+    } catch {
+        return '';
+    }
+};
+
 export default function NotificationCenter() {
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
@@ -34,7 +45,7 @@ export default function NotificationCenter() {
         try {
             setLoading(true);
             const res = await api.get('/notifications');
-            setNotifications(res.data.notifications);
+            setNotifications(res.data.data || []);
             setUnreadCount(res.data.unreadCount);
         } catch (error) {
             console.error('Failed to fetch notifications', error);
@@ -178,7 +189,7 @@ export default function NotificationCenter() {
                                                     {notification.title}
                                                 </h4>
                                                 <span className="text-[9px] font-bold text-gray-400 whitespace-nowrap">
-                                                    {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
+                                                    {formatNotificationDate(notification.createdAt)}
                                                 </span>
                                             </div>
                                             <p className="text-[11px] text-zinc-500 leading-relaxed line-clamp-2">

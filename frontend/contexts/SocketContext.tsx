@@ -54,7 +54,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
             reconnectionAttempts: 5,
             reconnectionDelay: 1000,
             autoConnect: true,
-            transports: ['polling', 'websocket'],
+            transports: ['websocket'],
             path: '/socket.io/'
         });
 

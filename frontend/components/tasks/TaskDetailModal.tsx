@@ -26,15 +26,16 @@ interface TaskDetailModalProps {
 
 // --- Helper Components ---
 
-function LiveTimerDisplay({ startTime, formatTime, accumulatedTime = 0, isPaused = false }: { startTime: number, formatTime: (s: number) => string, accumulatedTime?: number, isPaused?: boolean }) {
+function LiveTimerDisplay({ startTime, formatTime, accumulatedTime = 0, isPaused = false, clockOffset = 0 }: { startTime: number, formatTime: (s: number) => string, accumulatedTime?: number, isPaused?: boolean, clockOffset?: number }) {
     const [seconds, setSeconds] = useState(0);
 
     useEffect(() => {
         const calculateElapsed = () => {
             if (isPaused) return Math.min(accumulatedTime, 43200);
-            const elapsedSinceStart = Math.floor((Date.now() - startTime) / 1000);
+            const adjustedNow = Date.now() + clockOffset;
+            const elapsedSinceStart = Math.floor((adjustedNow - startTime) / 1000);
             const total = accumulatedTime + elapsedSinceStart;
-            return total > 43200 ? 43200 : total; // 12 hours max
+            return total > 43200 ? 43200 : (total < 0 ? 0 : total); // 12 hours max
         };
 
         setSeconds(calculateElapsed());
@@ -45,7 +46,7 @@ function LiveTimerDisplay({ startTime, formatTime, accumulatedTime = 0, isPaused
             setSeconds(calculateElapsed());
         }, 1000);
         return () => clearInterval(interval);
-    }, [startTime, accumulatedTime, isPaused]);
+    }, [startTime, accumulatedTime, isPaused, clockOffset]);
 
     return <span>{formatTime(seconds)}</span>;
 }
@@ -98,6 +99,7 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
     const [isPaused, setIsPaused] = useState(false);
     const [accumulatedSeconds, setAccumulatedSeconds] = useState(0);
     const [activeTimerId, setActiveTimerId] = useState<string | null>(null);
+    const [serverClientOffset, setServerClientOffset] = useState<number>(0);
     const { socket } = useSocket();
 
     // User Context for Delete Permissions
@@ -192,12 +194,16 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                 setIsPaused(res.data.isPaused);
                 setAccumulatedSeconds(res.data.accumulatedTime);
                 setTimerStartTime(new Date(res.data.startTime).getTime());
+                if (res.data.serverTime) {
+                    setServerClientOffset(new Date(res.data.serverTime).getTime() - Date.now());
+                }
             } else {
                 setTimerActive(false);
                 setActiveTimerId(null);
                 setTimerStartTime(null);
                 setIsPaused(false);
                 setAccumulatedSeconds(0);
+                setServerClientOffset(0);
             }
         } catch (error) { console.error('Failed to sync timer'); }
     };
@@ -221,6 +227,9 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                 setTimerStartTime(new Date(res.data.startTime).getTime());
                 setIsPaused(res.data.isPaused);
                 setAccumulatedSeconds(res.data.accumulatedTime);
+                if (res.data.serverTime) {
+                    setServerClientOffset(new Date(res.data.serverTime).getTime() - Date.now());
+                }
             } else {
                 const res = await api.post(`/timesheets/timer/stop/${activeTimerId}`);
                 setTimerActive(false);
@@ -228,6 +237,7 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                 setTimerStartTime(null);
                 setIsPaused(false);
                 setAccumulatedSeconds(0);
+                setServerClientOffset(0);
 
                 toast.success(`Work logged: ${res.data.durationHours} h`);
 
@@ -250,6 +260,9 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
             setIsPaused(res.data.isPaused);
             setAccumulatedSeconds(res.data.accumulatedTime);
             setTimerStartTime(new Date(res.data.startTime).getTime());
+            if (res.data.serverTime) {
+                setServerClientOffset(new Date(res.data.serverTime).getTime() - Date.now());
+            }
             toast.success(isPaused ? 'Timer Resumed' : 'Timer Paused');
         } catch (error) {
             toast.error('Action failed');
@@ -328,6 +341,7 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
             });
         } catch (error) {
             toast.error('Failed to load task details');
+            onClose();
         }
     };
 
@@ -438,6 +452,26 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
         }
     };
 
+    if (!isNew && !task) {
+        return (
+            <Portal>
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex justify-center items-center overflow-hidden p-0 md:p-6 animate-fade-in text-left">
+                    <div className="bg-white rounded-none md:rounded-md shadow-2xl w-full max-w-md p-8 flex flex-col items-center justify-center gap-4 border border-slate-200 relative">
+                        {/* Close Button */}
+                        <button
+                            onClick={onClose}
+                            className="absolute top-4 right-4 z-20 p-2 bg-white text-slate-400 hover:text-slate-600 rounded-full shadow-sm hover:shadow transition-all border border-slate-100"
+                        >
+                            <X size={20} />
+                        </button>
+                        <Loader2 className="w-8 h-8 text-primary-600 animate-spin" />
+                        <span className="text-xs font-bold text-slate-500">Loading task details...</span>
+                    </div>
+                </div>
+            </Portal>
+        );
+    }
+
     return (
         <Portal>
             <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex justify-center items-center overflow-hidden p-0 md:p-6 animate-fade-in text-left">
@@ -462,7 +496,7 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                                     <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                                         <span className="hover:text-primary-600 transition-colors cursor-pointer">Project</span>
                                         <span className="text-slate-300">/</span>
-                                        <span className="text-slate-600">{isNew ? 'New Issue' : `TASK-${task?.id?.split('-')[0].toUpperCase()}`}</span>
+                                        <span className="text-slate-600">{isNew ? 'New Issue' : `TASK-${task?.id ? task.id.split('-')[0].toUpperCase() : ''}`}</span>
                                     </div>
 
                                     {!isNew && (
@@ -479,6 +513,7 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                                                             formatTime={formatTime}
                                                             accumulatedTime={accumulatedSeconds}
                                                             isPaused={isPaused}
+                                                            clockOffset={serverClientOffset}
                                                         />
                                                     ) : '00:00:00'}
                                                     {isPaused && (

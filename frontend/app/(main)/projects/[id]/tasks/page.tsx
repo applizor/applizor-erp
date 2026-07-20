@@ -152,7 +152,7 @@ export default function KanbanBoard() {
 
     // Handle Deep Linking
     useEffect(() => {
-        if (deepLinkedTaskId) {
+        if (deepLinkedTaskId && deepLinkedTaskId !== 'undefined' && deepLinkedTaskId !== 'null') {
             setSelectedTaskId(deepLinkedTaskId);
             setIsDetailOpen(true);
         }

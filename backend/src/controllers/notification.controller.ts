@@ -18,12 +18,13 @@ export const getNotifications = async (req: AuthRequest, res: Response) => {
             where: { userId, isRead: false }
         });
 
-        // Map to frontend-friendly format (read instead of isRead)
+        // Map to frontend-friendly format (both styles for safety)
         const mapped = notifications.map(n => ({
             ...n,
             read: n.isRead,
-            isRead: undefined,
+            isRead: n.isRead,
             timestamp: n.createdAt,
+            createdAt: n.createdAt,
         }));
 
         res.json({ data: mapped, unreadCount });

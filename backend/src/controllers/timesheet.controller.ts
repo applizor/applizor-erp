@@ -349,7 +349,7 @@ export const startTimer = async (req: AuthRequest, res: Response) => {
             NotificationService.emitProjectUpdate(projectId, 'TASK_UPDATED', { id: taskId, projectId });
         }
 
-        res.status(200).json(timer);
+        res.status(200).json({ ...timer, serverTime: new Date() });
     } catch (error) {
         console.error('Start Timer Error:', error);
         res.status(500).json({ error: 'Failed to start timer' });
@@ -372,7 +372,7 @@ export const getActiveTimer = async (req: AuthRequest, res: Response) => {
 
         // Also return all timers (including paused ones) for the task view if needed
         // But for the global bar, we just want the active one
-        res.status(200).json(activeTimer || null);
+        res.status(200).json(activeTimer ? { ...activeTimer, serverTime: new Date() } : null);
     } catch (error) {
         console.error('Get Active Timer Error:', error);
         res.status(500).json({ error: 'Failed to fetch active timer' });
@@ -391,7 +391,7 @@ export const getTaskTimers = async (req: AuthRequest, res: Response) => {
             where: { employeeId, taskId }
         });
 
-        res.json(timer);
+        res.json(timer ? { ...timer, serverTime: new Date() } : null);
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch task timers' });
     }
@@ -421,7 +421,7 @@ export const pauseTimer = async (req: AuthRequest, res: Response) => {
         const { NotificationService } = await import('../services/notification.service');
         NotificationService.emitProjectUpdate(timer.projectId, 'TIMER_UPDATED', { employeeId: timer.employeeId, timer: updated });
 
-        res.json(updated);
+        res.json({ ...updated, serverTime: new Date() });
     } catch (error) {
         res.status(500).json({ error: 'Failed to pause timer' });
     }
@@ -454,7 +454,7 @@ export const resumeTimer = async (req: AuthRequest, res: Response) => {
         const { NotificationService } = await import('../services/notification.service');
         NotificationService.emitProjectUpdate(timer.projectId, 'TIMER_UPDATED', { employeeId: timer.employeeId, timer: updated });
 
-        res.json(updated);
+        res.json({ ...updated, serverTime: new Date() });
     } catch (error) {
         res.status(500).json({ error: 'Failed to resume timer' });
     }
