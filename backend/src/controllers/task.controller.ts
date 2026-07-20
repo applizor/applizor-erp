@@ -171,18 +171,7 @@ export const createTask = async (req: AuthRequest, res: Response) => {
                 type: task.type || undefined
             }).catch(err => console.error('Automation error:', err));
 
-            // In-app notification for assignee
-            if (primaryAssigneeId) {
-                const assignedUser = await prisma.user.findUnique({ where: { id: primaryAssigneeId }, select: { firstName: true } });
-                NotificationService.createNotification({
-                    companyId: req.user!.companyId,
-                    userId: primaryAssigneeId,
-                    title: 'Task Assigned',
-                    message: `You have been assigned to "${title}"`,
-                    type: 'task_assigned',
-                    link: `/projects/${task.projectId}/tasks?taskId=${task.id}`
-                });
-            }
+
 
             // Trigger TASK_ASSIGNED if assignee was set during creation
             if (primaryAssigneeId) {
@@ -305,29 +294,7 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
             return [updated];
         });
 
-        // In-app notifications
-        try {
-            if (oldTask && oldTask.assignedToId !== task.assignedToId && task.assignedToId) {
-                NotificationService.createNotification({
-                    companyId: req.user!.companyId,
-                    userId: task.assignedToId,
-                    title: 'Task Assigned',
-                    message: `You have been assigned to "${task.title}"`,
-                    type: 'task_assigned',
-                    link: task.projectId ? `/projects/${task.projectId}/tasks?taskId=${task.id}` : undefined
-                });
-            }
-            if (oldTask && oldTask.status !== task.status && task.assignedToId) {
-                NotificationService.createNotification({
-                    companyId: req.user!.companyId,
-                    userId: task.assignedToId,
-                    title: `Task ${task.status === 'done' ? 'Completed' : 'Status Updated'}`,
-                    message: `"${task.title}" moved from ${oldTask?.status} to ${task.status}`,
-                    type: 'task_update',
-                    link: task.projectId ? `/projects/${task.projectId}/tasks?taskId=${task.id}` : undefined
-                });
-            }
-        } catch (e) { /* notification errors are non-fatal */ }
+
 
         // Trigger Automation (Status Change)
         if (oldTask && oldTask.status !== task.status) {

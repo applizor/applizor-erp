@@ -274,8 +274,25 @@ export class AutomationService {
             const userIdsToNotify: string[] = [...recipientUserIds];
 
             for (const userId of userIdsToNotify) {
-                const resolvedSubject = this.replaceVariables(config.subject || 'Task Update', payload, project.name);
-                const resolvedBody = this.replaceVariables(config.body || `${payload.commenterName || 'Update'} in ${payload.taskTitle}`, payload, project.name);
+                let defaultSubject = 'Task Update';
+                let defaultBody = `${payload.commenterName || 'Update'} in ${payload.taskTitle}`;
+
+                if (rule.triggerType === 'TASK_ASSIGNED') {
+                    defaultSubject = 'Task Assigned';
+                    defaultBody = `You have been assigned to "${payload.taskTitle}"`;
+                } else if (rule.triggerType === 'TASK_CREATED') {
+                    defaultSubject = 'Task Created';
+                    defaultBody = `New task created: "${payload.taskTitle}"`;
+                } else if (rule.triggerType === 'TASK_STATUS_CHANGE') {
+                    defaultSubject = 'Task Status Updated';
+                    defaultBody = `"${payload.taskTitle}" status changed to ${payload.newStatus}`;
+                } else if (rule.triggerType === 'COMMENT_ADDED') {
+                    defaultSubject = 'New Comment';
+                    defaultBody = `${payload.commenterName || 'Someone'} commented on "${payload.taskTitle}"`;
+                }
+
+                const resolvedSubject = this.replaceVariables(config.subject || defaultSubject, payload, project.name);
+                const resolvedBody = this.replaceVariables(config.body || defaultBody, payload, project.name);
 
                 await NotificationService.createNotification({
                     companyId: payload.companyId,
