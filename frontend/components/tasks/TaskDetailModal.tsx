@@ -213,7 +213,8 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
     const fetchSpentHours = async () => {
         try {
             const res = await api.get(`/timesheets?taskId=${taskId}`);
-            const total = res.data.reduce((acc: number, curr: any) => acc + Number(curr.hours), 0);
+            const list = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+            const total = list.reduce((acc: number, curr: any) => acc + Number(curr.hours), 0);
             setSpentHours(total);
         } catch (error) { console.error(error); }
     };
