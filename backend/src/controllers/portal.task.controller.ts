@@ -432,7 +432,7 @@ export const updatePortalTaskStatus = async (req: ClientAuthRequest, res: Respon
                 newStatus: newStatus,
                 taskTitle: task.title,
                 assigneeEmail: task.assignee?.email || undefined,
-                companyId: clientId // Using client's ID/context or derive company from project
+                companyId: task.project!.companyId
             }).catch(err => console.error('Portal status change automation error:', err));
 
             // Record History
