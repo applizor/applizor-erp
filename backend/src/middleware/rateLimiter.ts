@@ -1,4 +1,4 @@
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { Request } from 'express';
 import jwt from 'jsonwebtoken';
 import { config } from '../config/env';
@@ -24,7 +24,7 @@ function tenantKeyGenerator(req: Request): string {
         }
     }
     // Fallback: IP-based key (for unauthenticated/public endpoints)
-    return req.ip || 'unknown-ip';
+    return ipKeyGenerator(req.ip || 'unknown-ip');
 }
 
 /**
@@ -54,7 +54,8 @@ export const tenantApiLimiter = rateLimit({
  */
 export const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: isDev ? 10000 : 500, // Increased from 100 to 500
+    max: isDev ? 10000 : 500,
+    keyGenerator: tenantKeyGenerator,
     standardHeaders: true,
     legacyHeaders: false,
     message: {
@@ -69,7 +70,8 @@ export const apiLimiter = rateLimit({
  */
 export const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: isDev ? 10000 : 30, // Increased from 10 to 30
+    max: isDev ? 10000 : 30,
+    keyGenerator: tenantKeyGenerator,
     standardHeaders: true,
     legacyHeaders: false,
     message: {

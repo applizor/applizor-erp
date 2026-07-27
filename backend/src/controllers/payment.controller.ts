@@ -37,13 +37,18 @@ export const createPaymentLink = async (req: AuthRequest, res: Response) => {
     const paymentConfig = (company?.paymentConfig as any) || {};
     const preferredGateway = paymentConfig.preferredGateway || 'razorpay';
 
+    // Enforce partial payment setting: if disabled, always use full balance
+    const balance = Number(invoice.total) - Number(invoice.paidAmount);
+    const requestedAmount = Number(amount || invoice.total);
+    const finalAmount = paymentConfig.allowPartialPayments === false ? balance : requestedAmount;
+
     let paymentLinkData: { id: string; short_url: string; amount: number };
     let gatewayMethod = preferredGateway;
 
     if (preferredGateway === 'cashfree') {
       const returnUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/callback?gateway=cashfree`;
       const cfOrder = await paymentService.createCashfreeOrder(
-        Number(amount || invoice.total),
+        finalAmount,
         invoice.clientId || 'guest',
         invoice.client.phone || '9999999999',
         invoice.client.email || 'customer@acme.com',
@@ -59,11 +64,11 @@ export const createPaymentLink = async (req: AuthRequest, res: Response) => {
       paymentLinkData = {
         id: cfOrder.order_id ?? '',
         short_url: checkoutUrl,
-        amount: Number(amount || invoice.total),
+        amount: finalAmount,
       };
     } else if (preferredGateway === 'paypal') {
       const paypalOrder = await paymentService.createPaypalOrder(
-        Number(amount || invoice.total),
+        finalAmount,
         invoice.currency || 'USD',
         paymentConfig
       );
@@ -76,13 +81,13 @@ export const createPaymentLink = async (req: AuthRequest, res: Response) => {
       paymentLinkData = {
         id: paypalOrder.id,
         short_url: approveLink,
-        amount: Number(amount || invoice.total),
+        amount: finalAmount,
       };
     } else {
       // Default to Razorpay
       const rzpLink = await paymentService.createPaymentLink(
         {
-          amount: Number(amount || invoice.total),
+          amount: finalAmount,
           currency: 'INR',
           description: description || `Payment for Invoice ${invoice.invoiceNumber}`,
           customer: {
@@ -111,7 +116,7 @@ export const createPaymentLink = async (req: AuthRequest, res: Response) => {
     const payment = await prisma.payment.create({
       data: {
         invoiceId: invoice.id,
-        amount: Number(amount || invoice.total),
+        amount: finalAmount,
         paymentDate: new Date(),
         paymentMethod: gatewayMethod,
         gateway: gatewayMethod,
@@ -223,16 +228,19 @@ export const handlePaymentWebhook = async (req: Request, res: Response) => {
 
         // Update invoice
         if (paymentRecord.invoice) {
-          const newPaidAmount = Number(paymentRecord.invoice.paidAmount) + amountPaid;
-          const status = newPaidAmount >= Number(paymentRecord.invoice.total) ? 'paid' : 'partial';
+          // Skip status update for cancelled invoices
+          if (paymentRecord.invoice.status !== 'cancelled') {
+            const newPaidAmount = Number(paymentRecord.invoice.paidAmount) + amountPaid;
+            const status = newPaidAmount >= Number(paymentRecord.invoice.total) ? 'paid' : 'partial';
 
-          await prisma.invoice.update({
-            where: { id: paymentRecord.invoiceId! },
-            data: {
-              paidAmount: newPaidAmount,
-              status,
-            },
-          });
+            await prisma.invoice.update({
+              where: { id: paymentRecord.invoiceId! },
+              data: {
+                paidAmount: newPaidAmount,
+                status,
+              },
+            });
+          }
         }
       }
     }
@@ -324,16 +332,19 @@ export const verifyPayment = async (req: AuthRequest, res: Response) => {
 
       // Update invoice
       if (payment.invoice) {
-        const newPaidAmount = Number(payment.invoice.paidAmount) + Number(payment.amount);
-        const status = newPaidAmount >= Number(payment.invoice.total) ? 'paid' : 'partial';
+        // Skip status update for cancelled invoices
+        if (payment.invoice.status !== 'cancelled') {
+          const newPaidAmount = Number(payment.invoice.paidAmount) + Number(payment.amount);
+          const status = newPaidAmount >= Number(payment.invoice.total) ? 'paid' : 'partial';
 
-        await prisma.invoice.update({
-          where: { id: payment.invoiceId! },
-          data: {
-            paidAmount: newPaidAmount,
-            status,
-          },
-        });
+          await prisma.invoice.update({
+            where: { id: payment.invoiceId! },
+            data: {
+              paidAmount: newPaidAmount,
+              status,
+            },
+          });
+        }
       }
     }
 
@@ -435,10 +446,13 @@ export const deletePayment = async (req: AuthRequest, res: Response) => {
           const newPaidAmount = Math.max(0, Number(invoice.paidAmount) - Number(payment.amount));
           let newStatus = invoice.status;
 
-          if (newPaidAmount === 0) {
-            newStatus = 'sent'; // Revert to sent if no payment left
-          } else if (newPaidAmount < Number(invoice.total)) {
-            newStatus = 'partial';
+          // Preserve cancelled status — never revert a cancelled invoice
+          if (invoice.status !== 'cancelled') {
+            if (newPaidAmount === 0) {
+              newStatus = 'sent'; // Revert to sent if no payment left
+            } else if (newPaidAmount < Number(invoice.total)) {
+              newStatus = 'partial';
+            }
           }
 
           await tx.invoice.update({

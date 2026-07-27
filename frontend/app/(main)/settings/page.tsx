@@ -1,9 +1,11 @@
 'use client';
 
 import Link from 'next/link';
+import { useState, useEffect } from 'react';
+import api from '@/lib/api';
 import { Settings, Building2, Users, MapPin, CreditCard, Wrench, FileText, Shield, Layers, Activity, Mail, Database } from 'lucide-react';
 
-const settingsItems = [
+const allSettingsItems = [
     { href: '/settings/company', label: 'Company Profile', desc: 'Logo, letterhead, tax info, units', icon: Building2 },
     { href: '/settings/roles', label: 'Roles & Permissions', desc: 'Manage user roles and access', icon: Shield },
     { href: '/settings/locations', label: 'Locations', desc: 'Branches and work locations', icon: MapPin },
@@ -13,12 +15,22 @@ const settingsItems = [
     { href: '/settings/certificate-templates', label: 'Certificate Templates', desc: 'HR certificate designs', icon: FileText },
     { href: '/settings/audit-logs', label: 'Audit Logs', desc: 'System activity monitoring', icon: Activity },
     { href: '/settings/email', label: 'Email Config', desc: 'SMTP and email notification settings', icon: Mail },
-    { href: '/settings/payments', label: 'Payments', desc: 'Payment gateway configuration', icon: CreditCard },
+    { href: '/settings/payments', label: 'Payments', desc: 'Payment gateway configuration', icon: CreditCard, feature: 'whiteLabel' },
     { href: '/settings/storage', label: 'S3 Cloud Storage', desc: 'Configure AWS S3 and private storage credentials', icon: Database },
     { href: '/settings/billing', label: 'SaaS Subscription', desc: 'Manage your ERP plan, limits, and invoices', icon: CreditCard },
 ];
 
 export default function SettingsPage() {
+    const [features, setFeatures] = useState<Record<string, boolean>>({});
+
+    useEffect(() => {
+        api.get('/settings/plan-features')
+            .then((res: any) => setFeatures(res.data.features || {}))
+            .catch(() => {});
+    }, []);
+
+    const settingsItems = allSettingsItems.filter(item => !item.feature || features[item.feature]);
+
     return (
         <div className="space-y-6">
             <div className="flex items-center gap-4">

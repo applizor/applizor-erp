@@ -18,11 +18,13 @@ import {
   revokePublicLink,
   getActivityLog,
   deleteInvoice,
+  cancelInvoice,
   duplicateInvoice,
 } from '../controllers/invoice.controller';
 import {
   getInvoiceByToken,
-  downloadPDFPublic
+  downloadPDFPublic,
+  createPublicPaymentLink
 } from '../controllers/invoice-public.controller';
 import { authenticate } from '../middleware/auth';
 
@@ -46,11 +48,13 @@ router.post('/:id/revoke-link', authenticate, revokePublicLink);
 router.post('/:id/revoke-link', authenticate, revokePublicLink);
 router.put('/:id/status', authenticate, updateInvoiceStatus);
 router.post('/:id/duplicate', authenticate, duplicateInvoice);
+router.post('/:id/cancel', authenticate, cancelInvoice);
 router.delete('/:id', authenticate, deleteInvoice);
 
 // Public routes (no authentication required)
 router.get('/public/:token', getInvoiceByToken);
 router.get('/public/:token/download', downloadPDFPublic);
+router.post('/public/:token/pay', createPublicPaymentLink);
 router.get('/:id/activities', authenticate, getActivityLog);
 
 export default router;

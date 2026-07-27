@@ -12,6 +12,7 @@ export default function InvoiceDetails({ params }: { params: { id: string } }) {
     const [invoice, setInvoice] = useState<any>(null);
     const [timeline, setTimeline] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [paying, setPaying] = useState(false);
 
     useEffect(() => {
         // Portal uses the authenticated route that returns timeline and extra details
@@ -38,6 +39,24 @@ export default function InvoiceDetails({ params }: { params: { id: string } }) {
             link.remove();
         } catch (error) {
             console.error('PDF download failed', error);
+        }
+    };
+
+    const handlePayNow = async () => {
+        try {
+            setPaying(true);
+            const balance = Number(invoice.total) - Number(invoice.paidAmount);
+            const res = await api.post('/payments/link', {
+                invoiceId: invoice.id,
+                amount: balance,
+            });
+            if (res.data.paymentLink?.short_url) {
+                window.open(res.data.paymentLink.short_url, '_blank');
+            }
+        } catch (err: any) {
+            alert(err.response?.data?.error || 'Failed to initiate payment. Please try again.');
+        } finally {
+            setPaying(false);
         }
     };
 
@@ -299,6 +318,16 @@ export default function InvoiceDetails({ params }: { params: { id: string } }) {
 
                     {/* Actions Card */}
                     <div className="ent-card p-6 space-y-4">
+                        {invoice.status !== 'paid' && invoice.status !== 'cancelled' && (
+                            <button
+                                onClick={handlePayNow}
+                                disabled={paying}
+                                className="w-full flex items-center justify-center px-4 py-3 bg-emerald-600 text-white text-sm font-bold rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-all shadow-lg shadow-emerald-600/20"
+                            >
+                                <CreditCard size={18} className="mr-2" />
+                                {paying ? 'Redirecting...' : 'Pay Now'}
+                            </button>
+                        )}
                         <button
                             onClick={handleDownloadPdf}
                             className="w-full flex items-center justify-center px-4 py-3 bg-slate-900 text-white text-sm font-bold rounded-lg hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/10"

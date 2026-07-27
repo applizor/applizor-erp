@@ -7,6 +7,7 @@ import {
   deletePayment // Import the new controller
 } from '../controllers/payment.controller';
 import { authenticate } from '../middleware/auth';
+import { requireFeature } from '../middleware/enforcePlanLimit';
 
 const router = Router();
 
@@ -15,10 +16,10 @@ router.post('/webhook', (req: Request, res: Response) => {
   handlePaymentWebhook(req, res);
 });
 
-// Protected routes
-router.post('/link', authenticate, createPaymentLink);
-router.post('/verify', authenticate, verifyPayment);
-router.get('/', authenticate, getPayments);
-router.delete('/:id', authenticate, deletePayment); // Add delete route
+// Protected routes (gated by whiteLabel feature)
+router.post('/link', authenticate, requireFeature('whiteLabel'), createPaymentLink);
+router.post('/verify', authenticate, requireFeature('whiteLabel'), verifyPayment);
+router.get('/', authenticate, requireFeature('whiteLabel'), getPayments);
+router.delete('/:id', authenticate, requireFeature('whiteLabel'), deletePayment); // Add delete route
 
 export default router;

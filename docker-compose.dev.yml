@@ -42,7 +42,7 @@ services:
       - ./backend:/app
       - /app/node_modules
       - ./backend/uploads:/app/uploads
-    command: node dist/src/server.js
+    command: sh -c "npx prisma generate && npx tsx src/server.ts"
     depends_on:
       postgres:
         condition: service_healthy

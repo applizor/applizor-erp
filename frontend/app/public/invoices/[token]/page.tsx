@@ -13,6 +13,7 @@ export default function PublicInvoiceDetails({ params }: { params: { token: stri
     const [timeline, setTimeline] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [paying, setPaying] = useState(false);
 
     useEffect(() => {
         // Use the public endpoint
@@ -71,6 +72,20 @@ export default function PublicInvoiceDetails({ params }: { params: { token: stri
         } catch (error) {
             console.error('PDF download failed', error);
             alert('Failed to download PDF. Please try again.');
+        }
+    };
+
+    const handlePayNow = async () => {
+        try {
+            setPaying(true);
+            const res = await api.post(`/invoices/public/${params.token}/pay`);
+            if (res.data.checkoutUrl) {
+                window.open(res.data.checkoutUrl, '_blank');
+            }
+        } catch (err: any) {
+            alert(err.response?.data?.error || 'Failed to initiate payment. Please try again.');
+        } finally {
+            setPaying(false);
         }
     };
 
@@ -377,6 +392,25 @@ export default function PublicInvoiceDetails({ params }: { params: { token: stri
                     <div className="p-6 bg-slate-900 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4">
                         <div className="text-slate-400 text-xs font-medium">
                             {invoice.company?.name} &copy; {new Date().getFullYear()}
+                        </div>
+                        <div className="flex items-center gap-3">
+                            {invoice.status !== 'paid' && invoice.status !== 'cancelled' && (
+                                <button
+                                    onClick={handlePayNow}
+                                    disabled={paying}
+                                    className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white px-5 py-2.5 rounded-lg text-sm font-bold transition-colors"
+                                >
+                                    <CreditCard size={16} />
+                                    {paying ? 'Redirecting...' : 'Pay Now'}
+                                </button>
+                            )}
+                            <button
+                                onClick={handleDownloadPdf}
+                                className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white px-5 py-2.5 rounded-lg text-sm font-bold transition-colors"
+                            >
+                                <Download size={16} />
+                                Download PDF
+                            </button>
                         </div>
                     </div>
                 </div>

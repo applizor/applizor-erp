@@ -584,7 +584,10 @@ export const sendInvoice = async (req: AuthRequest, res: Response) => {
       invoice.publicToken = publicToken;
       invoice.isPublicEnabled = true;
     }
-    const publicUrl = `${frontendUrl}/public/invoices/${publicToken}`;
+    // Use public invoice URL (no auth required) if available, otherwise fallback to portal
+    const publicUrl = invoice.isPublicEnabled && publicToken
+      ? `${frontendUrl}/public/invoices/${publicToken}`
+      : `${frontendUrl}/portal/invoices/${invoice.id}`;
 
     // Send in background and update status
     const isReminder = req.body.isReminder === true;
@@ -616,10 +619,23 @@ export const sendInvoice = async (req: AuthRequest, res: Response) => {
 /**
  * Update invoice status manually
  */
+const VALID_INVOICE_STATUSES = ['draft', 'sent', 'paid', 'partial', 'overdue', 'cancelled'];
+
 export const updateInvoiceStatus = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
+
+    if (!VALID_INVOICE_STATUSES.includes(status)) {
+      return res.status(400).json({ error: `Invalid status. Allowed: ${VALID_INVOICE_STATUSES.join(', ')}` });
+    }
+
+    // Prevent un-cancelling via status override
+    const existing = await prisma.invoice.findFirst({ where: { id, companyId: req.user!.companyId } });
+    if (!existing) return res.status(404).json({ error: 'Invoice not found' });
+    if (existing.status === 'cancelled' && status !== 'cancelled') {
+      return res.status(400).json({ error: 'Cannot change status of a cancelled invoice. Cancelled invoices are permanent for GST compliance.' });
+    }
 
     const invoice = await prisma.invoice.update({
       where: { id },
@@ -672,8 +688,13 @@ export const batchUpdateStatus = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Invalid request' });
     }
 
+    if (!VALID_INVOICE_STATUSES.includes(status)) {
+      return res.status(400).json({ error: `Invalid status. Allowed: ${VALID_INVOICE_STATUSES.join(', ')}` });
+    }
+
+    // Exclude cancelled invoices from batch status changes
     await prisma.invoice.updateMany({
-      where: { id: { in: ids }, companyId },
+      where: { id: { in: ids }, companyId, status: { not: 'cancelled' } },
       data: { status }
     });
 
@@ -828,7 +849,11 @@ export const batchSendInvoices = async (req: AuthRequest, res: Response) => {
           useLetterhead: true,
           includeBankDetails: invoice.includeBankDetails
         });
-        emailService.sendInvoiceEmail(invoice.client.email, invoice, pdfBuffer).catch(err => {
+        // Use public invoice URL if available, otherwise no URL
+        const batchPublicUrl = invoice.isPublicEnabled && invoice.publicToken
+          ? `${process.env.FRONTEND_URL || 'http://localhost:3000'}/public/invoices/${invoice.publicToken}`
+          : `${process.env.FRONTEND_URL || 'http://localhost:3000'}/portal/invoices/${invoice.id}`;
+        emailService.sendInvoiceEmail(invoice.client.email, invoice, pdfBuffer, false, batchPublicUrl).catch(err => {
           console.error(`Failed to send batch email for ${invoice.invoiceNumber}`, err);
         });
 
@@ -855,19 +880,17 @@ export const batchSendInvoices = async (req: AuthRequest, res: Response) => {
 };
 
 /**
- * Delete an invoice
+ * Delete an invoice — only allowed for draft status
  */
 export const deleteInvoice = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    // Use req.user which is already hydrated with roles by authenticate middleware
     const user = req.user;
 
     if (!user || !user.companyId) {
       return res.status(400).json({ error: 'User must belong to a company' });
     }
 
-    // Check permissions
     if (!PermissionService.hasBasicPermission(user, 'Invoice', 'delete')) {
       return res.status(403).json({ error: 'Access denied: No delete rights for Invoice' });
     }
@@ -878,6 +901,33 @@ export const deleteInvoice = async (req: AuthRequest, res: Response) => {
   } catch (error: any) {
     console.error('Delete invoice error:', error);
     res.status(500).json({ error: error.message || 'Failed to delete invoice' });
+  }
+};
+
+/**
+ * Cancel an invoice (soft delete) — sets status to 'cancelled'.
+ * The invoice number is permanently reserved for GST compliance.
+ */
+export const cancelInvoice = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+    const user = req.user;
+
+    if (!user || !user.companyId) {
+      return res.status(400).json({ error: 'User must belong to a company' });
+    }
+
+    if (!PermissionService.hasBasicPermission(user, 'Invoice', 'delete')) {
+      return res.status(403).json({ error: 'Access denied: No delete rights for Invoice' });
+    }
+
+    const cancelled = await InvoiceService.cancelInvoice(id, user.companyId, reason);
+
+    res.json({ message: 'Invoice cancelled successfully', invoice: cancelled });
+  } catch (error: any) {
+    console.error('Cancel invoice error:', error);
+    res.status(500).json({ error: error.message || 'Failed to cancel invoice' });
   }
 };
 

@@ -15,6 +15,7 @@ export default function PaymentSettingsPage() {
         cashfreeAppId: '', cashfreeSecretKey: '',
         paypalClientId: '', paypalClientSecret: '',
         preferredGateway: 'razorpay',
+        allowPartialPayments: true,
     });
 
     useEffect(() => { loadConfig(); }, []);
@@ -32,6 +33,7 @@ export default function PaymentSettingsPage() {
                     paypalClientId: res.data.paypalClientId || '',
                     paypalClientSecret: '',
                     preferredGateway: res.data.preferredGateway || 'razorpay',
+                    allowPartialPayments: res.data.allowPartialPayments !== false,
                 });
             }
         } catch { /* use defaults */ }
@@ -108,6 +110,26 @@ export default function PaymentSettingsPage() {
                         </div>
                     );
                 })}
+            </div>
+
+            {/* Partial Payments Toggle */}
+            <div className="ent-card p-5">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h3 className="text-sm font-black uppercase tracking-wider">Allow Partial Payments</h3>
+                        <p className="text-[10px] text-gray-500 mt-1">When enabled, clients can pay a portion of the invoice amount</p>
+                    </div>
+                    <button
+                        onClick={() => setConfig({ ...config, allowPartialPayments: !config.allowPartialPayments })}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                            config.allowPartialPayments ? 'bg-primary-600' : 'bg-gray-300'
+                        }`}
+                    >
+                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            config.allowPartialPayments ? 'translate-x-6' : 'translate-x-1'
+                        }`} />
+                    </button>
+                </div>
             </div>
 
             <div className="flex justify-end pt-4">

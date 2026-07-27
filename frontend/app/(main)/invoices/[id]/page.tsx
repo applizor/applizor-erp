@@ -6,7 +6,7 @@ import {
     ArrowLeft, Download, Mail, DollarSign,
     Clock, CheckCircle, AlertCircle, FileText,
     Share2, Trash2, Printer, Receipt, Info, ShieldCheck, Link as LinkIcon,
-    Globe, Activity, Copy, RefreshCw, XCircle, CreditCard, Edit
+    Globe, Activity, Copy, RefreshCw, XCircle, CreditCard, Edit, Ban
 } from 'lucide-react';
 import { invoicesApi } from '@/lib/api/invoices';
 import { useToast } from '@/hooks/useToast';
@@ -173,11 +173,27 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
             await invoicesApi.delete(params.id);
             toast.success('Document purged from registry');
             router.push('/invoices');
-        } catch (error) {
-            toast.error('Purge sequence failed');
+        } catch (error: any) {
+            toast.error(error.response?.data?.error || 'Purge sequence failed');
         } finally {
             setActionLoading(false);
             setShowDeleteConfirm(false);
+        }
+    };
+
+    const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+
+    const handleCancel = async () => {
+        try {
+            setActionLoading(true);
+            await invoicesApi.cancel(params.id);
+            toast.success('Invoice cancelled for GST compliance');
+            loadInvoice();
+        } catch (error: any) {
+            toast.error(error.response?.data?.error || 'Cancel failed');
+        } finally {
+            setActionLoading(false);
+            setShowCancelConfirm(false);
         }
     };
 
@@ -325,7 +341,7 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
                     <button onClick={handleDuplicate} disabled={actionLoading} className="flex-1 lg:flex-none px-3 py-1.5 bg-white border border-gray-200 rounded text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 flex items-center justify-center gap-2 transition-all">
                         <Copy size={14} /> Duplicate
                     </button>
-                    {!isPaid && (
+                    {!isPaid && invoice.status !== 'cancelled' && (
                         <Link
                             href={`/invoices/${params.id}/edit`}
                             className="flex-1 lg:flex-none px-3 py-1.5 bg-white border border-gray-200 rounded text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 flex items-center justify-center gap-2 transition-all"
@@ -697,12 +713,28 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
                                     <XCircle size={12} /> Revoke Public Access
                                 </button>
                             )}
-                            <button
-                                onClick={() => setShowDeleteConfirm(true)}
-                                className="w-full flex items-center justify-center gap-2 text-[10px] font-black text-gray-300 hover:text-rose-500 uppercase tracking-widest transition-colors py-2 group"
-                            >
-                                <Trash2 size={12} className="group-hover:rotate-12 transition-transform" /> Delete Document
-                            </button>
+                            {invoice.status === 'draft' ? (
+                                <button
+                                    onClick={() => setShowDeleteConfirm(true)}
+                                    className="w-full flex items-center justify-center gap-2 text-[10px] font-black text-gray-300 hover:text-rose-500 uppercase tracking-widest transition-colors py-2 group"
+                                >
+                                    <Trash2 size={12} className="group-hover:rotate-12 transition-transform" /> Delete Document
+                                </button>
+                            ) : invoice.status !== 'cancelled' ? (
+                                <button
+                                    onClick={() => setShowCancelConfirm(true)}
+                                    className="w-full flex items-center justify-center gap-2 text-[10px] font-black text-amber-400 hover:text-amber-600 uppercase tracking-widest transition-colors py-2 group"
+                                >
+                                    <Ban size={12} /> Cancel for GST
+                                </button>
+                            ) : (
+                                <div className="text-center py-2">
+                                    <span className="text-[10px] font-black text-red-400 uppercase tracking-widest">Cancelled</span>
+                                    {invoice.cancelledReason && (
+                                        <p className="text-[9px] text-gray-400 mt-1">{invoice.cancelledReason}</p>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -782,6 +814,17 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
                 message="This action will permanently remove this commercial record from the enterprise registry. This process is irreversible."
                 type="danger"
                 confirmText="Confirm Delete"
+            />
+
+            <ConfirmDialog
+                isOpen={showCancelConfirm}
+                onClose={() => setShowCancelConfirm(false)}
+                onConfirm={handleCancel}
+                title="Cancel Invoice for GST"
+                message="This will mark the invoice as cancelled. The invoice number will be permanently reserved for GST compliance and cannot be reused. The invoice will appear as cancelled in your GSTR-1 filing. Continue?"
+                type="warning"
+                confirmText="Cancel Invoice"
+                cancelText="Go Back"
             />
         </div>
     );

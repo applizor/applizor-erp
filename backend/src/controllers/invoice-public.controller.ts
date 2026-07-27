@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import prisma from '../prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { PDFService } from '../services/pdf.service';
+import paymentService from '../services/payment.service';
+import { getPlanFeatures } from '../middleware/enforcePlanLimit';
 
 /**
  * Get public invoice details by token
@@ -263,5 +265,121 @@ export const downloadPDFPublic = async (req: Request, res: Response) => {
     } catch (error: any) {
         console.error('Download public PDF error:', error);
         res.status(500).json({ error: 'Failed to generate PDF', details: error.message });
+    }
+};
+
+/**
+ * Create a payment link for a public invoice (no auth required)
+ */
+export const createPublicPaymentLink = async (req: Request, res: Response) => {
+    try {
+        const { token } = req.params;
+
+        const invoice = await prisma.invoice.findFirst({
+            where: {
+                publicToken: token,
+                isPublicEnabled: true,
+                status: { notIn: ['paid', 'cancelled', 'draft'] },
+                OR: [
+                    { publicExpiresAt: null },
+                    { publicExpiresAt: { gt: new Date() } }
+                ]
+            },
+            include: { client: true, company: true },
+        });
+
+        if (!invoice) {
+            return res.status(404).json({ error: 'Invoice not found, expired, or already paid' });
+        }
+
+        // Check if payment gateway is enabled for this company
+        const features = await getPlanFeatures(invoice.companyId);
+        if (!features.whiteLabel) {
+            return res.status(403).json({ error: 'Payment gateway is not enabled for this company' });
+        }
+
+        // Load company payment config
+        const company = await prisma.company.findUnique({
+            where: { id: invoice.companyId },
+            select: { paymentConfig: true },
+        });
+
+        const paymentConfig = (company?.paymentConfig as any) || {};
+        const preferredGateway = paymentConfig.preferredGateway || 'razorpay';
+
+        const balance = Number(invoice.total) - Number(invoice.paidAmount);
+        if (balance <= 0) {
+            return res.status(400).json({ error: 'Invoice is already fully paid' });
+        }
+
+        let checkoutUrl: string;
+        let orderId: string;
+
+        if (preferredGateway === 'cashfree') {
+            const returnUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/callback?gateway=cashfree`;
+            const cfOrder = await paymentService.createCashfreeOrder(
+                balance,
+                invoice.clientId || 'guest',
+                invoice.client?.phone || '9999999999',
+                invoice.client?.email || 'customer@acme.com',
+                returnUrl,
+                paymentConfig
+            );
+            const isProd = process.env.NODE_ENV === 'production';
+            checkoutUrl = isProd
+                ? `https://api.cashfree.com/pg/view/checkout?session_id=${cfOrder.payment_session_id}`
+                : `https://sandbox.cashfree.com/pg/view/checkout?session_id=${cfOrder.payment_session_id}`;
+            orderId = cfOrder.order_id ?? '';
+        } else if (preferredGateway === 'paypal') {
+            const paypalOrder = await paymentService.createPaypalOrder(
+                balance,
+                invoice.currency || 'USD',
+                paymentConfig
+            );
+            const approveLink = paypalOrder.links.find((l: any) => l.rel === 'approve')?.href;
+            if (!approveLink) throw new Error('PayPal approval link missing');
+            checkoutUrl = approveLink;
+            orderId = paypalOrder.id;
+        } else {
+            // Default to Razorpay
+            const rzpLink = await paymentService.createPaymentLink(
+                {
+                    amount: balance,
+                    currency: 'INR',
+                    description: `Payment for Invoice ${invoice.invoiceNumber}`,
+                    customer: {
+                        name: invoice.client?.name || 'Customer',
+                        email: invoice.client?.email || '',
+                        contact: invoice.client?.phone || '',
+                    },
+                    notes: {
+                        invoiceId: invoice.id,
+                        invoiceNumber: invoice.invoiceNumber,
+                    },
+                    callback_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/payment/callback?gateway=razorpay`,
+                },
+                paymentConfig
+            );
+            checkoutUrl = rzpLink.short_url;
+            orderId = rzpLink.id;
+        }
+
+        // Save payment record
+        await prisma.payment.create({
+            data: {
+                invoiceId: invoice.id,
+                amount: balance,
+                paymentDate: new Date(),
+                paymentMethod: preferredGateway,
+                gateway: preferredGateway,
+                gatewayOrderId: orderId,
+                status: 'pending',
+            },
+        });
+
+        res.json({ checkoutUrl, orderId, amount: balance });
+    } catch (error: any) {
+        console.error('Create public payment link error:', error);
+        res.status(500).json({ error: 'Failed to create payment link', details: error.message });
     }
 };

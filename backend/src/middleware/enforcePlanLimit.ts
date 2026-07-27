@@ -66,6 +66,35 @@ export function enforcePlanLimit(limitType: LimitType) {
   };
 }
 
+export async function getPlanFeatures(companyId: string): Promise<Record<string, boolean>> {
+  const subscription = await getSubscription(companyId);
+  if (!subscription?.plan?.features) return {};
+  return (subscription.plan.features as Record<string, boolean>) || {};
+}
+
+export function requireFeature(featureName: string) {
+  return async (req: Request, _res: Response, next: NextFunction) => {
+    const companyId = (req as any).user?.companyId;
+    if (!companyId) return next();
+
+    const subscription = await getSubscription(companyId);
+    if (!subscription?.plan?.features) {
+      return _res.status(403).json({
+        error: `"${featureName}" feature is not included in your ${subscription?.plan?.name || 'current'} plan. Upgrade to unlock.`,
+      });
+    }
+
+    const features = subscription.plan.features as Record<string, boolean>;
+    if (!features[featureName]) {
+      return _res.status(403).json({
+        error: `"${featureName}" feature is not included in your ${subscription.plan.name} plan. Upgrade to unlock.`,
+      });
+    }
+
+    next();
+  };
+}
+
 export function requireModule(moduleName: string) {
   return async (req: Request, _res: Response, next: NextFunction) => {
     const companyId = (req as any).user?.companyId;

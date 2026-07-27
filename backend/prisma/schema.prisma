@@ -158,6 +158,7 @@ model Company {
   employees          Employee[]
   holidays           Holiday[]
   invoices           Invoice[]
+  invoiceSequences   InvoiceSequence[]
   jobOpenings        JobOpening[]
   performanceReviews        PerformanceReview[]
   performanceReviewCycles   PerformanceReviewCycle[]
@@ -1381,6 +1382,8 @@ model Invoice {
   publicToken        String?           @unique
   viewCount          Int               @default(0)
   includeBankDetails Boolean           @default(true)
+  cancelledAt        DateTime?
+  cancelledReason    String?
   customPaymentUrl   String?
   documents          Document[]
   client             Client            @relation(fields: [clientId], references: [id])
@@ -1398,6 +1401,18 @@ model Invoice {
   @@index([invoiceDate])
   @@index([type])
   @@index([projectId])
+}
+
+model InvoiceSequence {
+  id        String @id @default(uuid())
+  companyId String
+  prefix    String // INV, QTN, etc.
+  year      Int
+  lastSeq   Int    @default(0)
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, prefix, year])
+  @@index([companyId])
 }
 
 model InvoiceItem {

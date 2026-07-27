@@ -18,8 +18,10 @@ import {
     savePaymentConfig,
     getStorageConfig,
     saveStorageConfig,
-    testStorageConfig
+    testStorageConfig,
+    getPlanFeatures
 } from '../controllers/settings.controller';
+import { requireFeature } from '../middleware/enforcePlanLimit';
 
 const router = express.Router();
 
@@ -46,9 +48,12 @@ router.post('/email/test', testEmailConfig);
 router.get('/email/logs', getEmailLogs);
 router.post('/email/logs/:id/retry', retryEmail);
 
-// Payment Configuration
-router.get('/payments', getPaymentConfig);
-router.post('/payments', savePaymentConfig);
+// Payment Configuration (gated by whiteLabel feature)
+router.get('/payments', requireFeature('whiteLabel'), getPaymentConfig);
+router.post('/payments', requireFeature('whiteLabel'), savePaymentConfig);
+
+// Plan Features (for frontend to know what's enabled)
+router.get('/plan-features', getPlanFeatures);
 
 // Storage Configuration
 router.get('/storage', getStorageConfig);

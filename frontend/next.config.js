@@ -4,14 +4,7 @@ const nextConfig = {
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api',
   },
-  output: 'standalone',
-  webpack: (config) => {
-    config.watchOptions = {
-      poll: 1000,
-      aggregateTimeout: 300,
-    }
-    return config 
-  },
+  output: process.env.NODE_ENV === 'production' ? 'standalone' : undefined,
   eslint: {
     ignoreDuringBuilds: true,
   },

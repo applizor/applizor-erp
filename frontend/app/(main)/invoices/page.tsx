@@ -75,6 +75,7 @@ export default function InvoicesPage() {
     paid: { bg: 'bg-emerald-50', text: 'text-emerald-700', icon: CheckCircle2 },
     partial: { bg: 'bg-amber-50', text: 'text-amber-700', icon: Info },
     overdue: { bg: 'bg-rose-50', text: 'text-rose-700', icon: AlertCircle },
+    cancelled: { bg: 'bg-red-50', text: 'text-red-700', icon: AlertCircle },
   };
 
   const renderStatCard = (title: string, value: string | number, icon: any, colorClass: string, subValue?: string) => (
@@ -95,6 +96,7 @@ export default function InvoicesPage() {
 
   /* Delete Logic */
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [cancelId, setCancelId] = useState<string | null>(null);
 
   const handleDelete = async () => {
     if (!deleteId) return;
@@ -105,6 +107,18 @@ export default function InvoicesPage() {
       loadInvoices();
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Failed to delete invoice');
+    }
+  };
+
+  const handleCancel = async () => {
+    if (!cancelId) return;
+    try {
+      await invoicesApi.cancel(cancelId);
+      toast.success('Invoice cancelled successfully');
+      setCancelId(null);
+      loadInvoices();
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Failed to cancel invoice');
     }
   };
 
@@ -127,7 +141,7 @@ export default function InvoicesPage() {
       {/* Global Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {renderStatCard('Pending Drafts', stats?.byStatus?.find((s: any) => s.status === 'draft')?._count || 0, <Clock size={16} />, 'bg-slate-500', 'Work in progress')}
-        {renderStatCard('Receivables', formatCurrency(stats?.byStatus?.filter((s: any) => s.status !== 'paid').reduce((acc: any, s: any) => acc + Number(s._sum.total), 0) || 0), <TrendingUp size={16} />, 'bg-primary-500', 'Awaiting clearance')}
+        {renderStatCard('Receivables', formatCurrency(stats?.byStatus?.filter((s: any) => s.status !== 'paid' && s.status !== 'cancelled').reduce((acc: any, s: any) => acc + Number(s._sum.total), 0) || 0), <TrendingUp size={16} />, 'bg-primary-500', 'Awaiting clearance')}
         {renderStatCard('Defaulted', formatCurrency(stats?.overdueAmount || 0), <AlertCircle size={16} />, 'bg-rose-500', `${stats?.overdueCount || 0} Critical units`)}
         {renderStatCard('Liquidity', formatCurrency(stats?.byStatus?.reduce((acc: any, s: any) => acc + Number(s._sum.paidAmount || 0), 0) || 0), <DollarSign size={16} />, 'bg-emerald-500', 'Realised revenue')}
       </div>
@@ -293,30 +307,54 @@ export default function InvoicesPage() {
                               </svg>
                             </Link>
                           )}
-                          <button
-                            onClick={() => setDeleteId(invoice.id)}
-                            className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-gray-50 rounded-md transition-all"
-                            title="Delete Invoice"
-                          >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              width="14"
-                              height="14"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              className="lucide lucide-trash-2"
+                          {invoice.status === 'draft' ? (
+                            <button
+                              onClick={() => setDeleteId(invoice.id)}
+                              className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-gray-50 rounded-md transition-all"
+                              title="Delete Invoice (Draft)"
                             >
-                              <path d="M3 6h18" />
-                              <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-                              <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                              <line x1="10" x2="10" y1="11" y2="17" />
-                              <line x1="14" x2="14" y1="11" y2="17" />
-                            </svg>
-                          </button>
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="14"
+                                height="14"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                className="lucide lucide-trash-2"
+                              >
+                                <path d="M3 6h18" />
+                                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                                <line x1="10" x2="10" y1="11" y2="17" />
+                                <line x1="14" x2="14" y1="11" y2="17" />
+                              </svg>
+                            </button>
+                          ) : invoice.status !== 'cancelled' ? (
+                            <button
+                              onClick={() => setCancelId(invoice.id)}
+                              className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-md transition-all"
+                              title="Cancel Invoice (GST Compliance)"
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="14"
+                                height="14"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                className="lucide lucide-ban"
+                              >
+                                <circle cx="12" cy="12" r="10" />
+                                <path d="m4.9 4.9 14.2 14.2" />
+                              </svg>
+                            </button>
+                          ) : null}
                           <button
                             onClick={async () => {
                               try {
@@ -410,6 +448,17 @@ export default function InvoicesPage() {
         type="danger"
         confirmText="Delete"
         cancelText="Cancel"
+      />
+
+      <ConfirmDialog
+        isOpen={!!cancelId}
+        onClose={() => setCancelId(null)}
+        onConfirm={handleCancel}
+        title="Cancel Invoice"
+        message="This will mark the invoice as cancelled for GST compliance. The invoice number will be permanently reserved and cannot be reused. Continue?"
+        type="warning"
+        confirmText="Cancel Invoice"
+        cancelText="Go Back"
       />
     </div>
   );

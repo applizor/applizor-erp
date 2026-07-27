@@ -140,8 +140,10 @@ export default function PortalInvoices() {
                             <option value="all">All Status</option>
                             <option value="paid">Paid</option>
                             <option value="sent">Unpaid/Sent</option>
+                            <option value="partial">Partially Paid</option>
                             <option value="overdue">Overdue</option>
                             <option value="draft">Draft</option>
+                            <option value="cancelled">Cancelled</option>
                         </select>
                     </div>
                     <div>

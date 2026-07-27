@@ -122,36 +122,31 @@ export class InvoiceService {
         const overallDiscount = Number(invoiceData.discount || 0);
         const total = subtotal + totalTax - totalItemDiscount - overallDiscount;
 
-        // Generate Invoice Number
+        // Generate Invoice Number using atomic sequence
         const prefix = invoiceData.type === 'quotation' ? 'QTN' : 'INV';
         const currentYear = new Date().getFullYear();
 
-        // Find the last invoice number for this year to ensure uniqueness
-        const lastInvoice = await prisma.invoice.findFirst({
+        // Use upsert on InvoiceSequence for atomic, race-condition-safe increment
+        const sequence = await prisma.invoiceSequence.upsert({
             where: {
-                companyId: invoiceData.companyId,
-                type: invoiceData.type || 'invoice',
-                invoiceNumber: {
-                    startsWith: `${prefix}-${currentYear}-`
+                companyId_prefix_year: {
+                    companyId: invoiceData.companyId,
+                    prefix,
+                    year: currentYear
                 }
             },
-            orderBy: {
-                invoiceNumber: 'desc'
+            update: {
+                lastSeq: { increment: 1 }
+            },
+            create: {
+                companyId: invoiceData.companyId,
+                prefix,
+                year: currentYear,
+                lastSeq: 1
             }
         });
 
-        let nextNumber = 1;
-        if (lastInvoice && lastInvoice.invoiceNumber) {
-            const parts = lastInvoice.invoiceNumber.split('-');
-            if (parts.length === 3) {
-                const lastSeq = parseInt(parts[2], 10);
-                if (!isNaN(lastSeq)) {
-                    nextNumber = lastSeq + 1;
-                }
-            }
-        }
-
-        const invoiceNumber = `${prefix}-${currentYear}-${String(nextNumber).padStart(5, '0')}`;
+        const invoiceNumber = `${prefix}-${currentYear}-${String(sequence.lastSeq).padStart(5, '0')}`;
 
         // Check currency and calculate conversion
         let exchangeRate: Decimal | null = null;
@@ -171,11 +166,15 @@ export class InvoiceService {
             }
         }
 
+        // Strip empty/invalid projectId to avoid foreign key violation
+        const { projectId: _rawProjectId, ...restInvoiceData } = invoiceData as any;
+        const cleanInvoiceData = _rawProjectId ? { ...restInvoiceData, projectId: _rawProjectId } : restInvoiceData;
+
         try {
             const result = await prisma.$transaction(async (tx) => {
                 const invoice = await tx.invoice.create({
                     data: {
-                        ...invoiceData,
+                        ...cleanInvoiceData,
                         invoiceDate, // Use explicitly parsed date
                         dueDate,     // Use explicitly parsed date
                         invoiceNumber,
@@ -270,7 +269,8 @@ export class InvoiceService {
     }
 
     /**
-     * Delete an invoice and its associated items
+     * Delete an invoice — HARD DELETE only allowed for draft invoices.
+     * Non-draft invoices must be cancelled instead (GST compliance: invoice numbers cannot be reused).
      */
     static async deleteInvoice(id: string, companyId: string) {
         const invoice = await prisma.invoice.findFirst({
@@ -281,27 +281,26 @@ export class InvoiceService {
             throw new Error('Invoice not found');
         }
 
-        // ALLOW FORCE DELETE: User requested ability to delete sent/paid invoices
-        // if (Number(invoice.paidAmount) > 0 && invoice.status !== 'draft') {
-        //     throw new Error('Cannot delete an invoice with recorded payments. Please void or refund payments first.');
-        // }
+        // Only draft invoices can be hard-deleted (number was never filed with GST)
+        if (invoice.status !== 'draft') {
+            throw new Error(
+                'Cannot delete a non-draft invoice. Please cancel it instead. ' +
+                'Invoice numbers are permanent for GST compliance and cannot be reused.'
+            );
+        }
 
         return await prisma.$transaction(async (tx) => {
-            // Delete associated taxes first (cascading handled by Prisma if configured, but let's be safe)
-            // Actually, based on schema, InvoiceItemTax has onDelete: Cascade
-            // And InvoiceItem has onDelete: Cascade
-
             // Unlink any quotation that was converted to this invoice
             await tx.quotation.updateMany({
                 where: { convertedToInvoiceId: id },
                 data: {
-                    status: 'sent', // Revert to sent status so it can be converted again
+                    status: 'sent',
                     convertedToInvoiceId: null,
                     convertedAt: null
                 }
             });
 
-            // Log deletion before we lose the record
+            // Log deletion
             await tx.auditLog.create({
                 data: {
                     companyId,
@@ -309,19 +308,92 @@ export class InvoiceService {
                     module: 'INVOICE',
                     entityType: 'Invoice',
                     entityId: id,
-                    details: `Deleted invoice ${invoice.invoiceNumber} (Force Delete)`
+                    details: `Deleted draft invoice ${invoice.invoiceNumber}`
                 }
             });
 
-            // Cleanup ledger: Use invoiceNumber directly (it matches what postInvoiceToLedger uses)
+            // Cleanup ledger
             await accountingService.deleteLedgerPostings(invoice.invoiceNumber, tx);
-
-            const invoiceToDelete = await tx.invoice.findFirst({ where: { id, companyId } });
-            if (!invoiceToDelete) throw new Error('Invoice not found');
 
             return await tx.invoice.delete({
                 where: { id }
             });
+        });
+    }
+
+    /**
+     * Cancel an invoice (soft delete) — sets status to 'cancelled'.
+     * The invoice number is permanently reserved and NEVER reused (GST compliance).
+     * Cancelled invoices appear in GSTR-1 filings.
+     */
+    static async cancelInvoice(id: string, companyId: string, reason?: string) {
+        const invoice = await prisma.invoice.findFirst({
+            where: { id, companyId },
+        });
+
+        if (!invoice) {
+            throw new Error('Invoice not found');
+        }
+
+        if (invoice.status === 'cancelled') {
+            throw new Error('Invoice is already cancelled');
+        }
+
+        if (invoice.status === 'draft') {
+            throw new Error('Draft invoices should be deleted, not cancelled');
+        }
+
+        return await prisma.$transaction(async (tx) => {
+            // Update invoice status to cancelled
+            const updated = await tx.invoice.update({
+                where: { id },
+                data: {
+                    status: 'cancelled',
+                    cancelledAt: new Date(),
+                    cancelledReason: reason || null
+                }
+            });
+
+            // Unlink any quotation that was converted to this invoice
+            await tx.quotation.updateMany({
+                where: { convertedToInvoiceId: id },
+                data: {
+                    status: 'sent',
+                    convertedToInvoiceId: null,
+                    convertedAt: null
+                }
+            });
+
+            // Log cancellation
+            await tx.auditLog.create({
+                data: {
+                    companyId,
+                    action: 'CANCEL',
+                    module: 'INVOICE',
+                    entityType: 'Invoice',
+                    entityId: id,
+                    details: `Cancelled invoice ${invoice.invoiceNumber}${reason ? ` — Reason: ${reason}` : ''}`
+                }
+            });
+
+            // Cleanup payment ledger entries FIRST (before invoice ledger)
+            // Payment reference format: PAY-{last 6 chars of paymentId}
+            const payments = await tx.payment.findMany({
+                where: { invoiceId: id, status: 'success' }
+            });
+            for (const payment of payments) {
+                const paymentRef = `PAY-${payment.id.slice(-6).toUpperCase()}`;
+                await accountingService.deleteLedgerPostings(paymentRef, tx);
+            }
+
+            // Cleanup invoice ledger postings (Sales + GST entries)
+            await accountingService.deleteLedgerPostings(invoice.invoiceNumber, tx);
+
+            // Invoice number is NEVER reused — critical for GST compliance.
+            // Cancelled invoices are removed from GST reports (ledger entries deleted)
+            // but remain in the database with their original number for audit trail.
+
+            return updated;
         });
     }
 
@@ -363,6 +435,10 @@ export class InvoiceService {
             });
 
             if (!invoice) throw new Error('Invoice not found');
+
+            if (invoice.status === 'cancelled') {
+                throw new Error('Cannot record payment on a cancelled invoice');
+            }
 
             const newPaidAmount = Number(invoice.paidAmount) + amount;
             let status = invoice.status;
@@ -418,6 +494,7 @@ export class InvoiceService {
             where: {
                 isRecurring: true,
                 recurringStatus: 'active',
+                status: { notIn: ['cancelled'] },
                 OR: [
                     { nextOccurrence: { lte: today } },
                     { recurringNextRun: { lte: today } }
@@ -588,7 +665,11 @@ export class InvoiceService {
             if (invoice.client?.email) {
                 try {
                     const pdfBuffer = await (require('./pdf.service').PDFService.generateInvoicePDF(invoice as any));
-                    await (require('./email.service').sendInvoiceEmail(invoice.client.email, invoice, pdfBuffer, true));
+                    // Use public invoice URL if available for direct payment
+                    const reminderUrl = (invoice as any).isPublicEnabled && (invoice as any).publicToken
+                        ? `${process.env.FRONTEND_URL || 'http://localhost:3000'}/public/invoices/${(invoice as any).publicToken}`
+                        : undefined;
+                    await (require('./email.service').sendInvoiceEmail(invoice.client.email, invoice, pdfBuffer, true, reminderUrl));
                     results.push(invoice.id);
                 } catch (e) {
                     console.error(`Failed to send reminder for ${invoice.invoiceNumber}`, e);
@@ -686,10 +767,14 @@ export class InvoiceService {
                 }
             });
 
+            // Strip empty/invalid projectId to avoid foreign key violation
+            const { projectId: _rawProjectId2, ...restUpdateData } = invoiceData as any;
+            const cleanUpdateData = _rawProjectId2 ? { ...restUpdateData, projectId: _rawProjectId2 } : restUpdateData;
+
             const invoice = await tx.invoice.update({
                 where: { id },
                 data: {
-                    ...invoiceData,
+                    ...cleanUpdateData,
                     invoiceDate,
                     dueDate,
                     subtotal: new Decimal(subtotal),

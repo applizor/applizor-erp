@@ -402,7 +402,7 @@ function AdminDashboard() {
         .reduce((sum: number, inv: any) => sum + (Number(inv.total) || 0), 0);
 
       const pendingAmount = invoicesData
-        .filter((inv: any) => inv.status === 'sent' || inv.status === 'overdue')
+        .filter((inv: any) => inv.status === 'sent' || inv.status === 'overdue' || inv.status === 'partial')
         .reduce((sum: number, inv: any) => sum + (Number(inv.total) || 0), 0);
 
       // Extract specific ledger balances for Dashboard Pulse

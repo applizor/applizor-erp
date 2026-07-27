@@ -11,6 +11,8 @@ export interface Invoice {
   discount: number;
   total: number;
   paidAmount: number;
+  cancelledAt?: string;
+  cancelledReason?: string;
   client?: any;
   items?: InvoiceItem[];
 }
@@ -105,6 +107,11 @@ export const invoicesApi = {
   },
   delete: async (id: string) => {
     const response = await api.delete(`/invoices/${id}`);
+    return response.data;
+  },
+
+  cancel: async (id: string, reason?: string) => {
+    const response = await api.post(`/invoices/${id}/cancel`, { reason });
     return response.data;
   },
 

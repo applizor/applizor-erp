@@ -3,6 +3,7 @@ import prisma from '../prisma/client';
 import { AuthRequest } from '../middleware/auth';
 import { StorageService } from '../services/storage.service';
 import { sendEmailDirect, resolveEmailConfig } from '../services/email.service';
+import { getPlanFeatures as fetchPlanFeatures } from '../middleware/enforcePlanLimit';
 
 // =====================
 // Tax Rates
@@ -453,6 +454,7 @@ export const getPaymentConfig = async (req: AuthRequest, res: Response) => {
             paypalClientId: config.paypalClientId || '',
             paypalClientSecret: config.paypalClientSecret ? '************' : '',
             preferredGateway: config.preferredGateway || 'razorpay',
+            allowPartialPayments: config.allowPartialPayments !== false,
         });
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch payment config' });
@@ -464,7 +466,7 @@ export const savePaymentConfig = async (req: AuthRequest, res: Response) => {
         const companyId = req.user?.companyId;
         if (!companyId) return res.status(400).json({ error: 'Company ID is missing' });
 
-        const { razorpayKeyId, razorpayKeySecret, cashfreeAppId, cashfreeSecretKey, paypalClientId, paypalClientSecret, preferredGateway } = req.body;
+        const { razorpayKeyId, razorpayKeySecret, cashfreeAppId, cashfreeSecretKey, paypalClientId, paypalClientSecret, preferredGateway, allowPartialPayments } = req.body;
 
         const company = await prisma.company.findUnique({
             where: { id: companyId },
@@ -485,6 +487,7 @@ export const savePaymentConfig = async (req: AuthRequest, res: Response) => {
                     paypalClientId: paypalClientId || existing.paypalClientId || '',
                     paypalClientSecret: paypalClientSecret === '************' ? existing.paypalClientSecret : (paypalClientSecret || ''),
                     preferredGateway: preferredGateway || existing.preferredGateway || 'razorpay',
+                    allowPartialPayments: allowPartialPayments !== false,
                 }
             }
         });
@@ -610,5 +613,21 @@ export const testStorageConfig = async (req: AuthRequest, res: Response) => {
     } catch (error: any) {
         console.error('Storage test error:', error);
         res.status(400).json({ error: 'S3 Connection test failed', details: error.message });
+    }
+};
+
+// =====================
+// Plan Features
+// =====================
+
+export const getPlanFeatures = async (req: AuthRequest, res: Response) => {
+    try {
+        const companyId = req.user?.companyId;
+        if (!companyId) return res.status(400).json({ error: 'Company ID is missing' });
+
+        const features = await fetchPlanFeatures(companyId);
+        res.json({ features });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch plan features' });
     }
 };
