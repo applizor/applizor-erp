@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { useToast } from '@/hooks/useToast';
 import api from '@/lib/api';
@@ -34,6 +34,41 @@ interface Task {
     _count?: { comments: number, documents: number, subtasks: number };
 }
 
+// Load More Trigger with IntersectionObserver for infinite scroll
+function LoadMoreTrigger({ colId, loadMore, pagination }: { colId: string; loadMore: (status: string) => void; pagination: any }) {
+    const sentinelRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const sentinel = sentinelRef.current;
+        if (!sentinel || !pagination[colId]?.hasMore || pagination[colId]?.loading) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting) {
+                    loadMore(colId);
+                }
+            },
+            { rootMargin: '200px' }
+        );
+
+        observer.observe(sentinel);
+        return () => observer.disconnect();
+    }, [colId, loadMore, pagination[colId]?.hasMore, pagination[colId]?.loading]);
+
+    if (!pagination[colId]?.hasMore && !pagination[colId]?.loading) return null;
+
+    return (
+        <div ref={sentinelRef} className="py-3 text-center">
+            {pagination[colId]?.loading && (
+                <div className="flex items-center justify-center gap-2 text-slate-400">
+                    <div className="w-4 h-4 border-2 border-slate-300 border-t-primary-500 rounded-full animate-spin" />
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Loading...</span>
+                </div>
+            )}
+        </div>
+    );
+}
+
 const COLUMNS = {
     'todo': { title: 'To Do', color: 'bg-slate-100 border-slate-200 text-slate-700' },
     'in-progress': { title: 'In Progress', color: 'bg-blue-50 border-blue-200 text-blue-700' },
@@ -50,6 +85,16 @@ export default function KanbanBoard() {
     const [columns, setColumns] = useState<Record<string, Task[]>>({ todo: [], 'in-progress': [], review: [], done: [] });
     const toast = useToast();
     const { socket } = useSocket();
+
+    // Pagination state per column
+    const [taskCounts, setTaskCounts] = useState<Record<string, number>>({});
+    const [colPagination, setColPagination] = useState<Record<string, { page: number; hasMore: boolean; loading: boolean }>>({
+        todo: { page: 1, hasMore: true, loading: false },
+        'in-progress': { page: 1, hasMore: true, loading: false },
+        review: { page: 1, hasMore: true, loading: false },
+        done: { page: 1, hasMore: true, loading: false },
+    });
+    const PAGE_SIZE = 50;
 
     // Modal States
     const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -96,24 +141,69 @@ export default function KanbanBoard() {
         }
     }, [projectId, selectedSprintId]);
 
-    const fetchTasks = useCallback(async () => {
+    const fetchTaskCounts = useCallback(async () => {
         try {
             const sprintQuery = selectedSprintId !== 'all' ? `&sprintId=${selectedSprintId}` : '';
-            const res = await api.get(`/tasks?projectId=${projectId}${sprintQuery}`);
-            setTasks(res.data);
+            const res = await api.get(`/tasks/counts?projectId=${projectId}${sprintQuery}`);
+            setTaskCounts(res.data);
+        } catch (error) {
+            console.error('Failed to load task counts');
+        }
+    }, [projectId, selectedSprintId]);
+
+    const fetchColumnTasks = useCallback(async (status: string, page: number = 1, append: boolean = false) => {
+        setColPagination(prev => ({ ...prev, [status]: { ...prev[status], loading: true } }));
+        try {
+            const sprintQuery = selectedSprintId !== 'all' ? `&sprintId=${selectedSprintId}` : '';
+            const res = await api.get(`/tasks?projectId=${projectId}${sprintQuery}&status=${status}&page=${page}&limit=${PAGE_SIZE}`);
+            const newTasks = res.data.tasks || [];
+            const totalPages = res.data.pagination?.totalPages || 1;
+
+            setColumns(prev => ({
+                ...prev,
+                [status]: append ? [...prev[status], ...newTasks] : newTasks
+            }));
+
+            setColPagination(prev => ({
+                ...prev,
+                [status]: { page, hasMore: page < totalPages, loading: false }
+            }));
         } catch (error) {
             toast.error('Failed to load tasks');
+            setColPagination(prev => ({ ...prev, [status]: { ...prev[status], loading: false } }));
         }
     }, [projectId, selectedSprintId, toast]);
+
+    const fetchAllColumns = useCallback(async () => {
+        const statuses = ['todo', 'in-progress', 'review', 'done'];
+        setColPagination(prev => {
+            const reset: any = {};
+            statuses.forEach(s => { reset[s] = { page: 1, hasMore: true, loading: false }; });
+            return reset;
+        });
+        await Promise.all(statuses.map(s => fetchColumnTasks(s, 1, false)));
+        fetchTaskCounts();
+    }, [fetchColumnTasks, fetchTaskCounts]);
+
+    const loadMoreTasks = useCallback((status: string) => {
+        const col = colPagination[status];
+        if (col.loading || !col.hasMore) return;
+        fetchColumnTasks(status, col.page + 1, true);
+    }, [colPagination, fetchColumnTasks]);
+
+    // Keep fetchTasks for backwards compat (socket refresh, drag-drop revert)
+    const fetchTasks = useCallback(async () => {
+        fetchAllColumns();
+    }, [fetchAllColumns]);
 
     // Initial Load & Socket
     useEffect(() => {
         if (projectId) {
-            fetchTasks();
+            fetchAllColumns();
             fetchProjectSettings();
             fetchSprints();
         }
-    }, [projectId, fetchTasks, fetchProjectSettings, fetchSprints]);
+    }, [projectId, fetchAllColumns, fetchProjectSettings, fetchSprints]);
 
     useEffect(() => {
         if (!socket || !projectId) return;
@@ -158,28 +248,12 @@ export default function KanbanBoard() {
         }
     }, [deepLinkedTaskId]);
 
-    // Derived State: Distribute tasks into columns based on filters
+    // Client-side filter application (for assignee/type/priority - status is server-filtered)
     useEffect(() => {
-        const filtered = tasks.filter(t => {
-            const matchAssignee = filters.assigneeId === 'all' ? true : 
-                                 (filters.assigneeId === 'unassigned' ? !t.assignee && (!t.assignees || t.assignees.length === 0) : (t.assignee?.id === filters.assigneeId || t.assignees?.some(a => a.user?.id === filters.assigneeId)));
-            const matchType = filters.type === 'all' ? true : t.type === filters.type;
-            const matchPriority = filters.priority === 'all' ? true : t.priority === filters.priority;
-            const matchSearch = filters.search ? t.title.toLowerCase().includes(filters.search.toLowerCase()) : true;
-            return matchAssignee && matchType && matchPriority && matchSearch;
-        });
-
-        const newCols: any = { todo: [], 'in-progress': [], review: [], done: [] };
-        filtered.forEach(task => {
-            if (newCols[task.status]) newCols[task.status].push(task);
-            else newCols['todo'].push(task);
-        });
-
-        // Sort 'todo' column by createdAt descending (latest first) per user request
-        newCols['todo'].sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-        setColumns(newCols);
-    }, [tasks, filters]);
+        if (filters.assigneeId === 'all' && filters.type === 'all' && filters.priority === 'all' && !filters.search) return;
+        // Re-fetch all columns when non-status filters change
+        fetchAllColumns();
+    }, [filters.assigneeId, filters.type, filters.priority, filters.search, fetchAllColumns]);
 
     const calculatePosition = (items: Task[], index: number) => {
         if (items.length === 0) return 0;
@@ -226,7 +300,29 @@ export default function KanbanBoard() {
         setSelectedTaskId(taskId);
         setIsDetailOpen(true);
         setActiveMenuId(null);
+        const newUrl = `${window.location.pathname}?taskId=${taskId}`;
+        window.history.replaceState(null, '', newUrl);
     };
+
+    const handleCloseModal = () => {
+        setIsDetailOpen(false);
+        setSelectedTaskId(null);
+        const url = new URL(window.location.href);
+        url.searchParams.delete('taskId');
+        window.history.replaceState(null, '', url.toString());
+    };
+
+    // Listen for back button
+    useEffect(() => {
+        const handlePopState = () => {
+            if (isDetailOpen) {
+                setIsDetailOpen(false);
+                setSelectedTaskId(null);
+            }
+        };
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, [isDetailOpen]);
 
     const toggleSelectAll = () => {
         if (selectedTaskIds.length === tasks.length) {
@@ -413,7 +509,7 @@ export default function KanbanBoard() {
                                         {colDef.title}
                                     </h3>
                                     <span className="bg-slate-100 text-slate-500 text-[10px] px-1.5 py-0.5 rounded font-black">
-                                        {columns[colId]?.length || 0}
+                                        {taskCounts[colId] ?? columns[colId]?.length ?? 0}
                                     </span>
                                 </div>
                                 <div className="flex gap-1">
@@ -529,6 +625,14 @@ export default function KanbanBoard() {
                                                 )}
                                             </Draggable>
                                         ))}
+                                        {/* Auto-load trigger via IntersectionObserver */}
+                                        <LoadMoreTrigger colId={colId} loadMore={loadMoreTasks} pagination={colPagination} />
+                                        {colPagination[colId]?.loading && columns[colId]?.length === 0 && (
+                                            <div className="py-8 text-center text-slate-400">
+                                                <div className="w-6 h-6 border-2 border-slate-200 border-t-primary-500 rounded-full animate-spin mx-auto mb-2" />
+                                                <span className="text-[10px] font-bold uppercase tracking-wider">Loading tasks...</span>
+                                            </div>
+                                        )}
                                         {provided.placeholder}
                                     </div>
                                 )}
@@ -593,7 +697,8 @@ export default function KanbanBoard() {
                             <div className="h-[1px] bg-slate-50 my-1" />
                             <button
                                 onClick={() => {
-                                    const task = tasks.find(t => t.id === activeMenuId);
+                                    const allTasks = Object.values(columns).flat();
+                                    const task = allTasks.find(t => t.id === activeMenuId);
                                     if (task) {
                                         setTaskToDelete(task);
                                         setActiveMenuId(null);

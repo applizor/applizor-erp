@@ -193,9 +193,11 @@ app.use('/api/accounting', accountingRoutes);
 import automationRoutes from './routes/automation.routes';
 import uploadRoutes from './routes/upload.routes';
 import portalUploadRoutes from './routes/portal.upload.routes';
+import integrationRoutes from './routes/integration.routes';
 app.use('/api/automation', automationRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/portal/upload', portalUploadRoutes);
+app.use('/api', integrationRoutes);
 
 import policyRoutes from './routes/policy.routes';
 app.use('/api/policies', policyRoutes);

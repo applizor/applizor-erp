@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth';
 import { useForm, Controller } from 'react-hook-form';
-import { X, Paperclip, Send, Clock, Trash2, Briefcase, Plus, MessageSquare, Heart, Smile, MoreHorizontal, CheckSquare, Sparkles, Loader2 } from 'lucide-react';
+import { X, Paperclip, Send, Clock, Trash2, Briefcase, Plus, MessageSquare, Heart, Smile, MoreHorizontal, CheckSquare, Sparkles, Loader2, Reply } from 'lucide-react';
 import { PermissionGuard } from '@/components/PermissionGuard'; // Ensure correct path
 import TaskTimesheetList from '@/components/hrms/timesheets/TaskTimesheetList';
 import BulkTimeLogModal from '@/components/hrms/timesheets/BulkTimeLogModal';
@@ -456,15 +456,10 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
     if (!isNew && !task) {
         return (
             <Portal>
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex justify-center items-center overflow-hidden p-0 md:p-6 animate-fade-in text-left">
-                    <div className="bg-white rounded-none md:rounded-md shadow-2xl w-full max-w-md p-8 flex flex-col items-center justify-center gap-4 border border-slate-200 relative">
-                        {/* Close Button */}
-                        <button
-                            onClick={onClose}
-                            className="absolute top-4 right-4 z-20 p-2 bg-white text-slate-400 hover:text-slate-600 rounded-full shadow-sm hover:shadow transition-all border border-slate-100"
-                        >
-                            <X size={20} />
-                        </button>
+                <div className="fixed inset-0 z-[100] flex justify-center items-center bg-white animate-fade-in text-left">
+                    <div className="p-8 flex flex-col items-center justify-center gap-4">
+                        <Loader2 className="w-8 h-8 text-primary-600 animate-spin" />
+                        <span className="text-xs font-bold text-slate-500">Loading task details...</span>
                         <Loader2 className="w-8 h-8 text-primary-600 animate-spin" />
                         <span className="text-xs font-bold text-slate-500">Loading task details...</span>
                     </div>
@@ -475,20 +470,20 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
 
     return (
         <Portal>
-            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex justify-center items-center overflow-hidden p-0 md:p-6 animate-fade-in text-left">
-                <div className="bg-white rounded-none md:rounded-md shadow-2xl w-full max-w-6xl h-full md:h-[90vh] flex flex-col md:flex-row overflow-y-auto md:overflow-hidden border border-slate-200">
+            <div className="fixed inset-0 z-[100] flex flex-col bg-white animate-fade-in text-left">
+                <div className="flex-1 flex flex-col md:flex-row overflow-y-auto">
 
                     {/* Close Button */}
                     <button
                         onClick={onClose}
-                        className="absolute top-4 right-4 z-20 p-2 bg-white text-slate-400 hover:text-slate-600 rounded-full shadow-sm hover:shadow transition-all border border-slate-100"
+                        className="absolute top-4 right-4 z-20 p-2 bg-red-50 text-red-500 hover:text-red-700 hover:bg-red-100 rounded-lg transition-all"
                     >
                         <X size={20} />
                     </button>
 
                     {/* Left: Main Content (Scrollable) */}
-                    <div className="flex-1 flex flex-col md:h-full md:overflow-hidden bg-white">
-                        <div className="flex-1 overflow-visible md:overflow-y-auto p-5 md:p-10 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+                    <div className="flex-1 flex flex-col md:h-full overflow-y-auto bg-white">
+                        <div className="p-5 md:p-10 flex-grow">
 
                             {/* Header Section */}
                             <div className="mb-8">
@@ -871,73 +866,69 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                                     {/* COMMENTS TAB */}
                                     {activeTab === 'comments' && (
                                         <>
-                                            <div className="space-y-6 mb-8 relative">
-                                                {comments.map((comment: any) => (
-                                                    <CommentItem
-                                                        key={comment.id}
-                                                        comment={comment}
-                                                        onReply={(c) => {
-                                                            setReplyTo(c);
-                                                            document.getElementById('comment-editor-section')?.scrollIntoView({ behavior: 'smooth' });
-                                                        }}
-                                                        onDelete={handleDeleteComment}
-                                                        currentUserId={currentUser?.id}
-                                                    />
-                                                ))}
+                                            <div className="mb-6">
+                                                {comments.length === 0 && (
+                                                    <div className="text-center py-8 text-slate-400">
+                                                        <MessageSquare size={24} className="mx-auto mb-2 text-slate-300" />
+                                                        <p className="text-sm">No comments yet. Be the first to comment.</p>
+                                                    </div>
+                                                )}
+                                                <div className="space-y-3">
+                                                    {comments.map((comment: any) => (
+                                                        <CommentItem
+                                                            key={comment.id}
+                                                            comment={comment}
+                                                            onReply={(c) => {
+                                                                setReplyTo(c);
+                                                                document.getElementById('comment-editor-section')?.scrollIntoView({ behavior: 'smooth' });
+                                                            }}
+                                                            onDelete={handleDeleteComment}
+                                                            currentUserId={currentUser?.id}
+                                                        />
+                                                    ))}
+                                                </div>
                                             </div>
 
-                                            <div id="comment-editor-section" className="relative z-10 bg-white border border-slate-200 rounded-md overflow-hidden shadow-sm transition-all focus-within:ring-1 focus-within:ring-primary-500/20 focus-within:border-primary-500/50">
+                                            <div id="comment-editor-section" className="border border-slate-200 rounded-lg overflow-hidden bg-white">
                                                 {replyTo && (
-                                                    <div className="bg-primary-50 px-4 py-2 border-b border-primary-100 flex items-center justify-between animate-in slide-in-from-top-2 duration-300">
-                                                        <span className="text-[9px] font-black text-primary-700 uppercase tracking-widest flex items-center gap-2">
-                                                            <Send size={10} className="rotate-180" /> Replying to {replyTo.user ? `${replyTo.user.firstName}` : replyTo.client?.name}
+                                                    <div className="bg-slate-50 px-4 py-2 border-b border-slate-100 flex items-center justify-between">
+                                                        <span className="text-[12px] text-slate-500 flex items-center gap-1.5">
+                                                            <Reply size={12} className="text-slate-400" />
+                                                            Replying to <span className="font-semibold text-slate-700">{replyTo.user?.firstName || replyTo.client?.name || 'someone'}</span>
                                                         </span>
-                                                        <button
-                                                            onClick={() => setReplyTo(null)}
-                                                            className="text-primary-400 hover:text-primary-600 transition-colors"
-                                                        >
-                                                            <X size={12} />
+                                                        <button onClick={() => setReplyTo(null)} className="text-slate-400 hover:text-slate-600 p-1">
+                                                            <X size={14} />
                                                         </button>
                                                     </div>
                                                 )}
-                                                <div className="p-1">
+                                                <div className="p-2">
                                                     <RichTextEditor
                                                         value={newComment}
                                                         onChange={setNewComment}
                                                         onPost={postComment}
-                                                        placeholder={replyTo ? `Replying to ${replyTo.user?.firstName || replyTo.client?.name}...` : "Add a comment..."}
-                                                        className="min-h-[100px] border-none"
+                                                        placeholder={replyTo ? `Reply to ${replyTo.user?.firstName || replyTo.client?.name}...` : "Write a comment..."}
+                                                        className="min-h-[80px] border-none"
                                                     />
                                                 </div>
-                                                <div className="bg-slate-50/50 px-4 py-3 flex justify-end border-t border-slate-100">
-                                                    <div className="flex items-center gap-4">
-                                                        <label className="flex items-center gap-2 cursor-pointer group/toggle">
-                                                            <div className={`w-8 h-4 rounded-full p-0.5 transition-all duration-300 ${isInternalComment ? 'bg-primary-600' : 'bg-slate-200'}`}>
-                                                                <div className={`w-3 h-3 bg-white rounded-full shadow-sm transition-transform duration-300 ${isInternalComment ? 'translate-x-4' : 'translate-x-0'}`} />
-                                                            </div>
-                                                            <input
-                                                                type="checkbox"
-                                                                className="hidden"
-                                                                checked={isInternalComment}
-                                                                onChange={(e) => setIsInternalComment(e.target.checked)}
-                                                            />
-                                                            <div className="flex flex-col">
-                                                                <span className={`text-[9px] font-black uppercase tracking-wider transition-colors ${isInternalComment ? 'text-primary-700' : 'text-slate-400 group-hover/toggle:text-slate-600'}`}>
-                                                                    Internal Discussion
-                                                                </span>
-                                                                <span className="text-[7px] text-slate-400 font-bold uppercase tracking-widest leading-none">
-                                                                    {isInternalComment ? 'Hidden from client' : 'Visible to client'}
-                                                                </span>
-                                                            </div>
-                                                        </label>
-                                                        <button
-                                                            onClick={postComment}
-                                                            disabled={!newComment.trim()}
-                                                            className="btn-primary text-[10px] flex items-center gap-2"
+                                                <div className="px-4 py-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+                                                    <label className="flex items-center gap-2 cursor-pointer">
+                                                        <div
+                                                            className={`w-9 h-5 rounded-full p-0.5 transition-colors cursor-pointer ${isInternalComment ? 'bg-blue-600' : 'bg-slate-200'}`}
+                                                            onClick={() => setIsInternalComment(!isInternalComment)}
                                                         >
-                                                            {replyTo ? 'Post Reply' : 'Post Comment'} <Send size={12} />
-                                                        </button>
-                                                    </div>
+                                                            <div className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${isInternalComment ? 'translate-x-4' : ''}`} />
+                                                        </div>
+                                                        <span className="text-[11px] text-slate-500">
+                                                            {isInternalComment ? 'Internal only' : 'Visible to client'}
+                                                        </span>
+                                                    </label>
+                                                    <button
+                                                        onClick={postComment}
+                                                        disabled={!newComment.trim()}
+                                                        className="px-4 py-1.5 bg-blue-600 text-white text-[12px] font-semibold rounded-md hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+                                                    >
+                                                        <Send size={12} /> {replyTo ? 'Reply' : 'Comment'}
+                                                    </button>
                                                 </div>
                                             </div>
                                         </>

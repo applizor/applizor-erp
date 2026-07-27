@@ -120,7 +120,8 @@ export default function GlobalTasksPage() {
             if (selectedSprintId !== 'all') url += `sprintId=${selectedSprintId}&`;
             
             const res = await api.get(url);
-            setTasks(res.data || []);
+            const data = res.data;
+            setTasks(Array.isArray(data) ? data : (data?.tasks || []));
         } catch (error) {
             toast.error('Failed to load tasks');
         }

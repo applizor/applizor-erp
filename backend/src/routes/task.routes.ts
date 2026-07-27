@@ -9,17 +9,16 @@ router.use(authenticate);
 
 // List & Create
 router.get('/', checkPermission('ProjectTask', 'read'), taskController.getTasks);
+router.get('/counts', checkPermission('ProjectTask', 'read'), taskController.getTaskCounts);
+router.get('/analysis/me', taskController.getMyTaskAnalysis);
+router.put('/bulk-update', checkPermission('ProjectTask', 'update'), taskController.bulkUpdateTasks);
 router.post('/', checkPermission('ProjectTask', 'create'), upload.array('files'), taskController.createTask); // Support multiple files
 
 // Details, Update, Delete
 router.get('/:id', checkPermission('ProjectTask', 'read'), taskController.getTaskById);
-router.put('/bulk-update', checkPermission('ProjectTask', 'update'), taskController.bulkUpdateTasks);
 router.put('/:id', checkPermission('ProjectTask', 'update'), taskController.updateTask);
 router.delete('/:id', checkPermission('ProjectTask', 'delete'), taskController.deleteTask);
 router.post('/:id/documents', checkPermission('ProjectTask', 'update'), upload.array('files'), taskController.uploadTaskDocument);
-
-// Analysis
-router.get('/analysis/me', taskController.getMyTaskAnalysis);
 
 // Comments
 router.get('/:id/comments', taskController.getComments);

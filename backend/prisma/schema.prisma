@@ -537,6 +537,7 @@ model Project {
   systemPath      String?
   gitBranch       String?          @default("main")
   automationRules AutomationRule[]
+  integrations    ProjectIntegration[]
   contracts       Contract[]
   documents       Document[]
   invoices        Invoice[]
@@ -575,6 +576,23 @@ model AutomationRule {
   @@index([projectId])
 }
 
+model ProjectIntegration {
+  id                String   @id @default(uuid())
+  projectId         String
+  provider          String   // 'SLACK' or 'MICROSOFT_TEAMS'
+  externalChannelId String
+  accessToken       String?
+  settings          Json?
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, provider])
+  @@index([projectId])
+}
+
 model AutomationLog {
   id          String   @id @default(uuid())
   ruleId      String
@@ -609,6 +627,10 @@ model Task {
   sprintId        String?
   startDate       DateTime?
   storyPoints     Int?          @default(0)
+  externalId        String?
+  externalProvider  String?
+  externalThreadId  String?
+  externalChannelId String?
   documents       Document[]
   assignee        User?         @relation("TaskAssignee", fields: [assignedToId], references: [id])
   creator         User?         @relation("TaskCreator", fields: [createdById], references: [id])

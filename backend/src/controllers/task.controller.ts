@@ -6,6 +6,7 @@ import { AutomationService } from '../services/automation.service';
 import { HistoryService } from '../services/history.service';
 import { NotificationService } from '../services/notification.service';
 import { StorageService } from '../services/storage.service';
+import { TeamsService } from '../services/teams.service';
 
 // Basic Teams Webhook Stub
 // In a real app, this would be a proper service capable of sending rich cards
@@ -397,9 +398,32 @@ export const deleteTask = async (req: AuthRequest, res: Response) => {
     }
 };
 
+export const getTaskCounts = async (req: AuthRequest, res: Response) => {
+    try {
+        const { projectId, sprintId } = req.query;
+        if (!projectId) return res.json({});
+
+        const where: any = { projectId: String(projectId) };
+        if (sprintId && sprintId !== 'all') where.sprintId = String(sprintId);
+
+        const counts = await prisma.task.groupBy({
+            by: ['status'],
+            where,
+            _count: { id: true }
+        });
+
+        const result: Record<string, number> = {};
+        counts.forEach(c => { result[c.status] = c._count.id; });
+        res.json(result);
+    } catch (error) {
+        console.error('Task counts error:', error);
+        res.status(500).json({ error: 'Failed to fetch task counts' });
+    }
+};
+
 export const getTasks = async (req: AuthRequest, res: Response) => {
     try {
-        const { projectId, sprintId, assigneeId, type, priority } = req.query;
+        const { projectId, sprintId, assigneeId, type, priority, status, page, limit } = req.query;
 
         const scope = PermissionService.getPermissionScope(req.user, 'ProjectTask', 'read');
         const userId = req.user!.id;
@@ -535,9 +559,20 @@ export const getTasks = async (req: AuthRequest, res: Response) => {
             where = { AND: [where, assigneeFilter] };
         }
 
-        const tasks = await prisma.task.findMany({
-            where,
-            include: {
+        // Server-side filtering by status
+        if (status && status !== 'all') {
+            where.status = String(status);
+        }
+
+        // Pagination
+        const pageNum = parseInt(String(page)) || 1;
+        const pageSize = Math.min(parseInt(String(limit)) || 50, 100);
+        const skip = (pageNum - 1) * pageSize;
+
+        const [tasks, total] = await Promise.all([
+            prisma.task.findMany({
+                where,
+                include: {
                 assignee: { select: { id: true, firstName: true, lastName: true, email: true } },
                 assignees: { include: { user: { select: { id: true, firstName: true, lastName: true, email: true } } } },
                 creator: { select: { firstName: true, lastName: true } },
@@ -550,15 +585,27 @@ export const getTasks = async (req: AuthRequest, res: Response) => {
                     select: { clientId: true, userId: true }
                 }
             },
-            orderBy: { position: 'asc' }
-        });
+            orderBy: { position: 'asc' },
+            take: pageSize,
+            skip
+            }),
+            prisma.task.count({ where })
+        ]);
 
         const tasksWithMeta = tasks.map(task => ({
             ...task,
             hasUnansweredComment: task.comments.length > 0 && task.comments[0].clientId !== null && task.comments[0].userId === null
         }));
 
-        res.json(tasksWithMeta);
+        res.json({
+            tasks: tasksWithMeta,
+            pagination: {
+                page: pageNum,
+                limit: pageSize,
+                total,
+                totalPages: Math.ceil(total / pageSize)
+            }
+        });
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch tasks' });
     }

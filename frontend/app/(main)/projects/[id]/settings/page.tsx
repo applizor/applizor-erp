@@ -17,6 +17,8 @@ export default function ProjectSettingsPage({ params }: { params: { id: string }
     const projectPerms = useProjectPermissions(project);
     const [saving, setSaving] = useState(false);
     const [generalSaving, setGeneralSaving] = useState(false);
+    const [integrations, setIntegrations] = useState<any[]>([]);
+    const [loadingIntegrations, setLoadingIntegrations] = useState(true);
 
     // Form Data for General Config
     const [formData, setFormData] = useState({
@@ -58,7 +60,19 @@ export default function ProjectSettingsPage({ params }: { params: { id: string }
 
     useEffect(() => {
         fetchSettings();
+        fetchIntegrations();
     }, [params.id]);
+
+    const fetchIntegrations = async () => {
+        try {
+            const res = await api.get(`/projects/${params.id}/integrations`);
+            setIntegrations(res.data || []);
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setLoadingIntegrations(false);
+        }
+    };
 
     const fetchSettings = async () => {
         try {
@@ -130,6 +144,39 @@ export default function ProjectSettingsPage({ params }: { params: { id: string }
                 }
             }
         }));
+    };
+
+    const handleConnectSlack = async () => {
+        window.location.href = `https://slack.com/oauth/v2/authorize?client_id=${process.env.NEXT_PUBLIC_SLACK_CLIENT_ID}&scope=channels:history,chat:write,commands&redirect_uri=${window.location.origin}/api/integrations/slack/callback&state=${params.id}`;
+    };
+
+    const handleSaveIntegration = async () => {
+        setSaving(true);
+        try {
+            const slackChannelId = (document.getElementById('slack-channel') as HTMLInputElement).value;
+            const teamsChannelId = (document.getElementById('teams-channel') as HTMLInputElement).value;
+
+            if (slackChannelId) {
+                await api.post(`/projects/${params.id}/integrations`, {
+                    provider: 'SLACK',
+                    externalChannelId: slackChannelId
+                });
+            }
+            if (teamsChannelId) {
+                await api.post(`/projects/${params.id}/integrations`, {
+                    provider: 'MICROSOFT_TEAMS',
+                    externalChannelId: teamsChannelId
+                });
+            }
+
+            toast.success('Integrations updated successfully');
+            fetchIntegrations();
+        } catch (error) {
+            console.error(error);
+            toast.error('Failed to save integrations');
+        } finally {
+            setSaving(false);
+        }
     };
 
     const handleDelete = async () => {
@@ -302,6 +349,50 @@ export default function ProjectSettingsPage({ params }: { params: { id: string }
                             >
                                 <Zap size={14} /> Configure Automations
                             </button>
+
+                            <div className="mt-4 pt-4 border-t border-violet-200">
+                                {loadingIntegrations ? <LoadingSpinner /> : (
+                                    <div className="space-y-4">
+                                        <div className="p-3 bg-gray-50 rounded-lg">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <span className="text-xs font-black text-gray-900">Slack</span>
+                                                {integrations?.find((i: any) => i.provider === 'SLACK') && (
+                                                    <span className="text-[9px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold">Connected</span>
+                                                )}
+                                            </div>
+                                            <input
+                                                type="text"
+                                                placeholder="Slack Channel ID (e.g., C0123ABC456)"
+                                                className="ent-input w-full"
+                                                defaultValue={integrations?.find((i: any) => i.provider === 'SLACK')?.externalChannelId || ''}
+                                                id="slack-channel"
+                                            />
+                                            <button
+                                                onClick={() => handleConnectSlack()}
+                                                className="btn-primary w-full mt-2"
+                                            >
+                                                Connect Slack
+                                            </button>
+                                        </div>
+                                        <div className="p-3 bg-gray-50 rounded-lg">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <span className="text-xs font-black text-gray-900">Microsoft Teams</span>
+                                                {integrations?.find((i: any) => i.provider === 'MICROSOFT_TEAMS') && (
+                                                    <span className="text-[9px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold">Connected</span>
+                                                )}
+                                            </div>
+                                            <input
+                                                type="text"
+                                                placeholder="Teams Channel ID"
+                                                className="ent-input w-full"
+                                                defaultValue={integrations?.find((i: any) => i.provider === 'MICROSOFT_TEAMS')?.externalChannelId || ''}
+                                                id="teams-channel"
+                                            />
+                                        </div>
+                                        <button onClick={handleSaveIntegration} className="btn-primary w-full">Save Integration</button>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>

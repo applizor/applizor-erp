@@ -1,7 +1,7 @@
 'use client';
 
-import React from 'react';
-import { MessageSquare, Heart, Smile, MoreHorizontal, Send, Trash2, Lock, EyeOff } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { MessageSquare, Reply, Trash2, Lock, MoreHorizontal, Check, X } from 'lucide-react';
 
 interface CommentItemProps {
     comment: any;
@@ -11,110 +11,149 @@ interface CommentItemProps {
     isReply?: boolean;
 }
 
+function getInitials(name: string) {
+    return name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
+}
+
+function getAvatarColor(name: string) {
+    const colors = [
+        'bg-blue-600 text-white',
+        'bg-emerald-600 text-white',
+        'bg-violet-600 text-white',
+        'bg-amber-600 text-white',
+        'bg-rose-600 text-white',
+        'bg-cyan-600 text-white',
+        'bg-indigo-600 text-white',
+    ];
+    const index = name.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0) % colors.length;
+    return colors[index];
+}
+
+function timeAgo(date: string) {
+    const now = new Date();
+    const then = new Date(date);
+    const seconds = Math.floor((now.getTime() - then.getTime()) / 1000);
+    if (seconds < 60) return 'just now';
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    if (days < 7) return `${days}d ago`;
+    return then.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
 export default function CommentItem({ comment, onReply, onDelete, currentUserId, isReply = false }: CommentItemProps) {
-    const [isDeleting, setIsDeleting] = React.useState(false);
+    const [confirmDelete, setConfirmDelete] = useState(false);
+
+    // Guest user: comment starts with [Name] prefix from Teams
+    const isGuestComment = !comment.user && !comment.client && comment.content?.startsWith('[');
+    const guestName = isGuestComment
+        ? comment.content.match(/^\[([^\]]+)\]/)?.[1] || 'Unknown'
+        : null;
 
     const authorName = comment.user
         ? `${comment.user.firstName} ${comment.user.lastName}`
-        : comment.client ? `${comment.client.name} (Client)` : 'Unknown';
+        : comment.client ? `${comment.client.name} (Client)`
+        : guestName ? guestName
+        : 'System';
 
     const isClient = !!comment.clientId;
-    // Ensure both are strings for comparison
     const isOwner = String(comment.userId) === String(currentUserId);
-
-    // Check if delete is allowed
     const canDelete = onDelete && (isOwner || !comment.user);
+    const avatarClass = getAvatarColor(authorName);
 
-
-    // ... inside render:
-    // {(canDelete) && ( ...
-
-    const handleDeleteClick = () => {
-        if (!onDelete) return;
-        if (isDeleting) {
-            onDelete(comment.id);
+    const handleDelete = () => {
+        if (confirmDelete) {
+            onDelete?.(comment.id);
         } else {
-            setIsDeleting(true);
-            setTimeout(() => setIsDeleting(false), 3000); // Reset after 3s
+            setConfirmDelete(true);
+            setTimeout(() => setConfirmDelete(false), 5000);
         }
     };
 
     return (
-        <div className={`relative flex gap-3 ${isReply ? 'ml-11 mt-1' : ''} ${comment.isInternal ? 'opacity-95' : ''}`}>
-            {/* Visual connector for replies */}
-            {isReply && (
-                <div className="absolute -left-6 top-0 bottom-4 w-px bg-slate-200" />
-            )}
+        <div className={`group ${isReply ? 'ml-8 mt-2' : ''}`}>
+            <div className={`flex gap-3 ${comment.isInternal ? 'bg-indigo-50/40 rounded-lg p-3 border border-indigo-100/50' : ''}`}>
+                {/* Avatar */}
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${avatarClass}`}>
+                    {getInitials(authorName)}
+                </div>
 
-            <div className={`w-8 h-8 rounded-md flex items-center justify-center text-[10px] font-black shrink-0 relative z-10 ring-2 ring-white shadow-sm ${isClient ? 'bg-amber-100 text-amber-700' : 'bg-slate-900 text-white'}`}>
-                {authorName[0]}
-            </div>
-
-            <div className={`flex-1 space-y-2`}>
-                <div className={`border rounded-lg p-3 shadow-sm transition-all relative group ${comment.isInternal ? 'bg-indigo-50/30 border-indigo-100 border-dashed hover:border-indigo-200' : 'bg-white border-slate-200 hover:border-slate-300'}`}>
-                    <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center gap-2">
-                            <span className="text-[11px] font-black text-slate-900 leading-none">{authorName}</span>
-                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-none">• {new Date(comment.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                            {isClient && <span className="bg-amber-100 text-amber-700 text-[8px] px-1 rounded font-black uppercase tracking-tighter">Client</span>}
-                            {comment.isInternal && (
-                                <span className="bg-indigo-600 text-white text-[7px] px-1.5 py-0.5 rounded flex items-center gap-1 font-black uppercase tracking-widest">
-                                    <Lock size={8} /> Internal
-                                </span>
-                            )}
-                        </div>
-                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button className="text-slate-400 hover:text-rose-500 transition-colors"><Heart size={12} /></button>
-                            {/* <button className="text-slate-400 hover:text-slate-600 transition-colors"><MoreHorizontal size={14} /></button> */}
-                        </div>
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                    {/* Header */}
+                    <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-[13px] font-semibold text-slate-900">{authorName}</span>
+                        <span className="text-[11px] text-slate-400">{timeAgo(comment.createdAt)}</span>
+                        {isClient && (
+                            <span className="text-[9px] font-bold text-amber-600 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded">Client</span>
+                        )}
+                        {comment.isInternal && (
+                            <span className="text-[9px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                                <Lock size={8} /> Internal
+                            </span>
+                        )}
                     </div>
 
-                    <div className="text-[12px] text-slate-600 prose prose-sm max-w-none leading-relaxed" dangerouslySetInnerHTML={{ __html: comment.content }} />
+                    {/* Body */}
+                    <div
+                        className="text-[13px] text-slate-700 leading-relaxed mt-0.5"
+                        dangerouslySetInnerHTML={{ __html: isGuestComment ? comment.content.replace(/^\[[^\]]+\]\s*/, '') : comment.content }}
+                    />
 
-                    <div className="mt-2 flex items-center justify-between border-t border-slate-50 pt-2">
-                        <div className="flex items-center gap-4">
-                            <button
-                                onClick={() => onReply(comment)}
-                                className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-indigo-600 flex items-center gap-1.5 transition-colors"
-                            >
-                                <MessageSquare size={10} /> Reply
-                            </button>
-                            {/* React button hidden until implemented */}
-                            {/* <button className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-600 flex items-center gap-1.5 transition-colors">
-                                <Smile size={10} /> React
-                            </button> */}
-                        </div>
-
-
-                        {/* Delete logic */}
-
+                    {/* Actions */}
+                    <div className="flex items-center gap-3 mt-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                            onClick={() => onReply(comment)}
+                            className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-blue-600 transition-colors"
+                        >
+                            <Reply size={11} /> Reply
+                        </button>
                         {canDelete && (
-                            <button
-                                onClick={handleDeleteClick}
-                                className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors ${isDeleting ? 'text-rose-600' : 'text-slate-300 hover:text-rose-500'}`}
-                            >
-                                {isDeleting ? 'Confirm?' : <><Trash2 size={10} /> Delete</>}
-                            </button>
+                            confirmDelete ? (
+                                <div className="flex items-center gap-1">
+                                    <button
+                                        onClick={handleDelete}
+                                        className="flex items-center gap-1 text-[11px] text-red-500 hover:text-red-700 font-medium"
+                                    >
+                                        <Check size={11} /> Delete
+                                    </button>
+                                    <button
+                                        onClick={() => setConfirmDelete(false)}
+                                        className="text-[11px] text-slate-400 hover:text-slate-600"
+                                    >
+                                        <X size={11} />
+                                    </button>
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={handleDelete}
+                                    className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-red-500 transition-colors"
+                                >
+                                    <Trash2 size={11} /> Delete
+                                </button>
+                            )
                         )}
                     </div>
                 </div>
-
-                {/* Recursive Replies */}
-                {comment.replies && comment.replies.length > 0 && (
-                    <div className="space-y-3">
-                        {comment.replies.map((reply: any) => (
-                            <CommentItem
-                                key={reply.id}
-                                comment={reply}
-                                onReply={onReply}
-                                onDelete={onDelete}
-                                currentUserId={currentUserId}
-                                isReply={true}
-                            />
-                        ))}
-                    </div>
-                )}
             </div>
+
+            {/* Replies */}
+            {comment.replies && comment.replies.length > 0 && (
+                <div className="ml-4 border-l-2 border-slate-100 pl-4 mt-2 space-y-2">
+                    {comment.replies.map((reply: any) => (
+                        <CommentItem
+                            key={reply.id}
+                            comment={reply}
+                            onReply={onReply}
+                            onDelete={onDelete}
+                            currentUserId={currentUserId}
+                            isReply={true}
+                        />
+                    ))}
+                </div>
+            )}
         </div>
     );
 }

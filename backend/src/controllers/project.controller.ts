@@ -197,7 +197,6 @@ export const getProjectById = async (req: AuthRequest, res: Response) => {
                     include: { tasks: true },
                     orderBy: { dueDate: 'asc' }
                 },
-                tasks: { select: { status: true } },
                 invoices: { select: { id: true, invoiceNumber: true, invoiceDate: true, total: true, paidAmount: true, status: true, subtotal: true, tax: true } },
                 timesheets: {
                     where: { status: 'approved' },
@@ -320,42 +319,35 @@ export const getProjectById = async (req: AuthRequest, res: Response) => {
             };
         }
 
-        // 4. Advanced Analytics (Task Distribution)
-        const totalTasks = p.tasks.length;
-        const statusDistribution = p.tasks.reduce((acc: any, t: any) => {
-            acc[t.status] = (acc[t.status] || 0) + 1;
-            return acc;
-        }, {});
+        // 4. Advanced Analytics (Task Distribution) - using efficient aggregations
+        const totalTasks = p._count?.tasks || 0;
 
-        // Fetch tasks with more detail for priority/assignee distribution
-        const detailedTasks = await prisma.task.findMany({
-            where: { projectId: id },
-            include: {
-                assignee: { select: { firstName: true, lastName: true } },
-                assignees: { include: { user: { select: { firstName: true, lastName: true } } } },
-                _count: { select: { comments: true } }
-            }
-        });
+        const [statusGroups, priorityGroups, taskAssignees] = await Promise.all([
+            prisma.task.groupBy({ by: ['status'], where: { projectId: id }, _count: { id: true } }),
+            prisma.task.groupBy({ by: ['priority'], where: { projectId: id }, _count: { id: true } }),
+            prisma.task.findMany({
+                where: { projectId: id },
+                select: { assignedToId: true, assignees: { select: { user: { select: { firstName: true, lastName: true } } } } }
+            })
+        ]);
 
-        const priorityDistribution = detailedTasks.reduce((acc: any, t: any) => {
-            acc[t.priority] = (acc[t.priority] || 0) + 1;
-            return acc;
-        }, {});
+        const statusDistribution: Record<string, number> = {};
+        statusGroups.forEach(s => { statusDistribution[s.status] = s._count.id; });
 
-        const assigneeDistribution = detailedTasks.reduce((acc: any, t: any) => {
+        const priorityDistribution: Record<string, number> = {};
+        priorityGroups.forEach(p => { priorityDistribution[p.priority] = p._count.id; });
+
+        const assigneeDistribution: Record<string, number> = {};
+        taskAssignees.forEach((t: any) => {
             if (t.assignees && t.assignees.length > 0) {
                 t.assignees.forEach((a: any) => {
                     const name = a.user ? `${a.user.firstName} ${a.user.lastName}` : 'Unknown';
-                    acc[name] = (acc[name] || 0) + 1;
+                    assigneeDistribution[name] = (assigneeDistribution[name] || 0) + 1;
                 });
-            } else if (t.assignee) {
-                const name = `${t.assignee.firstName} ${t.assignee.lastName}`;
-                acc[name] = (acc[name] || 0) + 1;
             } else {
-                acc['Unassigned'] = (acc['Unassigned'] || 0) + 1;
+                assigneeDistribution['Unassigned'] = (assigneeDistribution['Unassigned'] || 0) + 1;
             }
-            return acc;
-        }, {});
+        });
 
         // 5. Recent Activity Feed (Compiled from History, Comments, Milestones)
         const [history, comments, recentMilestones] = await Promise.all([
@@ -410,7 +402,7 @@ export const getProjectById = async (req: AuthRequest, res: Response) => {
         ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 15);
 
         // 6. Efficiency Metrics & Health
-        const completedTasks = p.tasks.filter((t: any) => t.status === 'done' || t.status === 'completed').length;
+        const completedTasks = (statusDistribution['done'] || 0) + (statusDistribution['completed'] || 0);
         const taskCompletionRate = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
         const totalLoggedHours = p.timesheets.reduce((acc: number, t: any) => acc + Number(t.hours), 0);
 
