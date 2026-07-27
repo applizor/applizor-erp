@@ -646,7 +646,7 @@ export default function KanbanBoard() {
                 <TaskDetailModal
                     taskId={selectedTaskId}
                     projectId={projectId as string}
-                    onClose={() => setIsDetailOpen(false)}
+                    onClose={handleCloseModal}
                     onUpdate={fetchTasks}
                 />
             )}

@@ -471,7 +471,7 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
     return (
         <Portal>
             <div className="fixed inset-0 z-[100] flex flex-col bg-white animate-fade-in text-left">
-                <div className="flex-1 flex flex-col md:flex-row overflow-y-auto">
+                <div className="flex-1 flex flex-col md:flex-row overflow-auto">
 
                     {/* Close Button */}
                     <button
@@ -482,7 +482,7 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                     </button>
 
                     {/* Left: Main Content (Scrollable) */}
-                    <div className="flex-1 flex flex-col md:h-full overflow-y-auto bg-white">
+                    <div className="flex-1 flex flex-col md:h-full bg-white">
                         <div className="p-5 md:p-10 flex-grow">
 
                             {/* Header Section */}
