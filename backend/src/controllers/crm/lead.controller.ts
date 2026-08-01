@@ -66,9 +66,17 @@ export const getLeads = async (req: AuthRequest, res: Response) => {
 export const updateLead = async (req: AuthRequest, res: Response) => {
     try {
         const { id } = req.params;
+        const userId = req.userId;
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        if (!user || !user.companyId) return res.status(404).json({ error: 'Company not found' });
+
         const { name, email, phone, company: leadCompany, source, value, notes, stage, status } = req.body;
 
-        // Optional: Check if lead belongs to user's company (omitted for brevity but recommended)
+        // Guard: ensure lead belongs to user's company
+        const existing = await prisma.lead.findFirst({ where: { id, companyId: user.companyId } });
+        if (!existing) return res.status(404).json({ error: 'Lead not found' });
 
         const lead = await prisma.lead.update({
             where: { id },
@@ -95,6 +103,16 @@ export const updateLead = async (req: AuthRequest, res: Response) => {
 export const deleteLead = async (req: AuthRequest, res: Response) => {
     try {
         const { id } = req.params;
+        const userId = req.userId;
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        if (!user || !user.companyId) return res.status(404).json({ error: 'Company not found' });
+
+        // Guard: ensure lead belongs to user's company
+        const existing = await prisma.lead.findFirst({ where: { id, companyId: user.companyId } });
+        if (!existing) return res.status(404).json({ error: 'Lead not found' });
+
         await prisma.lead.delete({ where: { id } });
         res.json({ message: 'Lead deleted successfully' });
     } catch (error: any) {
