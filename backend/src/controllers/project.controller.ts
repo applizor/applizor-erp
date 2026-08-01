@@ -758,7 +758,9 @@ export const uploadProjectDocument = async (req: AuthRequest, res: Response) => 
 export const deleteProjectDocument = async (req: AuthRequest, res: Response) => {
     try {
         const { docId } = req.params;
-        const document = await prisma.document.findUnique({ where: { id: docId } });
+        const document = await prisma.document.findFirst({
+            where: { id: docId, companyId: req.user!.companyId }
+        });
 
         if (!document) return res.status(404).json({ error: 'Document not found' });
 
@@ -846,7 +848,9 @@ export const deleteSprint = async (req: AuthRequest, res: Response) => {
     try {
         const { sprintId } = req.params;
 
-        const sprint = await prisma.sprint.findUnique({ where: { id: sprintId } });
+        const sprint = await prisma.sprint.findFirst({
+            where: { id: sprintId, project: { companyId: req.user!.companyId } }
+        });
         if (!sprint) return res.status(404).json({ error: 'Sprint not found' });
 
         // Unassign all tasks from this sprint before deleting
@@ -931,7 +935,9 @@ export const updateEpic = async (req: AuthRequest, res: Response) => {
 export const deleteEpic = async (req: AuthRequest, res: Response) => {
     try {
         const { epicId } = req.params;
-        const epic = await prisma.epic.findUnique({ where: { id: epicId } });
+        const epic = await prisma.epic.findFirst({
+            where: { id: epicId, project: { companyId: req.user!.companyId } }
+        });
         if (!epic) return res.status(404).json({ error: 'Epic not found' });
 
         // Unassign all tasks from this epic

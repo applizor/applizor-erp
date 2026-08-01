@@ -189,7 +189,7 @@ export const updateRole = async (req: AuthRequest, res: Response) => {
         const { name, description, permissions } = req.body;
 
         // Block modifying system roles
-        const existingRole = await prisma.role.findUnique({ where: { id } });
+        const existingRole = await prisma.role.findFirst({ where: { id, companyId: req.user!.companyId } });
         if (!existingRole) return res.status(404).json({ error: 'Role not found' });
         if (existingRole.isSystem) {
             const isSuperAdmin = req.user.roles?.some((ur: any) => 
@@ -254,8 +254,8 @@ export const getRoleDetails = async (req: AuthRequest, res: Response) => {
         }
 
         const { id } = req.params;
-        const role = await prisma.role.findUnique({
-            where: { id },
+        const role = await prisma.role.findFirst({
+            where: { id, companyId: req.user!.companyId },
             include: {
                 permissions: true
             }
@@ -279,7 +279,7 @@ export const deleteRole = async (req: AuthRequest, res: Response) => {
         const { id } = req.params;
 
         // Block deleting system roles
-        const existingRole = await prisma.role.findUnique({ where: { id } });
+        const existingRole = await prisma.role.findFirst({ where: { id, companyId: req.user!.companyId } });
         if (!existingRole) return res.status(404).json({ error: 'Role not found' });
         if (existingRole.isSystem) {
             return res.status(400).json({ error: 'System roles cannot be deleted' });

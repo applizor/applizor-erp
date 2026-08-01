@@ -366,8 +366,8 @@ export const convertLeadToClient = async (req: AuthRequest, res: Response) => {
 
     const { id } = req.params;
 
-    const lead = await prisma.lead.findUnique({
-      where: { id },
+    const lead = await prisma.lead.findFirst({
+      where: { id, companyId: user.companyId },
     });
 
     if (!lead) {

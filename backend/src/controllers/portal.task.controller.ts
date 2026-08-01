@@ -91,9 +91,11 @@ export const getPortalTasks = async (req: ClientAuthRequest, res: Response) => {
 
         if (!projectId) return res.status(400).json({ error: 'Project ID required' });
 
-        // Verify Access
-        const project = await prisma.project.findUnique({ where: { id: String(projectId) } });
-        if (!project || project.clientId !== clientId) {
+        // Verify Access — must belong to this client AND exist
+        const project = await prisma.project.findFirst({
+            where: { id: String(projectId), clientId }
+        });
+        if (!project) {
             return res.status(403).json({ error: 'Access denied' });
         }
 

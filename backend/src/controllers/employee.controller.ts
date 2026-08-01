@@ -678,7 +678,7 @@ export const uploadEmployeeDocument = async (req: AuthRequest, res: Response) =>
             return res.status(400).json({ error: 'No file uploaded' });
         }
 
-        const employee = await prisma.employee.findUnique({ where: { id } });
+        const employee = await prisma.employee.findFirst({ where: { id, companyId: req.user!.companyId } });
         if (!employee) return res.status(404).json({ error: 'Employee not found' });
 
         const safeName = (name || 'doc').replace(/[^a-zA-Z0-9-_]/g, '_');
