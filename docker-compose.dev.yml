@@ -62,8 +62,6 @@ services:
       - "--chromium-disable-javascript=true"
       - "--chromium-allow-list=file:///tmp/.*"
       - "--chromium-max-concurrency=2"
-      - "--chromium-idle-shutdown-timeout=2m"
-      - "--libreoffice-idle-shutdown-timeout=2m"
     deploy:
       resources:
         limits:
