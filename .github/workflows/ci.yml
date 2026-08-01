@@ -58,8 +58,9 @@ jobs:
             git reset --hard origin/main
           fi
           
-          echo "🧹 Safely cleaning up old dangling images..."
+          echo "🧹 Safely cleaning up old dangling images and conflicting containers..."
           sudo docker image prune -f || true
+          sudo docker rm -f applizor-backend-prod applizor-frontend-prod applizor-gotenberg || true
 
           # 3. Docker Orchestration
           echo "📦 Starting Docker build..."
