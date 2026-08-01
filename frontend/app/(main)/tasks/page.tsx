@@ -163,8 +163,12 @@ export default function GlobalTasksPage() {
         let url = '/tasks?limit=' + PAGE_SIZE;
         if (selectedProjectId !== 'all') url += `&projectId=${selectedProjectId}`;
         if (selectedSprintId !== 'all') url += `&sprintId=${selectedSprintId}`;
+        if (filters.assigneeId !== 'all') url += `&assigneeId=${filters.assigneeId}`;
+        if (filters.type !== 'all') url += `&type=${filters.type}`;
+        if (filters.priority !== 'all') url += `&priority=${filters.priority}`;
+        if (filters.search) url += `&search=${encodeURIComponent(filters.search)}`;
         return url;
-    }, [selectedProjectId, selectedSprintId]);
+    }, [selectedProjectId, selectedSprintId, filters]);
 
     // Fetch tasks for a single column (same pattern as project board)
     const fetchColumnTasks = useCallback(async (status: string, page: number = 1, append: boolean = false) => {
@@ -197,13 +201,17 @@ export default function GlobalTasksPage() {
             const params: string[] = [];
             if (selectedProjectId !== 'all') params.push(`projectId=${selectedProjectId}`);
             if (selectedSprintId !== 'all') params.push(`sprintId=${selectedSprintId}`);
+            if (filters.assigneeId !== 'all') params.push(`assigneeId=${filters.assigneeId}`);
+            if (filters.type !== 'all') params.push(`type=${filters.type}`);
+            if (filters.priority !== 'all') params.push(`priority=${filters.priority}`);
+            if (filters.search) params.push(`search=${encodeURIComponent(filters.search)}`);
             if (params.length) url += '?' + params.join('&');
             const res = await api.get(url);
             setTaskCounts(res.data);
         } catch (error) {
             console.error('Failed to load task counts', error);
         }
-    }, [selectedProjectId, selectedSprintId]);
+    }, [selectedProjectId, selectedSprintId, filters]);
 
     // Fetch all columns (full board refresh)
     const fetchAllColumns = useCallback(async () => {

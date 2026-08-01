@@ -443,6 +443,18 @@ export const getTaskCounts = async (req: AuthRequest, res: Response) => {
 
         if (sprintId && sprintId !== 'all') where.sprintId = String(sprintId);
 
+        // Apply same filters as getTasks for accurate counts
+        const { type, priority, assigneeId, search } = req.query;
+        if (type && type !== 'all') where.type = String(type);
+        if (priority && priority !== 'all') where.priority = String(priority);
+        if (search) where.title = { contains: String(search), mode: 'insensitive' };
+        if (assigneeId && assigneeId !== 'all') {
+            const assigneeFilter = assigneeId === 'unassigned'
+                ? { assignedToId: null, assignees: { none: {} } }
+                : { OR: [{ assignedToId: String(assigneeId) }, { assignees: { some: { userId: String(assigneeId) } } }] };
+            where.AND = [where.AND || {}, assigneeFilter];
+        }
+
         const counts = await prisma.task.groupBy({
             by: ['status'],
             where,
