@@ -401,9 +401,40 @@ export const deleteTask = async (req: AuthRequest, res: Response) => {
 export const getTaskCounts = async (req: AuthRequest, res: Response) => {
     try {
         const { projectId, sprintId } = req.query;
-        if (!projectId) return res.json({});
+        const companyId = req.user!.companyId;
+        const userId = req.user!.id;
+        const scope = PermissionService.getPermissionScope(req.user, 'ProjectTask', 'read');
 
-        const where: any = { projectId: String(projectId) };
+        // Build base where — same logic as getTasks
+        let where: any = {
+            OR: [
+                { project: { companyId } },
+                { projectId: null, creator: { companyId } }
+            ]
+        };
+
+        if (projectId && projectId !== 'all') {
+            where = { projectId: String(projectId) };
+        } else if (!scope.all) {
+            // Non-admin: only tasks from projects they are a member of
+            const employee = await prisma.employee.findUnique({ where: { userId } });
+            if (!employee) {
+                where = { createdById: userId, projectId: null };
+            } else {
+                const memberProjects = await prisma.projectMember.findMany({
+                    where: { employeeId: employee.id },
+                    select: { projectId: true }
+                });
+                const accessibleProjectIds = memberProjects.map(m => m.projectId);
+                where = {
+                    OR: [
+                        { projectId: { in: accessibleProjectIds } },
+                        { projectId: null, createdById: userId }
+                    ]
+                };
+            }
+        }
+
         if (sprintId && sprintId !== 'all') where.sprintId = String(sprintId);
 
         const counts = await prisma.task.groupBy({
