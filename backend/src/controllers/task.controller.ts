@@ -423,190 +423,152 @@ export const getTaskCounts = async (req: AuthRequest, res: Response) => {
 
 export const getTasks = async (req: AuthRequest, res: Response) => {
     try {
-        const { projectId, sprintId, assigneeId, type, priority, status, page, limit } = req.query;
+        console.log('GET /tasks query:', req.query);
+        const { projectId, sprintId, assigneeId, type, priority, status, page, limit, search } = req.query;
 
         const scope = PermissionService.getPermissionScope(req.user, 'ProjectTask', 'read');
         const userId = req.user!.id;
-
         const companyId = req.user!.companyId;
 
-        let where: any = {};
-        const companyUserIds = (await prisma.user.findMany({
-            where: { companyId },
-            select: { id: true }
-        })).map(u => u.id);
+        const effectivePage = parseInt(page as string) || 1;
+        const effectiveLimit = parseInt(limit as string) || 50;
+        const skip = (effectivePage - 1) * effectiveLimit;
 
-        if (projectId) {
-            where.projectId = String(projectId);
+        let where: any = {
+            OR: [
+                { project: { companyId } }, // Tasks belonging to projects within the user's company
+                { projectId: null, creator: { companyId } } // Tasks not tied to a project, but created by someone in the company
+            ]
+        };
+
+        // Apply global filters
+        if (sprintId && sprintId !== 'all') where.sprintId = String(sprintId);
+        if (type && type !== 'all') where.type = String(type);
+        if (priority && priority !== 'all') where.priority = String(priority);
+        if (search) {
+            where.title = { contains: String(search), mode: 'insensitive' };
         }
 
-        // Additional Filters from Query
-        if (sprintId && sprintId !== 'all') where.sprintId = String(sprintId);
         const assigneeFilter = assigneeId && assigneeId !== 'all' ? (
             assigneeId === 'unassigned'
                 ? { assignedToId: null, assignees: { none: {} } }
                 : { OR: [{ assignedToId: String(assigneeId) }, { assignees: { some: { userId: String(assigneeId) } } }] }
         ) : null;
-        if (type && type !== 'all') where.type = String(type);
-        if (priority && priority !== 'all') where.priority = String(priority);
-
-        // Apply Scope Filtering (if not 'all' access)
-        if (scope.all) {
-            where.OR = [
-                { project: { companyId } },
-                { projectId: null, createdById: { in: companyUserIds } }
-            ];
-        } else {
-            const employee = await prisma.employee.findUnique({
-                where: { userId }
-            });
-
-            if (employee) {
-                // Find all projects where this employee is a member/manager
-                const memberProjects = await prisma.projectMember.findMany({
-                    where: { employeeId: employee.id },
-                    select: { projectId: true, role: true }
-                });
-
-                const memberProjectIds = memberProjects.map(m => m.projectId);
-                const pmProjectIds = memberProjects.filter(m => ['manager', 'admin'].includes(m.role)).map(m => m.projectId);
-
-                if (projectId) {
-                    const targetProjectId = String(projectId);
-                    const isPM = pmProjectIds.includes(targetProjectId);
-                    const isMember = memberProjectIds.includes(targetProjectId);
-
-                    if (isPM) {
-                        // PMs have full access to view tasks
-                    } else if (isMember) {
-                        const orConditions: any[] = [];
-                        if (scope.owned) {
-                            orConditions.push({ assignedToId: userId });
-                            orConditions.push({ assignees: { some: { userId } } });
-                            orConditions.push({ assignedToId: null });
-                        }
-                        if (scope.added) {
-                            orConditions.push({ createdById: userId });
-                        }
-                        if (orConditions.length > 0) {
-                            where.OR = orConditions;
-                        } else {
-                            return res.json([]);
-                        }
-                    } else {
-                        // Not a member and not PM of this project -> show nothing
-                        return res.json([]);
-                    }
-                } else {
-                    // Global workspace query:
-                    // Show tasks from projects where employee is PM/Admin, OR
-                    // Show tasks in projects they are a member of and fit their scope, OR
-                    // Show tasks without projects that fit their scope
-                    const projectConditions: any[] = [];
-
-                    if (pmProjectIds.length > 0) {
-                        projectConditions.push({ projectId: { in: pmProjectIds } });
-                    }
-
-                    const nonPmProjectIds = memberProjectIds.filter(id => !pmProjectIds.includes(id));
-                    if (nonPmProjectIds.length > 0) {
-                        const memberConditions: any[] = [];
-                        if (scope.owned) {
-                            memberConditions.push({ assignedToId: userId });
-                            memberConditions.push({ assignees: { some: { userId } } });
-                            memberConditions.push({ assignedToId: null });
-                        }
-                        if (scope.added) {
-                            memberConditions.push({ createdById: userId });
-                        }
-                        if (memberConditions.length > 0) {
-                            projectConditions.push({
-                                projectId: { in: nonPmProjectIds },
-                                OR: memberConditions
-                            });
-                        }
-                    }
-
-                    // Tasks without projects: show tasks created by company users matching their scope
-                    const noProjectConditions: any[] = [];
-                    if (scope.owned) {
-                        noProjectConditions.push({ assignedToId: userId });
-                        noProjectConditions.push({ assignees: { some: { userId } } });
-                    }
-                    if (scope.added) {
-                        noProjectConditions.push({ createdById: userId });
-                    }
-                    if (noProjectConditions.length > 0) {
-                        projectConditions.push({
-                            projectId: null,
-                            createdById: { in: companyUserIds },
-                            OR: noProjectConditions
-                        });
-                    }
-
-                    if (projectConditions.length > 0) {
-                        where.OR = projectConditions;
-                    } else {
-                        return res.json([]);
-                    }
-                }
-            } else {
-                return res.json([]);
-            }
-        }
-
         if (assigneeFilter) {
-            where = { AND: [where, assigneeFilter] };
+            where.AND = [where.AND || {}, assigneeFilter];
         }
 
-        // Server-side filtering by status
+        // Apply status filter if provided
         if (status && status !== 'all') {
             where.status = String(status);
         }
 
-        // Pagination
-        const pageNum = parseInt(String(page)) || 1;
-        const pageSize = Math.min(parseInt(String(limit)) || 50, 100);
-        const skip = (pageNum - 1) * pageSize;
+        // --- Permission-based project filtering ---
+        // If projectId is specifically requested and not 'all', filter by that project
+        if (projectId && projectId !== 'all') {
+            where.projectId = String(projectId);
+            // Additionally, ensure this specific project is accessible based on scope
+            if (!scope.all) {
+                const employee = await prisma.employee.findUnique({ where: { userId } });
+                if (!employee) return res.json({ tasks: [], pagination: { totalPages: 0, totalTasks: 0 } });
 
-        const [tasks, total] = await Promise.all([
-            prisma.task.findMany({
-                where,
-                include: {
-                assignee: { select: { id: true, firstName: true, lastName: true, email: true } },
-                assignees: { include: { user: { select: { id: true, firstName: true, lastName: true, email: true } } } },
-                creator: { select: { firstName: true, lastName: true } },
-                epic: true,
-                parent: { select: { title: true } },
+                const memberProject = await prisma.projectMember.findFirst({
+                    where: { employeeId: employee.id, projectId: String(projectId) },
+                    select: { projectId: true, role: true }
+                });
+
+                if (!memberProject) {
+                    // Not a member of this specific project, so no access
+                    return res.json({ tasks: [], pagination: { totalPages: 0, totalTasks: 0 } });
+                }
+                // If a member, further task-level permissions (owned/added) will be applied below
+            }
+        } else if (!scope.all) {
+            // For non-admin/non-superadmin users, if 'all projects' or no project specified,
+            // filter tasks by projects they are a member of.
+            const employee = await prisma.employee.findUnique({ where: { userId } });
+            if (!employee) {
+                // If user is not an employee, they can only see tasks they created
+                where.createdById = userId;
+                where.projectId = null; // And only if task is not part of any project
+            } else {
+                const memberProjects = await prisma.projectMember.findMany({
+                    where: { employeeId: employee.id },
+                    select: { projectId: true }
+                });
+                const accessibleProjectIds = memberProjects.map(m => m.projectId);
+
+                // Allow tasks from accessible projects OR tasks not in a project created by the user
+                where.OR = [
+                    { projectId: { in: accessibleProjectIds } },
+                    { projectId: null, createdById: userId }
+                ];
+            }
+        }
+        // If scope.all is true, no project-level filtering needed beyond initial companyId
+
+        // Apply task-level permissions (owned/added) if not 'all' access and not filtering by a specific project they manage
+        if (!scope.all && (!projectId || projectId === 'all')) {
+            const orConditions: any[] = [];
+            if (scope.owned) {
+                orConditions.push({ assignedToId: userId });
+                orConditions.push({ assignees: { some: { userId } } });
+                orConditions.push({ assignedToId: null });
+            }
+            if (scope.added) {
+                orConditions.push({ createdById: userId });
+            }
+            if (orConditions.length > 0) {
+                where.AND = [where.AND || {}, { OR: orConditions }];
+            } else if (!scope.all) {
+                // If no conditions match and not all scope, return empty result
+                return res.json({ tasks: [], pagination: { totalPages: 0, totalTasks: 0 } });
+            }
+        }
+
+        // Count total tasks for pagination
+        const totalTasks = await prisma.task.count({ where });
+        const totalPages = Math.ceil(totalTasks / effectiveLimit);
+
+        const tasks = await prisma.task.findMany({
+            where,
+            orderBy: { position: 'asc' },
+            skip,
+            take: effectiveLimit,
+            include: {
+                project: { select: { id: true, name: true } },
+                assignee: { select: { id: true, firstName: true, lastName: true } },
+                assignees: { include: { user: { select: { id: true, firstName: true, lastName: true } } } },
+                epic: { select: { id: true, title: true } },
                 _count: { select: { comments: true, documents: true, subtasks: true } },
                 comments: {
                     orderBy: { createdAt: 'desc' },
                     take: 1,
                     select: { clientId: true, userId: true }
                 }
-            },
-            orderBy: { position: 'asc' },
-            take: pageSize,
-            skip
-            }),
-            prisma.task.count({ where })
-        ]);
-
-        const tasksWithMeta = tasks.map(task => ({
-            ...task,
-            hasUnansweredComment: task.comments.length > 0 && task.comments[0].clientId !== null && task.comments[0].userId === null
-        }));
-
-        res.json({
-            tasks: tasksWithMeta,
-            pagination: {
-                page: pageNum,
-                limit: pageSize,
-                total,
-                totalPages: Math.ceil(total / pageSize)
             }
         });
+
+        const tasksWithUnansweredComments = tasks.map(task => {
+            const lastComment = task.comments[0];
+            const hasUnansweredComment = lastComment ? lastComment.clientId !== null && lastComment.userId === null : false;
+            const { comments, ...rest } = task as any;
+            return { ...rest, hasUnansweredComment };
+        });
+
+        res.json({
+            tasks: tasksWithUnansweredComments,
+            pagination: {
+                totalTasks,
+                totalPages,
+                currentPage: effectivePage,
+                hasNextPage: effectivePage < totalPages,
+                hasPrevPage: effectivePage > 1
+            }
+        });
+
     } catch (error) {
+        console.error('Error fetching tasks:', error);
         res.status(500).json({ error: 'Failed to fetch tasks' });
     }
 };

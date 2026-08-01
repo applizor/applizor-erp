@@ -140,48 +140,48 @@ export default function SubscriptionPlansPage() {
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {plans.map((plan) => (
-                        <div key={plan.id} className="ent-card border-t-4 border-t-primary-600">
+                        <div key={plan.id} className="group ent-card border-t-4 border-t-primary-600 p-6 flex flex-col h-full animate-fade-in">
                             <div className="flex justify-between items-start mb-4">
                                 <div>
-                                    <h3 className="text-sm font-black uppercase text-gray-900">{plan.name}</h3>
-                                    <div className="flex flex-wrap gap-1.5 mt-1">
+                                    <h3 className="text-sm font-black uppercase text-gray-900 tracking-tight">{plan.name}</h3>
+                                    <div className="flex flex-wrap gap-1.5 mt-2">
                                         <span className="text-[9px] text-slate-400 font-black uppercase tracking-widest">{plan.code}</span>
                                         {plan.service && (
-                                            <span className="text-[8px] bg-slate-100 text-slate-600 font-extrabold uppercase px-1.5 rounded">
-                                                {plan.service.name} ({plan.service.category})
+                                            <span className="text-[8px] bg-slate-100 text-slate-600 font-extrabold uppercase px-1.5 py-0.5 rounded">
+                                                {plan.service.name}
                                             </span>
                                         )}
-                                        <span className={`text-[8px] font-extrabold uppercase px-1.5 rounded ${plan.planType === 'One-time' ? 'bg-amber-50 text-amber-600 border border-amber-200' : 'bg-primary-50 text-primary-600 border border-primary-100'}`}>
+                                        <span className={`text-[8px] font-extrabold uppercase px-1.5 py-0.5 rounded ${plan.planType === 'One-time' ? 'bg-amber-50 text-amber-600 border border-amber-200' : 'bg-primary-50 text-primary-600 border border-primary-100'}`}>
                                             {plan.planType || 'SaaS'}
                                         </span>
                                     </div>
                                 </div>
-                                <div className="flex gap-2">
+                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <button onClick={() => handleEdit(plan)} className="p-1.5 text-slate-400 hover:text-primary-600 transition-colors">
                                         <Edit2 size={14} />
                                     </button>
-                                    <button onClick={() => handleDelete(plan.id)} className="p-1.5 text-slate-400 hover:text-red-600 transition-colors">
+                                    <button onClick={() => handleDelete(plan.id)} className="p-1.5 text-slate-400 hover:text-rose-600 transition-colors">
                                         <Trash2 size={14} />
                                     </button>
                                 </div>
                             </div>
 
-                            <div className="mb-6">
+                            <div className="mb-6 flex-grow">
                                 <span className="text-[10px] text-gray-500 font-bold uppercase mr-1">{plan.currency || 'INR'}</span>
-                                <span className="text-2xl font-black text-gray-900">{plan.price}</span>
-                                <span className="text-[10px] text-gray-500 font-bold uppercase ml-1">/ {plan.interval}</span>
+                                <span className="text-3xl font-black text-gray-900 tracking-tighter">{plan.price}</span>
+                                <span className="text-[10px] text-gray-400 font-bold uppercase ml-1">/ {plan.interval}</span>
                             </div>
 
                             <div className="space-y-2 mb-6">
                                 {plan.features?.map((feature: string, i: number) => (
-                                    <div key={i} className="flex items-center gap-2 text-[11px] font-bold text-slate-600">
-                                        <CheckCircle size={12} className="text-green-500" />
+                                    <div key={i} className="flex items-center gap-2 text-[11px] font-bold text-slate-600 leading-tight">
+                                        <CheckCircle size={12} className="text-emerald-500 flex-shrink-0" />
                                         {feature}
                                     </div>
                                 ))}
                             </div>
 
-                            <div className={`text-[10px] font-black uppercase px-2 py-1 rounded inline-block ${plan.isActive ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
+                            <div className={`text-[9px] font-black uppercase px-2.5 py-1 rounded-full inline-block self-start ${plan.isActive ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
                                 {plan.isActive ? 'Active' : 'Inactive'}
                             </div>
                         </div>

@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, UserPlus, Trash2, Shield, User } from 'lucide-react';
+import { Search, UserPlus, Trash2, Shield, User, Users as UsersIcon } from 'lucide-react';
 import { employeesApi } from '@/lib/api/employees';
+import { teamsApi } from '@/lib/api/teams';
 import api from '@/lib/api';
 import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
@@ -18,11 +19,14 @@ export default function ProjectMembersPage({ params }: { params: { id: string } 
     // Search State
     const [search, setSearch] = useState('');
     const [employees, setEmployees] = useState<any[]>([]);
+    const [teams, setTeams] = useState<any[]>([]);
+    const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
     const [searchLoading, setSearchLoading] = useState(false);
     const [roleToAssign, setRoleToAssign] = useState('member');
 
     useEffect(() => {
         fetchProject();
+        fetchTeams();
     }, [params.id]);
 
     const fetchProject = async () => {
@@ -33,12 +37,33 @@ export default function ProjectMembersPage({ params }: { params: { id: string } 
             ]);
             setProject(projRes.data);
             setMembers(projRes.data.members || []);
-            setTasks(tasksRes.data || []);
+            setTasks(tasksRes.data?.tasks || tasksRes.data || []);
         } catch (error) {
             console.error(error);
             toast.error('Failed to load project team data');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchTeams = async () => {
+        try {
+            const res = await teamsApi.getAll();
+            setTeams(res.data || res || []);
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
+    const handleAssignTeam = async () => {
+        if (!selectedTeam) return;
+        try {
+            await api.post(`/projects/${params.id}/members`, { teamId: selectedTeam, role: roleToAssign });
+            toast.success('Team members assigned successfully.');
+            fetchProject();
+            setSelectedTeam(null);
+        } catch (error: any) {
+            toast.error(error.response?.data?.error || 'Failed to assign team.');
         }
     };
 
@@ -81,6 +106,16 @@ export default function ProjectMembersPage({ params }: { params: { id: string } 
             fetchProject(); // Refresh list
         } catch (error: any) {
             toast.error(error.response?.data?.error || 'Failed to add member');
+        }
+    };
+
+    const handleRoleChange = async (memberId: string, newRole: string) => {
+        try {
+            await api.put(`/projects/${params.id}/members/${memberId}`, { role: newRole });
+            toast.success('Member role updated successfully');
+            fetchProject();
+        } catch (error: any) {
+            toast.error(error.response?.data?.error || 'Failed to update member role');
         }
     };
 
@@ -137,9 +172,16 @@ export default function ProjectMembersPage({ params }: { params: { id: string } 
                                                     {member.employee.position?.title || 'No Position'}
                                                 </span>
                                                 <span className="text-gray-300">|</span>
-                                                <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${member.role === 'manager' ? 'bg-primary-50 text-primary-700' : 'bg-gray-100 text-gray-600'}`}>
-                                                    {member.role}
-                                                </span>
+                                                <select
+                                                     value={member.role}
+                                                     onChange={(e) => handleRoleChange(member.id, e.target.value)}
+                                                     className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded border border-gray-200 cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary-500 ${member.role === 'manager' ? 'bg-primary-50 text-primary-700 border-primary-100' : 'bg-gray-50 text-gray-600 border-gray-200'}`}
+                                                 >
+                                                     <option value="member">Team Member</option>
+                                                     <option value="lead">Team Lead</option>
+                                                     <option value="manager">Project Manager</option>
+                                                     <option value="viewer">Viewer</option>
+                                                 </select>
                                             </div>
 
                                             {/* Workload Indicator */}
@@ -197,6 +239,31 @@ export default function ProjectMembersPage({ params }: { params: { id: string } 
                         </h3>
 
                         <div className="space-y-4">
+                            {/* Bulk Assign by Team */}
+                            <div className="p-3 bg-primary-50/50 border border-primary-100 rounded-md">
+                                <label className="ent-label block mb-1 flex items-center gap-1.5">
+                                    <UsersIcon size={11} className="text-primary-600" /> Assign Whole Team
+                                </label>
+                                <CustomSelect
+                                    options={teams.map(t => ({ label: `${t.name} (${t._count?.members ?? 0})`, value: t.id }))}
+                                    value={selectedTeam || ''}
+                                    onChange={(val) => setSelectedTeam(val || null)}
+                                    placeholder="Search or select a team..."
+                                />
+                                <button
+                                    onClick={handleAssignTeam}
+                                    disabled={!selectedTeam}
+                                    className="w-full mt-2 px-4 py-2 bg-primary-600 text-white rounded-md text-[10px] font-black uppercase tracking-widest hover:bg-primary-700 transition-all disabled:bg-gray-300 disabled:cursor-not-allowed active:scale-95"
+                                >
+                                    Assign {selectedTeam ? 'Team' : 'Members'} to Project
+                                </button>
+                            </div>
+
+                            <div className="relative my-2 text-center">
+                                <span className="text-[10px] font-bold text-slate-400 bg-white px-2 z-10 relative uppercase tracking-widest">OR</span>
+                                <hr className="absolute top-1/2 left-0 w-full -translate-y-1/2 border-slate-100" />
+                            </div>
+
                             <div>
                                 <label className="ent-label block mb-1">Assign Role</label>
                                 <CustomSelect

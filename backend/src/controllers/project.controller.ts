@@ -518,23 +518,59 @@ export const deleteProject = async (req: AuthRequest, res: Response) => {
 export const addProjectMember = async (req: AuthRequest, res: Response) => {
     try {
         const { id } = req.params;
-        const { employeeId, role } = req.body;
+        const { employeeId, teamId, role } = req.body;
 
         const project = await prisma.project.findFirst({
             where: { id, companyId: req.user!.companyId }
         });
         if (!project) return res.status(404).json({ error: 'Project not found' });
 
-        const member = await prisma.projectMember.create({
-            data: {
-                projectId: id,
-                employeeId,
-                role
+        if (employeeId) {
+            // SINGLE MEMBER ADD
+            const member = await prisma.projectMember.create({
+                data: {
+                    projectId: id,
+                    employeeId,
+                    role: role || 'member'
+                }
+            });
+            return res.status(201).json(member);
+        }
+
+        if (teamId) {
+            // BULK TEAM ADD — add every member of the team to the project
+            const teamMembers = await prisma.employeeTeamMember.findMany({
+                where: { teamId: String(teamId) }
+            });
+
+            if (teamMembers.length === 0) {
+                return res.status(400).json({ error: 'Team has no members to add.' });
             }
-        });
-        res.status(201).json(member);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to add member' });
+
+            const dataToCreate = teamMembers.map(tm => ({
+                projectId: id,
+                employeeId: tm.employeeId,
+                role: role || 'member'
+            }));
+
+            const result = await prisma.projectMember.createMany({
+                data: dataToCreate,
+                skipDuplicates: true
+            });
+
+            return res.status(201).json({
+                message: `${result.count} members added to the project.`,
+                count: result.count
+            });
+        }
+
+        return res.status(400).json({ error: 'Either employeeId or teamId must be provided.' });
+    } catch (error: any) {
+        console.error('Add project member error:', error);
+        if (error.code === 'P2002') {
+            return res.status(409).json({ error: 'Member already exists in this project.' });
+        }
+        res.status(500).json({ error: 'Failed to add member(s) to project.' });
     }
 };
 
@@ -1006,5 +1042,37 @@ export const generateSOW = async (req: AuthRequest, res: Response) => {
     } catch (error) {
         console.error('Generate SOW Error:', error);
         res.status(500).json({ error: 'Failed to generate SOW' });
+    }
+};
+
+export const updateProjectMember = async (req: AuthRequest, res: Response) => {
+    try {
+        const { id, memberId } = req.params;
+        const { role, canManageTasks, canManageTeam, canViewBudget } = req.body;
+
+        const project = await prisma.project.findFirst({
+            where: { id, companyId: req.user!.companyId }
+        });
+        if (!project) return res.status(404).json({ error: 'Project not found' });
+
+        const member = await prisma.projectMember.findFirst({
+            where: { id: memberId, projectId: id }
+        });
+        if (!member) return res.status(404).json({ error: 'Member not found' });
+
+        const updated = await prisma.projectMember.update({
+            where: { id: memberId },
+            data: {
+                role: role !== undefined ? role : member.role,
+                canManageTasks: canManageTasks !== undefined ? canManageTasks : member.canManageTasks,
+                canManageTeam: canManageTeam !== undefined ? canManageTeam : member.canManageTeam,
+                canViewBudget: canViewBudget !== undefined ? canViewBudget : member.canViewBudget
+            }
+        });
+
+        res.json(updated);
+    } catch (error) {
+        console.error('Update member error:', error);
+        res.status(500).json({ error: 'Failed to update member role.' });
     }
 };

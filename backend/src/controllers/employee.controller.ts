@@ -454,7 +454,7 @@ export const getEmployees = async (req: AuthRequest, res: Response) => {
             companyId: companyId
         };
 
-        const { departmentId, status } = req.query;
+        const { departmentId, status, search } = req.query;
         if (departmentId && typeof departmentId === 'string' && departmentId !== '') {
             whereClause.departmentId = departmentId;
         }
@@ -472,6 +472,16 @@ export const getEmployees = async (req: AuthRequest, res: Response) => {
             'userId'
         );
         whereClause.AND = [scopeFilter];
+
+        if (search && typeof search === 'string' && search !== '') {
+            whereClause.AND.push({
+                OR: [
+                    { firstName: { contains: search, mode: 'insensitive' } },
+                    { lastName: { contains: search, mode: 'insensitive' } },
+                    { email: { contains: search, mode: 'insensitive' } }
+                ]
+            });
+        }
 
         // Bypass old manual logic
         let canViewAll = true;
@@ -494,7 +504,6 @@ export const getEmployees = async (req: AuthRequest, res: Response) => {
             });
         }
 
-        // 2. Apply Filters
         // 2. Apply Filters
         if (!canViewAll) {
             const orConditions: any[] = [];
@@ -523,9 +532,7 @@ export const getEmployees = async (req: AuthRequest, res: Response) => {
             }
 
             if (orConditions.length > 0) {
-                whereClause.AND = [
-                    { OR: orConditions }
-                ];
+                whereClause.AND.push({ OR: orConditions });
             } else {
                 return res.json([]);
             }

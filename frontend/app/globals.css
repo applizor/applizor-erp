@@ -53,6 +53,27 @@
     @apply bg-white/70 backdrop-blur-md border border-white/20;
   }
 
+  /* Animation Utilities */
+  .transition-modal {
+    @apply transition-all duration-300 ease-out;
+  }
+
+  .modal-enter {
+    @apply opacity-0 scale-95;
+  }
+
+  .modal-enter-active {
+    @apply opacity-100 scale-100;
+  }
+
+  .modal-exit {
+    @apply opacity-100 scale-100;
+  }
+
+  .modal-exit-active {
+    @apply opacity-0 scale-95;
+  }
+
   /* Shimmer Animation for Skeletons */
   .shimmer {
     @apply relative overflow-hidden bg-slate-200;
@@ -86,9 +107,13 @@
     @apply bg-slate-50/50;
   }
 
+  .ent-table tbody tr {
+    @apply transition-colors duration-150;
+  }
+
   /* Enterprise Card - Normalized for Consistency */
   .ent-card {
-    @apply bg-white border border-slate-100 rounded-md shadow-sm hover:shadow-md transition-all duration-300;
+    @apply bg-white border border-slate-100 rounded-md shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300;
   }
 
   /* Premium Buttons - Revised for High Density & Brand Styling */
@@ -242,6 +267,23 @@
 
 .animate-fade-in {
   animation: fade-in 0.4s ease-out forwards;
+}
+
+/* Page transition (used by (main)/template.tsx) */
+.page-transition {
+  animation: fade-in-up 0.3s ease-out both;
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Custom Scrollbar */

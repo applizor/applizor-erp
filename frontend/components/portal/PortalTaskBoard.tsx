@@ -2,7 +2,13 @@ import { MoreHorizontal, MessageSquare, Paperclip, CheckCircle2, ListTodo, Circl
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import api from '@/lib/api';
 import { useToast } from '@/hooks/useToast';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+
+const COLUMNS = [
+    { id: 'todo', title: 'To Do', icon: Circle, color: 'text-slate-500', bg: 'bg-slate-50', border: 'border-slate-200' },
+    { id: 'in-progress', title: 'In Progress', icon: PlayCircle, color: 'text-blue-600', bg: 'bg-blue-50/50', border: 'border-blue-200' },
+    { id: 'done', title: 'Completed', icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50/50', border: 'border-emerald-200' }
+];
 
 interface PortalTaskBoardProps {
     tasks: any[];
@@ -17,93 +23,71 @@ export default function PortalTaskBoard({ tasks: initialTasks, onTaskClick }: Po
         setTasks(initialTasks);
     }, [initialTasks]);
 
-    const calculatePosition = (items: any[], index: number) => {
+    const calculatePosition = useCallback((items: any[], index: number) => {
         if (items.length === 0) return 0;
         if (index === 0) return (items[0]?.position ?? 0) - 1024;
         if (index >= items.length) return (items[items.length - 1]?.position ?? 0) + 1024;
-        
         const prev = items[index - 1]?.position ?? 0;
         const next = items[index]?.position ?? 0;
         return (prev + next) / 2;
-    };
+    }, []);
 
-    const onDragEnd = async (result: DropResult) => {
+    const onDragEnd = useCallback(async (result: DropResult) => {
         const { source, destination, draggableId } = result;
         if (!destination) return;
         if (source.droppableId === destination.droppableId && source.index === destination.index) return;
 
         const allTasks = [...tasks];
-        const [movedTask] = allTasks.filter(t => t.id === draggableId);
-        if (!movedTask) return;
+        const movedTaskIndex = allTasks.findIndex(t => t.id === draggableId);
+        if (movedTaskIndex === -1) return;
 
+        const movedTask = allTasks[movedTaskIndex];
         const newStatus = destination.droppableId;
         const updatedTask = { ...movedTask, status: newStatus };
-        
-        // Remove from old list and add to new list in UI state first for snappy feel
-        const otherTasks = allTasks.filter(t => t.id !== draggableId);
-        const colTasks = otherTasks.filter(t => {
+
+        // Optimistically update UI
+        allTasks.splice(movedTaskIndex, 1); // remove from old position
+
+        const destinationColTasks = allTasks.filter(t => {
             if (newStatus === 'todo') return ['todo', 'backlog'].includes(t.status);
             if (newStatus === 'in-progress') return ['in-progress', 'review'].includes(t.status);
             if (newStatus === 'done') return ['done', 'cancelled'].includes(t.status);
             return false;
         }).sort((a, b) => (a.position || 0) - (b.position || 0));
 
-        const newPosition = calculatePosition(colTasks, destination.index);
+        const newPosition = calculatePosition(destinationColTasks, destination.index);
         updatedTask.position = newPosition;
 
-        setTasks(prev => {
-            const next = prev.map(t => t.id === draggableId ? updatedTask : t);
-            return next;
-        });
+        // This seems complex, let's just update state
+        const nextState = tasks.map(t => t.id === draggableId ? updatedTask : t);
+        setTasks(nextState);
 
         try {
             await api.put(`/portal/tasks/${draggableId}`, { status: newStatus, position: newPosition });
         } catch (error) {
             toast.error('Failed to update task position');
-            setTasks(initialTasks); // Revert
+            setTasks(initialTasks); // Revert on failure
         }
-    };
-    const columns = [
-        {
-            id: 'todo',
-            title: 'To Do',
-            icon: Circle,
-            color: 'text-slate-500',
-            bg: 'bg-slate-50',
-            border: 'border-slate-200'
-        },
-        {
-            id: 'in-progress',
-            title: 'In Progress',
-            icon: PlayCircle,
-            color: 'text-blue-600',
-            bg: 'bg-blue-50/50',
-            border: 'border-blue-200'
-        },
-        {
-            id: 'done',
-            title: 'Completed',
-            icon: CheckCircle2,
-            color: 'text-emerald-600',
-            bg: 'bg-emerald-50/50',
-            border: 'border-emerald-200'
-        }
-    ];
+    }, [tasks, initialTasks, calculatePosition, toast]);
 
-    const getTasksByStatus = (status: string) => {
-        let filtered = [];
-        if (status === 'todo') filtered = tasks.filter(t => ['todo', 'backlog'].includes(t.status));
-        else if (status === 'in-progress') filtered = tasks.filter(t => ['in-progress', 'review'].includes(t.status));
-        else if (status === 'done') filtered = tasks.filter(t => ['done', 'cancelled'].includes(t.status));
-        
-        return filtered.sort((a, b) => (a.position || 0) - (b.position || 0));
-    };
+    const columns = COLUMNS;
+
+    const groupedTasks = useMemo(() => {
+        const groups: Record<string, any[]> = { todo: [], 'in-progress': [], done: [] };
+        tasks.forEach(task => {
+            if (['todo', 'backlog'].includes(task.status)) groups.todo.push(task);
+            else if (['in-progress', 'review'].includes(task.status)) groups['in-progress'].push(task);
+            else if (['done', 'cancelled'].includes(task.status)) groups.done.push(task);
+        });
+        Object.values(groups).forEach(group => group.sort((a, b) => (a.position || 0) - (b.position || 0)));
+        return groups;
+    }, [tasks]);
 
     return (
         <DragDropContext onDragEnd={onDragEnd}>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full overflow-hidden">
                 {columns.map(col => {
-                    const colTasks = getTasksByStatus(col.id);
+                    const colTasks = groupedTasks[col.id] || [];
                     return (
                         <div key={col.id} className="flex flex-col h-full bg-slate-50/50 rounded-xl border border-slate-200/60 overflow-hidden">
                             {/* Column Header */}

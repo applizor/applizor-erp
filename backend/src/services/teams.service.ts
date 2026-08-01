@@ -37,13 +37,14 @@ export class TeamsService {
         }
 
         // Auto-store teamId from incoming webhook
-        const teamId = body.channelIdentity?.teamId || integration.settings?.teamId;
-        if (teamId && !integration.settings?.teamId) {
+        const settings = integration.settings as any;
+        const teamId = body.channelIdentity?.teamId || settings?.teamId;
+        if (teamId && !settings?.teamId) {
             await prisma.projectIntegration.update({
                 where: { id: integration.id },
-                data: { settings: { ...integration.settings, teamId } }
+                data: { settings: { ...(settings || {}), teamId } }
             });
-            integration.settings = { ...integration.settings, teamId };
+            integration.settings = { ...(settings || {}), teamId };
         }
 
         // Check if there's an existing task for this thread
@@ -140,9 +141,10 @@ export class TeamsService {
         const messageText = `**${senderName}:** ${comment.content.replace(/<[^>]+>/g, '').replace(/\n/g, ' ')}`;
 
         // Method 1: Try webhook URL (Power Automate)
-        if (integration.settings?.webhookUrl) {
+        const settings = integration.settings as any;
+        if (settings?.webhookUrl) {
             try {
-                await axios.post(integration.settings.webhookUrl, {
+                await axios.post(settings.webhookUrl, {
                     text: messageText
                 });
                 console.log(`[Teams] Comment posted via webhook to channel ${channelId}`);
@@ -153,7 +155,7 @@ export class TeamsService {
         }
 
         // Method 2: Try Graph API with access token
-        const teamId = integration.settings?.teamId;
+        const teamId = settings?.teamId;
         if (teamId && integration.accessToken) {
             const graphUrl = `https://graph.microsoft.com/v1.0/teams/${teamId}/channels/${channelId}/messages/${threadId}/replies`;
             try {

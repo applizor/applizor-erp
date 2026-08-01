@@ -24,6 +24,7 @@ router.get('/:id/sow', checkPermission('Project', 'read'), projectController.gen
 
 // Members
 router.post('/:id/members', checkPermission('Project', 'update'), projectController.addProjectMember);
+router.put('/:id/members/:memberId', checkPermission('Project', 'update'), projectController.updateProjectMember);
 router.delete('/:id/members/:memberId', checkPermission('Project', 'update'), projectController.removeProjectMember);
 
 // Milestones

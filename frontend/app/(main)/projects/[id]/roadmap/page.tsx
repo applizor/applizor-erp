@@ -36,7 +36,7 @@ export default function RoadmapPage() {
         try {
             setLoading(true);
             const res = await api.get(`/tasks?projectId=${projectId}&type=epic`);
-            setEpics(res.data);
+            setEpics(res.data?.tasks || res.data || []);
         } catch (error) {
             toast.error('Failed to load roadmap');
         } finally {

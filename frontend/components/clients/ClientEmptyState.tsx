@@ -4,7 +4,7 @@ import { Users, Plus, FileText } from 'lucide-react';
 
 export function ClientEmptyState() {
     return (
-        <div className="text-center py-12 bg-white rounded-lg shadow-sm border-2 border-dashed border-gray-300">
+        <div className="text-center py-12 bg-white rounded-lg shadow-sm border-2 border-dashed border-gray-300 animate-fade-in">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary-100 mb-4">
                 <Users className="w-8 h-8 text-primary-600" />
             </div>

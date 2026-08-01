@@ -80,7 +80,7 @@ export const DropdownMenuContent = ({
     return (
         <div
             ref={ref}
-            className={`absolute z-50 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none ${alignmentClasses[align]} ${className || ''}`}
+            className={`absolute z-50 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none ${alignmentClasses[align]} ${className || ''} animate-in fade-in zoom-in-95 duration-100`}
         >
             <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
                 {children}

@@ -178,10 +178,10 @@ export default function NotificationCenter() {
                             </div>
                         ) : (
                             <div className="divide-y divide-gray-50">
-                                {notifications.map((notification) => (
+                                {notifications.map((notification, idx) => (
                                     <div
                                         key={notification.id}
-                                        className={`p-3 hover:bg-gray-50 transition-colors group relative ${!notification.isRead ? 'bg-primary-50/30' : ''}`}
+                                        className={`p-3 hover:bg-gray-50 transition-colors group relative ${!notification.isRead ? 'bg-primary-50/30' : ''} ${idx < 3 ? 'animate-in fade-in slide-in-from-top-1 duration-200' : ''}`}
                                     >
                                         <div onClick={() => handleNotificationClick(notification)} className="cursor-pointer">
                                             <div className="flex justify-between items-start gap-2 mb-1">

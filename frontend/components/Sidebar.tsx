@@ -40,7 +40,7 @@ import {
     Database
 } from 'lucide-react';
 import { auth, useAuth } from '@/lib/auth';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { usePermission } from '@/hooks/usePermission';
 
 export default function Sidebar() {
@@ -72,11 +72,14 @@ export default function Sidebar() {
 
     const activeLinkRef = useRef<HTMLAnchorElement>(null);
 
-    const navigation = [
+    // Static nav definition — hoisted out of render via useMemo so the whole
+    // permission filtering below only recomputes when user/can actually change.
+    const navigation = useMemo(() => [
         { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, category: 'Main' },
 
         // HRMS (People)
         { name: 'Employees', href: '/hrms/employees', icon: Users, category: 'HRMS', module: 'Employee' },
+        { name: 'Teams', href: '/hrms/teams', icon: Users, category: 'HRMS', module: 'EmployeeTeam' },
         { name: 'Departments', href: '/hrms/departments', icon: Layers, category: 'HRMS', module: 'Department', action: 'update' },
         { name: 'Positions', href: '/hrms/positions', icon: Briefcase, category: 'HRMS', module: 'Position', action: 'update' },
         { name: 'Assets', href: '/hrms/assets', icon: CreditCard, category: 'HRMS', module: 'Asset' },
@@ -160,7 +163,7 @@ export default function Sidebar() {
         { name: 'Tenant Plans', href: '/superadmin/plans', icon: CreditCard, category: 'Platform Admin', role: 'Super Admin' },
         { name: 'Statutory Rules', href: '/superadmin/rules', icon: ShieldCheck, category: 'Platform Admin', role: 'Super Admin' },
         { name: 'COA Templates', href: '/superadmin/coa', icon: BookOpen, category: 'Platform Admin', role: 'Super Admin' },
-    ];
+    ], []);
 
     const [isHovered, setIsHovered] = useState(false);
 
@@ -177,8 +180,9 @@ export default function Sidebar() {
     const { can } = usePermission();
     const isStudent = user?.roles?.some(r => r.toLowerCase() === 'student');
 
-    // Filter navigation based on permissions
-    const filteredNavigation = navigation
+    // Filter navigation based on permissions (memoized — only recomputes when
+    // user or `can` changes, not on every sidebar render/hover/pathname change)
+    const filteredNavigation = useMemo(() => navigation
         .map(item => {
             if (isStudent && item.name === 'Courses') {
                 return { ...item, name: 'My Courses' };
@@ -229,13 +233,13 @@ export default function Sidebar() {
                 }
             }
             return true;
-        });
+        }), [navigation, isStudent, user, can]);
 
-    const groupedNav = filteredNavigation.reduce((acc, item: any) => {
+    const groupedNav = useMemo(() => filteredNavigation.reduce((acc, item: any) => {
         if (!acc[item.category]) acc[item.category] = [];
         acc[item.category].push(item);
         return acc;
-    }, {} as Record<string, typeof navigation>);
+    }, {} as Record<string, typeof filteredNavigation>), [filteredNavigation]);
 
     // Initialize expanded state based on active route and scroll to active item
     useEffect(() => {

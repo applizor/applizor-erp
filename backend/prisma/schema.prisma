@@ -196,6 +196,7 @@ model Company {
   lectures              Lecture[]
   exams                 Exam[]
   statutoryRules        StatutoryRule[]
+  employeeTeams         EmployeeTeam[]
 }
 
 model Branch {
@@ -903,6 +904,35 @@ model Department {
   @@index([companyId])
 }
 
+model EmployeeTeam {
+  id          String     @id @default(uuid())
+  companyId   String
+  name        String
+  description String?
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  company     Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  members     EmployeeTeamMember[]
+
+  @@unique([companyId, name])
+  @@index([companyId])
+}
+
+model EmployeeTeamMember {
+  id             String       @id @default(uuid())
+  teamId         String
+  employeeId     String
+  joinedAt       DateTime     @default(now())
+
+  team           EmployeeTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  employee       Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, employeeId])
+  @@index([teamId])
+  @@index([employeeId])
+}
+
 model Position {
   id           String     @id @default(uuid())
   departmentId String
@@ -977,6 +1007,7 @@ model Employee {
   payrolls               Payroll[]
   taxDeclarations        TaxDeclaration[]
   projectMemberships     ProjectMember[]
+  teamMemberships        EmployeeTeamMember[]
   salesTargets           SalesTarget[]
   shiftRosters           ShiftRoster[]
   timesheets             Timesheet[]

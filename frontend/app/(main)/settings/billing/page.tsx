@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
 import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { ShieldCheck, CreditCard, Users, Database, Building, CheckCircle2, ChevronRight, AlertTriangle, X } from 'lucide-react';
 
 interface TenantPlan {
@@ -188,12 +187,11 @@ export default function SaaSBillingPage() {
       {subDetails && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Current plan details */}
-          <Card className="lg:col-span-1 border-t-4 border-t-indigo-600 bg-white">
-            <CardHeader>
-              <CardTitle>Current Plan Tiers</CardTitle>
-              <CardDescription>Details of active subscription</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
+          <div className="ent-card p-6 lg:col-span-1 border-t-4 border-t-indigo-600 bg-white">
+              <h3 className="text-sm font-black uppercase text-slate-900 tracking-tight mb-1">Current Plan Tiers</h3>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-6">Details of active subscription</p>
+
+              <div className="space-y-4">
               <div>
                 <h3 className="text-base font-black text-slate-900 uppercase">{subDetails.plan?.name}</h3>
                 <span className="text-[9px] font-mono text-slate-400 uppercase tracking-wider block mt-0.5">
@@ -219,19 +217,17 @@ export default function SaaSBillingPage() {
                 </span>
                 <span className="text-[9px] text-slate-400 font-bold uppercase ml-1">/ {subDetails.plan?.billingInterval}</span>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Usage quotas */}
           {usage && (
-            <Card className="lg:col-span-2 bg-white">
-              <CardHeader>
-                <CardTitle>Usage Utilization Quotas</CardTitle>
-                <CardDescription>Operational thresholds for company scale</CardDescription>
-              </CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="ent-card p-6 lg:col-span-2">
+              <h3 className="text-sm font-black uppercase text-slate-900 tracking-tight mb-1">Usage Utilization Quotas</h3>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-6">Operational thresholds for company scale</p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Users limit */}
-                <div className="space-y-2 p-4 bg-slate-50 rounded border border-slate-100">
+                <div className="space-y-2 p-4 bg-slate-50 rounded-lg border border-slate-100">
                   <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-wider">
                     <Users size={14} /> Team Seat Quota
                   </div>
@@ -241,13 +237,13 @@ export default function SaaSBillingPage() {
                   <div className="w-full bg-slate-200 rounded-full h-1.5 mt-2 overflow-hidden">
                     <div
                       className="bg-indigo-600 h-1.5 rounded-full"
-                      style={{ width: `${Math.min(100, (usage.usersCount / subDetails.plan?.maxUsers) * 100)}%` }}
+                      style={{ width: `${Math.min(100, (usage.usersCount / (subDetails.plan?.maxUsers || 1)) * 100)}%` }}
                     />
                   </div>
                 </div>
 
                 {/* Storage limit */}
-                <div className="space-y-2 p-4 bg-slate-50 rounded border border-slate-100">
+                <div className="space-y-2 p-4 bg-slate-50 rounded-lg border border-slate-100">
                   <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-wider">
                     <Database size={14} /> Cloud Storage Gb
                   </div>
@@ -257,13 +253,13 @@ export default function SaaSBillingPage() {
                   <div className="w-full bg-slate-200 rounded-full h-1.5 mt-2 overflow-hidden">
                     <div
                       className="bg-indigo-600 h-1.5 rounded-full"
-                      style={{ width: `${Math.min(100, (usage.storageGbUsed / subDetails.plan?.maxStorageGb) * 100)}%` }}
+                      style={{ width: `${Math.min(100, (usage.storageGbUsed / (subDetails.plan?.maxStorageGb || 1)) * 100)}%` }}
                     />
                   </div>
                 </div>
 
                 {/* Entity limit */}
-                <div className="space-y-2 p-4 bg-slate-50 rounded border border-slate-100">
+                <div className="space-y-2 p-4 bg-slate-50 rounded-lg border border-slate-100">
                   <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-wider">
                     <Building size={14} /> Subsidiaries / Entities
                   </div>
@@ -273,12 +269,12 @@ export default function SaaSBillingPage() {
                   <div className="w-full bg-slate-200 rounded-full h-1.5 mt-2 overflow-hidden">
                     <div
                       className="bg-indigo-600 h-1.5 rounded-full"
-                      style={{ width: `${Math.min(100, (usage.companiesCount / subDetails.plan?.maxCompanies) * 100)}%` }}
+                      style={{ width: `${Math.min(100, (usage.companiesCount / (subDetails.plan?.maxCompanies || 1)) * 100)}%` }}
                     />
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           )}
         </div>
       )}
@@ -292,14 +288,14 @@ export default function SaaSBillingPage() {
             return (
               <div
                 key={plan.id}
-                className={`ent-card bg-white flex flex-col justify-between transition-all ${
-                  isActivePlan ? 'ring-2 ring-indigo-600 shadow-md border-transparent' : ''
+                className={`group ent-card bg-white flex flex-col justify-between p-6 transition-all hover:-translate-y-1 hover:shadow-lg ${
+                  isActivePlan ? 'ring-2 ring-indigo-600 shadow-md border-transparent' : 'border-slate-100'
                 }`}
               >
                 <div>
                   <div className="flex justify-between items-start mb-4">
                     <div>
-                      <h3 className="text-xs font-black uppercase text-slate-900">{plan.name}</h3>
+                      <h3 className="text-xs font-black uppercase text-slate-900 tracking-tight">{plan.name}</h3>
                       <span className="text-[8px] font-mono text-slate-400 uppercase block mt-0.5">{plan.code}</span>
                     </div>
                     {isActivePlan && (
@@ -315,16 +311,16 @@ export default function SaaSBillingPage() {
                     </p>
                   )}
 
-                  <div className="mb-6 bg-slate-50 p-3 rounded border border-slate-100">
+                  <div className="mb-6 bg-slate-50 p-4 rounded-lg border border-slate-100">
                     <span className="text-[9px] text-slate-400 font-bold uppercase mr-1">{plan.currency}</span>
-                    <span className="text-2xl font-black text-slate-900">
+                    <span className="text-3xl font-black text-slate-900 tracking-tighter">
                       {parseFloat(plan.price).toFixed(2)}
                     </span>
                     <span className="text-[9px] text-slate-400 font-bold uppercase ml-1">/ {plan.billingInterval}</span>
                   </div>
 
                   {/* Plan features list */}
-                  <div className="space-y-2 border-b border-slate-100 pb-4 mb-4">
+                  <div className="space-y-3 border-b border-slate-100 pb-4 mb-4">
                     <div className="flex justify-between items-center text-[10px] font-bold text-slate-500 uppercase tracking-wide">
                       <span>Max Users Quota</span>
                       <span className="text-slate-900 font-black">{plan.maxUsers} Users</span>
@@ -340,11 +336,11 @@ export default function SaaSBillingPage() {
                   </div>
 
                   {/* Feature checkboxes */}
-                  <div className="space-y-1.5 mb-6">
+                  <div className="space-y-2 mb-6">
                     {Object.entries(plan.features || {}).map(([key, val]) => {
                       if (!val) return null;
                       return (
-                        <div key={key} className="flex items-center gap-1.5 text-[10px] font-bold text-slate-600 uppercase">
+                        <div key={key} className="flex items-center gap-2 text-[10px] font-bold text-slate-600 uppercase">
                           <CheckCircle2 size={12} className="text-emerald-500 flex-shrink-0" />
                           {key.replace(/([A-Z])/g, ' $1').trim()}
                         </div>

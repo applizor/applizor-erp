@@ -146,9 +146,11 @@ app.use('/api/quotation-templates', quotationTemplateRoutes);
 import departmentRoutes from './routes/department.routes';
 import positionRoutes from './routes/position.routes';
 import employeeRoutes from './routes/employee.routes';
+import employeeTeamRoutes from './routes/employeeTeam.routes';
 app.use('/api/departments', departmentRoutes);
 app.use('/api/positions', positionRoutes);
 app.use('/api/employees', employeeRoutes);
+app.use('/api/employee-teams', employeeTeamRoutes);
 
 import recruitmentRoutes from './routes/recruitment.routes';
 app.use('/api/recruitment', recruitmentRoutes);

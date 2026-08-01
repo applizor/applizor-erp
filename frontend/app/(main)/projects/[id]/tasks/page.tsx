@@ -1,13 +1,13 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
+import { DragDropContext, Droppable, Draggable, DropResult, DraggableProvided, DraggableStateSnapshot } from '@hello-pangea/dnd';
 import { useToast } from '@/hooks/useToast';
 import api from '@/lib/api';
 import { useParams, useSearchParams } from 'next/navigation';
 import {
-    Plus, MoreVertical, Paperclip, MessageSquare, Bug, Bookmark, Layout, CheckSquare,
-    Filter, LayoutGrid, Users, Calendar, Clock, Copy, Edit2, Trash2, Link as LinkIcon, ListTree
+    Plus, MoreVertical, MessageSquare, Bug, Bookmark, Layout, CheckSquare,
+    LayoutGrid, Users, Clock, Copy, Edit2, Trash2, Link as LinkIcon, ListTree
 } from 'lucide-react';
 import TaskDetailModal from '@/components/tasks/TaskDetailModal';
 import { TaskFilterBar } from '@/components/tasks/TaskFilterBar';
@@ -76,9 +76,142 @@ const COLUMNS = {
     'done': { title: 'Done', color: 'bg-emerald-50 border-emerald-200 text-emerald-700' },
 };
 
+// Memoized task card. React.memo keeps the whole board from re-rendering every
+// card when an unrelated card's selection/menu state changes. Keep the props
+// (task ref, booleans, stable callbacks) small so the comparison stays cheap.
+interface TaskCardProps {
+    task: Task;
+    index: number;
+    isSelected: boolean;
+    isMenuOpen: boolean;
+    onSelect: (taskId: string) => void;
+    onOpen: (taskId: string) => void;
+    onMenuToggle: (e: React.MouseEvent, taskId: string) => void;
+    onQuickLog: (task: Task) => void;
+}
+
+const TaskCard = React.memo(function TaskCard({ task, index, isSelected, isMenuOpen, onSelect, onOpen, onMenuToggle, onQuickLog }: TaskCardProps) {
+    return (
+        <Draggable draggableId={task.id} index={index}>
+            {(provided: DraggableProvided, snapshot: DraggableStateSnapshot) => (
+                <div
+                    ref={provided.innerRef}
+                    {...provided.draggableProps}
+                    {...provided.dragHandleProps}
+                    onClick={() => onOpen(task.id)}
+                    className={`bg-white p-4 rounded-lg border shadow-sm group cursor-pointer ${task.hasUnansweredComment ? 'border-amber-400 ring-2 ring-amber-400/20 animate-pulse-subtle' : 'border-slate-200'} ${snapshot.isDragging ? 'rotate-1 shadow-xl ring-2 ring-primary-500/20 z-50 transition-none' : 'transition-all duration-200 hover:border-primary-300 hover:shadow-md active:scale-[0.985]'}`}
+                >
+                    {/* Task Checkbox & ID */}
+                    <div className="flex justify-between items-start mb-3">
+                        <div className="flex gap-1.5 flex-wrap items-center">
+                            <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={(e) => { e.stopPropagation(); onSelect(task.id); }}
+                                onClick={(e) => e.stopPropagation()}
+                                className="mr-2 cursor-pointer"
+                            />
+                            <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded border ${task.priority === 'urgent' ? 'bg-rose-50 text-rose-600 border-rose-100' :
+                                task.priority === 'high' ? 'bg-orange-50 text-orange-600 border-orange-100' :
+                                    'bg-slate-50 text-slate-500 border-slate-100'
+                                }`}>
+                                {task.priority}
+                            </span>
+                            {task.hasUnansweredComment && (
+                                <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded border bg-amber-500 text-white border-amber-600 animate-pulse">
+                                    Client Message
+                                </span>
+                            )}
+                        </div>
+
+                        <button
+                            onClick={(e) => onMenuToggle(e, task.id)}
+                            className={`p-1 rounded transition-all ${isMenuOpen ? 'bg-slate-100 text-slate-900' : 'text-slate-300 opacity-0 group-hover:opacity-100 hover:text-slate-600'}`}
+                        >
+                            <MoreVertical size={14} />
+                        </button>
+                    </div>
+
+                    {/* Content */}
+                    <h4 className="text-xs font-bold text-slate-800 mb-2 leading-relaxed">
+                        {task.title}
+                    </h4>
+
+                    {/* Footer */}
+                    <div className="flex items-center justify-between mt-4 border-t border-slate-50 pt-3">
+                        <div className="flex items-center gap-2">
+                            <div title={task.type}>
+                                {task.type === 'bug' ? <Bug size={14} className="text-rose-500" /> :
+                                    task.type === 'story' ? <Bookmark size={14} className="text-emerald-500" /> :
+                                        task.type === 'epic' ? <Layout size={14} className="text-purple-600" /> :
+                                            <CheckSquare size={14} className="text-blue-500" />}
+                            </div>
+                            {task.storyPoints ? (
+                                <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-[9px] font-black">{task.storyPoints}</span>
+                            ) : null}
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                            {(task._count?.subtasks || 0) > 0 && (
+                                <div className="flex items-center gap-1 text-[10px] text-slate-400" title="Subtasks">
+                                    <ListTree size={12} /> {task._count?.subtasks}
+                                </div>
+                            )}
+                            {(task._count?.comments || 0) > 0 && (
+                                <div className="flex items-center gap-1 text-[10px] text-slate-400">
+                                    <MessageSquare size={12} /> {task._count?.comments}
+                                </div>
+                            )}
+
+                            <div className="flex -space-x-2">
+                                {task.assignee ? (
+                                    <div title={`${task.assignee.firstName} ${task.assignee.lastName}`} className="w-6 h-6 rounded-md bg-indigo-600 text-white flex items-center justify-center text-[9px] font-black border-2 border-white uppercase shadow-sm">
+                                        {task.assignee.firstName[0]}
+                                    </div>
+                                ) : (
+                                    <div className="w-6 h-6 rounded-md bg-slate-100 text-slate-300 flex items-center justify-center border-2 border-white shadow-sm">
+                                        <Users size={12} />
+                                    </div>
+                                )}
+                            </div>
+
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onQuickLog(task);
+                                }}
+                                className="w-6 h-6 rounded-md hover:bg-slate-100 text-slate-400 flex items-center justify-center transition-colors"
+                            >
+                                <Clock size={12} />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </Draggable>
+    );
+});
+
+// Placeholder card shown while a column is still loading its first page
+function TaskCardSkeleton() {
+    return (
+        <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+            <div className="flex justify-between items-start mb-3">
+                <div className="h-4 w-16 shimmer rounded" />
+                <div className="h-4 w-4 shimmer rounded" />
+            </div>
+            <div className="h-3 w-3/4 shimmer rounded mb-2" />
+            <div className="h-3 w-1/2 shimmer rounded mb-4" />
+            <div className="flex justify-between items-center pt-3 border-t border-slate-50">
+                <div className="h-4 w-4 shimmer rounded-full" />
+                <div className="h-6 w-6 shimmer rounded-md" />
+            </div>
+        </div>
+    );
+}
+
 export default function KanbanBoard() {
     const { id: projectId } = useParams();
-    const [tasks, setTasks] = useState<Task[]>([]);
     const [sprints, setSprints] = useState<any[]>([]);
     const [selectedSprintId, setSelectedSprintId] = useState<string>('all');
     const [filters, setFilters] = useState({ assigneeId: 'all', type: 'all', priority: 'all', search: '' });
@@ -95,6 +228,11 @@ export default function KanbanBoard() {
         done: { page: 1, hasMore: true, loading: false },
     });
     const PAGE_SIZE = 50;
+
+    // Mirror of `columns` for decision-making inside socket handlers without
+    // forcing the effect to re-register listeners on every board change.
+    const columnsRef = useRef(columns);
+    useEffect(() => { columnsRef.current = columns; }, [columns]);
 
     // Modal States
     const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -113,7 +251,6 @@ export default function KanbanBoard() {
     // Deep Linking State
     const searchParams = useSearchParams();
     const deepLinkedTaskId = searchParams.get('taskId');
-    const [initialLoadHandled, setInitialLoadHandled] = useState(false);
 
     // Permissions
     const [project, setProject] = useState<any>(null);
@@ -191,7 +328,7 @@ export default function KanbanBoard() {
         fetchColumnTasks(status, col.page + 1, true);
     }, [colPagination, fetchColumnTasks]);
 
-    // Keep fetchTasks for backwards compat (socket refresh, drag-drop revert)
+    // Keep fetchTasks for backwards compat (socket reconciliation, drag-drop revert)
     const fetchTasks = useCallback(async () => {
         fetchAllColumns();
     }, [fetchAllColumns]);
@@ -205,31 +342,103 @@ export default function KanbanBoard() {
         }
     }, [projectId, fetchAllColumns, fetchProjectSettings, fetchSprints]);
 
+    // Granular socket updates: apply the event payload directly to `columns`
+    // instead of refetching the whole board, so the board stays responsive
+    // when teammates edit tasks. `fetchAllColumns()` is the reconciliation
+    // fallback for payloads we can't apply locally.
+    const handleSocketEvent = useCallback((type: string, data: any) => {
+        if (!data?.projectId || data.projectId !== projectId) return;
+        const validStatus = (s: any): s is keyof typeof COLUMNS => s in COLUMNS;
+
+        if (type === 'TASK_CREATED') {
+            if (validStatus(data.status)) {
+                setColumns(prev => ({ ...prev, [data.status]: [data, ...prev[data.status]] }));
+                setTaskCounts(prev => ({ ...prev, [data.status]: (prev[data.status] ?? 0) + 1 }));
+            } else {
+                fetchAllColumns();
+            }
+            return;
+        }
+
+        if (type === 'TASK_UPDATED') {
+            if (!data.id) { fetchAllColumns(); return; }
+            const current = columnsRef.current;
+            const srcStatus = Object.keys(COLUMNS).find(col => current[col]?.some(t => t.id === data.id));
+
+            if (srcStatus && validStatus(data.status) && data.status !== srcStatus && COLUMNS[data.status as keyof typeof COLUMNS]) {
+                // Task moved columns
+                setColumns(prev => {
+                    const task = prev[srcStatus]?.find(t => t.id === data.id);
+                    if (!task) return prev;
+                    return {
+                        ...prev,
+                        [srcStatus]: prev[srcStatus].filter(t => t.id !== data.id),
+                        [data.status]: [{ ...task, ...data }, ...prev[data.status as keyof typeof COLUMNS]],
+                    };
+                });
+                setTaskCounts(prev => ({
+                    ...prev,
+                    [srcStatus]: Math.max(0, (prev[srcStatus] ?? 0) - 1),
+                    [data.status]: (prev[data.status] ?? 0) + 1,
+                }));
+            } else if (srcStatus) {
+                // Update in place (covers partial timesheet payloads too)
+                setColumns(prev => ({ ...prev, [srcStatus]: prev[srcStatus].map(t => t.id === data.id ? { ...t, ...data } : t) }));
+            } else if (validStatus(data.status)) {
+                // Not loaded yet — prepend so it appears immediately
+                setColumns(prev => ({ ...prev, [data.status]: [data, ...prev[data.status]] }));
+                setTaskCounts(prev => ({ ...prev, [data.status]: (prev[data.status] ?? 0) + 1 }));
+            }
+            return;
+        }
+
+        if (type === 'TASK_DELETED') {
+            if (!data.id) { fetchAllColumns(); return; }
+            const current = columnsRef.current;
+            const col = Object.keys(COLUMNS).find(c => current[c]?.some(t => t.id === data.id));
+            if (col) {
+                setColumns(prev => ({ ...prev, [col]: prev[col].filter(t => t.id !== data.id) }));
+                setTaskCounts(prev => ({ ...prev, [col]: Math.max(0, (prev[col] ?? 0) - 1) }));
+            }
+            return;
+        }
+
+        if (type === 'COMMENT_DELETED') {
+            if (!data.taskId) { fetchAllColumns(); return; }
+            setColumns(prev => {
+                const next: Record<string, Task[]> = { ...prev };
+                for (const col of Object.keys(COLUMNS)) {
+                    next[col] = next[col].map(t => t.id === data.taskId
+                        ? { ...t, _count: t._count ? { ...t._count, comments: Math.max(0, (t._count.comments ?? 0) - 1) } : t._count }
+                        : t);
+                }
+                return next;
+            });
+        }
+        // TIMER_UPDATED is intentionally not handled here — task cards don't
+        // display timer state, so refetching the board for it is pure waste.
+    }, [projectId, fetchAllColumns]);
+
     useEffect(() => {
         if (!socket || !projectId) return;
         const onConnect = () => socket.emit('join-project', projectId);
         if (socket.connected) onConnect();
 
-        socket.on('connect', onConnect);
-        const refresh = (data: any) => {
-            if (data.projectId === projectId) fetchTasks();
+        const handlers: Record<string, (data: any) => void> = {
+            TASK_CREATED: (data) => handleSocketEvent('TASK_CREATED', data),
+            TASK_UPDATED: (data) => handleSocketEvent('TASK_UPDATED', data),
+            TASK_DELETED: (data) => handleSocketEvent('TASK_DELETED', data),
+            COMMENT_DELETED: (data) => handleSocketEvent('COMMENT_DELETED', data),
         };
 
-        socket.on('TASK_CREATED', refresh);
-        socket.on('TASK_UPDATED', refresh);
-        socket.on('TASK_DELETED', refresh);
-        socket.on('COMMENT_DELETED', refresh);
-        socket.on('TIMER_UPDATED', refresh);
+        socket.on('connect', onConnect);
+        Object.entries(handlers).forEach(([ev, h]) => socket.on(ev, h));
 
         return () => {
             socket.off('connect', onConnect);
-            socket.off('TASK_CREATED', refresh);
-            socket.off('TASK_UPDATED', refresh);
-            socket.off('TASK_DELETED', refresh);
-            socket.off('COMMENT_DELETED', refresh);
-            socket.off('TIMER_UPDATED', refresh);
+            Object.entries(handlers).forEach(([ev, h]) => socket.off(ev, h));
         };
-    }, [socket, projectId, fetchTasks]);
+    }, [socket, projectId, handleSocketEvent]);
 
     // Close menu on scroll or click outside
     useEffect(() => {
@@ -255,28 +464,28 @@ export default function KanbanBoard() {
         fetchAllColumns();
     }, [filters.assigneeId, filters.type, filters.priority, filters.search, fetchAllColumns]);
 
-    const calculatePosition = (items: Task[], index: number) => {
+    const calculatePosition = useCallback((items: Task[], index: number) => {
         if (items.length === 0) return 0;
         if (index === 0) return (items[0]?.position ?? 0) - 1024;
         if (index >= items.length) return (items[items.length - 1]?.position ?? 0) + 1024;
-        
+
         const prev = items[index - 1]?.position ?? 0;
         const next = items[index]?.position ?? 0;
         return (prev + next) / 2;
-    };
+    }, []);
 
-    const onDragEnd = async (result: DropResult) => {
+    const onDragEnd = useCallback(async (result: DropResult) => {
         const { source, destination, draggableId } = result;
         if (!destination) return;
         if (source.droppableId === destination.droppableId && source.index === destination.index) return;
 
         const startCol = Array.from(columns[source.droppableId]);
         const finishCol = source.droppableId === destination.droppableId ? startCol : Array.from(columns[destination.droppableId]);
-        
+
         const [moved] = startCol.splice(source.index, 1);
         const newStatus = destination.droppableId;
         const updatedMoved = { ...(moved as any), status: newStatus };
-        
+
         finishCol.splice(destination.index, 0, updatedMoved);
 
         const newCols = { ...columns };
@@ -294,23 +503,23 @@ export default function KanbanBoard() {
             toast.error('Failed to update task');
             fetchTasks(); // Revert
         }
-    };
+    }, [columns, calculatePosition, fetchTasks, toast]);
 
-    const openTask = (taskId: string) => {
+    const openTask = useCallback((taskId: string) => {
         setSelectedTaskId(taskId);
         setIsDetailOpen(true);
         setActiveMenuId(null);
         const newUrl = `${window.location.pathname}?taskId=${taskId}`;
         window.history.replaceState(null, '', newUrl);
-    };
+    }, []);
 
-    const handleCloseModal = () => {
+    const handleCloseModal = useCallback(() => {
         setIsDetailOpen(false);
         setSelectedTaskId(null);
         const url = new URL(window.location.href);
         url.searchParams.delete('taskId');
         window.history.replaceState(null, '', url.toString());
-    };
+    }, []);
 
     // Listen for back button
     useEffect(() => {
@@ -324,15 +533,12 @@ export default function KanbanBoard() {
         return () => window.removeEventListener('popstate', handlePopState);
     }, [isDetailOpen]);
 
-    const toggleSelectAll = () => {
-        if (selectedTaskIds.length === tasks.length) {
-            setSelectedTaskIds([]);
-        } else {
-            setSelectedTaskIds(tasks.map(t => t.id));
-        }
-    };
+    const toggleSelectAll = useCallback(() => {
+        const allLoaded = Object.values(columns).flat().map(t => t.id);
+        setSelectedTaskIds(prev => prev.length === allLoaded.length ? [] : allLoaded);
+    }, [columns]);
 
-    const handleBulkStatusUpdate = async (newStatus: string) => {
+    const handleBulkStatusUpdate = useCallback(async (newStatus: string) => {
         try {
             await api.put('/tasks/bulk-update', { taskIds: selectedTaskIds, status: newStatus });
             toast.success('Tasks updated successfully');
@@ -342,13 +548,13 @@ export default function KanbanBoard() {
         } catch (error) {
             toast.error('Failed to update tasks');
         }
-    };
+    }, [selectedTaskIds, fetchTasks, toast]);
 
-    const toggleTaskSelection = (taskId: string) => {
+    const toggleTaskSelection = useCallback((taskId: string) => {
         setSelectedTaskIds(prev => prev.includes(taskId) ? prev.filter(id => id !== taskId) : [...prev, taskId]);
-    };
+    }, []);
 
-    const handleDeleteTask = async () => {
+    const handleDeleteTask = useCallback(async () => {
         if (!taskToDelete) return;
         setIsDeleting(true);
         try {
@@ -361,9 +567,9 @@ export default function KanbanBoard() {
         } finally {
             setIsDeleting(false);
         }
-    };
+    }, [taskToDelete, fetchTasks, toast]);
 
-    const handleDuplicateTask = async (task: Task) => {
+    const handleDuplicateTask = useCallback(async (task: Task) => {
         try {
             const { id, _count, ...rest } = task as any;
             const assigneeIds = [rest.assignee?.id, ...(rest.assignees?.map((a: any) => a.user?.id) || [])].filter(Boolean);
@@ -379,25 +585,26 @@ export default function KanbanBoard() {
         } catch (error) {
             toast.error('Failed to duplicate task');
         }
-    };
+    }, [projectId, fetchTasks, toast]);
 
-    const handleCopyLink = (taskId: string) => {
+    const handleCopyLink = useCallback((taskId: string) => {
         const url = `${window.location.origin}${window.location.pathname}?taskId=${taskId}`;
         navigator.clipboard.writeText(url);
         toast.success('Task link copied!');
         setActiveMenuId(null);
-    };
+    }, [toast]);
 
-    const handleMenuToggle = (e: React.MouseEvent, taskId: string) => {
+    const handleMenuToggle = useCallback((e: React.MouseEvent, taskId: string) => {
         e.stopPropagation();
-        if (activeMenuId === taskId) {
-            setActiveMenuId(null);
-        } else {
-            const rect = e.currentTarget.getBoundingClientRect();
-            setMenuPosition({ top: rect.bottom + 5, left: rect.right - 160 }); // Align right
-            setActiveMenuId(taskId);
-        }
-    };
+        const rect = e.currentTarget.getBoundingClientRect();
+        setActiveMenuId(prev => (prev === taskId ? null : taskId));
+        setMenuPosition({ top: rect.bottom + 5, left: rect.right - 160 }); // Align right
+    }, []);
+
+    const handleQuickLog = useCallback((task: Task) => {
+        setQuickLogTask(task);
+        setIsBulkLogOpen(true);
+    }, []);
 
     return (
         <div className="h-[calc(100vh-140px)] flex flex-col animate-fade-in">
@@ -430,7 +637,7 @@ export default function KanbanBoard() {
                 )}
             </div>
 
-            <TaskFilterBar 
+            <TaskFilterBar
                 filters={filters}
                 members={project?.members || []}
                 onFilterChange={(key, val) => setFilters(prev => ({ ...prev, [key]: val }))}
@@ -459,15 +666,15 @@ export default function KanbanBoard() {
             {/* Status Selection Modal */}
             {isBulkStatusModalOpen && (
                 <Portal>
-                    <div className="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center">
-                        <div className="bg-white p-6 rounded-lg w-80 shadow-2xl">
+                    <div className="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center animate-fade-in">
+                        <div className="bg-white p-6 rounded-lg w-80 shadow-2xl scale-95 animate-in fade-in zoom-in duration-150">
                             <h2 className="text-sm font-black mb-4">Update Status</h2>
                             <div className="space-y-2">
                                 {Object.keys(COLUMNS).map(status => (
                                     <button
                                         key={status}
                                         onClick={() => handleBulkStatusUpdate(status)}
-                                        className="w-full text-left px-3 py-2 text-xs font-bold hover:bg-slate-50 rounded"
+                                        className="w-full text-left px-3 py-2 text-xs font-bold hover:bg-slate-50 rounded transition-colors"
                                     >
                                         {(COLUMNS as any)[status].title}
                                     </button>
@@ -526,113 +733,27 @@ export default function KanbanBoard() {
                                         className={`flex-1 p-3 space-y-3 overflow-y-auto custom-scrollbar transition-colors ${snapshot.isDraggingOver ? 'bg-primary-50/30' : ''}`}
                                     >
                                         {columns[colId]?.map((task: Task, index: number) => (
-                                            <Draggable key={task.id} draggableId={task.id} index={index}>
-                                                {(provided, snapshot) => (
-                                                    <div
-                                                        ref={provided.innerRef}
-                                                        {...provided.draggableProps}
-                                                        {...provided.dragHandleProps}
-                                                        onClick={() => openTask(task.id)}
-                                                        className={`bg-white p-4 rounded-lg border shadow-sm group cursor-pointer transition-all ${task.hasUnansweredComment ? 'border-amber-400 ring-2 ring-amber-400/20 animate-pulse-subtle' : 'border-slate-200 hover:border-primary-300'} ${snapshot.isDragging ? 'rotate-1 shadow-xl ring-2 ring-primary-500/20 z-50' : 'hover:shadow-md'}`}
-                                                    >
-                                                         {/* Task Checkbox & ID */}
-                                                         <div className="flex justify-between items-start mb-3">
-                                                             <div className="flex gap-1.5 flex-wrap items-center">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={selectedTaskIds.includes(task.id)}
-                                                                    onChange={(e) => { e.stopPropagation(); toggleTaskSelection(task.id); }}
-                                                                    onClick={(e) => e.stopPropagation()}
-                                                                    className="mr-2 cursor-pointer"
-                                                                />
-                                                                 <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded border ${task.priority === 'urgent' ? 'bg-rose-50 text-rose-600 border-rose-100' :
-                                                                     task.priority === 'high' ? 'bg-orange-50 text-orange-600 border-orange-100' :
-                                                                         'bg-slate-50 text-slate-500 border-slate-100'
-                                                                     }`}>
-                                                                     {task.priority}
-                                                                 </span>
-                                                                 {task.hasUnansweredComment && (
-                                                                     <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded border bg-amber-500 text-white border-amber-600 animate-pulse">
-                                                                         Client Message
-                                                                     </span>
-                                                                 )}
-                                                             </div>
-
-                                                            <button
-                                                                onClick={(e) => handleMenuToggle(e, task.id)}
-                                                                className={`p-1 rounded transition-all ${activeMenuId === task.id ? 'bg-slate-100 text-slate-900' : 'text-slate-300 opacity-0 group-hover:opacity-100 hover:text-slate-600'}`}
-                                                            >
-                                                                <MoreVertical size={14} />
-                                                            </button>
-                                                        </div>
-
-                                                        {/* Content */}
-                                                        <h4 className="text-xs font-bold text-slate-800 mb-2 leading-relaxed">
-                                                            {task.title}
-                                                        </h4>
-
-                                                        {/* Footer */}
-                                                        <div className="flex items-center justify-between mt-4 border-t border-slate-50 pt-3">
-                                                            <div className="flex items-center gap-2">
-                                                                <div title={task.type}>
-                                                                    {task.type === 'bug' ? <Bug size={14} className="text-rose-500" /> :
-                                                                        task.type === 'story' ? <Bookmark size={14} className="text-emerald-500" /> :
-                                                                            task.type === 'epic' ? <Layout size={14} className="text-purple-600" /> :
-                                                                                <CheckSquare size={14} className="text-blue-500" />}
-                                                                </div>
-                                                                {task.storyPoints ? (
-                                                                    <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-[9px] font-black">{task.storyPoints}</span>
-                                                                ) : null}
-                                                            </div>
-
-                                                            <div className="flex items-center gap-3">
-                                                                {(task._count?.subtasks || 0) > 0 && (
-                                                                    <div className="flex items-center gap-1 text-[10px] text-slate-400" title="Subtasks">
-                                                                        <ListTree size={12} /> {task._count?.subtasks}
-                                                                    </div>
-                                                                )}
-                                                                {(task._count?.comments || 0) > 0 && (
-                                                                    <div className="flex items-center gap-1 text-[10px] text-slate-400">
-                                                                        <MessageSquare size={12} /> {task._count?.comments}
-                                                                    </div>
-                                                                )}
-
-                                                                <div className="flex -space-x-2">
-                                                                    {task.assignee ? (
-                                                                        <div title={`${task.assignee.firstName} ${task.assignee.lastName}`} className="w-6 h-6 rounded-md bg-indigo-600 text-white flex items-center justify-center text-[9px] font-black border-2 border-white uppercase shadow-sm">
-                                                                            {task.assignee.firstName[0]}
-                                                                        </div>
-                                                                    ) : (
-                                                                        <div className="w-6 h-6 rounded-md bg-slate-100 text-slate-300 flex items-center justify-center border-2 border-white shadow-sm">
-                                                                            <Users size={12} />
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        setQuickLogTask(task);
-                                                                        setIsBulkLogOpen(true);
-                                                                    }}
-                                                                    className="w-6 h-6 rounded-md hover:bg-slate-100 text-slate-400 flex items-center justify-center transition-colors"
-                                                                >
-                                                                    <Clock size={12} />
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </Draggable>
+                                            <TaskCard
+                                                key={task.id}
+                                                task={task}
+                                                index={index}
+                                                isSelected={selectedTaskIds.includes(task.id)}
+                                                isMenuOpen={activeMenuId === task.id}
+                                                onSelect={toggleTaskSelection}
+                                                onOpen={openTask}
+                                                onMenuToggle={handleMenuToggle}
+                                                onQuickLog={handleQuickLog}
+                                            />
                                         ))}
+                                        {colPagination[colId]?.loading && columns[colId]?.length === 0 && (
+                                            <>
+                                                <TaskCardSkeleton />
+                                                <TaskCardSkeleton />
+                                                <TaskCardSkeleton />
+                                            </>
+                                        )}
                                         {/* Auto-load trigger via IntersectionObserver */}
                                         <LoadMoreTrigger colId={colId} loadMore={loadMoreTasks} pagination={colPagination} />
-                                        {colPagination[colId]?.loading && columns[colId]?.length === 0 && (
-                                            <div className="py-8 text-center text-slate-400">
-                                                <div className="w-6 h-6 border-2 border-slate-200 border-t-primary-500 rounded-full animate-spin mx-auto mb-2" />
-                                                <span className="text-[10px] font-bold uppercase tracking-wider">Loading tasks...</span>
-                                            </div>
-                                        )}
                                         {provided.placeholder}
                                     </div>
                                 )}
@@ -681,7 +802,7 @@ export default function KanbanBoard() {
                             </button>
                             <button
                                 onClick={() => {
-                                    const task = tasks.find(t => t.id === activeMenuId);
+                                    const task = Object.values(columns).flat().find(t => t.id === activeMenuId);
                                     if (task) handleDuplicateTask(task);
                                 }}
                                 className="w-full text-left px-3 py-2 text-[10px] font-black uppercase text-slate-600 hover:bg-slate-50 flex items-center gap-2 transition-colors"

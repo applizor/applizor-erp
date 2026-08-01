@@ -62,7 +62,7 @@ export default function BacklogPage() {
                 api.get(`/tasks?projectId=${projectId}`)
             ]);
 
-            const allTasks = Array.isArray(tasksRes.data) ? tasksRes.data : [];
+            const allTasks = Array.isArray(tasksRes.data) ? tasksRes.data : (tasksRes.data?.tasks || []);
             const sprintsData = (Array.isArray(sprintsRes.data) ? sprintsRes.data : []).map((s: any) => ({
                 ...s,
                 tasks: allTasks.filter((t: any) => t.sprintId === s.id)

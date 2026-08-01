@@ -127,18 +127,18 @@ export default function ServicesPage() {
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {services.map((service) => (
-                        <div key={service.id} className="ent-card border-t-4 border-t-primary-600 flex flex-col justify-between min-h-[180px]">
+                        <div key={service.id} className="group ent-card border-t-4 border-t-primary-600 flex flex-col justify-between min-h-[180px] p-6 animate-fade-in">
                             <div>
                                 <div className="flex justify-between items-start mb-2">
                                     <div>
-                                        <h3 className="text-sm font-black uppercase text-gray-900">{service.name}</h3>
-                                        <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest">{service.code}</p>
+                                        <h3 className="text-sm font-black uppercase text-gray-900 tracking-tight">{service.name}</h3>
+                                        <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mt-0.5">{service.code}</p>
                                     </div>
-                                    <div className="flex gap-2">
+                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <button onClick={() => handleEdit(service)} className="p-1.5 text-slate-400 hover:text-primary-600 transition-colors">
                                             <Edit2 size={14} />
                                         </button>
-                                        <button onClick={() => handleDelete(service.id)} className="p-1.5 text-slate-400 hover:text-red-600 transition-colors">
+                                        <button onClick={() => handleDelete(service.id)} className="p-1.5 text-slate-400 hover:text-rose-600 transition-colors">
                                             <Trash2 size={14} />
                                         </button>
                                     </div>
@@ -151,14 +151,14 @@ export default function ServicesPage() {
                                 </div>
 
                                 {service.description && (
-                                    <p className="text-[11px] text-slate-500 line-clamp-3 font-semibold mt-1">
+                                    <p className="text-[11px] text-slate-500 line-clamp-3 font-semibold mt-1 leading-relaxed">
                                         {service.description}
                                     </p>
                                 )}
                             </div>
 
                             <div className="mt-4 pt-2 border-t border-slate-50 flex items-center justify-between">
-                                <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded inline-block ${service.isActive ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
+                                <span className={`text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full ${service.isActive ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
                                     {service.isActive ? 'Active' : 'Inactive'}
                                 </span>
                             </div>

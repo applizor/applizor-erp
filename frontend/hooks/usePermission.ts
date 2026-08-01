@@ -21,6 +21,7 @@ export type PermissionModule =
     | 'Department'
     | 'Position'
     | 'Employee'
+    | 'EmployeeTeam'
     | 'Attendance'
     | 'Leave'
     | 'LeaveType'
