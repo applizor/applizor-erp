@@ -59,6 +59,14 @@ services:
       - "gotenberg"
       - "--chromium-disable-javascript=true"
       - "--chromium-allow-list=file:///tmp/.*"
+      - "--chromium-max-concurrency=2"
+      - "--chromium-idle-shutdown-timeout=2m"
+      - "--libreoffice-idle-shutdown-timeout=2m"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.75'
+          memory: 1024M
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 30s
