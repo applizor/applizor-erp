@@ -22,8 +22,14 @@ export const uploadTaskDocument = async (req: AuthRequest, res: Response) => {
             return res.status(400).json({ error: 'No files provided' });
         }
 
-        const task = await prisma.task.findUnique({
-            where: { id },
+        const task = await prisma.task.findFirst({
+            where: {
+                id,
+                OR: [
+                    { project: { companyId: req.user!.companyId } },
+                    { projectId: null, creator: { companyId: req.user!.companyId } }
+                ]
+            },
             select: { id: true, projectId: true }
         });
 
@@ -207,7 +213,7 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
         const { id } = req.params;
 
         const taskExists = await prisma.task.findFirst({
-            where: { id, OR: [{ project: { companyId: req.user!.companyId } }, { projectId: null }] },
+            where: { id, OR: [{ project: { companyId: req.user!.companyId } }, { projectId: null, creator: { companyId: req.user!.companyId } }] },
             select: { id: true }
         });
         if (!taskExists) return res.status(404).json({ error: 'Task not found' });
@@ -354,7 +360,7 @@ export const deleteTask = async (req: AuthRequest, res: Response) => {
         const { id } = req.params;
 
         const taskExists = await prisma.task.findFirst({
-            where: { id, OR: [{ project: { companyId: req.user!.companyId } }, { projectId: null }] },
+            where: { id, OR: [{ project: { companyId: req.user!.companyId } }, { projectId: null, creator: { companyId: req.user!.companyId } }] },
             select: { id: true }
         });
         if (!taskExists) return res.status(404).json({ error: 'Task not found' });
@@ -611,7 +617,7 @@ export const getTaskById = async (req: AuthRequest, res: Response) => {
         const userId = req.user!.id;
 
         const task = await prisma.task.findFirst({
-            where: { id, OR: [{ project: { companyId: req.user!.companyId } }, { projectId: null }] },
+            where: { id, OR: [{ project: { companyId: req.user!.companyId } }, { projectId: null, creator: { companyId: req.user!.companyId } }] },
             include: {
                 assignee: { select: { id: true, firstName: true, lastName: true } },
                 assignees: { include: { user: { select: { id: true, firstName: true, lastName: true, email: true } } } },
@@ -700,7 +706,7 @@ export const bulkUpdateTasks = async (req: AuthRequest, res: Response) => {
         const tasks = await prisma.task.findMany({
             where: {
                 id: { in: taskIds },
-                OR: [{ project: { companyId: req.user!.companyId } }, { projectId: null }]
+                OR: [{ project: { companyId: req.user!.companyId } }, { projectId: null, creator: { companyId: req.user!.companyId } }]
             },
             select: { id: true, projectId: true, assignedToId: true, createdById: true }
         });
@@ -720,7 +726,7 @@ export const bulkUpdateTasks = async (req: AuthRequest, res: Response) => {
         await prisma.task.updateMany({
             where: {
                 id: { in: taskIds },
-                OR: [{ project: { companyId: req.user!.companyId } }, { projectId: null }]
+                OR: [{ project: { companyId: req.user!.companyId } }, { projectId: null, creator: { companyId: req.user!.companyId } }]
             },
             data: { status }
         });
@@ -737,7 +743,7 @@ export const addComment = async (req: AuthRequest, res: Response) => {
         const { id } = req.params; // taskId
 
         const taskExists = await prisma.task.findFirst({
-            where: { id, OR: [{ project: { companyId: req.user!.companyId } }, { projectId: null }] },
+            where: { id, OR: [{ project: { companyId: req.user!.companyId } }, { projectId: null, creator: { companyId: req.user!.companyId } }] },
             select: { id: true }
         });
         if (!taskExists) return res.status(404).json({ error: 'Task not found' });
@@ -823,7 +829,7 @@ export const getComments = async (req: AuthRequest, res: Response) => {
         const { id } = req.params; // taskId
 
         const taskExists = await prisma.task.findFirst({
-            where: { id, OR: [{ project: { companyId: req.user!.companyId } }, { projectId: null }] },
+            where: { id, OR: [{ project: { companyId: req.user!.companyId } }, { projectId: null, creator: { companyId: req.user!.companyId } }] },
             select: { id: true }
         });
         if (!taskExists) return res.status(404).json({ error: 'Task not found' });
@@ -857,7 +863,7 @@ export const getTaskHistory = async (req: AuthRequest, res: Response) => {
         const { id } = req.params;
 
         const taskExists = await prisma.task.findFirst({
-            where: { id, OR: [{ project: { companyId: req.user!.companyId } }, { projectId: null }] },
+            where: { id, OR: [{ project: { companyId: req.user!.companyId } }, { projectId: null, creator: { companyId: req.user!.companyId } }] },
             select: { id: true }
         });
         if (!taskExists) return res.status(404).json({ error: 'Task not found' });
@@ -882,7 +888,7 @@ export const deleteTaskComment = async (req: AuthRequest, res: Response) => {
         const userId = req.user!.id;
 
         const comment = await prisma.taskComment.findFirst({
-            where: { id: commentId, task: { OR: [{ project: { companyId: req.user!.companyId } }, { projectId: null }] } },
+            where: { id: commentId, task: { OR: [{ project: { companyId: req.user!.companyId } }, { projectId: null, creator: { companyId: req.user!.companyId } }] } },
         });
 
         if (!comment) return res.status(404).json({ error: 'Comment not found' });
