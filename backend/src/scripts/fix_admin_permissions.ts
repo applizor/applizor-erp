@@ -21,9 +21,9 @@ const SYSTEM_MODULES = [
 async function main() {
     console.log('Fixing Admin Permissions...');
 
-    // 1. Find Admin Role
-    const adminRole = await prisma.role.findUnique({
-        where: { name: 'Admin' }
+    // 1. Find Admin Role (system role has companyId = null)
+    const adminRole = await prisma.role.findFirst({
+        where: { name: 'Admin', companyId: null }
     });
 
     if (!adminRole) {

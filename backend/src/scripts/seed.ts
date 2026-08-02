@@ -27,55 +27,59 @@ async function main() {
         console.log('✅ Default company already exists.');
     }
 
-    // 2. Create Roles
+    // 2. Create Roles (System Roles have companyId = null, isSystem = true)
     console.log('Creating roles...');
 
-    // Admin Role
-    let adminRole = await prisma.role.findUnique({ where: { name: 'Admin' } });
+    // Admin Role (system-level, no companyId)
+    let adminRole = await prisma.role.findFirst({ where: { name: 'Admin', companyId: null } });
     if (!adminRole) {
         adminRole = await prisma.role.create({
             data: {
                 name: 'Admin',
                 isSystem: true,
+                companyId: null,
                 description: 'System Administrator with full access'
             }
         });
         console.log('✅ Admin role created');
     }
 
-    // HR Manager Role
-    let hrRole = await prisma.role.findUnique({ where: { name: 'HR Manager' } });
+    // HR Manager Role (scoped to this company)
+    let hrRole = await prisma.role.findFirst({ where: { name: 'HR Manager', companyId: company.id } });
     if (!hrRole) {
         hrRole = await prisma.role.create({
             data: {
                 name: 'HR Manager',
                 isSystem: false,
+                companyId: company.id,
                 description: 'HR Manager with employee and leave management access'
             }
         });
         console.log('✅ HR Manager role created');
     }
 
-    // Employee Role
-    let empRole = await prisma.role.findUnique({ where: { name: 'Employee' } });
+    // Employee Role (scoped to this company)
+    let empRole = await prisma.role.findFirst({ where: { name: 'Employee', companyId: company.id } });
     if (!empRole) {
         empRole = await prisma.role.create({
             data: {
                 name: 'Employee',
                 isSystem: false,
+                companyId: company.id,
                 description: 'Standard Employee with limited access'
             }
         });
         console.log('✅ Employee role created');
     }
 
-    // Student Role
-    let studentRole = await prisma.role.findUnique({ where: { name: 'Student' } });
+    // Student Role (system-level, no companyId)
+    let studentRole = await prisma.role.findFirst({ where: { name: 'Student', companyId: null } });
     if (!studentRole) {
         studentRole = await prisma.role.create({
             data: {
                 name: 'Student',
                 isSystem: true,
+                companyId: null,
                 description: 'Static Student Role (System Protected)'
             }
         });
@@ -86,7 +90,6 @@ async function main() {
             data: { isSystem: true }
         });
     }
-
 
     // 3. Create Departments
     console.log('Creating departments...');

@@ -70,14 +70,15 @@ async function main() {
   console.log('✅ Admin user created:', adminUser.email);
   console.log('   Default password: admin123');
 
-  // Create Admin Role
+  // Create Admin Role (system-level, no companyId)
   const adminRole = await prisma.role.upsert({
-    where: { name: 'Administrator' },
+    where: { companyId_name: { companyId: null as any, name: 'Administrator' } },
     update: {},
     create: {
       name: 'Administrator',
       description: 'Full system access',
       isSystem: true,
+      companyId: null,
     },
   });
 
@@ -129,14 +130,15 @@ async function main() {
 
   console.log('✅ All permissions assigned to admin role');
 
-  // Create Default Employee Role
+  // Create Default Employee Role (scoped to this company)
   const employeeRole = await prisma.role.upsert({
-    where: { name: 'Employee' },
+    where: { companyId_name: { companyId: company.id, name: 'Employee' } },
     update: {},
     create: {
       name: 'Employee',
       description: 'Standard employee access',
       isSystem: false,
+      companyId: company.id,
     },
   });
 

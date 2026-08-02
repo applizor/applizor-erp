@@ -20,39 +20,40 @@ export const SYSTEM_MODULES = [
 
 const ACCESS_LEVELS = ['none', 'all', 'added', 'owned', 'added_owned']; // "added_owned" matches "Added & Owned"
 
-// Sync System: Truncate? No. Ensure every Role has every Module entry.
+// Sync System: Ensure every Role of THIS company has every Module entry.
 export const syncPermissions = async (req: AuthRequest, res: Response) => {
     try {
         const userId = req.userId;
         if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-        // Syncing permissions is a sensitive system operation. 
-        // Require 'Role' create/update or purely Admin?
-        // Let's use Role.update as a proxy for managing system config logic here.
         if (!PermissionService.hasBasicPermission(req.user, 'Role', 'update')) {
             return res.status(403).json({ error: 'Access denied: No update rights for Role' });
         }
 
-        const roles = await prisma.role.findMany();
+        const companyId = req.user!.companyId;
+
+        // Only sync roles belonging to this company (or system roles)
+        const roles = await prisma.role.findMany({
+            where: {
+                OR: [
+                    { companyId },
+                    { isSystem: true, companyId: null }
+                ]
+            }
+        });
         let count = 0;
 
         for (const role of roles) {
             for (const module of SYSTEM_MODULES) {
-                // Check if exists
                 const existing = await prisma.rolePermission.findUnique({
-                    where: {
-                        roleId_module: {
-                            roleId: role.id,
-                            module: module
-                        }
-                    }
+                    where: { roleId_module: { roleId: role.id, module } }
                 });
 
                 if (!existing) {
                     await prisma.rolePermission.create({
                         data: {
                             roleId: role.id,
-                            module: module,
+                            module,
                             createLevel: 'none',
                             readLevel: 'none',
                             updateLevel: 'none',
@@ -98,7 +99,16 @@ export const getRoles = async (req: AuthRequest, res: Response) => {
             return res.status(403).json({ error: 'Access denied: No read rights for Role' });
         }
 
+        const companyId = req.user!.companyId;
+
+        // Return this company's custom roles + global system roles
         const roles = await prisma.role.findMany({
+            where: {
+                OR: [
+                    { companyId },
+                    { isSystem: true, companyId: null }
+                ]
+            },
             include: {
                 _count: {
                     select: { userRoles: true }
@@ -121,19 +131,23 @@ export const createRole = async (req: AuthRequest, res: Response) => {
             return res.status(403).json({ error: 'Access denied: No create rights for Role' });
         }
 
-        // permissions is an array of { module, createLevel, readLevel... }
         const { name, description, permissions } = req.body;
+        const companyId = req.user!.companyId;
 
         if (!name) return res.status(400).json({ error: 'Role name is required' });
+        if (!companyId) return res.status(400).json({ error: 'Company ID missing' });
 
+        // Create role scoped to this company
         const role = await prisma.role.create({
             data: {
                 name,
                 description,
-                isSystem: false
+                isSystem: false,
+                companyId   // ← tenant-scoped
             }
         });
 
+        // Seed provided permission levels
         if (permissions && Array.isArray(permissions)) {
             for (const p of permissions) {
                 if (SYSTEM_MODULES.includes(p.module)) {
@@ -149,13 +163,9 @@ export const createRole = async (req: AuthRequest, res: Response) => {
                     });
                 }
             }
-            // Auto-fill missing modules with 'none' using sync logic logic or just leave them?
-            // Better to be explicit or trust Sync to fill gaps later?
-            // For now, let's trust Frontend sends all or we just have gaps (which implies None).
         }
 
-        // Run a quick sync to fill gaps for this role immediately?
-        // Reuse sync logic for single role
+        // Auto-fill all remaining modules with 'none'
         for (const module of SYSTEM_MODULES) {
             const exists = await prisma.rolePermission.findUnique({
                 where: { roleId_module: { roleId: role.id, module } }
@@ -170,7 +180,7 @@ export const createRole = async (req: AuthRequest, res: Response) => {
         res.json(role);
     } catch (error: any) {
         if (error.code === 'P2002') {
-            return res.status(400).json({ error: 'Role name already exists' });
+            return res.status(400).json({ error: 'A role with this name already exists in your company' });
         }
         res.status(500).json({ error: 'Failed to create role', details: error.message });
     }
@@ -187,10 +197,15 @@ export const updateRole = async (req: AuthRequest, res: Response) => {
 
         const { id } = req.params;
         const { name, description, permissions } = req.body;
+        const companyId = req.user!.companyId;
 
-        // Block modifying system roles
-        const existingRole = await prisma.role.findUnique({ where: { id } });
+        // Guard: role must belong to this company OR be a system role
+        const existingRole = await prisma.role.findFirst({
+            where: { id, OR: [{ companyId }, { isSystem: true, companyId: null }] }
+        });
         if (!existingRole) return res.status(404).json({ error: 'Role not found' });
+
+        // Block modifying system roles unless admin
         if (existingRole.isSystem) {
             const isSuperAdmin = req.user.roles?.some((ur: any) => 
                 ur.role.name === 'Admin' || 
@@ -204,22 +219,13 @@ export const updateRole = async (req: AuthRequest, res: Response) => {
 
         const role = await prisma.role.update({
             where: { id },
-            data: {
-                name,
-                description
-            }
+            data: { name, description }
         });
 
         if (permissions && Array.isArray(permissions)) {
             for (const p of permissions) {
-                // Upsert permission for this module
                 await prisma.rolePermission.upsert({
-                    where: {
-                        roleId_module: {
-                            roleId: id,
-                            module: p.module
-                        }
-                    },
+                    where: { roleId_module: { roleId: id, module: p.module } },
                     update: {
                         createLevel: p.createLevel,
                         readLevel: p.readLevel,
@@ -240,6 +246,9 @@ export const updateRole = async (req: AuthRequest, res: Response) => {
 
         res.json(role);
     } catch (error: any) {
+        if (error.code === 'P2002') {
+            return res.status(400).json({ error: 'A role with this name already exists in your company' });
+        }
         res.status(500).json({ error: 'Failed to update role' });
     }
 };
@@ -254,11 +263,15 @@ export const getRoleDetails = async (req: AuthRequest, res: Response) => {
         }
 
         const { id } = req.params;
-        const role = await prisma.role.findUnique({
-            where: { id },
-            include: {
-                permissions: true
-            }
+        const companyId = req.user!.companyId;
+
+        // Guard: role must belong to this company OR be a system role
+        const role = await prisma.role.findFirst({
+            where: {
+                id,
+                OR: [{ companyId }, { isSystem: true, companyId: null }]
+            },
+            include: { permissions: true }
         });
         if (!role) return res.status(404).json({ error: 'Role not found' });
         res.json(role);
@@ -277,17 +290,18 @@ export const deleteRole = async (req: AuthRequest, res: Response) => {
         }
 
         const { id } = req.params;
+        const companyId = req.user!.companyId;
 
-        // Block deleting system roles
-        const existingRole = await prisma.role.findUnique({ where: { id } });
-        if (!existingRole) return res.status(404).json({ error: 'Role not found' });
+        // Guard: must belong to THIS company AND not be a system role
+        const existingRole = await prisma.role.findFirst({
+            where: { id, companyId }
+        });
+        if (!existingRole) return res.status(404).json({ error: 'Role not found or access denied' });
         if (existingRole.isSystem) {
             return res.status(400).json({ error: 'System roles cannot be deleted' });
         }
 
-        await prisma.role.delete({
-            where: { id },
-        });
+        await prisma.role.delete({ where: { id } });
 
         res.json({ message: 'Role deleted successfully' });
     } catch (error: any) {

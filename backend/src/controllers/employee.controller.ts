@@ -107,7 +107,9 @@ export const createEmployee = async (req: AuthRequest, res: Response) => {
                 let roleToAssign = roleId;
 
                 if (!roleToAssign) {
-                    const defaultRole = await tx.role.findUnique({ where: { name: 'Employee' } });
+                    // Find 'Employee' role scoped to this company first, fallback to system role
+                    const defaultRole = await tx.role.findFirst({ where: { name: 'Employee', companyId } })
+                        ?? await tx.role.findFirst({ where: { name: 'Employee', companyId: null } });
                     if (defaultRole) {
                         roleToAssign = defaultRole.id;
                     }

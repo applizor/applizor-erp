@@ -54,14 +54,18 @@ model User {
 
 model Role {
   id          String           @id @default(uuid())
-  name        String           @unique
+  companyId   String?
+  name        String
   description String?
   isSystem    Boolean          @default(false)
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
+  company     Company?         @relation(fields: [companyId], references: [id], onDelete: Cascade)
   permissions RolePermission[]
   userRoles   UserRole[]
 
+  @@unique([companyId, name])
+  @@index([companyId])
   @@index([name])
 }
 
@@ -145,6 +149,7 @@ model Company {
   assets             Asset[]
   auditLogs          AuditLog[]
   emailLogs          EmailLog[]
+  roles              Role[]
   branches           Branch[]
   candidates         Candidate[]
   clients            Client[]

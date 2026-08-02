@@ -5,9 +5,9 @@ const prisma = new PrismaClient();
 async function main() {
     console.log('--- CREATING STATIC STUDENT ROLE ---');
 
-    // 1. Create/Update Student Role
-    let studentRole = await prisma.role.findUnique({
-        where: { name: 'Student' }
+    // 1. Create/Update Student Role (system-level, no companyId)
+    let studentRole = await prisma.role.findFirst({
+        where: { name: 'Student', companyId: null }
     });
 
     if (!studentRole) {
@@ -15,12 +15,12 @@ async function main() {
             data: {
                 name: 'Student',
                 description: 'Static Student Role (System Protected)',
-                isSystem: true
+                isSystem: true,
+                companyId: null
             }
         });
         console.log('✅ Created Student role');
     } else {
-        // Ensure it is system role
         studentRole = await prisma.role.update({
             where: { id: studentRole.id },
             data: { isSystem: true, description: 'Static Student Role (System Protected)' }
@@ -29,7 +29,7 @@ async function main() {
     }
 
     // 2. Revert Teacher Role if it was marked as system
-    const teacherRole = await prisma.role.findUnique({
+    const teacherRole = await prisma.role.findFirst({
         where: { name: 'Teacher' }
     });
     if (teacherRole && teacherRole.isSystem) {
