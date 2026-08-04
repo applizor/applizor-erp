@@ -3,7 +3,7 @@ type: Module
 title: Accounting Service
 description: Double-entry accounting, journal, ledger, reports, reconciliation, COA templates
 tags: [accounting, journal, ledger, reconciliation, coa]
-timestamp: 2026-08-04T23:59:00Z
+timestamp: 2026-08-05T00:30:00Z
 ---
 
 # Accounting Service
@@ -72,6 +72,32 @@ timestamp: 2026-08-04T23:59:00Z
 - Auto-posts invoices to accounts receivable on creation
 - Record payment against invoice updates ledger
 - Supports credit notes and debit notes
+
+## Platform Accounting vs Tenant Accounting
+
+| Layer | Scope | UI | Who |
+|-------|-------|----|-----|
+| **Tenant accounting** | Each company's `LedgerAccount` / `JournalEntry` filtered by `companyId` | `/accounting/*` | Tenant Admin (plan module `accounting`) |
+| **Platform accounting** | Dedicated Company with `isPlatform=true` ("Applizor Platform") | `/superadmin/accounting` | Super Admin / Platform Admin only |
+| **COA Templates** | Country templates applied *to tenants* | `/superadmin/coa` | Super Admin — **not** live platform books |
+
+### Rules
+- Tenant users never see platform journals (tenant isolation + platform company has no tenant users).
+- Super Admin's own company (e.g. Applizor Softech LLP) may still have **tenant-style** accounting under `/accounting/*` for operating that company — that is **not** SaaS subscription revenue.
+- When a tenant pays a SaaS plan (`POST /platform/subscribe/verify` or webhook), revenue posts to **platform** books only: Dr Bank / Cr SaaS Subscription Revenue, reference `SUB-{orderId}`. Never into the paying tenant's COA.
+- Service: `platform-accounting.service.ts` — uses `runWithoutCompanyContext` so ALS tenant injection cannot rewrite platform `companyId`.
+- API (Super Admin): `POST /platform/accounting/ensure`, `GET /platform/accounting/accounts|journal|profit-loss|payments`.
+
+### Platform COA (seeded)
+| Code | Name | Type |
+|------|------|------|
+| 1000 | Platform Bank / Settlement | asset |
+| 1100 | Payment Gateway Clearing | asset |
+| 3000 | Platform Capital | equity |
+| 4000 | SaaS Subscription Revenue | income |
+| 4100 | Other Platform Income | income |
+| 5400 | Payment Gateway Fees | expense |
+| 5200 | Platform Operating Expense | expense |
 
 ## Account Types Reference
 | Code | Name | Type |

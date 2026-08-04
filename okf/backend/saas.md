@@ -88,9 +88,14 @@ The platform layer enables running this ERP as a **multi-tenant SaaS**. It adds:
 | PUT | /plans/:id | Update plan |
 | DELETE | /plans/:id | Deactivate plan |
 | GET | /stats | Platform dashboard statistics |
+| POST | /accounting/ensure | Ensure platform books company + COA exist |
+| GET | /accounting/accounts | Platform COA (isPlatform company) |
+| GET | /accounting/journal | Platform journal entries |
+| GET | /accounting/profit-loss | Platform P&L |
+| GET | /accounting/payments | Tenant SaaS payments + journal post status |
 | POST | /subscribe/checkout | Tenant self-serve plan checkout (Cashfree/PayPal) |
-| POST | /subscribe/verify | Verify payment and activate subscription |
-| POST | /subscribe/webhook | Payment webhook |
+| POST | /subscribe/verify | Verify payment, activate subscription, **post revenue to platform books** |
+| POST | /subscribe/webhook | Payment webhook (same platform ledger post) |
 
 ## Tenant Onboarding Flow (Launch)
 
@@ -229,6 +234,8 @@ Migration: `20260805000000_add_company_is_platform`
 
 ## Chart of Accounts Templates (COA)
 
+> **Do not confuse with Platform Accounting.** COA templates seed *tenant* ledgers by country. Applizor SaaS subscription books live on a separate `isPlatform` company — see **Platform Accounting** below and `/superadmin/accounting`.
+
 ### Models
 
 **CoaTemplate** (`coa_templates` table)
@@ -328,3 +335,14 @@ React-friendly hooks using `date-fns`:
 | en-AE | English (UAE) | dd/MM/yyyy | د.إ AED |
 | en-SG | English (Singapore) | dd/MM/yyyy | S$ SGD |
 | hi-IN | हिन्दी (India) | dd/MM/yyyy | ₹ INR |
+
+## Platform Accounting (SaaS books)
+
+Applizor subscription revenue is **not** recorded in any tenant's Chart of Accounts.
+
+- Dedicated `Company` with `isPlatform=true` ("Applizor Platform") holds platform COA + journals.
+- Excluded from `GET /platform/tenants` and platform stats company counts.
+- On successful `subscribe/verify` or webhook: posts Dr Platform Bank / Cr SaaS Subscription Revenue (`SUB-{orderId}`).
+- Super Admin UI: `/superadmin/accounting` (not `/accounting/*`, not `/superadmin/coa`).
+- Service: `services/platform-accounting.service.ts`.
+- See also `okf/backend/accounting.md` → "Platform Accounting vs Tenant Accounting".

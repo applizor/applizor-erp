@@ -467,6 +467,53 @@ async function main() {
     console.log(`✓ Seeded default Salary Components for ${company.name}`);
   }
 
+  // 7. Platform books company (Applizor SaaS accounting — separate from tenants)
+  let platformCompany = await prisma.company.findFirst({ where: { isPlatform: true } });
+  if (!platformCompany) {
+    platformCompany = await prisma.company.create({
+      data: {
+        name: 'Applizor Platform',
+        email: 'platform@applizor.com',
+        legalName: 'Applizor Softech LLP — Platform Books',
+        country: 'India',
+        countryId: india?.id,
+        timezone: 'Asia/Kolkata',
+        locale: 'en-IN',
+        currency: 'INR',
+        isActive: true,
+        isPlatform: true,
+        enabledModules: {},
+      },
+    });
+    console.log(`✓ Created platform books company: ${platformCompany.name}`);
+  }
+  const platformAccounts = [
+    { code: '1000', name: 'Platform Bank / Settlement', type: 'asset' },
+    { code: '1100', name: 'Payment Gateway Clearing', type: 'asset' },
+    { code: '3000', name: 'Platform Capital', type: 'equity' },
+    { code: '4000', name: 'SaaS Subscription Revenue', type: 'income' },
+    { code: '4100', name: 'Other Platform Income', type: 'income' },
+    { code: '5400', name: 'Payment Gateway Fees', type: 'expense' },
+    { code: '5200', name: 'Platform Operating Expense', type: 'expense' },
+  ];
+  for (const acc of platformAccounts) {
+    const existing = await prisma.ledgerAccount.findFirst({
+      where: { companyId: platformCompany.id, code: acc.code },
+    });
+    if (!existing) {
+      await prisma.ledgerAccount.create({
+        data: {
+          companyId: platformCompany.id,
+          code: acc.code,
+          name: acc.name,
+          type: acc.type,
+          balance: 0,
+        },
+      });
+    }
+  }
+  console.log(`✓ Platform COA ready for ${platformCompany.name}`);
+
   console.log('\n🚀 Master database seed complete!\n');
 }
 

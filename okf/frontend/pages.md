@@ -203,9 +203,9 @@ Enterprise double-entry ledger with COA edit/delete, journal edit, Sync Ledgers,
 | `/superadmin/dashboard` | `app/(main)/superadmin/dashboard/page.tsx` | Platform dashboard |
 | `/superadmin/tenants` | `app/(main)/superadmin/tenants/page.tsx` | Tenant onboard (creates admin user + plan), provision orphans, subscription edit |
 | `/superadmin/plans` | `app/(main)/superadmin/plans/page.tsx` | Platform SaaS plans (CRUD + reactivate) |
-| `/superadmin/coa` | `app/(main)/superadmin/coa/page.tsx` | COA templates |
+| `/superadmin/coa` | `app/(main)/superadmin/coa/page.tsx` | COA templates (for tenants — not platform SaaS books) |
 | `/superadmin/rules` | `app/(main)/superadmin/rules/page.tsx` | Statutory rules |
-| `/superadmin/accounting` | `app/(main)/superadmin/accounting/page.tsx` | Platform SaaS books (subscription revenue) |
+| `/superadmin/accounting` | `app/(main)/superadmin/accounting/page.tsx` | Platform SaaS books (subscription payments, platform COA/journal/P&L) — separate from tenant `/accounting/*` |
 | `/settings/billing` | `app/(main)/settings/billing/page.tsx` | Tenant SaaS billing / upgrade checkout |
 
 ## Client Portal (`/portal`)

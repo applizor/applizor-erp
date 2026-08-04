@@ -28,7 +28,7 @@ timestamp: 2026-07-08T20:00:00Z
 ### Multi-tenant Core (8)
 | Model | Key Fields | Relations |
 |-------|-----------|-----------|
-| **Company** | `id`, `name`, `gstin`, `pan`, `email`, `phone`, `address`, `logo`, `digitalSignature`, `letterhead`, `continuationSheet`, `emailConfig` (JSON), `paymentConfig` (JSON), `storageConfig` (JSON), `ssoConfig` (JSON), `enabledModules` (String[]), `currency`, `offDays`, bank details, `countryId`, `stateId` | Central hub → 40+ related models |
+| **Company** | `id`, `name`, `gstin`, `pan`, `email`, `phone`, `address`, `logo`, `digitalSignature`, `letterhead`, `continuationSheet`, `emailConfig` (JSON), `paymentConfig` (JSON), `storageConfig` (JSON), `ssoConfig` (JSON), `enabledModules` (String[]), `currency`, `offDays`, bank details, `countryId`, `stateId`, `isPlatform` (bool — dedicated Applizor SaaS books company when true) | Central hub → 40+ related models. Platform books company (`isPlatform=true`) is excluded from tenant lists |
 | **Branch** | `id`, `companyId`, `name`, `code`, `address`, `phone`, `email` | M:1 → Company. Unique: `[companyId, code]` |
 | **Country** | `id`, `name`, `code` (ISO), `currencyId`, `phoneCode` | 1:M → State, Company, StatutoryRule, CoaTemplate. M:1 → Currency |
 | **State** | `id`, `countryId`, `name`, `code` | M:1 → Country. Unique: `[countryId, code]` |
