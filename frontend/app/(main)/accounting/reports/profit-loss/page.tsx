@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { accountingApi, LedgerAccount } from '@/lib/api/accounting';
-import { LineChart, Download, Calendar, TrendingUp, TrendingDown, RefreshCw, PieChart as PieChartIcon, BarChart as BarChartIcon } from 'lucide-react';
+import { accountingApi, LedgerAccount, downloadCsv } from '@/lib/api/accounting';
+import { LineChart, Download, Calendar, TrendingUp, TrendingDown, RefreshCw, PieChart as PieChartIcon, BarChart as BarChartIcon, FileSpreadsheet } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
 import { startOfMonth } from 'date-fns/startOfMonth';
 import { endOfMonth } from 'date-fns/endOfMonth';
@@ -68,20 +68,39 @@ export default function ProfitLossPage() {
         }
     };
 
-    const handleExport = async () => {
+    const handleExportPdf = async () => {
         try {
             toast.info('Generating PDF...');
-            const blob = await accountingApi.exportReport('PROFIT_LOSS', dateRange.startDate, dateRange.endDate);
-            const url = window.URL.createObjectURL(new Blob([blob]));
-            const link = document.createElement('a');
-            link.href = url;
-            link.setAttribute('download', `Profit_Loss_${dateRange.startDate}_${dateRange.endDate}.pdf`);
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            toast.success('Report exported successfully');
+            await accountingApi.downloadExport(
+                'PROFIT_LOSS',
+                `Profit_Loss_${dateRange.startDate}_${dateRange.endDate}.pdf`,
+                dateRange.startDate,
+                dateRange.endDate
+            );
+            toast.success('PDF exported successfully');
         } catch (error) {
-            toast.error('Failed to export report');
+            toast.error('Failed to export PDF');
+        }
+    };
+
+    const handleExportCsv = () => {
+        try {
+            const rows: (string | number)[][] = [];
+            const push = (section: string, items: LedgerAccount[]) => {
+                items.forEach(i => rows.push([section, i.code, i.name, Number(i.balance)]));
+            };
+            push('Revenue', data.revenue);
+            push('COGS', data.costOfGoodsSold);
+            push('Operating Expenses', data.operatingExpenses);
+            push('Other Income', data.otherIncome);
+            downloadCsv(
+                `Profit_Loss_${dateRange.startDate}_${dateRange.endDate}.csv`,
+                ['Section', 'Code', 'Name', 'Amount'],
+                rows
+            );
+            toast.success('CSV exported successfully');
+        } catch {
+            toast.error('Failed to export CSV');
         }
     };
 
@@ -136,11 +155,18 @@ export default function ProfitLossPage() {
                         Sync Ledgers
                     </button>
                     <button
-                        onClick={handleExport}
+                        onClick={handleExportCsv}
+                        className="btn-secondary flex items-center gap-2"
+                    >
+                        <FileSpreadsheet size={14} />
+                        Export CSV
+                    </button>
+                    <button
+                        onClick={handleExportPdf}
                         className="btn-secondary flex items-center gap-2"
                     >
                         <Download size={14} />
-                        Export
+                        Export PDF
                     </button>
                 </div>
             </div>

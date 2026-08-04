@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { attendanceApi, holidaysApi, rostersApi } from '@/lib/api/attendance';
 import api from '@/lib/api'; // For employees
-import { Calendar, ChevronLeft, ChevronRight, Download, Filter, Users, X, Loader2, Trash2 } from 'lucide-react';
+import { departmentsApi, positionsApi, Department, Position } from '@/lib/api/hrms';
+import { Calendar, ChevronLeft, ChevronRight, Download, Filter, Users, X, Loader2, Trash2, Search } from 'lucide-react';
 import PageHeader from '@/components/ui/PageHeader';
 import { useToast } from '@/hooks/useToast';
 import { Dialog } from '@/components/ui/Dialog';
@@ -14,8 +15,12 @@ interface Employee {
     id: string;
     firstName: string;
     lastName: string;
-    department?: { name: string };
+    departmentId?: string | null;
+    positionId?: string | null;
+    department?: { id?: string; name: string } | null;
+    position?: { id?: string; title: string } | null;
     employeeId: string;
+    status?: string;
 }
 
 interface AttendanceRecord {
@@ -39,6 +44,14 @@ export default function AdminAttendancePage() {
     const [offDays, setOffDays] = useState<string[]>([]);
     const [showMarkModal, setShowMarkModal] = useState(false);
     const [marking, setMarking] = useState(false);
+    const [showFilters, setShowFilters] = useState(true);
+    const [departments, setDepartments] = useState<Department[]>([]);
+    const [positions, setPositions] = useState<Position[]>([]);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [filterDepartment, setFilterDepartment] = useState('');
+    const [filterPosition, setFilterPosition] = useState('');
+    const [filterEmpStatus, setFilterEmpStatus] = useState('active');
+    const [filterAttStatus, setFilterAttStatus] = useState('');
     const [manualData, setManualData] = useState<any>({
         employeeId: '',
         dateRange: { start: new Date().toISOString().split('T')[0], end: new Date().toISOString().split('T')[0] },
@@ -66,6 +79,15 @@ export default function AdminAttendancePage() {
         loadData();
     }, [selectedMonth, selectedYear]);
 
+    useEffect(() => {
+        if (!filterDepartment) {
+            positionsApi.getAll().then(setPositions).catch(() => setPositions([]));
+            return;
+        }
+        positionsApi.getAll(filterDepartment).then(setPositions).catch(() => setPositions([]));
+        setFilterPosition('');
+    }, [filterDepartment]);
+
     const loadData = async () => {
         try {
             setLoading(true);
@@ -73,15 +95,17 @@ export default function AdminAttendancePage() {
             const startDate = new Date(selectedYear, selectedMonth, 1);
             const endDate = new Date(selectedYear, selectedMonth + 1, 0);
 
-            const [empRes, attRes, rosterRes, holidayRes, companyRes] = await Promise.all([
+            const [empRes, attRes, rosterRes, holidayRes, companyRes, deptRes] = await Promise.all([
                 api.get('/employees'),
                 attendanceApi.getMusterRoll(selectedMonth + 1, selectedYear),
                 rostersApi.getRoster(formatDate(startDate), formatDate(endDate)),
                 holidaysApi.getAll(selectedYear),
-                api.get('/company')
+                api.get('/company'),
+                departmentsApi.getAll().catch(() => []),
             ]);
 
             setEmployees(empRes.data);
+            setDepartments(Array.isArray(deptRes) ? deptRes : []);
             setHolidays(holidayRes as any[]);
 
             if (companyRes.data?.company?.offDays) {
@@ -285,6 +309,84 @@ export default function AdminAttendancePage() {
         return offDays.includes(dayName);
     };
 
+    const employeeHasAttendanceStatus = (empId: string, statusFilter: string) => {
+        const records = attendanceMap[empId] || {};
+        return Object.values(records).some((r: any) => {
+            const st = r?.status || '';
+            if (statusFilter === 'on-leave') return st === 'on-leave' || st === 'leave';
+            if (statusFilter === 'half-day') return st === 'half-day' || r?.durationType === 'half' || r?.durationType === 'first_half' || r?.durationType === 'second_half';
+            if (statusFilter === 'present-on-leave') return !!r?.onLeaveButPresent;
+            return st === statusFilter;
+        });
+    };
+
+    const filteredEmployees = useMemo(() => {
+        const q = searchQuery.trim().toLowerCase();
+        return employees.filter((emp) => {
+            if (q) {
+                const fullName = `${emp.firstName || ''} ${emp.lastName || ''}`.toLowerCase();
+                const empCode = String(emp.employeeId || '').toLowerCase();
+                if (!fullName.includes(q) && !empCode.includes(q)) return false;
+            }
+
+            const deptId = emp.departmentId || emp.department?.id || '';
+            if (filterDepartment && deptId !== filterDepartment) return false;
+
+            const posId = emp.positionId || emp.position?.id || '';
+            if (filterPosition && posId !== filterPosition) return false;
+
+            if (filterEmpStatus) {
+                const status = (emp.status || 'active').toLowerCase();
+                if (status !== filterEmpStatus.toLowerCase()) return false;
+            }
+
+            if (filterAttStatus && !employeeHasAttendanceStatus(emp.id, filterAttStatus)) return false;
+
+            return true;
+        });
+    }, [employees, searchQuery, filterDepartment, filterPosition, filterEmpStatus, filterAttStatus, attendanceMap]);
+
+    const activeFilterCount = [
+        searchQuery.trim(),
+        filterDepartment,
+        filterPosition,
+        filterEmpStatus && filterEmpStatus !== 'active' ? filterEmpStatus : '',
+        filterAttStatus,
+    ].filter(Boolean).length;
+
+    const monthSummary = useMemo(() => {
+        const today = new Date();
+        today.setHours(23, 59, 59, 999);
+        let present = 0;
+        let absent = 0;
+        let late = 0;
+        let leave = 0;
+        let halfDay = 0;
+        filteredEmployees.forEach((emp) => {
+            const records = attendanceMap[emp.id] || {};
+            Object.entries(records).forEach(([dateKey, r]: [string, any]) => {
+                if (new Date(dateKey) > today) return;
+                const st = r?.status || '';
+                if (st === 'present') present += 1;
+                if (st === 'late') late += 1;
+                if (st === 'absent') absent += 1;
+                if (st === 'on-leave' || st === 'leave') leave += 1;
+                if (st === 'half-day') halfDay += 1;
+            });
+        });
+        const marked = present + absent + late + leave + halfDay;
+        const attendanceRate = marked > 0 ? ((present + late + halfDay * 0.5) / marked) * 100 : 0;
+        return { present, absent, late, leave, halfDay, attendanceRate, headcount: filteredEmployees.length };
+    }, [filteredEmployees, attendanceMap]);
+
+    const clearFilters = () => {
+        setSearchQuery('');
+        setFilterDepartment('');
+        setFilterPosition('');
+        setFilterEmpStatus('active');
+        setFilterAttStatus('');
+    };
+
     return (
         <div className="p-6 h-[calc(100vh-64px)] overflow-hidden flex flex-col">
             <PageHeader
@@ -314,11 +416,81 @@ export default function AdminAttendancePage() {
                         </div>
 
                         <div className="flex gap-2">
-                            <button className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 text-gray-700 text-[10px] font-black uppercase tracking-widest">
+                            <button
+                                onClick={() => setShowFilters((v) => !v)}
+                                className={`flex items-center gap-2 px-3 py-2 border rounded-md text-[10px] font-black uppercase tracking-widest transition-colors ${
+                                    showFilters || activeFilterCount > 0
+                                        ? 'bg-primary-50 border-primary-200 text-primary-700'
+                                        : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                                }`}
+                            >
                                 <Filter size={14} />
                                 <span>Filter</span>
+                                {activeFilterCount > 0 && (
+                                    <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-primary-600 text-white text-[9px] flex items-center justify-center">
+                                        {activeFilterCount}
+                                    </span>
+                                )}
                             </button>
-                            <button className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-[10px] font-black uppercase tracking-widest shadow-sm">
+                            <button
+                                onClick={() => {
+                                    try {
+                                        const monthLabel = new Date(selectedYear, selectedMonth).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                                        const dayHeaders = days.map((d) => d.getDate());
+                                        const header = ['Employee', 'Employee ID', 'Department', ...dayHeaders.map(String), 'Paid Days'];
+                                        const rows = filteredEmployees.map((emp) => {
+                                            const empRecord = attendanceMap[emp.id] || {};
+                                            const today = new Date();
+                                            today.setHours(23, 59, 59, 999);
+                                            let paid = 0;
+                                            const dayCells = days.map((day) => {
+                                                const dateKey = formatDate(day);
+                                                let status = empRecord[dateKey]?.status || '';
+                                                if (!status) {
+                                                    const isHoliday = holidays.find((h: any) => formatDate(new Date(h.date)) === dateKey);
+                                                    if (isHoliday) status = 'holiday';
+                                                    else if (isOffDay(day)) status = 'weekend';
+                                                }
+                                                const code =
+                                                    status === 'present' || status === 'late' ? (status === 'late' ? 'L' : 'P') :
+                                                    status === 'absent' ? 'A' :
+                                                    status === 'on-leave' || status === 'leave' ? 'OL' :
+                                                    status === 'holiday' ? 'H' :
+                                                    status === 'half-day' ? 'HD' :
+                                                    status === 'weekend' ? 'OFF' : '-';
+                                                if (day <= today) {
+                                                    if (status === 'present' || status === 'late') paid += 1;
+                                                    if (status === 'holiday' || status === 'weekend') paid += 1;
+                                                    if (status === 'on-leave' || status === 'leave') paid += (empRecord[dateKey] as any)?.isPaid === false ? 0 : 1;
+                                                    if (status === 'half-day') paid += 0.5;
+                                                }
+                                                return code;
+                                            });
+                                            return [
+                                                `${emp.firstName} ${emp.lastName}`,
+                                                emp.employeeId,
+                                                emp.department?.name || '',
+                                                ...dayCells,
+                                                String(paid),
+                                            ];
+                                        });
+                                        const csv = [header, ...rows]
+                                            .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(','))
+                                            .join('\n');
+                                        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                                        const url = URL.createObjectURL(blob);
+                                        const a = document.createElement('a');
+                                        a.href = url;
+                                        a.download = `attendance-register-${monthLabel.replace(/\s+/g, '-').toLowerCase()}.csv`;
+                                        a.click();
+                                        URL.revokeObjectURL(url);
+                                        toast.success('Muster roll exported');
+                                    } catch {
+                                        toast.error('Export failed');
+                                    }
+                                }}
+                                className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-[10px] font-black uppercase tracking-widest shadow-sm"
+                            >
                                 <Download size={14} />
                                 <span>Export</span>
                             </button>
@@ -326,6 +498,122 @@ export default function AdminAttendancePage() {
                     </div>
                 }
             />
+
+            {showFilters && (
+                <div className="mb-4 bg-white border border-slate-200 rounded-md shadow-sm p-3 animate-fade-in">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3">
+                        <div className="md:col-span-2 xl:col-span-2">
+                            <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1 block">Employee Search</label>
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                                <input
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    placeholder="Search by name or employee ID..."
+                                    className="ent-input w-full pl-9 pr-8 py-2 text-sm"
+                                />
+                                {searchQuery && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setSearchQuery('')}
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                                    >
+                                        <X size={14} />
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                        <div>
+                            <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1 block">Department</label>
+                            <CustomSelect
+                                options={[
+                                    { value: '', label: 'All Departments' },
+                                    ...departments.map((d) => ({ value: d.id, label: d.name })),
+                                ]}
+                                value={filterDepartment}
+                                onChange={setFilterDepartment}
+                                placeholder="All Departments"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1 block">Position</label>
+                            <CustomSelect
+                                options={[
+                                    { value: '', label: 'All Positions' },
+                                    ...positions.map((p) => ({ value: p.id, label: p.title })),
+                                ]}
+                                value={filterPosition}
+                                onChange={setFilterPosition}
+                                placeholder="All Positions"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1 block">Employment Status</label>
+                            <CustomSelect
+                                options={[
+                                    { value: '', label: 'All Statuses' },
+                                    { value: 'active', label: 'Active' },
+                                    { value: 'inactive', label: 'Inactive' },
+                                    { value: 'terminated', label: 'Terminated' },
+                                    { value: 'resigned', label: 'Resigned' },
+                                ]}
+                                value={filterEmpStatus}
+                                onChange={setFilterEmpStatus}
+                                placeholder="Employment Status"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1 block">Attendance (Month)</label>
+                            <CustomSelect
+                                options={[
+                                    { value: '', label: 'Any Status' },
+                                    { value: 'present', label: 'Has Present' },
+                                    { value: 'late', label: 'Has Late' },
+                                    { value: 'absent', label: 'Has Absent' },
+                                    { value: 'on-leave', label: 'Has Leave' },
+                                    { value: 'half-day', label: 'Has Half Day' },
+                                    { value: 'present-on-leave', label: 'Present on Leave' },
+                                ]}
+                                value={filterAttStatus}
+                                onChange={setFilterAttStatus}
+                                placeholder="Any Status"
+                            />
+                        </div>
+                    </div>
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                            Showing <span className="text-slate-900">{filteredEmployees.length}</span> of {employees.length} employees
+                        </p>
+                        {activeFilterCount > 0 && (
+                            <button
+                                type="button"
+                                onClick={clearFilters}
+                                className="text-[10px] font-black uppercase tracking-widest text-primary-600 hover:text-primary-800 flex items-center gap-1"
+                            >
+                                <X size={12} />
+                                Clear filters
+                            </button>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mb-4">
+                {[
+                    { label: 'Headcount', value: String(monthSummary.headcount), tone: 'border-t-primary-600' },
+                    { label: 'Attendance Rate', value: `${monthSummary.attendanceRate.toFixed(1)}%`, tone: 'border-t-emerald-500' },
+                    { label: 'Present Days', value: String(monthSummary.present), tone: 'border-t-green-500' },
+                    { label: 'Late Marks', value: String(monthSummary.late), tone: 'border-t-orange-500' },
+                    { label: 'Absences', value: String(monthSummary.absent), tone: 'border-t-rose-500' },
+                    { label: 'Leave Days', value: String(monthSummary.leave + monthSummary.halfDay * 0.5), tone: 'border-t-sky-500' },
+                ].map((kpi) => (
+                    <div key={kpi.label} className={`ent-card p-3 border-t-4 ${kpi.tone}`}>
+                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">{kpi.label}</p>
+                        <p className="text-lg font-black text-slate-900 mt-0.5">{kpi.value}</p>
+                    </div>
+                ))}
+            </div>
 
             <div className="flex flex-wrap gap-4 mb-4 px-1">
                 <div className="flex items-center text-xs text-gray-600"><span className="w-5 h-5 rounded-md bg-green-100 text-green-700 flex items-center justify-center font-bold mr-2">P</span> Present</div>
@@ -369,7 +657,23 @@ export default function AdminAttendancePage() {
                                     <td className="px-4 py-3"><div className="h-4 bg-gray-200 rounded-md w-8 mx-auto"></div></td>
                                 </tr>
                             ))
-                        ) : employees.map(emp => {
+                        ) : filteredEmployees.length === 0 ? (
+                            <tr>
+                                <td colSpan={days.length + 2} className="px-6 py-16 text-center">
+                                    <p className="text-sm font-bold text-slate-700">No employees match your filters</p>
+                                    <p className="text-xs text-slate-400 mt-1">Try adjusting search, department, or attendance status.</p>
+                                    {activeFilterCount > 0 && (
+                                        <button
+                                            type="button"
+                                            onClick={clearFilters}
+                                            className="mt-4 text-[10px] font-black uppercase tracking-widest text-primary-600 hover:underline"
+                                        >
+                                            Clear all filters
+                                        </button>
+                                    )}
+                                </td>
+                            </tr>
+                        ) : filteredEmployees.map(emp => {
                             const empRecord = attendanceMap[emp.id] || {};
                             const today = new Date();
                             today.setHours(23, 59, 59, 999);

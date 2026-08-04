@@ -37,7 +37,8 @@ import {
     Newspaper,
     CheckSquare,
     Award,
-    Database
+    Database,
+    Clock
 } from 'lucide-react';
 import { auth, useAuth } from '@/lib/auth';
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -132,6 +133,7 @@ export default function Sidebar() {
         { name: 'Balance Sheet', href: '/accounting/reports/balance-sheet', icon: Building2, category: 'Accounting', module: 'Accounting' },
         { name: 'Profit & Loss', href: '/accounting/reports/profit-loss', icon: LineChart, category: 'Accounting', module: 'Accounting' },
         { name: 'GST Summary', href: '/accounting/reports/gst-summary', icon: FileText, category: 'Accounting', module: 'Accounting' },
+        { name: 'AR/AP Aging', href: '/accounting/reports/aging', icon: Clock, category: 'Accounting', module: 'Accounting' },
 
         // Ops & Docs
         { name: 'Projects', href: '/projects', icon: LayoutDashboard, category: 'Operations', module: 'Project' },
@@ -163,6 +165,7 @@ export default function Sidebar() {
         { name: 'Tenant Plans', href: '/superadmin/plans', icon: CreditCard, category: 'Platform Admin', role: 'Super Admin' },
         { name: 'Statutory Rules', href: '/superadmin/rules', icon: ShieldCheck, category: 'Platform Admin', role: 'Super Admin' },
         { name: 'COA Templates', href: '/superadmin/coa', icon: BookOpen, category: 'Platform Admin', role: 'Super Admin' },
+        { name: 'Platform Accounting', href: '/superadmin/accounting', icon: Banknote, category: 'Platform Admin', role: 'Super Admin' },
     ], []);
 
     const [isHovered, setIsHovered] = useState(false);
@@ -281,7 +284,9 @@ export default function Sidebar() {
             {/* Sidebar Container */}
             <div 
                 className={`
-                    fixed inset-y-0 left-0 z-40 bg-slate-900 text-white transform transition-all duration-300 ease-in-out border-r border-slate-800/50 shadow-2xl flex flex-col
+                    fixed inset-y-0 left-0 z-40 bg-slate-950 text-white flex flex-col
+                    transition-[width,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]
+                    border-r border-white/5 shadow-[4px_0_24px_-8px_rgba(0,0,0,0.35)]
                     ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
                     md:translate-x-0 md:sticky md:top-0 md:h-screen
                     ${isExpanded ? 'w-64' : 'w-20'}
@@ -291,8 +296,8 @@ export default function Sidebar() {
             >
 
                 {/* Brand Section */}
-                <div className={`h-16 flex items-center border-b border-slate-800/50 bg-brand-gradient transition-all duration-300 ${!isExpanded ? 'justify-center px-0' : 'px-6 gap-3'}`}>
-                    <div className="w-8 h-8 bg-white/10 backdrop-blur-md rounded-md flex items-center justify-center border border-white/10 flex-shrink-0">
+                <div className={`h-16 flex items-center border-b border-white/5 bg-brand-gradient transition-all duration-300 ${!isExpanded ? 'justify-center px-0' : 'px-5 gap-3'}`}>
+                    <div className="w-8 h-8 bg-white/10 backdrop-blur-md rounded-lg flex items-center justify-center border border-white/10 flex-shrink-0">
                         <Building2 size={18} className="text-white" />
                     </div>
                     {isExpanded && (
@@ -345,20 +350,20 @@ export default function Sidebar() {
                                                 href={item.href}
                                                 ref={isActive ? activeLinkRef : null}
                                                 className={`
-                                                    group flex items-center text-[11px] font-bold rounded-md transition-all duration-200 relative
-                                                    ${!isExpanded ? 'justify-center p-2' : 'px-4 py-2'}
+                                                    group flex items-center text-[11px] font-bold rounded-lg relative
+                                                    transition-[background-color,color,box-shadow] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]
+                                                    ${!isExpanded ? 'justify-center p-2.5' : 'px-3.5 py-2'}
                                                     ${isActive
-                                                        ? 'bg-primary-600 text-white shadow-lg shadow-primary-600/20'
-                                                        : 'text-slate-400 hover:text-white hover:bg-slate-800/50'}
+                                                        ? 'bg-primary-600 text-white shadow-md shadow-primary-900/30'
+                                                        : 'text-slate-400 hover:text-white hover:bg-white/5'}
                                                 `}
                                                 onClick={() => setIsMobileMenuOpen(false)}
                                             >
-                                                <item.icon className={`${!isExpanded ? 'mr-0' : 'mr-3'} h-4 w-4 flex-shrink-0 transition-transform group-hover:scale-110 ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-white'}`} />
-                                                {isExpanded && <span className="animate-fade-in-shimmer whitespace-nowrap">{item.name}</span>}
-                                                
-                                                {isActive && (
-                                                    <div className={`absolute rounded-full bg-primary-300 animate-pulse ${!isExpanded ? 'bottom-1 w-1 h-1' : 'right-4 w-1 h-1'}`} />
+                                                {isActive && isExpanded && (
+                                                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r-full bg-primary-200" />
                                                 )}
+                                                <item.icon className={`${!isExpanded ? 'mr-0' : 'mr-3'} h-4 w-4 flex-shrink-0 transition-colors duration-200 ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-slate-200'}`} />
+                                                {isExpanded && <span className="animate-fade-in-shimmer whitespace-nowrap">{item.name}</span>}
                                             </Link>
                                         );
                                     })}

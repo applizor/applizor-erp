@@ -22,7 +22,8 @@ timestamp: 2026-07-08T20:00:00Z
 ## Dashboard & Core
 | Route | File | Description |
 |-------|------|-------------|
-| `/dashboard` | `app/(main)/dashboard/page.tsx` | Main dashboard |
+| `/dashboard` | `app/(main)/dashboard/page.tsx` + `components/dashboard/AdminEnterpriseDashboard.tsx` | Admin: Executive Command Center (charts). Employee: workspace + task status pie. Student unchanged. |
+| `/search` | `app/(main)/search/page.tsx` | Real global search via `GET /api/search` (employees, clients, invoices, documents, leads) |
 | `/calendar` | `app/(main)/calendar/page.tsx` | Calendar view |
 | `/notifications` | `app/(main)/notifications/page.tsx` | Notification center |
 | `/search` | `app/(main)/search/page.tsx` | Global search |
@@ -78,16 +79,18 @@ timestamp: 2026-07-08T20:00:00Z
 | `/hrms/performance/okrs` | `app/(main)/hrms/performance/okrs/page.tsx` | OKRs |
 
 ## Accounting Suite
+Enterprise double-entry ledger with COA edit/delete, journal edit, Sync Ledgers, and PDF/CSV exports.
 | Route | File | Description |
 |-------|------|-------------|
 | `/accounting` | layout | Accounting layout |
-| `/accounting/chart-of-accounts` | `app/(main)/accounting/chart-of-accounts/page.tsx` | Chart of accounts |
-| `/accounting/journal` | `app/(main)/accounting/journal/page.tsx` | Journal entries |
-| `/accounting/reports/ledger/[accountId]` | Detail | General ledger |
-| `/accounting/reports/trial-balance` | `app/(main)/accounting/reports/trial-balance/page.tsx` | Trial balance |
-| `/accounting/reports/profit-loss` | `app/(main)/accounting/reports/profit-loss/page.tsx` | P&L statement |
-| `/accounting/reports/balance-sheet` | `app/(main)/accounting/reports/balance-sheet/page.tsx` | Balance sheet |
-| `/accounting/reports/gst-summary` | `app/(main)/accounting/reports/gst-summary/page.tsx` | GST summary |
+| `/accounting/chart-of-accounts` | `app/(main)/accounting/chart-of-accounts/page.tsx` | Chart of accounts (edit/delete + CSV) |
+| `/accounting/journal` | `app/(main)/accounting/journal/page.tsx` | Journal entries (edit/delete + CSV) |
+| `/accounting/reports/ledger/[accountId]` | Detail | General ledger + CSV |
+| `/accounting/reports/trial-balance` | `app/(main)/accounting/reports/trial-balance/page.tsx` | Trial balance + PDF/CSV |
+| `/accounting/reports/profit-loss` | `app/(main)/accounting/reports/profit-loss/page.tsx` | P&L statement + PDF/CSV |
+| `/accounting/reports/balance-sheet` | `app/(main)/accounting/reports/balance-sheet/page.tsx` | Balance sheet + PDF/CSV |
+| `/accounting/reports/gst-summary` | `app/(main)/accounting/reports/gst-summary/page.tsx` | GST summary + PDF/CSV |
+| `/accounting/reports/aging` | `app/(main)/accounting/reports/aging/page.tsx` | AR/AP aging buckets + CSV export |
 
 ## CRM Suite
 | Route | File | Description |
@@ -198,10 +201,12 @@ timestamp: 2026-07-08T20:00:00Z
 | Route | File | Description |
 |-------|------|-------------|
 | `/superadmin/dashboard` | `app/(main)/superadmin/dashboard/page.tsx` | Platform dashboard |
-| `/superadmin/tenants` | `app/(main)/superadmin/tenants/page.tsx` | Tenant management |
-| `/superadmin/plans` | `app/(main)/superadmin/plans/page.tsx` | Platform plans |
+| `/superadmin/tenants` | `app/(main)/superadmin/tenants/page.tsx` | Tenant onboard (creates admin user + plan), provision orphans, subscription edit |
+| `/superadmin/plans` | `app/(main)/superadmin/plans/page.tsx` | Platform SaaS plans (CRUD + reactivate) |
 | `/superadmin/coa` | `app/(main)/superadmin/coa/page.tsx` | COA templates |
 | `/superadmin/rules` | `app/(main)/superadmin/rules/page.tsx` | Statutory rules |
+| `/superadmin/accounting` | `app/(main)/superadmin/accounting/page.tsx` | Platform SaaS books (subscription revenue) |
+| `/settings/billing` | `app/(main)/settings/billing/page.tsx` | Tenant SaaS billing / upgrade checkout |
 
 ## Client Portal (`/portal`)
 | Route | File | Description |

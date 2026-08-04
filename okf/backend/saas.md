@@ -75,16 +75,56 @@ The platform layer enables running this ERP as a **multi-tenant SaaS**. It adds:
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | /tenants | List all tenants with pagination, search, filter |
-| GET | /tenants/:id | Get tenant details with stats |
-| POST | /tenants | Onboard a new company/tenant |
-| PUT | /tenants/:id/suspend | Suspend tenant |
-| PUT | /tenants/:id/activate | Activate tenant |
+| GET | /tenants/:id | Get tenant details with stats (also allowed for own company) |
+| POST | /tenants | Onboard company + create Admin user + assign plan (returns temp credentials) |
+| PUT | /tenants/:id | Update tenant company profile |
+| PUT | /tenants/:id/suspend | Suspend tenant (pauses subscription) |
+| PUT | /tenants/:id/activate | Activate tenant (reactivates paused subscription) |
+| POST | /tenants/:id/provision-admin | Create Admin login for orphan tenants (0 users) |
 | DELETE | /tenants/:id | Delete tenant |
-| PUT | /tenants/:id/subscription | Update tenant subscription plan |
+| PUT | /tenants/:id/subscription | Assign/update plan, status, period, notes |
+| GET | /plans/all | List all plans including inactive |
 | POST | /plans | Create a new plan |
 | PUT | /plans/:id | Update plan |
 | DELETE | /plans/:id | Deactivate plan |
 | GET | /stats | Platform dashboard statistics |
+| POST | /subscribe/checkout | Tenant self-serve plan checkout (Cashfree/PayPal) |
+| POST | /subscribe/verify | Verify payment and activate subscription |
+| POST | /subscribe/webhook | Payment webhook |
+
+## Tenant Onboarding Flow (Launch)
+
+1. Super Admin opens `/superadmin/tenants` → **Onboard Company**
+2. Fills company details + optional plan + admin email/name/password
+3. `POST /api/platform/tenants` creates **atomically** in one Prisma transaction:
+   - `Company` (+ `enabledModules` from plan)
+   - `TenantSubscription` (always — selected plan, or `starter_monthly` trial if blank)
+   - `User` with system `Admin` role + hashed password
+4. Response **201** includes `credentials.temporaryPassword` (shown once in UI) + subscription/plan
+5. Welcome email / COA defaults are **best-effort** after commit — email failure does **not** fail onboard
+6. Errors return `{ error, details, code?, meta? }` (not a bare generic message)
+7. Client admin logs in at `/login`
+
+**Prisma tenant isolation note:** Super Admin requests run with the admin’s `companyId` in ALS. Create/upsert must **not** overwrite an explicit `companyId` (fixed in `prisma/client.ts`); otherwise subscription create targeted the admin’s company and hit unique `companyId`, leaving orphans with no plan.
+
+**Repair orphans:** companies created before this fix show "0 Users — orphan"; use the **Provision Admin** action (`POST /tenants/:id/provision-admin`). Assign/change plan via **Edit Subscription** (`PUT /tenants/:id/subscription`).
+
+## Manual Subscription Assignment
+
+`PUT /api/platform/tenants/:id/subscription` with `{ planId, status, autoRenew, notes, extendDays? }`:
+- Sets billing period dates from plan interval
+- Syncs `Company.enabledModules` from the plan
+- Supports cancel (`cancelledAt`) and extend (`extendDays`)
+
+## Plan Limit Enforcement
+
+`middleware/enforcePlanLimit.ts`:
+- `enforcePlanLimit('maxUsers')` — seats = max(users, employees)
+- `enforcePlanLimit('maxStorageGb')` — document file size sum
+- `requireModule(name)` — supports aliases (`crm`↔`clients`, `hrms`↔`employees`)
+- `requireFeature(name)` — feature flags from plan JSON
+
+Suspended companies / inactive users are blocked at login and by `authenticate` middleware (platform Super Admin exempt).
 
 ## Super Admin Middleware
 
@@ -160,9 +200,32 @@ All 28 states + 8 UTs with ISO codes (IN-AP through IN-PY)
 ### Tenant Plans
 | Plan | Price | Users | Storage | Modules |
 |------|-------|-------|---------|---------|
-| Starter | $29/mo | 5 | 1GB | employees, attendance, leaves, payroll, clients, invoices |
-| Growth | $99/mo | 20 | 10GB | + projects, crm, accounting |
-| Enterprise | $299/mo | 100 | 100GB | + hrms, recruitment, lms |
+| Starter | $29/mo | 5 | 1GB | hrms, payroll, clients/crm, invoices |
+| Growth | $99/mo | 20 | 10GB | + projects, accounting |
+| Enterprise | $299/mo | 100 | 100GB | + recruitment, lms |
+
+
+
+## Platform Accounting (Applizor SaaS books)
+
+Tenant company COA / journal / P&L stay on each tenant `companyId`. **Subscription revenue never posts into the paying tenant’s books.**
+
+Instead, platform SaaS revenue posts into a dedicated company:
+
+- `Company.isPlatform = true` (name: **Applizor Platform**)
+- Own COA via `platform-accounting.service.ts` (`1000` bank, `4000` SaaS Subscription Revenue, gateway fees, etc.)
+- Idempotent journals with reference `SUB-{orderId}`
+- Triggered on `POST /subscribe/verify` and Cashfree webhook after successful payment
+- Super Admin UI: `/superadmin/accounting`
+- API (Super Admin):
+  - `POST /platform/accounting/ensure` — create platform company + COA
+  - `GET /platform/accounting/accounts` — trial balance
+  - `GET /platform/accounting/journal`
+  - `GET /platform/accounting/profit-loss`
+  - `GET /platform/accounting/payments` — paid subscriptions vs posted journals
+- Platform company is excluded from tenant lists and platform stats
+
+Migration: `20260805000000_add_company_is_platform`
 
 ## Chart of Accounts Templates (COA)
 

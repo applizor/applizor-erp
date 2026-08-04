@@ -121,13 +121,25 @@ export default function NotificationCenter() {
         }
     };
 
+    const resolveNotificationLink = (notification: Notification) => {
+        if (notification.link) return notification.link;
+        const t = (notification.type || '').toLowerCase();
+        const msg = `${notification.title || ''} ${notification.message || ''}`.toLowerCase();
+        if (t.includes('leave') || msg.includes('leave')) return '/hrms/leaves/approvals';
+        if (t.includes('invoice') || msg.includes('invoice')) return '/invoices';
+        if (t.includes('task') || msg.includes('task')) return '/tasks';
+        if (t.includes('payroll') || msg.includes('payslip') || msg.includes('payroll')) return '/payroll/my-payslips';
+        if (t.includes('ticket') || msg.includes('ticket') || msg.includes('helpdesk')) return '/helpdesk';
+        if (t.includes('recruit') || msg.includes('candidate') || msg.includes('interview')) return '/recruitment/board';
+        if (t.includes('lead') || msg.includes('lead')) return '/leads/list';
+        return '/notifications';
+    };
+
     const handleNotificationClick = (notification: Notification) => {
         if (!notification.isRead) {
             markAsRead(notification.id);
         }
-        if (notification.link) {
-            router.push(notification.link);
-        }
+        router.push(resolveNotificationLink(notification));
         setIsOpen(false);
     };
 

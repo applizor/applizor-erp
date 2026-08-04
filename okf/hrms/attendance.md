@@ -26,7 +26,8 @@ timestamp: 2026-07-08T20:00:00Z
 
 ## Manual Attendance
 - Admin can manually mark attendance for any employee/date
-- Bulk marking via register page
+- Bulk marking via register page (`/hrms/admin` Attendance Register)
+- Register filters: employee name/ID search, department, position, employment status, month attendance status (has absent/late/leave/etc.)
 - CSV bulk import via `/api/bulk-import/attendance`
 
 ## Half-Day Logic

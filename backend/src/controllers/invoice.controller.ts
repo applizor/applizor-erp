@@ -91,7 +91,7 @@ export const getInvoices = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'User must belong to a company' });
     }
 
-    const { status, clientId, page = 1, limit = 10, search } = req.query;
+    const { status, clientId, page = 1, limit = 50, search } = req.query;
 
     const where: any = {
       companyId: user.companyId,

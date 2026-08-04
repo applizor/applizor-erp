@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { leavesApi, leaveTypesApi } from '@/lib/api/attendance';
 import { employeesApi, Employee } from '@/lib/api/hrms';
 import { Check, X, Clock, User, Plus, Calendar, AlertCircle, AlertTriangle, XCircle, Info, Search, Filter, Eye, Download } from 'lucide-react';
@@ -58,6 +58,9 @@ export default function LeaveApprovalsPage() {
     });
     const [calculatedDays, setCalculatedDays] = useState(0);
     const [calculating, setCalculating] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [statusFilter, setStatusFilter] = useState('pending');
+    const [showFilters, setShowFilters] = useState(false);
 
     useEffect(() => {
         loadRequests();
@@ -187,6 +190,19 @@ export default function LeaveApprovalsPage() {
         }
     };
 
+    const filteredRequests = useMemo(() => {
+        const q = searchQuery.trim().toLowerCase();
+        return requests.filter((req) => {
+            if (statusFilter && (req.status || '').toLowerCase() !== statusFilter.toLowerCase()) return false;
+            if (!q) return true;
+            const name = `${req.employee?.firstName || ''} ${req.employee?.lastName || ''}`.toLowerCase();
+            const type = (req.leaveType?.name || '').toLowerCase();
+            const reason = (req.reason || '').toLowerCase();
+            const dept = (req.employee?.department?.name || '').toLowerCase();
+            return name.includes(q) || type.includes(q) || reason.includes(q) || dept.includes(q);
+        });
+    }, [requests, searchQuery, statusFilter]);
+
     return (
         <div className="space-y-4">
             <div className="flex justify-between items-center bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
@@ -207,22 +223,56 @@ export default function LeaveApprovalsPage() {
             </div>
 
             <div className="ent-card overflow-hidden">
-                <div className="px-5 py-3 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
-                    <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pending Requirements</h3>
+                <div className="px-5 py-3 border-b border-gray-100 bg-gray-50/50 flex flex-wrap justify-between items-center gap-3">
+                    <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                        Leave Queue · {filteredRequests.length} shown
+                    </h3>
                     <div className="flex items-center gap-2">
                         <div className="relative group">
                             <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
                             <input
                                 type="text"
-                                placeholder="Filter..."
-                                className="pl-8 pr-3 py-1 bg-white border border-gray-200 rounded text-[10px] focus:ring-1 focus:ring-primary-500/20 focus:border-primary-500 transition-all outline-none w-32"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="Employee, type, reason..."
+                                className="pl-8 pr-3 py-1 bg-white border border-gray-200 rounded text-[10px] focus:ring-1 focus:ring-primary-500/20 focus:border-primary-500 transition-all outline-none w-44"
                             />
                         </div>
-                        <button className="p-1 hover:bg-gray-100 rounded text-gray-400">
+                        <button
+                            type="button"
+                            onClick={() => setShowFilters((v) => !v)}
+                            className={`p-1 rounded transition-colors ${showFilters || statusFilter !== 'pending' ? 'bg-primary-50 text-primary-600' : 'hover:bg-gray-100 text-gray-400'}`}
+                        >
                             <Filter size={14} />
                         </button>
                     </div>
                 </div>
+                {showFilters && (
+                    <div className="px-5 py-3 border-b border-gray-100 bg-white flex flex-wrap items-center gap-3">
+                        <div className="min-w-[160px]">
+                            <CustomSelect
+                                options={[
+                                    { value: '', label: 'All Statuses' },
+                                    { value: 'pending', label: 'Pending' },
+                                    { value: 'approved', label: 'Approved' },
+                                    { value: 'rejected', label: 'Rejected' },
+                                ]}
+                                value={statusFilter}
+                                onChange={setStatusFilter}
+                                placeholder="Status"
+                            />
+                        </div>
+                        {(searchQuery || statusFilter) && (
+                            <button
+                                type="button"
+                                onClick={() => { setSearchQuery(''); setStatusFilter(''); }}
+                                className="text-[10px] font-black uppercase tracking-widest text-primary-600"
+                            >
+                                Clear filters
+                            </button>
+                        )}
+                    </div>
+                )}
                 <div className="ent-table-container">
                     <table className="ent-table">
                         <thead>
@@ -241,15 +291,17 @@ export default function LeaveApprovalsPage() {
                                         <td colSpan={5} className="py-4 px-4"><div className="h-4 bg-gray-100 rounded"></div></td>
                                     </tr>
                                 ))
-                            ) : requests.length === 0 ? (
+                            ) : filteredRequests.length === 0 ? (
                                 <tr>
                                     <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
                                         <Info className="w-8 h-8 mx-auto mb-2 opacity-20" />
-                                        <p className="text-xs font-bold uppercase tracking-widest">No pending applications</p>
+                                        <p className="text-xs font-bold uppercase tracking-widest">
+                                            {searchQuery || statusFilter ? 'No matching leave requests' : 'No pending applications'}
+                                        </p>
                                     </td>
                                 </tr>
                             ) : (
-                                requests.map((req) => (
+                                filteredRequests.map((req) => (
                                     <tr
                                         key={req.id}
                                         onClick={() => setDetailRequest(req)}

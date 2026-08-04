@@ -26,7 +26,9 @@ export default function InvoicesPage() {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [filters, setFilters] = useState({ status: '', clientId: '' });
+  const [filters, setFilters] = useState({ status: '', clientId: '', startDate: '', endDate: '' });
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [overdueOnly, setOverdueOnly] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   useEffect(() => {
@@ -51,16 +53,38 @@ export default function InvoicesPage() {
       loadInvoices();
     }, 400);
     return () => clearTimeout(timeoutId);
-  }, [search, filters]);
+  }, [search, filters, overdueOnly]);
 
   const loadInvoices = async () => {
     try {
       setLoading(true);
       const data = await invoicesApi.getAll({
-        ...filters,
-        search
+        status: filters.status || undefined,
+        clientId: filters.clientId || undefined,
+        search: search || undefined,
+        limit: 200,
       } as any);
-      setInvoices(data.invoices || []);
+      let list = data.invoices || [];
+
+      if (filters.startDate) {
+        const start = new Date(filters.startDate);
+        list = list.filter((inv: any) => new Date(inv.issueDate || inv.invoiceDate || inv.createdAt) >= start);
+      }
+      if (filters.endDate) {
+        const end = new Date(filters.endDate);
+        end.setHours(23, 59, 59, 999);
+        list = list.filter((inv: any) => new Date(inv.issueDate || inv.invoiceDate || inv.createdAt) <= end);
+      }
+      if (overdueOnly) {
+        const now = new Date();
+        list = list.filter((inv: any) => {
+          if (['paid', 'cancelled', 'draft'].includes(inv.status)) return false;
+          if (inv.status === 'overdue') return true;
+          return inv.dueDate && new Date(inv.dueDate) < now;
+        });
+      }
+
+      setInvoices(list);
       setSelectedIds([]);
     } catch (error) {
       toast.error('Failed to load invoices');
@@ -147,40 +171,90 @@ export default function InvoicesPage() {
       </div>
 
       {/* Operations Toolbar */}
-      <div className="ent-card p-3 flex flex-col lg:flex-row items-center gap-3 bg-gray-50/50">
-        <div className="relative flex-1 w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
-          <input
-            type="text"
-            placeholder="Search documents, entities or financial markers..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-md text-xs font-bold focus:ring-1 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all shadow-sm"
-          />
+      <div className="space-y-2">
+        <div className="ent-card p-3 flex flex-col lg:flex-row items-center gap-3 bg-gray-50/50">
+          <div className="relative flex-1 w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+            <input
+              type="text"
+              placeholder="Search documents, entities or financial markers..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-md text-xs font-bold focus:ring-1 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all shadow-sm"
+            />
+          </div>
+          <div className="flex items-center gap-2 w-full lg:w-auto">
+            <CustomSelect
+              options={[
+                { label: 'All Statuses', value: '' },
+                ...Object.keys(statusStyles).map(s => ({ label: s.toUpperCase(), value: s }))
+              ]}
+              value={filters.status}
+              onChange={val => setFilters({ ...filters, status: val })}
+              className="flex-1 lg:flex-none"
+            />
+            <CustomSelect
+              options={[
+                { label: 'All Consumers', value: '' },
+                ...clients.map(c => ({ label: c.name, value: c.id }))
+              ]}
+              value={filters.clientId}
+              onChange={val => setFilters({ ...filters, clientId: val })}
+              className="flex-1 lg:flex-none"
+            />
+            <button
+              type="button"
+              onClick={() => setShowAdvanced((v) => !v)}
+              className={`p-2 border rounded-md transition-colors ${showAdvanced || overdueOnly || filters.startDate || filters.endDate ? 'bg-primary-50 border-primary-200 text-primary-600' : 'bg-white border-gray-200 text-gray-400 hover:bg-gray-100'}`}
+              title="Advanced filters"
+            >
+              <Filter size={14} />
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-2 w-full lg:w-auto">
-          <CustomSelect
-            options={[
-              { label: 'All Statuses', value: '' },
-              ...Object.keys(statusStyles).map(s => ({ label: s.toUpperCase(), value: s }))
-            ]}
-            value={filters.status}
-            onChange={val => setFilters({ ...filters, status: val })}
-            className="flex-1 lg:flex-none"
-          />
-          <CustomSelect
-            options={[
-              { label: 'All Consumers', value: '' },
-              ...clients.map(c => ({ label: c.name, value: c.id }))
-            ]}
-            value={filters.clientId}
-            onChange={val => setFilters({ ...filters, clientId: val })}
-            className="flex-1 lg:flex-none"
-          />
-          <button className="p-2 bg-white border border-gray-200 rounded-md hover:bg-gray-100 text-gray-400">
-            <Filter size={14} />
-          </button>
-        </div>
+        {showAdvanced && (
+          <div className="ent-card p-3 flex flex-wrap items-end gap-3">
+            <div>
+              <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 block mb-1">From</label>
+              <input
+                type="date"
+                className="ent-input text-xs"
+                value={filters.startDate}
+                onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 block mb-1">To</label>
+              <input
+                type="date"
+                className="ent-input text-xs"
+                value={filters.endDate}
+                onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
+              />
+            </div>
+            <label className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-md cursor-pointer">
+              <input
+                type="checkbox"
+                checked={overdueOnly}
+                onChange={(e) => setOverdueOnly(e.target.checked)}
+                className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              />
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">Overdue only</span>
+            </label>
+            {(filters.startDate || filters.endDate || overdueOnly) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setFilters({ ...filters, startDate: '', endDate: '' });
+                  setOverdueOnly(false);
+                }}
+                className="text-[10px] font-black uppercase tracking-widest text-primary-600"
+              >
+                Clear advanced
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Data Visualization Grid */}

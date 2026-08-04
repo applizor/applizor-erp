@@ -44,6 +44,43 @@ export default function GeneralLedgerPage() {
     // Calculate running balance logic if needed, or just show transactions
     let runningBalance = Number(account?.openingBalance || 0);
 
+    const handleExportCsv = () => {
+        try {
+            let balance = Number(account?.openingBalance || 0);
+            const rows = [
+                ['Date', 'Reference', 'Description', 'Debit', 'Credit', 'Balance'],
+                ...entries.map((line: any) => {
+                    const debit = Number(line.debit) || 0;
+                    const credit = Number(line.credit) || 0;
+                    if (account?.type === 'asset' || account?.type === 'expense') {
+                        balance += debit - credit;
+                    } else {
+                        balance += credit - debit;
+                    }
+                    return [
+                        line.journalEntry?.date ? format(new Date(line.journalEntry.date), 'yyyy-MM-dd') : (line.date || ''),
+                        line.journalEntry?.reference || line.reference || '',
+                        line.journalEntry?.description || line.description || '',
+                        String(debit),
+                        String(credit),
+                        String(balance.toFixed(2)),
+                    ];
+                }),
+            ];
+            const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `ledger-${account?.code || accountId}-${dateRange.startDate}-${dateRange.endDate}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+            toast.success('Ledger exported');
+        } catch {
+            toast.error('Export failed');
+        }
+    };
+
     return (
         <div className="p-6">
             <div className="mb-6">
@@ -82,7 +119,7 @@ export default function GeneralLedgerPage() {
                                 onChange={e => setDateRange({ ...dateRange, endDate: e.target.value })}
                             />
                         </div>
-                        <button className="btn-secondary flex items-center gap-2">
+                        <button onClick={handleExportCsv} className="btn-secondary flex items-center gap-2">
                             <Download size={14} />
                             Export
                         </button>

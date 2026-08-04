@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { DragDropContext, Droppable, Draggable, DropResult, DroppableProvided, DroppableStateSnapshot, DraggableProvided, DraggableStateSnapshot } from 'react-beautiful-dnd';
 import { LayoutDashboard, Filter, Plus, Users, Search, MoreVertical, Star, Calendar, FileText } from 'lucide-react';
 import api from '@/lib/api';
@@ -11,7 +12,9 @@ interface Candidate {
     id: string;
     firstName: string;
     lastName: string;
+    jobOpeningId?: string;
     jobOpening?: {
+        id?: string;
         title: string;
     };
     status: string;
@@ -23,8 +26,6 @@ interface KanbanData {
 }
 
 import { useSocket } from '@/contexts/SocketContext';
-
-// ... existing interfaces ...
 
 const STAGES = ['Applied', 'Screening', 'Interview', 'Offer', 'Hired', 'Rejected'];
 
@@ -47,6 +48,9 @@ const StrictModeDroppable = ({ children, ...props }: any) => {
 export default function KanbanBoardPage() {
     const [columns, setColumns] = useState<KanbanData>({});
     const [loading, setLoading] = useState(true);
+    const [jobFilter, setJobFilter] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [showSearch, setShowSearch] = useState(false);
     const { socket } = useSocket();
 
     useEffect(() => {
@@ -57,18 +61,14 @@ export default function KanbanBoardPage() {
         if (!socket) return;
 
         const handleMove = (data: any) => {
-            console.log('Real-time move received:', data);
-
             setColumns(prev => {
                 const newCols = { ...prev };
                 let movedCandidate: Candidate | undefined;
 
-                // 1. Remove from old column
                 Object.keys(newCols).forEach(stage => {
                     const idx = newCols[stage].findIndex(c => c.id === data.candidateId);
                     if (idx !== -1) {
                         movedCandidate = newCols[stage][idx];
-                        // If we have full candidate object in payload, use it, otherwise use existing
                         if (data.candidate) {
                             movedCandidate = { ...movedCandidate, ...data.candidate };
                         }
@@ -76,13 +76,11 @@ export default function KanbanBoardPage() {
                     }
                 });
 
-                // 2. Add to new column (if we found it or have data)
                 if (data.candidate || movedCandidate) {
                     const targetStage = data.stage;
                     const candidateToAdd = data.candidate || { ...movedCandidate, currentStage: targetStage, status: data.status };
 
                     if (!newCols[targetStage]) newCols[targetStage] = [];
-                    // Check if already exists to prevent duplicates
                     if (!newCols[targetStage].find(c => c.id === data.candidateId)) {
                         newCols[targetStage] = [candidateToAdd as Candidate, ...newCols[targetStage]];
                     }
@@ -111,6 +109,38 @@ export default function KanbanBoardPage() {
         }
     };
 
+    const jobOptions = useMemo(() => {
+        const map = new Map<string, string>();
+        Object.values(columns).flat().forEach((c) => {
+            const id = c.jobOpeningId || c.jobOpening?.id || '';
+            const title = c.jobOpening?.title || '';
+            if (id && title) map.set(id, title);
+            else if (title) map.set(title, title);
+        });
+        return Array.from(map.entries()).map(([value, label]) => ({ value, label }));
+    }, [columns]);
+
+    const filteredColumns = useMemo(() => {
+        const q = searchQuery.trim().toLowerCase();
+        const next: KanbanData = {};
+        STAGES.forEach((stage) => {
+            next[stage] = (columns[stage] || []).filter((c) => {
+                if (jobFilter) {
+                    const id = c.jobOpeningId || c.jobOpening?.id || '';
+                    const title = c.jobOpening?.title || '';
+                    if (id !== jobFilter && title !== jobFilter) return false;
+                }
+                if (q) {
+                    const name = `${c.firstName || ''} ${c.lastName || ''}`.toLowerCase();
+                    const job = (c.jobOpening?.title || '').toLowerCase();
+                    if (!name.includes(q) && !job.includes(q)) return false;
+                }
+                return true;
+            });
+        });
+        return next;
+    }, [columns, jobFilter, searchQuery]);
+
     const [showInterviewModal, setShowInterviewModal] = useState(false);
     const [showOfferModal, setShowOfferModal] = useState(false);
     const [activeCandidate, setActiveCandidate] = useState<Candidate | null>(null);
@@ -122,19 +152,22 @@ export default function KanbanBoardPage() {
         if (!destination) return;
         if (source.droppableId === destination.droppableId && source.index === destination.index) return;
 
-        const sourceColumn = columns[source.droppableId];
-        const destColumn = columns[destination.droppableId];
-        const candidate = sourceColumn[source.index];
+        const sourceColumn = columns[source.droppableId] || [];
+        const destColumn = columns[destination.droppableId] || [];
+        const candidate =
+            sourceColumn.find((c) => c.id === draggableId) ||
+            sourceColumn[source.index];
+        if (!candidate) return;
 
         // LOGIC: Save Drag Result and Candidate for later use (Revert/Commit)
         setDragResult(result);
         setActiveCandidate(candidate);
 
         // 1. Optimistic Update (Move UI Immediately)
-        const newSource = Array.from(sourceColumn);
-        newSource.splice(source.index, 1);
-        const newDest = Array.from(destColumn);
-        newDest.splice(destination.index, 0, candidate);
+        const newSource = sourceColumn.filter((c) => c.id !== candidate.id);
+        const newDest = Array.from(destColumn.filter((c) => c.id !== candidate.id));
+        const insertAt = Math.min(destination.index, newDest.length);
+        newDest.splice(insertAt, 0, candidate);
 
         setColumns({
             ...columns,
@@ -202,20 +235,44 @@ export default function KanbanBoardPage() {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
+                    {showSearch && (
+                        <div className="relative">
+                            <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="Search candidate..."
+                                className="pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-md text-[10px] font-bold w-44 focus:ring-1 focus:ring-primary-500 outline-none"
+                            />
+                        </div>
+                    )}
                     <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-md">
                         <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Filters:</span>
-                        <select className="bg-transparent border-none text-[9px] font-black uppercase tracking-widest text-primary-600 focus:ring-0 p-0 cursor-pointer">
-                            <option>ALL REQUISITIONS</option>
+                        <select
+                            value={jobFilter}
+                            onChange={(e) => setJobFilter(e.target.value)}
+                            className="bg-transparent border-none text-[9px] font-black uppercase tracking-widest text-primary-600 focus:ring-0 p-0 cursor-pointer max-w-[160px]"
+                        >
+                            <option value="">ALL REQUISITIONS</option>
+                            {jobOptions.map((j) => (
+                                <option key={j.value} value={j.value}>{j.label}</option>
+                            ))}
                         </select>
                     </div>
                     <div className="h-6 w-px bg-slate-200 mx-1" />
-                    <button className="p-2 hover:bg-slate-100 text-slate-500 rounded-md transition-colors">
+                    <button
+                        type="button"
+                        onClick={() => setShowSearch((v) => !v)}
+                        className={`p-2 rounded-md transition-colors ${showSearch || searchQuery ? 'bg-primary-50 text-primary-600' : 'hover:bg-slate-100 text-slate-500'}`}
+                        title="Search candidates"
+                    >
                         <Filter size={14} />
                     </button>
-                    <button className="btn-primary py-2 px-4 shadow-lg shadow-primary-900/10 active:scale-95">
+                    <Link href="/recruitment/candidates" className="btn-primary py-2 px-4 shadow-lg shadow-primary-900/10 active:scale-95 inline-flex items-center">
                         <Plus size={14} className="mr-2" /> Add Candidate
-                    </button>
+                    </Link>
                 </div>
             </div>
 
@@ -227,7 +284,7 @@ export default function KanbanBoardPage() {
                                 <div className="p-4 flex items-center justify-between border-b border-white/50">
                                     <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">{stage}</span>
                                     <span className="h-5 w-5 rounded-lg bg-white border border-slate-100 flex items-center justify-center text-[10px] font-black text-primary-600 shadow-sm">
-                                        {columns[stage]?.length || 0}
+                                        {filteredColumns[stage]?.length || 0}
                                     </span>
                                 </div>
 
@@ -238,7 +295,7 @@ export default function KanbanBoardPage() {
                                             {...provided.droppableProps}
                                             className={`flex-1 p-3 overflow-y-auto transition-all scrollbar-thin scrollbar-thumb-slate-200 ${snapshot.isDraggingOver ? 'bg-primary-50/40' : ''}`}
                                         >
-                                            {columns[stage]?.map((candidate, index) => (
+                                            {filteredColumns[stage]?.map((candidate, index) => (
                                                 <Draggable
                                                     key={candidate.id}
                                                     draggableId={candidate.id}

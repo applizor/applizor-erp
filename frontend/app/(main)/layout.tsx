@@ -26,11 +26,11 @@ export default function MainLayout({
 
     return (
         <CurrencyProvider>
-            <div className="flex min-h-screen bg-slate-50 font-sans text-slate-900">
+            <div className="flex min-h-screen text-slate-900">
                 <Sidebar />
                 <div className="flex-1 flex flex-col min-w-0">
                     <TopHeader />
-                    <main className="flex-1 px-3 pt-4 pb-6 md:px-8 md:pt-4 md:pb-8 max-w-[1600px] mx-auto w-full transition-all duration-300">
+                    <main className="app-main flex-1 px-3 pt-4 pb-6 md:px-8 md:pt-5 md:pb-10 max-w-[1600px] mx-auto w-full">
                         {children}
                     </main>
                 </div>

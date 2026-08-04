@@ -46,29 +46,68 @@ export const updateUser = async (req: AuthRequest, res: Response) => {
 export const inviteUser = async (req: AuthRequest, res: Response) => {
     try {
         const companyId = req.user!.companyId;
-        const { email, role } = req.body;
+        if (!companyId) return res.status(400).json({ error: 'User must belong to a company' });
+
+        const { email, role, firstName, lastName } = req.body;
         if (!email) return res.status(400).json({ error: 'Email is required' });
 
-        const existing = await prisma.user.findUnique({ where: { email } });
+        const loginEmail = String(email).trim().toLowerCase();
+        const existing = await prisma.user.findUnique({ where: { email: loginEmail } });
         if (existing) return res.status(409).json({ error: 'User already exists' });
+
+        // Enforce SaaS seat limit (count Users, not only Employees)
+        const subscription = await prisma.tenantSubscription.findUnique({
+            where: { companyId },
+            include: { plan: true },
+        });
+        if (subscription?.plan) {
+            if (subscription.status !== 'active' && subscription.status !== 'trial') {
+                return res.status(403).json({ error: `Subscription is ${subscription.status}. Contact admin.` });
+            }
+            const userCount = await prisma.user.count({ where: { companyId } });
+            if (userCount >= subscription.plan.maxUsers) {
+                return res.status(403).json({
+                    error: `User limit reached (${subscription.plan.maxUsers}/${subscription.plan.maxUsers}). Upgrade your plan.`,
+                });
+            }
+        }
 
         const tempPassword = crypto.randomBytes(8).toString('hex');
         const hashed = await hashPassword(tempPassword);
-        const firstName = email.split('@')[0];
-        const lastName = '';
+        const resolvedFirstName = (firstName && String(firstName).trim()) || loginEmail.split('@')[0];
+        const resolvedLastName = (lastName && String(lastName).trim()) || '';
 
-        await prisma.user.create({
-            data: { email, password: hashed, firstName, lastName, companyId }
+        let roleId: string | undefined;
+        if (role) {
+            const matchedRole = await prisma.role.findFirst({
+                where: {
+                    name: role,
+                    OR: [{ companyId }, { companyId: null, isSystem: true }],
+                },
+            });
+            roleId = matchedRole?.id;
+        }
+
+        const user = await prisma.user.create({
+            data: {
+                email: loginEmail,
+                password: hashed,
+                firstName: resolvedFirstName,
+                lastName: resolvedLastName,
+                companyId,
+                ...(roleId && { roles: { create: { roleId } } }),
+            },
+            select: { id: true, email: true, firstName: true, lastName: true, isActive: true },
         });
 
         try {
             await sendEmail(
-                email,
+                loginEmail,
                 `Welcome to Applizor ERP — Your Account`,
                 `
                     <h2>Welcome to Applizor ERP</h2>
                     <p>Your account has been created.</p>
-                    <p><strong>Email:</strong> ${email}</p>
+                    <p><strong>Email:</strong> ${loginEmail}</p>
                     <p><strong>Password:</strong> ${tempPassword}</p>
                     <p>Please login and change your password.</p>
                 `,
@@ -82,7 +121,12 @@ export const inviteUser = async (req: AuthRequest, res: Response) => {
             console.error('Invite email failed:', emailErr);
         }
 
-        res.status(201).json({ message: 'User invited', email });
+        res.status(201).json({
+            message: 'User invited',
+            email: loginEmail,
+            user,
+            temporaryPassword: tempPassword,
+        });
     } catch (error: any) {
         if (error?.code === 'P2002') return res.status(409).json({ error: 'User already exists' });
         res.status(500).json({ error: 'Failed to invite user' });
@@ -130,15 +174,17 @@ export const register = async (req: Request, res: Response) => {
           },
         });
 
-        // Assign default Starter subscription
+        // Assign default Starter subscription (trial)
         const starterPlan = await tx.tenantPlan.findFirst({ where: { code: 'starter_monthly' } });
         if (starterPlan) {
           await tx.tenantSubscription.create({
             data: {
               companyId: company.id,
               planId: starterPlan.id,
-              status: 'active',
+              status: 'trial',
               autoRenew: true,
+              paymentMethod: 'self_serve',
+              trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
               currentPeriodStart: new Date(),
               currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
             },
@@ -146,8 +192,11 @@ export const register = async (req: Request, res: Response) => {
         }
       }
 
-      // Find Admin role
-      const adminRole = await tx.role.findFirst({ where: { name: 'Admin' } });
+      // Find system Admin role (prefer global system role)
+      const adminRole =
+        (await tx.role.findFirst({ where: { name: 'Admin', isSystem: true } })) ||
+        (await tx.role.findFirst({ where: { name: 'Admin', companyId: null } })) ||
+        (await tx.role.findFirst({ where: { name: 'Admin' } }));
 
       // Create user
       const user = await tx.user.create({
@@ -174,6 +223,20 @@ export const register = async (req: Request, res: Response) => {
     // Auto-bootstrap defaults if company and country are available
     if (result.company && result.company.countryId) {
       await initializeCompanyDefaults(result.company.id, result.company.countryId);
+    }
+
+    // Sync enabled modules from starter plan when company was created
+    if (result.company) {
+      const sub = await prisma.tenantSubscription.findUnique({
+        where: { companyId: result.company.id },
+        include: { plan: true },
+      });
+      if (sub?.plan?.enabledModules) {
+        await prisma.company.update({
+          where: { id: result.company.id },
+          data: { enabledModules: sub.plan.enabledModules as any },
+        });
+      }
     }
 
     // Generate token
@@ -234,10 +297,24 @@ export const login = async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    if (!user.isActive) {
+      return res.status(403).json({ error: 'Your account has been deactivated. Contact your administrator.' });
+    }
+
     // Check password
     const isValid = await comparePassword(password, user.password);
     if (!isValid) {
       return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    const roleNames = user.roles?.map((r) => r.role?.name).filter(Boolean) || [];
+    const isPlatformAdmin = roleNames.some((n) => n === 'Super Admin' || n === 'Platform Admin');
+
+    // Block login for suspended tenants (platform admins may still access)
+    if (user.company && user.company.isActive === false && !isPlatformAdmin) {
+      return res.status(403).json({
+        error: 'Your company account has been suspended. Contact platform support.',
+      });
     }
 
     // Update last login
@@ -292,8 +369,8 @@ export const login = async (req: Request, res: Response) => {
         lastName: user.lastName,
         companyId: user.companyId,
         company: user.company,
-        roles: user.roles.map(r => r.role.name), // Just names
-        permissions: permissionsMap // The capability map
+        roles: roleNames,
+        permissions: permissionsMap
       },
       token,
     });

@@ -181,7 +181,30 @@ export const ensureAccount = async (companyId: string, code: string, name: strin
 };
 
 export const getGeneralLedger = async (companyId: string, accountId: string, startDate: Date, endDate: Date) => {
-    return await prisma.journalEntryLine.findMany({
+    const account = await prisma.ledgerAccount.findFirst({
+        where: { id: accountId, companyId }
+    });
+    if (!account) throw new Error('Account not found');
+
+    // Opening balance = posted activity before the period start
+    const priorAggs = await prisma.journalEntryLine.aggregate({
+        where: {
+            accountId,
+            journalEntry: {
+                companyId,
+                date: { lt: startDate },
+                status: 'posted'
+            }
+        },
+        _sum: { debit: true, credit: true }
+    });
+    const priorDebit = Number(priorAggs._sum.debit || 0);
+    const priorCredit = Number(priorAggs._sum.credit || 0);
+    const openingBalance = ['asset', 'expense'].includes(account.type)
+        ? priorDebit - priorCredit
+        : priorCredit - priorDebit;
+
+    const lines = await prisma.journalEntryLine.findMany({
         where: {
             account: { companyId, id: accountId },
             journalEntry: {
@@ -192,6 +215,407 @@ export const getGeneralLedger = async (companyId: string, accountId: string, sta
         include: { journalEntry: true },
         orderBy: { journalEntry: { date: 'asc' } }
     });
+
+    return {
+        account: { ...account, openingBalance },
+        lines
+    };
+};
+
+const SYSTEM_REF_PREFIXES = ['INV-', 'QTN-', 'PAY-', 'PAYROLL-', 'CN-', 'DN-', 'CRN-', 'DBN-'];
+
+const isSystemLinkedReference = (reference?: string | null) => {
+    if (!reference) return false;
+    const ref = reference.trim().toUpperCase();
+    return SYSTEM_REF_PREFIXES.some(prefix => ref.startsWith(prefix));
+};
+
+const applyBalanceChange = async (
+    tx: any,
+    account: { id: string; type: string },
+    debit: number,
+    credit: number,
+    reverse = false
+) => {
+    let balanceChange = ['asset', 'expense'].includes(account.type)
+        ? debit - credit
+        : credit - debit;
+    if (reverse) balanceChange = -balanceChange;
+
+    await tx.ledgerAccount.update({
+        where: { id: account.id },
+        data: { balance: { increment: balanceChange } }
+    });
+};
+
+/**
+ * Update ledger account metadata (code/name/type/active).
+ * Type changes are blocked when the account already has journal activity.
+ */
+export const updateAccount = async (
+    companyId: string,
+    accountId: string,
+    data: { code?: string; name?: string; type?: string; isActive?: boolean },
+    userId?: string
+) => {
+    const account = await prisma.ledgerAccount.findFirst({
+        where: { id: accountId, companyId }
+    });
+    if (!account) throw new Error('Account not found');
+
+    if (data.code && data.code !== account.code) {
+        const clash = await prisma.ledgerAccount.findFirst({
+            where: { companyId, code: data.code, NOT: { id: accountId } }
+        });
+        if (clash) throw new Error(`Account code ${data.code} already exists`);
+    }
+
+    if (data.type && data.type !== account.type) {
+        const lineCount = await prisma.journalEntryLine.count({ where: { accountId } });
+        if (lineCount > 0) {
+            throw new Error(`Cannot change account type: account has ${lineCount} journal line(s). Create a new account instead.`);
+        }
+    }
+
+    const updated = await prisma.ledgerAccount.update({
+        where: { id: accountId },
+        data: {
+            ...(data.code !== undefined ? { code: data.code } : {}),
+            ...(data.name !== undefined ? { name: data.name } : {}),
+            ...(data.type !== undefined ? { type: data.type } : {}),
+            ...(data.isActive !== undefined ? { isActive: data.isActive } : {})
+        }
+    });
+
+    await prisma.auditLog.create({
+        data: {
+            companyId,
+            userId,
+            action: 'UPDATE',
+            module: 'ACCOUNTING',
+            entityType: 'LedgerAccount',
+            entityId: accountId,
+            details: `Updated account ${updated.code} - ${updated.name}`,
+            changes: { before: account, after: updated } as any
+        }
+    });
+
+    return updated;
+};
+
+/**
+ * Delete a ledger account only when it has no journal lines, salary links, or balance.
+ */
+export const deleteAccount = async (companyId: string, accountId: string, userId?: string) => {
+    const account = await prisma.ledgerAccount.findFirst({
+        where: { id: accountId, companyId }
+    });
+    if (!account) throw new Error('Account not found');
+
+    const journalLineCount = await prisma.journalEntryLine.count({ where: { accountId } });
+    if (journalLineCount > 0) {
+        throw new Error(`Account has ${journalLineCount} journal line(s). Remove or reassign related entries before deleting.`);
+    }
+
+    const salaryLinkCount = await prisma.salaryComponent.count({ where: { ledgerAccountId: accountId } });
+    if (salaryLinkCount > 0) {
+        throw new Error(`Account is linked to ${salaryLinkCount} salary component(s). Unlink payroll mappings before deleting.`);
+    }
+
+    if (Math.abs(Number(account.balance)) > 0.009) {
+        throw new Error(`Account has a non-zero balance (${Number(account.balance).toFixed(2)}). Clear the balance before deleting.`);
+    }
+
+    await prisma.ledgerAccount.delete({ where: { id: accountId } });
+
+    await prisma.auditLog.create({
+        data: {
+            companyId,
+            userId,
+            action: 'DELETE',
+            module: 'ACCOUNTING',
+            entityType: 'LedgerAccount',
+            entityId: accountId,
+            details: `Deleted account ${account.code} - ${account.name}`,
+            changes: { account } as any
+        }
+    });
+
+    return { success: true, account };
+};
+
+/**
+ * Update an existing journal entry and keep ledger balances in sync.
+ */
+export const updateJournalEntry = async (
+    id: string,
+    companyId: string,
+    data: {
+        date: Date;
+        description: string;
+        reference: string;
+        lines: JournalLineInput[];
+    },
+    userId?: string
+) => {
+    const totalDebit = data.lines.reduce((sum, line) => sum + (line.debit || 0), 0);
+    const totalCredit = data.lines.reduce((sum, line) => sum + (line.credit || 0), 0);
+    if (Math.abs(totalDebit - totalCredit) > 0.01) {
+        throw new Error(`Unbalanced Journal Entry: Debit ${totalDebit} != Credit ${totalCredit}`);
+    }
+    if (totalDebit <= 0) {
+        throw new Error('Entry must have a value > 0');
+    }
+    if (data.lines.length < 2) {
+        throw new Error('Journal entry requires at least 2 lines');
+    }
+
+    return await prisma.$transaction(async (tx) => {
+        const entry = await tx.journalEntry.findFirst({
+            where: { id, companyId },
+            include: { lines: { include: { account: true } } }
+        });
+        if (!entry) throw new Error('Journal Entry not found');
+
+        if (isSystemLinkedReference(entry.reference)) {
+            throw new Error(
+                `Cannot edit system-linked entry (${entry.reference}). Update the source invoice/payment/payroll instead so ledgers stay in sync.`
+            );
+        }
+
+        const reconciledCount = entry.lines.filter(l => l.reconciledAt).length;
+        if (reconciledCount > 0) {
+            throw new Error(`Cannot edit entry: ${reconciledCount} line(s) are reconciled. Unreconcile first.`);
+        }
+
+        await checkLedgerLock(companyId, new Date(entry.date));
+        await checkLedgerLock(companyId, new Date(data.date));
+
+        // Validate accounts belong to company
+        const accountIds = data.lines.map(l => l.accountId);
+        const accounts = await tx.ledgerAccount.findMany({
+            where: { companyId, id: { in: accountIds } }
+        });
+        if (accounts.length !== new Set(accountIds).size) {
+            throw new Error('One or more accounts are invalid for this company');
+        }
+
+        // Revert old posted balances
+        if (entry.status === 'posted') {
+            for (const line of entry.lines) {
+                await applyBalanceChange(tx, line.account, Number(line.debit), Number(line.credit), true);
+            }
+        }
+
+        await tx.journalEntryLine.deleteMany({ where: { journalEntryId: id } });
+
+        const updated = await tx.journalEntry.update({
+            where: { id },
+            data: {
+                date: data.date,
+                description: data.description,
+                reference: data.reference,
+                lines: {
+                    create: data.lines.map(line => ({
+                        accountId: line.accountId,
+                        debit: line.debit || 0,
+                        credit: line.credit || 0
+                    }))
+                }
+            },
+            include: { lines: { include: { account: true } } }
+        });
+
+        // Apply new balances if posted
+        if (updated.status === 'posted') {
+            for (const line of updated.lines) {
+                await applyBalanceChange(tx, line.account, Number(line.debit), Number(line.credit), false);
+            }
+        }
+
+        await tx.auditLog.create({
+            data: {
+                companyId,
+                userId,
+                action: 'UPDATE',
+                module: 'ACCOUNTING',
+                entityType: 'JournalEntry',
+                entityId: id,
+                details: `Updated Journal Entry ${updated.reference || id}`,
+                changes: { before: entry, after: updated } as any
+            }
+        });
+
+        return updated;
+    });
+};
+
+export const getAgingReportData = async (companyId: string, type: 'ar' | 'ap' = 'ar') => {
+    const isAR = type !== 'ap';
+    const accounts = await prisma.ledgerAccount.findMany({
+        where: {
+            companyId,
+            type: isAR ? 'asset' : 'liability',
+            OR: [
+                { name: { contains: isAR ? 'Receivable' : 'Payable', mode: 'insensitive' } },
+                { name: { contains: isAR ? 'Debtors' : 'Creditors', mode: 'insensitive' } }
+            ]
+        }
+    });
+
+    const now = new Date();
+    const agingBuckets = [
+        { label: '0-30 days', min: 0, max: 30 },
+        { label: '31-60 days', min: 31, max: 60 },
+        { label: '61-90 days', min: 61, max: 90 },
+        { label: '90+ days', min: 91, max: 99999 },
+    ];
+
+    const result: any[] = [];
+    for (const account of accounts) {
+        const lines = await prisma.journalEntryLine.findMany({
+            where: {
+                accountId: account.id,
+                journalEntry: { companyId, status: 'posted' }
+            },
+            include: {
+                journalEntry: { select: { date: true, description: true, reference: true } }
+            },
+            orderBy: { journalEntry: { date: 'desc' } }
+        });
+
+        const buckets = agingBuckets.map(b => {
+            const items = (lines as any[]).filter((l: any) => {
+                const daysDiff = Math.floor((now.getTime() - new Date(l.journalEntry.date).getTime()) / (1000 * 60 * 60 * 24));
+                return daysDiff >= b.min && daysDiff <= b.max;
+            });
+            return {
+                bucket: b.label,
+                count: items.length,
+                total: (items as any[]).reduce((sum: number, l: any) => sum + Number(l.debit) - Number(l.credit), 0)
+            };
+        });
+
+        if (buckets.some(b => b.count > 0) || Math.abs(Number(account.balance)) > 0.009) {
+            result.push({ account: account.name, code: account.code, balance: Number(account.balance), buckets });
+        }
+    }
+    return result;
+};
+
+const escapeCsv = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+
+const rowsToCsv = (headers: string[], rows: (string | number)[][]) => {
+    return [headers, ...rows].map(r => r.map(escapeCsv).join(',')).join('\n');
+};
+
+export type ExportReportType =
+    | 'TRIAL_BALANCE'
+    | 'PROFIT_LOSS'
+    | 'BALANCE_SHEET'
+    | 'GST_SUMMARY'
+    | 'CHART_OF_ACCOUNTS'
+    | 'JOURNAL'
+    | 'AGING';
+
+export const generateReportCSV = async (
+    companyId: string,
+    type: ExportReportType,
+    startDate?: Date,
+    endDate?: Date,
+    agingType: 'ar' | 'ap' = 'ar'
+) => {
+    if (type === 'TRIAL_BALANCE' || type === 'CHART_OF_ACCOUNTS') {
+        const data = await getTrialBalance(companyId);
+        return rowsToCsv(
+            ['Code', 'Name', 'Type', 'Balance', 'Active'],
+            data.map(a => [a.code, a.name, a.type, Number(a.balance), a.isActive ? 'Yes' : 'No'])
+        );
+    }
+
+    if (type === 'BALANCE_SHEET') {
+        const data = await getBalanceSheet(companyId);
+        return rowsToCsv(
+            ['Code', 'Name', 'Type', 'Balance'],
+            data.map(a => [a.code, a.name, a.type, Number(a.balance)])
+        );
+    }
+
+    if (type === 'PROFIT_LOSS') {
+        const data = await getProfitAndLoss(companyId, startDate, endDate);
+        const rows: (string | number)[][] = [];
+        const pushSection = (label: string, items: any[]) => {
+            rows.push([label, '', '', '']);
+            items.forEach(i => rows.push([i.code, i.name, i.type, Number(i.balance)]));
+        };
+        pushSection('Revenue', data.revenue);
+        pushSection('Cost of Goods Sold', data.costOfGoodsSold);
+        pushSection('Operating Expenses', data.operatingExpenses);
+        pushSection('Other Income', data.otherIncome);
+        return rowsToCsv(['Code', 'Name', 'Type', 'Amount'], rows);
+    }
+
+    if (type === 'GST_SUMMARY') {
+        if (!startDate || !endDate) throw new Error('Date range required for GST Report');
+        const gst = await getGstSummary(companyId, startDate, endDate);
+        const rows: (string | number)[][] = [
+            ['Summary', 'CGST Input', gst.summary.CGST.input],
+            ['Summary', 'SGST Input', gst.summary.SGST.input],
+            ['Summary', 'IGST Input', gst.summary.IGST.input],
+            ['Summary', 'CGST Output', gst.summary.CGST.output],
+            ['Summary', 'SGST Output', gst.summary.SGST.output],
+            ['Summary', 'IGST Output', gst.summary.IGST.output],
+        ];
+        [...(gst.b2bTransactions || []), ...(gst.b2cTransactions || [])].forEach((tx: any) => {
+            rows.push([
+                tx.invoiceNumber,
+                tx.clientName,
+                tx.taxableValue,
+                tx.totalTax,
+                tx.totalAmount
+            ]);
+        });
+        return rowsToCsv(['Ref', 'Client/Label', 'Taxable/Value', 'Tax', 'Total'], rows);
+    }
+
+    if (type === 'JOURNAL') {
+        const entries = await getJournalEntries(companyId, 500);
+        const rows: (string | number)[][] = [];
+        for (const entry of entries) {
+            for (const line of entry.lines) {
+                rows.push([
+                    entry.date.toISOString().slice(0, 10),
+                    entry.reference || '',
+                    entry.description || '',
+                    line.account?.code || '',
+                    line.account?.name || '',
+                    Number(line.debit),
+                    Number(line.credit),
+                    entry.status
+                ]);
+            }
+        }
+        return rowsToCsv(
+            ['Date', 'Reference', 'Description', 'Account Code', 'Account Name', 'Debit', 'Credit', 'Status'],
+            rows
+        );
+    }
+
+    if (type === 'AGING') {
+        const data = await getAgingReportData(companyId, agingType);
+        return rowsToCsv(
+            ['Account', 'Code', '0-30', '31-60', '61-90', '90+', 'Total'],
+            data.map(row => {
+                const vals = ['0-30 days', '31-60 days', '61-90 days', '90+ days'].map(label => {
+                    const b = row.buckets.find((x: any) => x.bucket === label);
+                    return Number(b?.total || 0);
+                });
+                return [row.account, row.code, ...vals, vals.reduce((a, b) => a + b, 0)];
+            })
+        );
+    }
+
+    throw new Error(`Unsupported CSV export type: ${type}`);
 };
 
 export const getGstSummary = async (companyId: string, startDate: Date, endDate: Date) => {
@@ -451,7 +875,8 @@ export const deleteLedgerPostings = async (reference: string, prismaTx?: any) =>
 };
 
 /**
- * Deletes a single journal entry and reverts balances
+ * Deletes a single journal entry and reverts balances.
+ * Blocks system-linked references and reconciled lines to avoid orphaned ledgers.
  */
 export const deleteJournalEntry = async (id: string, userId?: string, companyId?: string) => {
     return await prisma.$transaction(async (tx) => {
@@ -465,29 +890,24 @@ export const deleteJournalEntry = async (id: string, userId?: string, companyId?
 
         if (!entry) throw new Error('Journal Entry not found');
 
+        if (isSystemLinkedReference(entry.reference)) {
+            throw new Error(
+                `Cannot delete system-linked entry (${entry.reference}). Reverse or void the source invoice/payment/payroll so the ledger stays consistent.`
+            );
+        }
+
+        const reconciledCount = entry.lines.filter(l => l.reconciledAt).length;
+        if (reconciledCount > 0) {
+            throw new Error(`Cannot delete entry: ${reconciledCount} line(s) are reconciled. Unreconcile first.`);
+        }
+
         // 0. Check Ledger Lock (using entry date)
         await checkLedgerLock(entry.companyId, new Date(entry.date));
 
         // 2. Revert balances if it was posted
         if (entry.status === 'posted') {
             for (const line of entry.lines) {
-                const account = line.account;
-                let balanceChange = 0;
-                const debit = Number(line.debit);
-                const credit = Number(line.credit);
-
-                if (['asset', 'expense'].includes(account.type)) {
-                    balanceChange = credit - debit;
-                } else {
-                    balanceChange = debit - credit;
-                }
-
-                await tx.ledgerAccount.update({
-                    where: { id: account.id },
-                    data: {
-                        balance: { increment: balanceChange }
-                    }
-                });
+                await applyBalanceChange(tx, line.account, Number(line.debit), Number(line.credit), true);
             }
         }
 
@@ -763,10 +1183,14 @@ export const reconcileCompanyLedger = async (companyId: string) => {
 
 export const generateReportPDF = async (
     companyId: string,
-    type: 'TRIAL_BALANCE' | 'PROFIT_LOSS' | 'BALANCE_SHEET' | 'GST_SUMMARY',
+    type: ExportReportType,
     startDate?: Date,
     endDate?: Date
 ) => {
+    if (type === 'CHART_OF_ACCOUNTS' || type === 'JOURNAL' || type === 'AGING') {
+        throw new Error(`PDF export is not available for ${type}. Use CSV format instead.`);
+    }
+
     // 1. Fetch Company Info
     const company = await prisma.company.findUnique({
         where: { id: companyId }
@@ -1045,13 +1469,17 @@ export const generateReportPDF = async (
 const accountingService = {
     seedAccounts,
     createJournalEntry,
+    updateJournalEntry,
     getTrialBalance,
     getGeneralLedger,
     getBalanceSheet,
     getProfitAndLoss,
     getGstSummary,
+    getAgingReportData,
     getAccountByCode,
     ensureAccount,
+    updateAccount,
+    deleteAccount,
     postInvoiceToLedger,
     postPaymentToLedger,
     getJournalEntries,
@@ -1059,6 +1487,7 @@ const accountingService = {
     deleteLedgerPostings,
     deleteJournalEntry,
     generateReportPDF,
+    generateReportCSV,
     DEFAULT_ACCOUNTS
 };
 

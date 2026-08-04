@@ -71,10 +71,17 @@ export default function PlansPage() {
   const fetchPlans = async () => {
     try {
       setLoading(true);
-      const res = await api.get('/platform/plans');
+      // Superadmin endpoint includes inactive plans
+      const res = await api.get('/platform/plans/all');
       setPlans(res.data || []);
     } catch (error) {
-      toast.error('Failed to load subscription plans');
+      // Fallback to public active-only list
+      try {
+        const res = await api.get('/platform/plans');
+        setPlans(res.data || []);
+      } catch {
+        toast.error('Failed to load subscription plans');
+      }
     } finally {
       setLoading(false);
     }
@@ -172,8 +179,8 @@ export default function PlansPage() {
       setIsModalOpen(false);
       resetForm();
       fetchPlans();
-    } catch (error) {
-      toast.error('Failed to save subscription plan');
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Failed to save subscription plan');
     }
   };
 
@@ -183,8 +190,18 @@ export default function PlansPage() {
       await api.delete(`/platform/plans/${id}`);
       toast.success('Plan deactivated successfully');
       fetchPlans();
-    } catch (error) {
-      toast.error('Failed to deactivate plan');
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Failed to deactivate plan');
+    }
+  };
+
+  const handleReactivate = async (plan: TenantPlan) => {
+    try {
+      await api.put(`/platform/plans/${plan.id}`, { isActive: true });
+      toast.success('Plan reactivated');
+      fetchPlans();
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Failed to reactivate plan');
     }
   };
 
@@ -317,6 +334,15 @@ export default function PlansPage() {
                 <span className={`text-[9px] font-black uppercase px-2 py-1 rounded inline-block ${plan.isActive ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
                   {plan.isActive ? 'Active Plan' : 'Inactive'}
                 </span>
+                {!plan.isActive && (
+                  <button
+                    type="button"
+                    onClick={() => handleReactivate(plan)}
+                    className="text-[9px] font-black uppercase text-indigo-600 hover:text-indigo-800"
+                  >
+                    Reactivate
+                  </button>
+                )}
               </div>
             </div>
           ))}

@@ -1,9 +1,18 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { accountingApi, LedgerAccount } from '@/lib/api/accounting';
-import { BookOpen, Plus, Search, Layers, Activity, TrendingUp, TrendingDown, Landmark, ShieldCheck } from 'lucide-react';
+import { accountingApi, LedgerAccount, downloadCsv } from '@/lib/api/accounting';
+import { BookOpen, Plus, Search, Layers, Activity, TrendingUp, Landmark, ShieldCheck, Pencil, Trash2, Download } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
+
+type AccountForm = {
+    code: string;
+    name: string;
+    type: string;
+    isActive: boolean;
+};
+
+const emptyForm: AccountForm = { code: '', name: '', type: 'asset', isActive: true };
 
 export default function ChartOfAccountsPage() {
     const toast = useToast();
@@ -11,14 +20,9 @@ export default function ChartOfAccountsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingId, setEditingId] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
-
-    // New Account Form State
-    const [newAccount, setNewAccount] = useState({
-        code: '',
-        name: '',
-        type: 'asset'
-    });
+    const [form, setForm] = useState<AccountForm>(emptyForm);
 
     useEffect(() => {
         fetchAccounts();
@@ -36,19 +40,72 @@ export default function ChartOfAccountsPage() {
         }
     };
 
-    const handleCreateAccount = async (e: React.FormEvent) => {
+    const openCreate = () => {
+        setEditingId(null);
+        setForm(emptyForm);
+        setIsModalOpen(true);
+    };
+
+    const openEdit = (account: LedgerAccount) => {
+        setEditingId(account.id);
+        setForm({
+            code: account.code,
+            name: account.name,
+            type: account.type,
+            isActive: account.isActive
+        });
+        setIsModalOpen(true);
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
             setIsSubmitting(true);
-            await accountingApi.createAccount(newAccount);
-            toast.success('Account created successfully');
+            if (editingId) {
+                await accountingApi.updateAccount(editingId, form);
+                toast.success('Account updated successfully');
+            } else {
+                await accountingApi.createAccount({
+                    code: form.code,
+                    name: form.name,
+                    type: form.type
+                });
+                toast.success('Account created successfully');
+            }
             setIsModalOpen(false);
-            setNewAccount({ code: '', name: '', type: 'asset' });
+            setForm(emptyForm);
+            setEditingId(null);
             fetchAccounts();
-        } catch (error) {
-            toast.error('Failed to create account');
+        } catch (error: any) {
+            toast.error(error.response?.data?.error || `Failed to ${editingId ? 'update' : 'create'} account`);
         } finally {
             setIsSubmitting(false);
+        }
+    };
+
+    const handleDelete = async (account: LedgerAccount) => {
+        if (!confirm(`Delete account ${account.code} – ${account.name}?\n\nThis is only allowed if the account has no journal lines, salary links, or balance.`)) {
+            return;
+        }
+        try {
+            await accountingApi.deleteAccount(account.id);
+            toast.success('Account deleted');
+            fetchAccounts();
+        } catch (error: any) {
+            toast.error(error.response?.data?.error || 'Failed to delete account');
+        }
+    };
+
+    const handleExport = () => {
+        try {
+            downloadCsv(
+                `Chart_of_Accounts_${new Date().toISOString().split('T')[0]}.csv`,
+                ['Code', 'Name', 'Type', 'Balance', 'Active'],
+                accounts.map(a => [a.code, a.name, a.type, Number(a.balance), a.isActive ? 'Yes' : 'No'])
+            );
+            toast.success('Chart of Accounts exported');
+        } catch {
+            toast.error('Export failed');
         }
     };
 
@@ -59,7 +116,6 @@ export default function ChartOfAccountsPage() {
 
     return (
         <div className="p-6">
-            {/* Standard Page Header */}
             <div className="bg-white p-5 rounded-md border border-gray-200 shadow-sm flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
                 <div className="flex items-center gap-4">
                     <div className="p-2.5 bg-primary-900 rounded-md shadow-lg">
@@ -74,7 +130,7 @@ export default function ChartOfAccountsPage() {
                         </p>
                     </div>
                 </div>
-                <div className="flex items-center gap-3 w-full lg:w-auto">
+                <div className="flex items-center gap-3 w-full lg:w-auto flex-wrap">
                     <div className="relative group">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-hover:text-primary-600 transition-colors" />
                         <input
@@ -102,17 +158,17 @@ export default function ChartOfAccountsPage() {
                         <BookOpen size={14} />
                         Sync Ledgers
                     </button>
-                    <button
-                        onClick={() => setIsModalOpen(true)}
-                        className="btn-primary flex items-center gap-2"
-                    >
+                    <button onClick={handleExport} className="btn-secondary flex items-center gap-2">
+                        <Download size={14} />
+                        Export CSV
+                    </button>
+                    <button onClick={openCreate} className="btn-primary flex items-center gap-2">
                         <Plus size={14} />
                         Add Account
                     </button>
                 </div>
             </div>
 
-            {/* Dashboard Style Summary */}
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
                 {[
                     { title: 'Total Ledger', value: accounts.length, icon: Layers, color: 'primary' },
@@ -134,7 +190,6 @@ export default function ChartOfAccountsPage() {
                 ))}
             </div>
 
-            {/* Accounts Table Container */}
             <div className="ent-card overflow-hidden border-none shadow-xl">
                 <div className="bg-gray-50/50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
                     <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Operational Accounts</h3>
@@ -149,18 +204,19 @@ export default function ChartOfAccountsPage() {
                                 <th className="text-left py-4 px-6 text-[9px] font-black uppercase tracking-[0.15em] text-slate-400">Categorization</th>
                                 <th className="text-right py-4 px-6 text-[9px] font-black uppercase tracking-[0.15em] text-slate-400">Current Balance</th>
                                 <th className="text-center py-4 px-6 text-[9px] font-black uppercase tracking-[0.15em] text-slate-400">System Status</th>
+                                <th className="text-center py-4 px-6 text-[9px] font-black uppercase tracking-[0.15em] text-slate-400">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50">
                             {isLoading ? (
                                 <tr>
-                                    <td colSpan={5} className="text-center py-8 text-gray-500 text-xs">
+                                    <td colSpan={6} className="text-center py-8 text-gray-500 text-xs">
                                         Loading accounts...
                                     </td>
                                 </tr>
                             ) : filteredAccounts.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="text-center py-8 text-gray-500 text-xs">
+                                    <td colSpan={6} className="text-center py-8 text-gray-500 text-xs">
                                         No accounts found.
                                     </td>
                                 </tr>
@@ -214,6 +270,24 @@ export default function ChartOfAccountsPage() {
                                                 </span>
                                             </div>
                                         </td>
+                                        <td className="py-4 px-6">
+                                            <div className="flex items-center justify-center gap-1">
+                                                <button
+                                                    onClick={() => openEdit(account)}
+                                                    className="p-1.5 text-slate-400 hover:text-primary-600 transition-colors rounded-sm hover:bg-primary-50"
+                                                    title="Edit Account"
+                                                >
+                                                    <Pencil size={13} />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDelete(account)}
+                                                    className="p-1.5 text-rose-400 hover:text-rose-600 transition-colors rounded-sm hover:bg-rose-50"
+                                                    title="Delete Account"
+                                                >
+                                                    <Trash2 size={13} />
+                                                </button>
+                                            </div>
+                                        </td>
                                     </tr>
                                 ))
                             )}
@@ -222,12 +296,13 @@ export default function ChartOfAccountsPage() {
                 </div>
             </div>
 
-            {/* Add Account Modal */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
                     <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                         <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                            <h3 className="text-sm font-black uppercase text-gray-900">Add New Account</h3>
+                            <h3 className="text-sm font-black uppercase text-gray-900">
+                                {editingId ? 'Edit Account' : 'Add New Account'}
+                            </h3>
                             <button
                                 onClick={() => setIsModalOpen(false)}
                                 className="text-gray-400 hover:text-gray-600"
@@ -235,15 +310,15 @@ export default function ChartOfAccountsPage() {
                                 ×
                             </button>
                         </div>
-                        <form onSubmit={handleCreateAccount} className="p-6 space-y-4">
+                        <form onSubmit={handleSubmit} className="p-6 space-y-4">
                             <div>
                                 <label className="block text-[9px] font-black uppercase text-gray-500 mb-1.5">
                                     Account Type
                                 </label>
                                 <select
                                     className="ent-input w-full"
-                                    value={newAccount.type}
-                                    onChange={(e) => setNewAccount({ ...newAccount, type: e.target.value })}
+                                    value={form.type}
+                                    onChange={(e) => setForm({ ...form, type: e.target.value })}
                                 >
                                     <option value="asset">Asset</option>
                                     <option value="liability">Liability</option>
@@ -251,6 +326,11 @@ export default function ChartOfAccountsPage() {
                                     <option value="income">Income</option>
                                     <option value="expense">Expense</option>
                                 </select>
+                                {editingId && (
+                                    <p className="mt-1 text-[10px] text-amber-600 font-medium">
+                                        Type cannot change if the account already has journal lines.
+                                    </p>
+                                )}
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
@@ -263,8 +343,8 @@ export default function ChartOfAccountsPage() {
                                         required
                                         className="ent-input w-full"
                                         placeholder="e.g. 1005"
-                                        value={newAccount.code}
-                                        onChange={(e) => setNewAccount({ ...newAccount, code: e.target.value })}
+                                        value={form.code}
+                                        onChange={(e) => setForm({ ...form, code: e.target.value })}
                                     />
                                 </div>
                                 <div>
@@ -276,11 +356,22 @@ export default function ChartOfAccountsPage() {
                                         required
                                         className="ent-input w-full"
                                         placeholder="e.g. Petty Cash"
-                                        value={newAccount.name}
-                                        onChange={(e) => setNewAccount({ ...newAccount, name: e.target.value })}
+                                        value={form.name}
+                                        onChange={(e) => setForm({ ...form, name: e.target.value })}
                                     />
                                 </div>
                             </div>
+
+                            {editingId && (
+                                <label className="flex items-center gap-2 text-xs font-bold text-gray-700">
+                                    <input
+                                        type="checkbox"
+                                        checked={form.isActive}
+                                        onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
+                                    />
+                                    Active
+                                </label>
+                            )}
 
                             <div className="pt-4 flex justify-end gap-3">
                                 <button
@@ -295,7 +386,9 @@ export default function ChartOfAccountsPage() {
                                     disabled={isSubmitting}
                                     className="btn-primary"
                                 >
-                                    {isSubmitting ? 'Creating...' : 'Create Account'}
+                                    {isSubmitting
+                                        ? (editingId ? 'Saving...' : 'Creating...')
+                                        : (editingId ? 'Save Changes' : 'Create Account')}
                                 </button>
                             </div>
                         </form>

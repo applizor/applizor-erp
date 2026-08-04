@@ -1,7 +1,7 @@
 
-
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
+import prisma from '../prisma/client';
 import accountingService from '../services/accounting.service';
 import { PermissionService } from '../services/permission.service';
 
@@ -12,6 +12,16 @@ export const getChartOfAccounts = async (req: AuthRequest, res: Response) => {
         }
 
         const companyId = req.user!.companyId;
+        const company = await prisma.company.findUnique({
+            where: { id: companyId },
+            select: { isPlatform: true },
+        });
+        if (company?.isPlatform) {
+            return res.status(400).json({
+                error: 'Platform books are managed under Super Admin → Platform Accounting, not tenant Accounting.',
+            });
+        }
+
         // Lazy seed
         await accountingService.seedAccounts(companyId);
 
@@ -47,6 +57,34 @@ export const createManualEntry = async (req: AuthRequest, res: Response) => {
     }
 };
 
+export const updateManualEntry = async (req: AuthRequest, res: Response) => {
+    try {
+        if (!PermissionService.hasBasicPermission(req.user, 'Accounting', 'update')) {
+            return res.status(403).json({ error: 'Access denied: Requires Accounting.update permission' });
+        }
+
+        const companyId = req.user!.companyId;
+        const { id } = req.params;
+        const { date, description, reference, lines } = req.body;
+
+        const entry = await accountingService.updateJournalEntry(
+            id,
+            companyId,
+            {
+                date: new Date(date),
+                description,
+                reference,
+                lines
+            },
+            req.user!.id
+        );
+
+        res.json(entry);
+    } catch (error: any) {
+        res.status(400).json({ error: error.message || 'Failed to update entry' });
+    }
+};
+
 export const getGeneralLedgerReport = async (req: AuthRequest, res: Response) => {
     try {
         if (!PermissionService.hasBasicPermission(req.user, 'Accounting', 'read')) {
@@ -68,8 +106,10 @@ export const getGeneralLedgerReport = async (req: AuthRequest, res: Response) =>
             new Date(endDate as string)
         );
         res.json(entries);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch General Ledger' });
+    } catch (error: any) {
+        res.status(error.message === 'Account not found' ? 404 : 500).json({
+            error: error.message || 'Failed to fetch General Ledger'
+        });
     }
 };
 
@@ -120,6 +160,44 @@ export const createAccount = async (req: AuthRequest, res: Response) => {
         res.json(account);
     } catch (error) {
         res.status(400).json({ error: 'Failed to create account' });
+    }
+};
+
+export const updateAccount = async (req: AuthRequest, res: Response) => {
+    try {
+        if (!PermissionService.hasBasicPermission(req.user, 'Accounting', 'update')) {
+            return res.status(403).json({ error: 'Access denied: Requires Accounting.update permission' });
+        }
+
+        const companyId = req.user!.companyId;
+        const { id } = req.params;
+        const { code, name, type, isActive } = req.body;
+
+        const account = await accountingService.updateAccount(
+            companyId,
+            id,
+            { code, name, type, isActive },
+            req.user!.id
+        );
+        res.json(account);
+    } catch (error: any) {
+        res.status(400).json({ error: error.message || 'Failed to update account' });
+    }
+};
+
+export const deleteAccount = async (req: AuthRequest, res: Response) => {
+    try {
+        if (!PermissionService.hasBasicPermission(req.user, 'Accounting', 'delete')) {
+            return res.status(403).json({ error: 'Access denied: Requires Accounting.delete permission' });
+        }
+
+        const companyId = req.user!.companyId;
+        const { id } = req.params;
+
+        const result = await accountingService.deleteAccount(companyId, id, req.user!.id);
+        res.json(result);
+    } catch (error: any) {
+        res.status(400).json({ error: error.message || 'Failed to delete account' });
     }
 };
 
@@ -183,9 +261,7 @@ export const deleteJournalEntry = async (req: AuthRequest, res: Response) => {
         }
 
         const { id } = req.params;
-        // Basic ownership check could be added here if needed, 
-        // but accountingService.deleteJournalEntry will handle correctly.
-        const result = await accountingService.deleteJournalEntry(id, req.user!.id);
+        const result = await accountingService.deleteJournalEntry(id, req.user!.id, req.user!.companyId);
         res.json({ success: true, entry: result });
     } catch (error: any) {
         res.status(400).json({ error: error.message || 'Failed to delete entry' });
@@ -199,7 +275,7 @@ export const exportReport = async (req: AuthRequest, res: Response) => {
         }
 
         const companyId = req.user!.companyId;
-        const { type, startDate, endDate } = req.query;
+        const { type, startDate, endDate, format, agingType } = req.query;
 
         if (!type) {
             return res.status(400).json({ error: 'Report type is required' });
@@ -207,23 +283,45 @@ export const exportReport = async (req: AuthRequest, res: Response) => {
 
         const dateStart = startDate ? new Date(startDate as string) : undefined;
         const dateEnd = endDate ? new Date(endDate as string) : undefined;
+        const exportFormat = String(format || 'pdf').toLowerCase();
+        const reportType = String(type).toUpperCase() as any;
+
+        if (exportFormat === 'csv' || exportFormat === 'excel' || exportFormat === 'xlsx') {
+            const csv = await accountingService.generateReportCSV(
+                companyId,
+                reportType,
+                dateStart,
+                dateEnd,
+                (agingType as 'ar' | 'ap') || 'ar'
+            );
+            const filename = `${reportType}_Report.csv`;
+            // Excel opens UTF-8 CSV reliably with BOM
+            const payload = '\uFEFF' + csv;
+            res.set({
+                'Content-Type': exportFormat === 'csv'
+                    ? 'text/csv; charset=utf-8'
+                    : 'application/vnd.ms-excel; charset=utf-8',
+                'Content-Disposition': `attachment; filename="${filename}"`,
+            });
+            return res.send(payload);
+        }
 
         const pdfBuffer = await accountingService.generateReportPDF(
             companyId,
-            type as any,
+            reportType,
             dateStart,
             dateEnd
         );
 
         res.set({
             'Content-Type': 'application/pdf',
-            'Content-Disposition': `attachment; filename="${type}_Report.pdf"`,
+            'Content-Disposition': `attachment; filename="${reportType}_Report.pdf"`,
             'Content-Length': pdfBuffer.length
         });
 
         res.end(pdfBuffer);
     } catch (error: any) {
         console.error('Export Error:', error);
-        res.status(500).json({ error: 'Failed to generate PDF report' });
+        res.status(500).json({ error: error.message || 'Failed to generate report' });
     }
 };

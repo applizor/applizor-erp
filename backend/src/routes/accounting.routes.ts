@@ -5,11 +5,14 @@ import { requireModule } from '../middleware/enforcePlanLimit';
 import {
     getChartOfAccounts,
     createManualEntry,
+    updateManualEntry,
     getGeneralLedgerReport,
     getBalanceSheetReport,
     getProfitAndLossReport,
     getGstSummaryReport,
     createAccount,
+    updateAccount,
+    deleteAccount,
     getJournalEntries,
     reconcileLedger,
     deleteJournalEntry,
@@ -23,7 +26,13 @@ router.use(requireModule('accounting'));
 
 router.get('/accounts', getChartOfAccounts);
 router.post('/accounts', createAccount);
+router.put('/accounts/:id', updateAccount);
+router.patch('/accounts/:id', updateAccount);
+router.delete('/accounts/:id', deleteAccount);
+
 router.post('/entries', createManualEntry);
+router.put('/journal/:id', updateManualEntry);
+router.patch('/journal/:id', updateManualEntry);
 
 // Reports
 router.get('/reports/general-ledger/:accountId', getGeneralLedgerReport);

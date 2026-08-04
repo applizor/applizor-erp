@@ -184,7 +184,7 @@ export default function SaaSBillingPage() {
       </div>
 
       {/* Subscription Status Dashboard */}
-      {subDetails && (
+      {subDetails ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Current plan details */}
           <div className="ent-card p-6 lg:col-span-1 border-t-4 border-t-indigo-600 bg-white">
@@ -193,9 +193,9 @@ export default function SaaSBillingPage() {
 
               <div className="space-y-4">
               <div>
-                <h3 className="text-base font-black text-slate-900 uppercase">{subDetails.plan?.name}</h3>
+                <h3 className="text-base font-black text-slate-900 uppercase">{subDetails.plan?.name || 'Unassigned'}</h3>
                 <span className="text-[9px] font-mono text-slate-400 uppercase tracking-wider block mt-0.5">
-                  Code: {subDetails.plan?.code}
+                  Code: {subDetails.plan?.code || '—'}
                 </span>
               </div>
 
@@ -232,7 +232,7 @@ export default function SaaSBillingPage() {
                     <Users size={14} /> Team Seat Quota
                   </div>
                   <div className="text-lg font-black text-slate-900">
-                    {usage.usersCount} <span className="text-slate-400 text-xs font-bold uppercase">/ {subDetails.plan?.maxUsers} seats</span>
+                    {usage.usersCount} <span className="text-slate-400 text-xs font-bold uppercase">/ {subDetails.plan?.maxUsers || '—'} seats</span>
                   </div>
                   <div className="w-full bg-slate-200 rounded-full h-1.5 mt-2 overflow-hidden">
                     <div
@@ -248,7 +248,7 @@ export default function SaaSBillingPage() {
                     <Database size={14} /> Cloud Storage Gb
                   </div>
                   <div className="text-lg font-black text-slate-900">
-                    {usage.storageGbUsed.toFixed(1)} <span className="text-slate-400 text-xs font-bold uppercase">/ {subDetails.plan?.maxStorageGb} GB</span>
+                    {usage.storageGbUsed.toFixed(1)} <span className="text-slate-400 text-xs font-bold uppercase">/ {subDetails.plan?.maxStorageGb || '—'} GB</span>
                   </div>
                   <div className="w-full bg-slate-200 rounded-full h-1.5 mt-2 overflow-hidden">
                     <div
@@ -264,7 +264,7 @@ export default function SaaSBillingPage() {
                     <Building size={14} /> Subsidiaries / Entities
                   </div>
                   <div className="text-lg font-black text-slate-900">
-                    {usage.companiesCount} <span className="text-slate-400 text-xs font-bold uppercase">/ {subDetails.plan?.maxCompanies} Limit</span>
+                    {usage.companiesCount} <span className="text-slate-400 text-xs font-bold uppercase">/ {subDetails.plan?.maxCompanies || '—'} Limit</span>
                   </div>
                   <div className="w-full bg-slate-200 rounded-full h-1.5 mt-2 overflow-hidden">
                     <div
@@ -276,6 +276,16 @@ export default function SaaSBillingPage() {
               </div>
             </div>
           )}
+        </div>
+      ) : (
+        <div className="ent-card p-6 border-t-4 border-t-amber-500 bg-white flex items-start gap-3">
+          <AlertTriangle className="text-amber-500 flex-shrink-0 mt-0.5" size={20} />
+          <div>
+            <h3 className="text-sm font-black uppercase text-slate-900">No active subscription</h3>
+            <p className="text-[11px] text-slate-500 mt-1 font-medium">
+              Choose a plan below to start billing, or ask your platform administrator to assign a plan manually.
+            </p>
+          </div>
         </div>
       )}
 

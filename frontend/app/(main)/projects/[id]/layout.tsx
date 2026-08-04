@@ -184,8 +184,8 @@ export default function ProjectLayout({
                 </ScrollArea>
             </div>
 
-            {/* Dynamic Content */}
-            <div className="animate-fade-in">
+            {/* Dynamic Content — no transform-based animation wrappers (breaks DnD fixed positioning) */}
+            <div>
                 {children}
             </div>
 

@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { accountingApi } from '@/lib/api/accounting';
-import { FileText, Download, Calendar, ArrowUpRight, ArrowDownLeft, RefreshCw, ShieldCheck, PieChart as PieChartIcon, BarChart as BarChartIcon } from 'lucide-react';
+import { accountingApi, downloadCsv } from '@/lib/api/accounting';
+import { FileText, Download, Calendar, ArrowUpRight, ArrowDownLeft, RefreshCw, ShieldCheck, PieChart as PieChartIcon, BarChart as BarChartIcon, FileSpreadsheet } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
 import { startOfMonth } from 'date-fns/startOfMonth';
 import { endOfMonth } from 'date-fns/endOfMonth';
@@ -85,20 +85,44 @@ export default function GstSummaryPage() {
         }
     };
 
-    const handleExport = async () => {
+    const handleExportPdf = async () => {
         try {
             toast.info('Generating PDF...');
-            const blob = await accountingApi.exportReport('GST_SUMMARY', dateRange.startDate, dateRange.endDate);
-            const url = window.URL.createObjectURL(new Blob([blob]));
-            const link = document.createElement('a');
-            link.href = url;
-            link.setAttribute('download', `GST_Summary_${dateRange.startDate}_${dateRange.endDate}.pdf`);
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            toast.success('Report exported successfully');
+            await accountingApi.downloadExport(
+                'GST_SUMMARY',
+                `GST_Summary_${dateRange.startDate}_${dateRange.endDate}.pdf`,
+                dateRange.startDate,
+                dateRange.endDate
+            );
+            toast.success('PDF exported successfully');
         } catch (error) {
-            toast.error('Failed to export report');
+            toast.error('Failed to export PDF');
+        }
+    };
+
+    const handleExportCsv = () => {
+        try {
+            const rows: (string | number)[][] = Object.entries(data.summary).flatMap(([tax, vals]) => ([
+                ['Summary', `${tax} Input`, vals.input, '', ''],
+                ['Summary', `${tax} Output`, vals.output, '', ''],
+            ]));
+            (data.transactions || []).forEach(tx => {
+                rows.push([
+                    tx.invoiceNumber,
+                    tx.clientName,
+                    tx.taxableValue,
+                    tx.totalTax,
+                    tx.totalAmount
+                ]);
+            });
+            downloadCsv(
+                `GST_Summary_${dateRange.startDate}_${dateRange.endDate}.csv`,
+                ['Ref', 'Client/Label', 'Taxable/Value', 'Tax', 'Total'],
+                rows
+            );
+            toast.success('CSV exported successfully');
+        } catch {
+            toast.error('Failed to export CSV');
         }
     };
 
@@ -155,11 +179,18 @@ export default function GstSummaryPage() {
                         Sync Ledgers
                     </button>
                     <button
-                        onClick={handleExport}
+                        onClick={handleExportCsv}
+                        className="btn-secondary flex items-center gap-2"
+                    >
+                        <FileSpreadsheet size={14} />
+                        Export CSV
+                    </button>
+                    <button
+                        onClick={handleExportPdf}
                         className="btn-secondary flex items-center gap-2"
                     >
                         <Download size={14} />
-                        Export
+                        Export PDF
                     </button>
                 </div>
             </div>

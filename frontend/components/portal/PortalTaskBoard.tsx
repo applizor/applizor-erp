@@ -1,8 +1,12 @@
-import { MoreHorizontal, MessageSquare, Paperclip, CheckCircle2, ListTodo, Circle, PlayCircle, Plus, Users } from 'lucide-react';
-import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
+'use client';
+
+import { MessageSquare, CheckCircle2, Circle, PlayCircle } from 'lucide-react';
+import { DragDropContext, Draggable, DropResult } from '@hello-pangea/dnd';
 import api from '@/lib/api';
 import { useToast } from '@/hooks/useToast';
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { StrictModeDroppable } from '@/components/ui/StrictModeDroppable';
+import { priorityBadgeClass, columnDroppableClass } from '@/components/tasks/KanbanTaskCard';
 
 const COLUMNS = [
     { id: 'todo', title: 'To Do', icon: Circle, color: 'text-slate-500', bg: 'bg-slate-50', border: 'border-slate-200' },
@@ -18,6 +22,7 @@ interface PortalTaskBoardProps {
 export default function PortalTaskBoard({ tasks: initialTasks, onTaskClick }: PortalTaskBoardProps) {
     const [tasks, setTasks] = useState<any[]>(initialTasks);
     const toast = useToast();
+    const dragMovedRef = useRef(false);
 
     useEffect(() => {
         setTasks(initialTasks);
@@ -37,40 +42,37 @@ export default function PortalTaskBoard({ tasks: initialTasks, onTaskClick }: Po
         if (!destination) return;
         if (source.droppableId === destination.droppableId && source.index === destination.index) return;
 
-        const allTasks = [...tasks];
-        const movedTaskIndex = allTasks.findIndex(t => t.id === draggableId);
-        if (movedTaskIndex === -1) return;
+        const movedTask = tasks.find(t => t.id === draggableId);
+        if (!movedTask) return;
 
-        const movedTask = allTasks[movedTaskIndex];
         const newStatus = destination.droppableId;
         const updatedTask = { ...movedTask, status: newStatus };
 
-        // Optimistically update UI
-        allTasks.splice(movedTaskIndex, 1); // remove from old position
-
-        const destinationColTasks = allTasks.filter(t => {
-            if (newStatus === 'todo') return ['todo', 'backlog'].includes(t.status);
-            if (newStatus === 'in-progress') return ['in-progress', 'review'].includes(t.status);
-            if (newStatus === 'done') return ['done', 'cancelled'].includes(t.status);
-            return false;
-        }).sort((a, b) => (a.position || 0) - (b.position || 0));
+        const destinationColTasks = tasks
+            .filter(t => {
+                if (t.id === draggableId) return false;
+                if (newStatus === 'todo') return ['todo', 'backlog'].includes(t.status);
+                if (newStatus === 'in-progress') return ['in-progress', 'review'].includes(t.status);
+                if (newStatus === 'done') return ['done', 'cancelled'].includes(t.status);
+                return false;
+            })
+            .sort((a, b) => (a.position || 0) - (b.position || 0));
 
         const newPosition = calculatePosition(destinationColTasks, destination.index);
         updatedTask.position = newPosition;
 
-        // This seems complex, let's just update state
-        const nextState = tasks.map(t => t.id === draggableId ? updatedTask : t);
-        setTasks(nextState);
+        setTasks(prev => prev.map(t => (t.id === draggableId ? updatedTask : t)));
 
         try {
             await api.put(`/portal/tasks/${draggableId}`, { status: newStatus, position: newPosition });
-        } catch (error) {
-            toast.error('Failed to update task position');
-            setTasks(initialTasks); // Revert on failure
+        } catch (error: any) {
+            const status = error?.response?.status;
+            toast.error(status === 403
+                ? "You don't have permission to move this task"
+                : 'Failed to update task position');
+            setTasks(initialTasks);
         }
     }, [tasks, initialTasks, calculatePosition, toast]);
-
-    const columns = COLUMNS;
 
     const groupedTasks = useMemo(() => {
         const groups: Record<string, any[]> = { todo: [], 'in-progress': [], done: [] };
@@ -84,13 +86,17 @@ export default function PortalTaskBoard({ tasks: initialTasks, onTaskClick }: Po
     }, [tasks]);
 
     return (
-        <DragDropContext onDragEnd={onDragEnd}>
+        <DragDropContext
+            onDragStart={() => { dragMovedRef.current = true; }}
+            onDragEnd={(result) => {
+                onDragEnd(result);
+            }}
+        >
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full overflow-hidden">
-                {columns.map(col => {
+                {COLUMNS.map(col => {
                     const colTasks = groupedTasks[col.id] || [];
                     return (
                         <div key={col.id} className="flex flex-col h-full bg-slate-50/50 rounded-xl border border-slate-200/60 overflow-hidden">
-                            {/* Column Header */}
                             <div className={`px-4 py-3 border-b flex justify-between items-center bg-white ${col.border}`}>
                                 <div className="flex items-center gap-2">
                                     <col.icon size={14} className={col.color} />
@@ -103,20 +109,21 @@ export default function PortalTaskBoard({ tasks: initialTasks, onTaskClick }: Po
                                 </span>
                             </div>
 
-                            {/* Task List */}
-                            <Droppable droppableId={col.id}>
+                            <StrictModeDroppable droppableId={col.id}>
                                 {(provided, snapshot) => (
                                     <div
                                         ref={provided.innerRef}
                                         {...provided.droppableProps}
-                                        className={`flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar transition-colors ${snapshot.isDraggingOver ? 'bg-primary-50/30' : ''}`}
+                                        className={columnDroppableClass(snapshot.isDraggingOver)}
                                     >
-                                        {colTasks.length === 0 && !snapshot.isDraggingOver && (
-                                            <div className="h-full flex flex-col items-center justify-center text-center p-6 opacity-60">
+                                        {colTasks.length === 0 && (
+                                            <div className="flex flex-col items-center justify-center text-center p-6 opacity-60">
                                                 <div className={`w-12 h-12 rounded-full ${col.bg} flex items-center justify-center mb-3`}>
                                                     <col.icon size={20} className={col.color} />
                                                 </div>
-                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">No tasks</p>
+                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                                    {snapshot.isDraggingOver ? 'Drop here' : 'No tasks'}
+                                                </p>
                                             </div>
                                         )}
 
@@ -127,10 +134,21 @@ export default function PortalTaskBoard({ tasks: initialTasks, onTaskClick }: Po
                                                         ref={provided.innerRef}
                                                         {...provided.draggableProps}
                                                         {...provided.dragHandleProps}
-                                                        onClick={() => onTaskClick(task)}
-                                                        className={`group bg-white p-4 rounded-lg border shadow-sm hover:shadow-md hover:border-primary-300 cursor-pointer transition-all duration-200 relative overflow-hidden ${snapshot.isDragging ? 'rotate-1 shadow-xl ring-2 ring-primary-500/20 z-50' : 'border-slate-200'}`}
+                                                        style={provided.draggableProps.style}
+                                                        onClick={() => {
+                                                            if (dragMovedRef.current) {
+                                                                dragMovedRef.current = false;
+                                                                return;
+                                                            }
+                                                            onTaskClick(task);
+                                                        }}
+                                                        className={[
+                                                            'group bg-white p-3.5 rounded-lg border shadow-sm select-none relative overflow-hidden',
+                                                            snapshot.isDragging
+                                                                ? 'shadow-xl ring-2 ring-primary-500/25 z-50 opacity-95 cursor-grabbing'
+                                                                : 'border-slate-200 cursor-grab hover:shadow-md hover:border-primary-300',
+                                                        ].join(' ')}
                                                     >
-                                                        {/* Types & Priority Tags */}
                                                         <div className="flex justify-between items-start mb-2">
                                                             <div className="flex gap-1.5 flex-wrap">
                                                                 {task.type === 'bug' && (
@@ -138,29 +156,24 @@ export default function PortalTaskBoard({ tasks: initialTasks, onTaskClick }: Po
                                                                         BUG
                                                                     </span>
                                                                 )}
-                                                                <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border ${task.priority === 'urgent' ? 'bg-rose-50 text-rose-600 border-rose-100' :
-                                                                    task.priority === 'high' ? 'bg-orange-50 text-orange-600 border-orange-100' :
-                                                                        'bg-slate-50 text-slate-500 border-slate-100'
-                                                                    }`}>
+                                                                <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border ${priorityBadgeClass(task.priority)}`}>
                                                                     {task.priority}
                                                                 </span>
                                                             </div>
                                                         </div>
 
-                                                        {/* Title */}
-                                                        <h4 className="text-xs font-bold text-slate-800 leading-relaxed mb-3 group-hover:text-primary-700 transition-colors line-clamp-2">
+                                                        <h4 className="text-xs font-bold text-slate-800 leading-relaxed mb-3 line-clamp-2">
                                                             {task.title}
                                                         </h4>
 
-                                                        {/* Footer Meta */}
-                                                        <div className="flex items-center justify-between pt-3 border-t border-slate-50 mt-2">
+                                                        <div className="flex items-center justify-between pt-2.5 border-t border-slate-50 mt-2">
                                                             <span className="text-[9px] font-mono text-slate-400">
-                                                                #{task.id.split('-')[0].toUpperCase()}
+                                                                #{String(task.id).split('-')[0].toUpperCase()}
                                                             </span>
 
                                                             <div className="flex items-center gap-2">
                                                                 {(task._count?.comments > 0 || task.comments?.length > 0) && (
-                                                                    <div className="flex items-center gap-1 text-[9px] font-bold text-slate-400 group-hover:text-primary-500 transition-colors">
+                                                                    <div className="flex items-center gap-1 text-[9px] font-bold text-slate-400">
                                                                         <MessageSquare size={10} />
                                                                         <span>{task._count?.comments || task.comments?.length}</span>
                                                                     </div>
@@ -184,7 +197,7 @@ export default function PortalTaskBoard({ tasks: initialTasks, onTaskClick }: Po
                                         {provided.placeholder}
                                     </div>
                                 )}
-                            </Droppable>
+                            </StrictModeDroppable>
                         </div>
                     );
                 })}

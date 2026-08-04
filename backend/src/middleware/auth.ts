@@ -59,6 +59,24 @@ export const authenticate = async (
       return res.status(401).json({ error: 'User not found' });
     }
 
+    if (!user.isActive) {
+      return res.status(403).json({ error: 'Your account has been deactivated' });
+    }
+
+    const roleNames = user.roles?.map((ur: any) => ur.role?.name).filter(Boolean) || [];
+    const isPlatformAdmin = roleNames.some((n: string) => n === 'Super Admin' || n === 'Platform Admin');
+
+    // Load company to enforce suspension (platform admins exempt)
+    if (user.companyId && !isPlatformAdmin) {
+      const company = await prisma.company.findUnique({
+        where: { id: user.companyId },
+        select: { id: true, isActive: true },
+      });
+      if (company && company.isActive === false) {
+        return res.status(403).json({ error: 'Your company account has been suspended' });
+      }
+    }
+
     req.userId = decoded.userId;
     req.user = user;
 

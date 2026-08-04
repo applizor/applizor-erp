@@ -29,8 +29,12 @@ export const invoicesApi = {
   getAll: async (params?: {
     status?: string;
     clientId?: string;
+    search?: string;
     page?: number;
     limit?: number;
+    startDate?: string;
+    endDate?: string;
+    overdueOnly?: boolean;
   }) => {
     const response = await api.get('/invoices', { params });
     return response.data;

@@ -8,11 +8,38 @@ interface LimitResult {
   message?: string;
 }
 
+const MODULE_ALIASES: Record<string, string[]> = {
+  crm: ['crm', 'clients', 'leads'],
+  clients: ['clients', 'crm'],
+  hrms: ['hrms', 'employees', 'attendance', 'leaves'],
+  employees: ['employees', 'hrms'],
+  payroll: ['payroll'],
+  projects: ['projects', 'tasks'],
+  accounting: ['accounting'],
+  recruitment: ['recruitment'],
+  lms: ['lms'],
+  invoices: ['invoices', 'billing'],
+};
+
 async function getSubscription(companyId: string) {
   return prisma.tenantSubscription.findUnique({
     where: { companyId },
     include: { plan: true },
   });
+}
+
+function hasModuleEnabled(modules: unknown, moduleName: string): boolean {
+  const aliases = MODULE_ALIASES[moduleName] || [moduleName];
+  const keysToCheck = new Set([moduleName, ...aliases].map((k) => k.toLowerCase()));
+
+  if (Array.isArray(modules)) {
+    return modules.some((m) => keysToCheck.has(String(m).toLowerCase()));
+  }
+  if (modules && typeof modules === 'object') {
+    const map = modules as Record<string, boolean>;
+    return Array.from(keysToCheck).some((key) => !!map[key]);
+  }
+  return false;
 }
 
 export async function checkLimit(companyId: string, limitType: LimitType): Promise<LimitResult> {
@@ -30,7 +57,12 @@ export async function checkLimit(companyId: string, limitType: LimitType): Promi
 
   switch (limitType) {
     case 'maxUsers': {
-      const count = await prisma.employee.count({ where: { companyId } });
+      // Seat limit covers both login users and employee records
+      const [userCount, employeeCount] = await Promise.all([
+        prisma.user.count({ where: { companyId } }),
+        prisma.employee.count({ where: { companyId } }),
+      ]);
+      const count = Math.max(userCount, employeeCount);
       if (count >= plan.maxUsers) {
         return { allowed: false, message: `User limit reached (${plan.maxUsers}/${plan.maxUsers}). Upgrade your plan.` };
       }
@@ -103,16 +135,7 @@ export function requireModule(moduleName: string) {
     const subscription = await getSubscription(companyId);
     if (!subscription?.plan?.enabledModules) return next();
 
-    const modules = subscription.plan.enabledModules;
-    let hasModule = false;
-
-    if (Array.isArray(modules)) {
-      hasModule = modules.includes(moduleName);
-    } else if (modules && typeof modules === 'object') {
-      hasModule = !!(modules as Record<string, boolean>)[moduleName];
-    }
-
-    if (!hasModule) {
+    if (!hasModuleEnabled(subscription.plan.enabledModules, moduleName)) {
       return _res.status(403).json({
         error: `"${moduleName}" module is not included in your ${subscription.plan.name} plan. Upgrade to unlock.`,
       });

@@ -8,6 +8,14 @@ import { NotificationService } from '../services/notification.service';
 import { StorageService } from '../services/storage.service';
 import { TeamsService } from '../services/teams.service';
 
+/** Allowed kanban / board statuses for ProjectTask */
+export const TASK_STATUSES = ['todo', 'in-progress', 'review', 'done'] as const;
+export type TaskStatus = (typeof TASK_STATUSES)[number];
+
+function isValidTaskStatus(status: unknown): status is TaskStatus {
+    return typeof status === 'string' && (TASK_STATUSES as readonly string[]).includes(status);
+}
+
 // Basic Teams Webhook Stub
 // In a real app, this would be a proper service capable of sending rich cards
 const notifyTeams = async (webhookUrl: string, message: string) => {
@@ -83,6 +91,12 @@ export const createTask = async (req: AuthRequest, res: Response) => {
             assigneeId, assigneeIds, dueDate, milestoneId,
             storyPoints, parentId, epicId, sprintId, startDate, position
         } = req.body;
+
+        if (status !== undefined && status !== null && status !== '' && !isValidTaskStatus(status)) {
+            return res.status(400).json({
+                error: `Invalid status. Allowed: ${TASK_STATUSES.join(', ')}`
+            });
+        }
 
         const parsedAssigneeIds = typeof assigneeIds === 'string'
             ? (() => { try { return JSON.parse(assigneeIds); } catch { return assigneeIds ? [assigneeIds] : []; } })()
@@ -223,6 +237,12 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
             assigneeId, assigneeIds, dueDate, milestoneId,
             storyPoints, parentId, epicId, sprintId, startDate, position
         } = req.body;
+
+        if (status !== undefined && status !== null && !isValidTaskStatus(status)) {
+            return res.status(400).json({
+                error: `Invalid status. Allowed: ${TASK_STATUSES.join(', ')}`
+            });
+        }
 
         const parsedAssigneeIds = typeof assigneeIds === 'string'
             ? (() => { try { return JSON.parse(assigneeIds); } catch { return assigneeIds ? [assigneeIds] : []; } })()
@@ -711,17 +731,27 @@ export const bulkUpdateTasks = async (req: AuthRequest, res: Response) => {
             return res.status(400).json({ error: 'Invalid task IDs' });
         }
         if (!status) return res.status(400).json({ error: 'Status required' });
+        if (!isValidTaskStatus(status)) {
+            return res.status(400).json({
+                error: `Invalid status. Allowed: ${TASK_STATUSES.join(', ')}`
+            });
+        }
 
+        const uniqueIds = Array.from(new Set(taskIds.map(String)));
         const userId = req.user!.id;
 
-        // Verify permissions for each task
+        // Verify permissions for each task (company-scoped)
         const tasks = await prisma.task.findMany({
             where: {
-                id: { in: taskIds },
+                id: { in: uniqueIds },
                 OR: [{ project: { companyId: req.user!.companyId } }, { projectId: null, creator: { companyId: req.user!.companyId } }]
             },
             select: { id: true, projectId: true, assignedToId: true, createdById: true }
         });
+
+        if (tasks.length !== uniqueIds.length) {
+            return res.status(404).json({ error: 'One or more tasks were not found' });
+        }
 
         for (const task of tasks) {
             const isPM = task.projectId ? await PermissionService.isProjectManager(userId, task.projectId) : false;
@@ -737,7 +767,7 @@ export const bulkUpdateTasks = async (req: AuthRequest, res: Response) => {
 
         await prisma.task.updateMany({
             where: {
-                id: { in: taskIds },
+                id: { in: uniqueIds },
                 OR: [{ project: { companyId: req.user!.companyId } }, { projectId: null, creator: { companyId: req.user!.companyId } }]
             },
             data: { status }

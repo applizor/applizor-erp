@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { accountingApi, LedgerAccount } from '@/lib/api/accounting';
-import { Building2, Download, ShieldCheck, Wallet, Landmark, RefreshCw, PieChart as PieChartIcon } from 'lucide-react';
+import { accountingApi, LedgerAccount, downloadCsv } from '@/lib/api/accounting';
+import { Building2, Download, ShieldCheck, Wallet, Landmark, RefreshCw, PieChart as PieChartIcon, FileSpreadsheet } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
 import {
     PieChart,
@@ -49,20 +49,29 @@ export default function BalanceSheetPage() {
         }
     };
 
-    const handleExport = async () => {
+    const handleExportPdf = async () => {
         try {
             toast.info('Generating PDF...');
-            const blob = await accountingApi.exportReport('BALANCE_SHEET');
-            const url = window.URL.createObjectURL(new Blob([blob]));
-            const link = document.createElement('a');
-            link.href = url;
-            link.setAttribute('download', `Balance_Sheet_${new Date().toISOString().split('T')[0]}.pdf`);
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            toast.success('Report exported successfully');
+            await accountingApi.downloadExport(
+                'BALANCE_SHEET',
+                `Balance_Sheet_${new Date().toISOString().split('T')[0]}.pdf`
+            );
+            toast.success('PDF exported successfully');
         } catch (error) {
-            toast.error('Failed to export report');
+            toast.error('Failed to export PDF');
+        }
+    };
+
+    const handleExportCsv = () => {
+        try {
+            downloadCsv(
+                `Balance_Sheet_${new Date().toISOString().split('T')[0]}.csv`,
+                ['Code', 'Name', 'Type', 'Balance'],
+                accounts.map(a => [a.code, a.name, a.type, Number(a.balance)])
+            );
+            toast.success('CSV exported successfully');
+        } catch {
+            toast.error('Failed to export CSV');
         }
     };
 
@@ -108,7 +117,14 @@ export default function BalanceSheetPage() {
                         Sync Ledgers
                     </button>
                     <button
-                        onClick={handleExport}
+                        onClick={handleExportCsv}
+                        className="btn-secondary flex items-center gap-2"
+                    >
+                        <FileSpreadsheet size={14} />
+                        Export CSV
+                    </button>
+                    <button
+                        onClick={handleExportPdf}
                         className="btn-secondary flex items-center gap-2"
                     >
                         <Download size={14} />

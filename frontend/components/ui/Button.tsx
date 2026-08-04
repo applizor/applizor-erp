@@ -1,9 +1,5 @@
 import { ButtonHTMLAttributes, forwardRef } from 'react';
-import { LoadingSpinner } from './LoadingSpinner';
 import { LucideIcon } from 'lucide-react';
-
-
-// Actually, let's stick to template literals to be safe.
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
     variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'outline';
@@ -14,7 +10,7 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     ({ className = '', variant = 'primary', size = 'default', isLoading, icon: Icon, children, disabled, ...props }, ref) => {
-        const baseStyles = "inline-flex items-center justify-center font-black uppercase tracking-widest rounded-lg transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed";
+        const baseStyles = "inline-flex items-center justify-center font-black uppercase tracking-widest rounded-lg disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed transition-[background-color,border-color,box-shadow,transform,opacity,color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] active:scale-[0.985]";
 
         const sizes = {
             default: 'text-[10px] px-4 py-2.5',
@@ -24,11 +20,11 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         };
 
         const variants = {
-            primary: 'ent-button-primary', // defined in globals.css
-            secondary: 'ent-button-secondary', // defined in globals.css
-            danger: 'ent-button-danger', // defined in globals.css
-            outline: 'border border-slate-200 bg-white hover:bg-slate-50 text-slate-900',
-            ghost: 'bg-transparent text-slate-600 hover:bg-slate-100'
+            primary: 'ent-button-primary',
+            secondary: 'ent-button-secondary',
+            danger: 'ent-button-danger',
+            outline: 'border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 text-slate-900',
+            ghost: 'bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900'
         };
 
         const variantClass = variants[variant];

@@ -57,11 +57,14 @@ const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 - `requireSuperAdmin` middleware for platform-level operations
 - Super admin bypasses all permission checks
 - Can manage tenants, platform plans, statutory rules, COA templates
+- Tenant onboard (`POST /api/platform/tenants`) creates Admin user + plan subscription and returns temporary credentials
 
 ## Plan Enforcement
 - `enforcePlanLimit(limit)` middleware checks SaaS subscription limits
-- Limits: `maxUsers`, `maxStorageGb`, etc.
-- Configured via `TenantPlan.features` JSON
+- Limits: `maxUsers` (max of users/employees), `maxStorageGb`
+- Module gates via `requireModule` with aliases (`crm`↔`clients`, `hrms`↔`employees`)
+- Configured via `TenantPlan.enabledModules` / `features` JSON
+- Suspended companies and inactive users are rejected by login + `authenticate`
 
 ## Socket.io CORS
 ```typescript

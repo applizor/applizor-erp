@@ -57,10 +57,14 @@ router.post('/tenants', platformController.onboardTenant);
 router.put('/tenants/:id', platformController.updateTenant);
 router.put('/tenants/:id/suspend', platformController.suspendTenant);
 router.put('/tenants/:id/activate', platformController.activateTenant);
+router.post('/tenants/:id/provision-admin', platformController.provisionTenantAdmin);
 router.delete('/tenants/:id', platformController.deleteTenant);
 
 // Subscription management
 router.put('/tenants/:id/subscription', platformController.updateTenantSubscription);
+
+// Plan listing with inactive plans (superadmin)
+router.get('/plans/all', platformController.listAllPlans);
 
 // Plan management
 router.post('/plans', platformController.createPlan);
@@ -69,6 +73,13 @@ router.delete('/plans/:id', platformController.deletePlan);
 
 // Dashboard
 router.get('/stats', platformController.getPlatformStats);
+
+// Platform accounting (Applizor SaaS books — separate from tenant COA)
+router.post('/accounting/ensure', platformController.ensurePlatformBooks);
+router.get('/accounting/accounts', platformController.getPlatformAccountingAccounts);
+router.get('/accounting/journal', platformController.getPlatformAccountingJournal);
+router.get('/accounting/profit-loss', platformController.getPlatformAccountingProfitLoss);
+router.get('/accounting/payments', platformController.getPlatformAccountingPayments);
 
 // Statutory Rules
 router.post('/rules', platformController.createStatutoryRule);

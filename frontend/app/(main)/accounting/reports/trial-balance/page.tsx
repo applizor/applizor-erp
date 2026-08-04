@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { accountingApi, LedgerAccount } from '@/lib/api/accounting';
-import { Scale, Download, ShieldCheck, Activity, Landmark, ArrowRightLeft, RefreshCw } from 'lucide-react';
+import { accountingApi, LedgerAccount, downloadCsv } from '@/lib/api/accounting';
+import { Scale, Download, ShieldCheck, Activity, Landmark, ArrowRightLeft, RefreshCw, FileSpreadsheet } from 'lucide-react';
 import { useToast } from '@/hooks/useToast';
 
 export default function TrialBalancePage() {
@@ -39,20 +39,33 @@ export default function TrialBalancePage() {
         }
     };
 
-    const handleExport = async () => {
+    const handleExportPdf = async () => {
         try {
             toast.info('Generating PDF...');
-            const blob = await accountingApi.exportReport('TRIAL_BALANCE');
-            const url = window.URL.createObjectURL(new Blob([blob]));
-            const link = document.createElement('a');
-            link.href = url;
-            link.setAttribute('download', `Trial_Balance_${new Date().toISOString().split('T')[0]}.pdf`);
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            toast.success('Report exported successfully');
+            await accountingApi.downloadExport(
+                'TRIAL_BALANCE',
+                `Trial_Balance_${new Date().toISOString().split('T')[0]}.pdf`
+            );
+            toast.success('PDF exported successfully');
         } catch (error) {
-            toast.error('Failed to export report');
+            toast.error('Failed to export PDF');
+        }
+    };
+
+    const handleExportCsv = () => {
+        try {
+            const rows = accounts.map(acc => {
+                const { debit, credit } = calculateDebitCredit(acc);
+                return [acc.code, acc.name, acc.type, debit, credit];
+            });
+            downloadCsv(
+                `Trial_Balance_${new Date().toISOString().split('T')[0]}.csv`,
+                ['Code', 'Name', 'Type', 'Debit', 'Credit'],
+                rows
+            );
+            toast.success('CSV exported successfully');
+        } catch {
+            toast.error('Failed to export CSV');
         }
     };
 
@@ -105,7 +118,14 @@ export default function TrialBalancePage() {
                         Sync Ledgers
                     </button>
                     <button
-                        onClick={handleExport}
+                        onClick={handleExportCsv}
+                        className="btn-secondary flex items-center gap-2"
+                    >
+                        <FileSpreadsheet size={14} />
+                        Export CSV
+                    </button>
+                    <button
+                        onClick={handleExportPdf}
                         className="btn-secondary flex items-center gap-2"
                     >
                         <Download size={14} />

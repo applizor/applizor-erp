@@ -105,7 +105,7 @@ export const globalSearch = async (req: AuthRequest, res: Response) => {
                 label: `#${i.invoiceNumber}`,
                 subtitle: i.type || 'Invoice',
                 description: `₹${Number(i.total).toLocaleString()} · ${i.status}`,
-                href: `/accounting/invoices/${i.id}`,
+                href: `/invoices/${i.id}`,
             })),
             ...documents.map(d => ({
                 id: d.id,
@@ -113,7 +113,7 @@ export const globalSearch = async (req: AuthRequest, res: Response) => {
                 label: d.name,
                 subtitle: d.type || 'Document',
                 description: d.status || '',
-                href: `/documents/${d.id}`,
+                href: `/documents?q=${encodeURIComponent(d.name)}`,
             })),
             ...leads.map(l => ({
                 id: l.id,

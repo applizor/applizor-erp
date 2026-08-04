@@ -6,7 +6,7 @@ import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { Button } from '@/components/ui/Button';
 import { CustomSelect } from '@/components/ui/CustomSelect';
-import { Plus, Search, Edit2, Trash2, Ban, Check, X, ShieldAlert, Users, Building, Activity } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Ban, Check, X, Building, Activity, UserPlus, Copy, KeyRound } from 'lucide-react';
 import Portal from '@/components/ui/Portal';
 
 interface Tenant {
@@ -79,6 +79,24 @@ export default function TenantsPage() {
   const [locale, setLocale] = useState('en-IN');
   const [currency, setCurrency] = useState('INR');
   const [planCode, setPlanCode] = useState('');
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminFirstName, setAdminFirstName] = useState('');
+  const [adminLastName, setAdminLastName] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [sendWelcomeEmail, setSendWelcomeEmail] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
+  // Credentials reveal after onboard / provision
+  const [credentials, setCredentials] = useState<{
+    email: string;
+    temporaryPassword: string;
+    passwordWasGenerated?: boolean;
+    welcomeEmailSent?: boolean;
+    companyName?: string;
+  } | null>(null);
+
+  // Provision admin for orphan tenants
+  const [isProvisionOpen, setIsProvisionOpen] = useState(false);
 
   // Subscription edit form state
   const [subPlanId, setSubPlanId] = useState('');
@@ -162,26 +180,42 @@ export default function TenantsPage() {
   const handleOnboard = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await api.post('/platform/tenants', {
+      setSubmitting(true);
+      const res = await api.post('/platform/tenants', {
         name,
         legalName,
         email,
         phone,
         address,
         city,
-        countryId,
+        countryId: countryId || null,
         stateId: stateId || null,
         timezone,
         locale,
         currency,
         planCode: planCode || null,
+        adminEmail: adminEmail || email,
+        adminFirstName: adminFirstName || undefined,
+        adminLastName: adminLastName || undefined,
+        adminPassword: adminPassword || undefined,
+        sendWelcomeEmail,
       });
-      toast.success('Tenant onboarded successfully!');
+      toast.success('Tenant onboarded with admin user!');
       setIsOnboardOpen(false);
+      if (res.data?.credentials) {
+        setCredentials({
+          ...res.data.credentials,
+          companyName: res.data.name || name,
+        });
+      }
       resetOnboardForm();
       fetchTenants();
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to onboard tenant');
+      const data = error.response?.data;
+      const msg = [data?.error, data?.details].filter(Boolean).join(' — ') || 'Failed to onboard tenant';
+      toast.error(msg);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -198,6 +232,60 @@ export default function TenantsPage() {
     setLocale('en-IN');
     setCurrency('INR');
     setPlanCode('');
+    setAdminEmail('');
+    setAdminFirstName('');
+    setAdminLastName('');
+    setAdminPassword('');
+    setSendWelcomeEmail(true);
+  };
+
+  const openProvisionModal = (tenant: Tenant) => {
+    setSelectedTenant(tenant);
+    setAdminEmail(tenant.email || '');
+    setAdminFirstName('');
+    setAdminLastName('Admin');
+    setAdminPassword('');
+    setSendWelcomeEmail(true);
+    setIsProvisionOpen(true);
+  };
+
+  const handleProvisionAdmin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedTenant) return;
+    try {
+      setSubmitting(true);
+      const res = await api.post(`/platform/tenants/${selectedTenant.id}/provision-admin`, {
+        adminEmail: adminEmail || selectedTenant.email,
+        adminFirstName: adminFirstName || undefined,
+        adminLastName: adminLastName || undefined,
+        adminPassword: adminPassword || undefined,
+        sendWelcomeEmail,
+      });
+      toast.success('Admin user provisioned for tenant');
+      setIsProvisionOpen(false);
+      if (res.data?.credentials) {
+        setCredentials({
+          ...res.data.credentials,
+          companyName: selectedTenant.name,
+        });
+      }
+      setSelectedTenant(null);
+      resetOnboardForm();
+      fetchTenants();
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Failed to provision admin');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const copyText = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success('Copied to clipboard');
+    } catch {
+      toast.error('Could not copy');
+    }
   };
 
   const handleSuspend = async (id: string) => {
@@ -297,8 +385,9 @@ export default function TenantsPage() {
       toast.success('Tenant subscription updated successfully');
       setIsSubOpen(false);
       fetchTenants();
-    } catch (error) {
-      toast.error('Failed to update subscription');
+    } catch (error: any) {
+      const data = error.response?.data;
+      toast.error([data?.error, data?.details].filter(Boolean).join(' — ') || 'Failed to update subscription');
     }
   };
 
@@ -418,9 +507,14 @@ export default function TenantsPage() {
                       )}
                     </td>
                     <td className="p-4">
-                      <div className="flex gap-1.5">
-                        <span className="text-[9px] bg-slate-100 text-slate-600 font-extrabold px-1.5 py-0.5 rounded">
+                      <div className="flex gap-1.5 flex-wrap">
+                        <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded ${
+                          (tenant._count?.users || 0) === 0
+                            ? 'bg-amber-50 text-amber-700 border border-amber-100'
+                            : 'bg-slate-100 text-slate-600'
+                        }`}>
                           {tenant._count.users} Users
+                          {(tenant._count?.users || 0) === 0 ? ' — orphan' : ''}
                         </span>
                         <span className="text-[9px] bg-slate-100 text-slate-600 font-extrabold px-1.5 py-0.5 rounded">
                           {tenant._count.employees} Employees
@@ -436,6 +530,15 @@ export default function TenantsPage() {
                     </td>
                     <td className="p-4 text-right">
                       <div className="flex justify-end gap-2">
+                        {(tenant._count?.users || 0) === 0 && (
+                          <button
+                            onClick={() => openProvisionModal(tenant)}
+                            title="Provision Admin User"
+                            className="p-1.5 text-amber-500 hover:text-amber-700 rounded hover:bg-amber-50"
+                          >
+                            <UserPlus size={14} />
+                          </button>
+                        )}
                         <button
                           onClick={() => openEditModal(tenant)}
                           title="Edit Tenant Details"
@@ -611,15 +714,66 @@ export default function TenantsPage() {
                     value={planCode}
                     onChange={setPlanCode}
                     options={[
-                      { label: 'None (Assign Free Trial)', value: '' },
-                      ...plans.map((p) => ({ label: `${p.name} ($${p.price})`, value: p.code })),
+                      { label: 'Starter — Free Trial (default)', value: '' },
+                      ...plans.map((p) => ({ label: `${p.name} ($${p.price}) · ${p.code}`, value: p.code })),
                     ]}
                   />
                 </div>
 
+                <div className="border-t border-slate-100 pt-4 space-y-4">
+                  <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
+                    <KeyRound size={12} /> Tenant Admin Login
+                  </h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="ent-form-group">
+                      <label className="ent-label">Admin Email</label>
+                      <input
+                        type="email"
+                        className="ent-input"
+                        value={adminEmail}
+                        onChange={(e) => setAdminEmail(e.target.value)}
+                        placeholder="Defaults to corporate email"
+                      />
+                    </div>
+                    <div className="ent-form-group">
+                      <label className="ent-label">Temp Password (optional)</label>
+                      <input
+                        type="text"
+                        className="ent-input"
+                        value={adminPassword}
+                        onChange={(e) => setAdminPassword(e.target.value)}
+                        placeholder="Auto-generated if blank"
+                        minLength={6}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="ent-form-group">
+                      <label className="ent-label">Admin First Name</label>
+                      <input type="text" className="ent-input" value={adminFirstName} onChange={(e) => setAdminFirstName(e.target.value)} placeholder="Optional" />
+                    </div>
+                    <div className="ent-form-group">
+                      <label className="ent-label">Admin Last Name</label>
+                      <input type="text" className="ent-input" value={adminLastName} onChange={(e) => setAdminLastName(e.target.value)} placeholder="Optional" />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="sendWelcomeEmail"
+                      checked={sendWelcomeEmail}
+                      onChange={(e) => setSendWelcomeEmail(e.target.checked)}
+                      className="rounded border-gray-300 text-primary-600 focus:ring-primary-500 h-4 w-4"
+                    />
+                    <label htmlFor="sendWelcomeEmail" className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+                      Send welcome email with credentials
+                    </label>
+                  </div>
+                </div>
+
                 <div className="pt-4 flex-shrink-0">
-                  <button type="submit" className="btn-primary w-full py-3">
-                    Onboard & Launch Tenant
+                  <button type="submit" className="btn-primary w-full py-3" disabled={submitting}>
+                    {submitting ? 'Onboarding...' : 'Onboard & Launch Tenant'}
                   </button>
                 </div>
               </form>
@@ -807,6 +961,114 @@ export default function TenantsPage() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+      </Portal>
+
+      {/* Provision Admin Modal (orphans) */}
+      <Portal>
+        {isProvisionOpen && selectedTenant && (
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+            <div className="bg-white rounded-md shadow-2xl w-full max-w-md overflow-hidden">
+              <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-amber-50">
+                <h3 className="text-sm font-black uppercase text-gray-900 flex items-center gap-2">
+                  <UserPlus size={16} className="text-amber-600" /> Provision Admin: {selectedTenant.name}
+                </h3>
+                <button onClick={() => { setIsProvisionOpen(false); resetOnboardForm(); }} className="text-slate-400 hover:text-gray-900">
+                  <X size={18} />
+                </button>
+              </div>
+              <form onSubmit={handleProvisionAdmin} className="p-6 space-y-4">
+                <p className="text-[11px] text-slate-500 font-medium">
+                  This company has no login users. Create an Admin account so the client can sign in.
+                </p>
+                <div className="ent-form-group">
+                  <label className="ent-label">Admin Email</label>
+                  <input type="email" className="ent-input" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} required />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="ent-form-group">
+                    <label className="ent-label">First Name</label>
+                    <input type="text" className="ent-input" value={adminFirstName} onChange={(e) => setAdminFirstName(e.target.value)} />
+                  </div>
+                  <div className="ent-form-group">
+                    <label className="ent-label">Last Name</label>
+                    <input type="text" className="ent-input" value={adminLastName} onChange={(e) => setAdminLastName(e.target.value)} />
+                  </div>
+                </div>
+                <div className="ent-form-group">
+                  <label className="ent-label">Temp Password (optional)</label>
+                  <input type="text" className="ent-input" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} placeholder="Auto-generated if blank" minLength={6} />
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="provisionWelcomeEmail"
+                    checked={sendWelcomeEmail}
+                    onChange={(e) => setSendWelcomeEmail(e.target.checked)}
+                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500 h-4 w-4"
+                  />
+                  <label htmlFor="provisionWelcomeEmail" className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+                    Send welcome email
+                  </label>
+                </div>
+                <button type="submit" className="btn-primary w-full py-3" disabled={submitting}>
+                  {submitting ? 'Creating...' : 'Create Admin User'}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+      </Portal>
+
+      {/* Credentials reveal */}
+      <Portal>
+        {credentials && (
+          <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[10000] flex items-center justify-center p-4">
+            <div className="bg-white rounded-md shadow-2xl w-full max-w-md overflow-hidden">
+              <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-emerald-50">
+                <h3 className="text-sm font-black uppercase text-gray-900 flex items-center gap-2">
+                  <KeyRound size={16} className="text-emerald-600" /> Admin Credentials Ready
+                </h3>
+                <button onClick={() => setCredentials(null)} className="text-slate-400 hover:text-gray-900">
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="p-6 space-y-4">
+                {credentials.companyName && (
+                  <p className="text-xs font-bold text-slate-600 uppercase tracking-wide">{credentials.companyName}</p>
+                )}
+                <div className="bg-slate-50 border border-slate-100 rounded-md p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <span className="text-[9px] font-black uppercase text-slate-400 block">Login Email</span>
+                      <span className="text-sm font-bold text-slate-900 break-all">{credentials.email}</span>
+                    </div>
+                    <button type="button" onClick={() => copyText(credentials.email)} className="p-2 text-slate-400 hover:text-indigo-600 rounded hover:bg-white">
+                      <Copy size={14} />
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <span className="text-[9px] font-black uppercase text-slate-400 block">Temporary Password</span>
+                      <span className="text-sm font-mono font-bold text-slate-900">{credentials.temporaryPassword}</span>
+                    </div>
+                    <button type="button" onClick={() => copyText(credentials.temporaryPassword)} className="p-2 text-slate-400 hover:text-indigo-600 rounded hover:bg-white">
+                      <Copy size={14} />
+                    </button>
+                  </div>
+                </div>
+                <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-100 rounded px-3 py-2">
+                  {credentials.passwordWasGenerated !== false
+                    ? 'Copy these credentials now — the temporary password is shown only once.'
+                    : 'Share these login details with the client admin securely.'}
+                  {credentials.welcomeEmailSent ? ' A welcome email was also sent.' : ' Welcome email was not sent.'}
+                </p>
+                <button type="button" onClick={() => setCredentials(null)} className="btn-primary w-full py-3">
+                  Done
+                </button>
+              </div>
             </div>
           </div>
         )}

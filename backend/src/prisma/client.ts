@@ -84,38 +84,43 @@ const prisma = basePrisma.$extends({
             return result;
           }
 
-          // Populate companyId on writes (create / createMany / update)
+          // Populate companyId on writes — never overwrite an explicit companyId
+          // (platform onboard / cross-tenant admin must create records for other companies)
           if (operation === 'create') {
             args.data = args.data || {};
-            args.data.companyId = store.companyId;
+            if (args.data.companyId == null) {
+              args.data.companyId = store.companyId;
+            }
           }
 
           if (operation === 'createMany') {
             if (args.data) {
               if (Array.isArray(args.data)) {
                 args.data.forEach((item: any) => {
-                  item.companyId = store.companyId;
+                  if (item && item.companyId == null) {
+                    item.companyId = store.companyId;
+                  }
                 });
-              } else {
+              } else if (args.data.companyId == null) {
                 args.data.companyId = store.companyId;
               }
             }
           }
 
           if (operation === 'update') {
-            args.where.companyId = store.companyId;
-            if (args.data) {
-              args.data.companyId = store.companyId;
+            if (!hasExistingFilter) {
+              args.where.companyId = store.companyId;
             }
+            // Do not force data.companyId — allow intentional moves / explicit values
           }
 
           if (operation === 'upsert') {
-            args.where.companyId = store.companyId;
-            if (args.create) {
-              args.create.companyId = store.companyId;
+            // Preserve explicit companyId in where/create (e.g. Super Admin assigning a tenant plan)
+            if (args.where && args.where.companyId == null && !hasCompanyIdFilter(args.where)) {
+              args.where.companyId = store.companyId;
             }
-            if (args.update) {
-              args.update.companyId = store.companyId;
+            if (args.create && args.create.companyId == null) {
+              args.create.companyId = store.companyId;
             }
           }
         }

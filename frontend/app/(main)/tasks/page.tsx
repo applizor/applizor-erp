@@ -1,20 +1,22 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { DragDropContext, DropResult } from '@hello-pangea/dnd';
 import { useToast } from '@/hooks/useToast';
 import api from '@/lib/api';
 import {
-    Plus, MoreVertical, MessageSquare, Bug, Bookmark, Layout, CheckSquare,
-    LayoutGrid, Users, Clock, Copy, Edit2, Trash2, Link as LinkIcon, ListTree, Briefcase
+    Plus, LayoutGrid, Copy, Edit2, Trash2, Link as LinkIcon, Briefcase
 } from 'lucide-react';
 import TaskDetailModal from '@/components/tasks/TaskDetailModal';
 import { TaskFilterBar } from '@/components/tasks/TaskFilterBar';
+import { KanbanTaskCard, KanbanColumnEmpty, columnDroppableClass, createKanbanTaskCloneRenderer, KanbanCountBadge } from '@/components/tasks/KanbanTaskCard';
 import BulkTimeLogModal from '@/components/hrms/timesheets/BulkTimeLogModal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import Portal from '@/components/ui/Portal';
+import { StrictModeDroppable } from '@/components/ui/StrictModeDroppable';
 import { useSocket } from '@/contexts/SocketContext';
 import { CustomSelect } from '@/components/ui/CustomSelect';
+import { usePermission } from '@/hooks/usePermission';
 
 interface Task {
     id: string;
@@ -95,6 +97,9 @@ export default function GlobalTasksPage() {
     });
     const toast = useToast();
     const { socket } = useSocket();
+    const { can } = usePermission();
+    const canUpdateTasks = can('ProjectTask', 'update');
+    const canCreateTasks = can('ProjectTask', 'create');
 
     // Mirror of `columns` for decision-making inside socket handlers
     const columnsRef = useRef(columns);
@@ -190,7 +195,10 @@ export default function GlobalTasksPage() {
             }));
         } catch (error) {
             toast.error('Failed to load tasks');
-            setColPagination(prev => ({ ...prev, [status]: { ...prev[status], loading: false } }));
+            setColPagination(prev => ({
+                ...prev,
+                [status]: { ...prev[status], loading: false, hasMore: false }
+            }));
         }
     }, [buildBaseUrl, toast]);
 
@@ -343,20 +351,35 @@ export default function GlobalTasksPage() {
         const { source, destination, draggableId } = result;
         if (!destination) return;
         if (source.droppableId === destination.droppableId && source.index === destination.index) return;
+        if (!canUpdateTasks) {
+            toast.error("You don't have permission to move this task");
+            return;
+        }
 
-        const startCol = Array.from(columns[source.droppableId]);
-        const finishCol = source.droppableId === destination.droppableId ? startCol : Array.from(columns[destination.droppableId]);
+        const startCol = Array.from(columns[source.droppableId] || []);
+        const finishCol = source.droppableId === destination.droppableId
+            ? startCol
+            : Array.from(columns[destination.droppableId] || []);
 
         const [moved] = startCol.splice(source.index, 1);
-        const newStatus = destination.droppableId;
-        const updatedMoved = { ...(moved as any), status: newStatus };
+        if (!moved || moved.id !== draggableId) {
+            fetchAllColumns();
+            return;
+        }
 
+        const newStatus = destination.droppableId;
+        const updatedMoved = { ...moved, status: newStatus };
         finishCol.splice(destination.index, 0, updatedMoved);
 
         const newCols = { ...columns };
         newCols[source.droppableId] = startCol;
         if (source.droppableId !== destination.droppableId) {
             newCols[destination.droppableId] = finishCol;
+            setTaskCounts(prev => ({
+                ...prev,
+                [source.droppableId]: Math.max(0, (prev[source.droppableId] ?? 0) - 1),
+                [destination.droppableId]: (prev[destination.droppableId] ?? 0) + 1,
+            }));
         }
         setColumns(newCols);
 
@@ -364,11 +387,14 @@ export default function GlobalTasksPage() {
             const finishColForPos = finishCol.filter(t => t.id !== draggableId) as Task[];
             const newPosition = calculatePosition(finishColForPos, destination.index);
             await api.put(`/tasks/${draggableId}`, { status: newStatus, position: newPosition });
-        } catch (error) {
-            toast.error('Failed to update task');
+        } catch (error: any) {
+            const status = error?.response?.status;
+            toast.error(status === 403
+                ? "You don't have permission to move this task"
+                : 'Failed to update task');
             fetchAllColumns();
         }
-    }, [columns, calculatePosition, fetchAllColumns, toast]);
+    }, [columns, calculatePosition, fetchAllColumns, toast, canUpdateTasks]);
 
     const openTask = useCallback((taskId: string) => {
         setSelectedTaskId(taskId);
@@ -446,8 +472,18 @@ export default function GlobalTasksPage() {
 
     const allLoadedTasks = Object.values(columns).flat();
 
+    const renderTaskClone = useMemo(
+        () => createKanbanTaskCloneRenderer(
+            (id) => Object.values(columnsRef.current).flat().find(t => t.id === id),
+            { showProjectTag: () => selectedProjectId === 'all' }
+        ),
+        [selectedProjectId]
+    );
+
+    const [isBoardDragging, setIsBoardDragging] = useState(false);
+
     return (
-        <div className="h-[calc(100vh-140px)] flex flex-col animate-fade-in space-y-4">
+        <div className="h-[calc(100vh-140px)] flex flex-col space-y-4">
 
             {/* Header */}
             <div className="px-1">
@@ -497,12 +533,14 @@ export default function GlobalTasksPage() {
                     )}
                 </div>
 
-                <button
-                    onClick={() => openTask('new')}
-                    className="btn-primary flex items-center gap-2 text-[10px] whitespace-nowrap"
-                >
-                    <Plus size={14} /> New Task
-                </button>
+                {canCreateTasks && (
+                    <button
+                        onClick={() => openTask('new')}
+                        className="btn-primary flex items-center gap-2 text-[10px] whitespace-nowrap"
+                    >
+                        <Plus size={14} /> New Task
+                    </button>
+                )}
             </div>
 
             {/* Filters */}
@@ -514,7 +552,7 @@ export default function GlobalTasksPage() {
             />
 
             {/* Bulk Actions Bar */}
-            {selectedTaskIds.length > 0 && (
+            {selectedTaskIds.length > 0 && canUpdateTasks && (
                 <div className="fixed bottom-6 right-6 z-50 bg-white border border-slate-200 shadow-xl rounded-lg px-4 py-3 flex items-center gap-3 animate-in slide-in-from-bottom-4">
                     <span className="text-xs font-bold text-slate-700">{selectedTaskIds.length} tasks selected</span>
                     <button onClick={() => setIsBulkStatusModalOpen(true)} className="btn-primary text-[10px]">Update Status</button>
@@ -543,10 +581,16 @@ export default function GlobalTasksPage() {
             )}
 
             {/* Board Area — column-wise API calls like project board */}
-            <DragDropContext onDragEnd={onDragEnd}>
-                <div className="flex-1 flex gap-4 overflow-x-auto pb-4 custom-scrollbar">
+            <DragDropContext
+                onDragStart={() => setIsBoardDragging(true)}
+                onDragEnd={(result) => {
+                    setIsBoardDragging(false);
+                    onDragEnd(result);
+                }}
+            >
+                <div className={`kanban-board flex-1 flex gap-4 overflow-x-auto pb-4 custom-scrollbar ${isBoardDragging ? 'is-dragging-board' : ''}`}>
                     {Object.entries(COLUMNS).map(([colId, colDef]: [string, any]) => (
-                        <div key={colId} className="flex-shrink-0 w-80 flex flex-col h-full rounded-xl bg-slate-50/50 border border-slate-200/60">
+                        <div key={colId} className="kanban-column flex-shrink-0 w-80 flex flex-col h-full rounded-xl bg-slate-50/50 border border-slate-200/60">
                             {/* Column Header */}
                             <div className={`p-4 border-b ${colDef.color.split(' ').filter((c: string) => c.startsWith('border')).join(' ')} flex justify-between items-center bg-white/50 backdrop-blur-sm rounded-t-xl`}>
                                 <div className="flex items-center gap-2">
@@ -566,120 +610,41 @@ export default function GlobalTasksPage() {
                                     <h3 className={`font-black text-[11px] uppercase tracking-widest ${colDef.color.split(' ').filter((c: string) => c.startsWith('text')).join(' ')}`}>
                                         {colDef.title}
                                     </h3>
-                                    <span className="bg-slate-100 text-slate-500 text-[10px] px-1.5 py-0.5 rounded font-black">
-                                        {taskCounts[colId] ?? columns[colId]?.length ?? 0}
-                                    </span>
+                                    <KanbanCountBadge count={taskCounts[colId] ?? columns[colId]?.length ?? 0} />
                                 </div>
                             </div>
 
                             {/* Droppable Area */}
-                            <Droppable droppableId={colId}>
+                            <StrictModeDroppable
+                                droppableId={colId}
+                                isDropDisabled={!canUpdateTasks}
+                                renderClone={renderTaskClone}
+                            >
                                 {(provided, snapshot) => (
                                     <div
                                         ref={provided.innerRef}
                                         {...provided.droppableProps}
-                                        className={`flex-1 p-3 space-y-3 overflow-y-auto custom-scrollbar transition-colors ${snapshot.isDraggingOver ? 'bg-primary-50/30' : ''}`}
+                                        className={columnDroppableClass(snapshot.isDraggingOver)}
                                     >
                                         {columns[colId]?.map((task: Task, index: number) => (
-                                            <Draggable key={task.id} draggableId={task.id} index={index}>
-                                                {(provided, snapshot) => (
-                                                    <div
-                                                        ref={provided.innerRef}
-                                                        {...provided.draggableProps}
-                                                        {...provided.dragHandleProps}
-                                                        onClick={() => openTask(task.id)}
-                                                        className={`bg-white p-4 rounded-lg border shadow-sm group cursor-pointer ${task.hasUnansweredComment ? 'border-amber-400 ring-2 ring-amber-400/20 animate-pulse-subtle' : 'border-slate-200'} ${snapshot.isDragging ? 'rotate-1 shadow-xl ring-2 ring-primary-500/20 z-50 transition-none' : 'transition-all duration-200 hover:border-primary-300 hover:shadow-md active:scale-[0.985]'}`}
-                                                    >
-                                                        {/* Project Tag */}
-                                                        {selectedProjectId === 'all' && task.project && (
-                                                            <div className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5 truncate">
-                                                                {task.project.name}
-                                                            </div>
-                                                        )}
-
-                                                        <div className="flex justify-between items-start mb-3">
-                                                            <div className="flex gap-1.5 flex-wrap items-center">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={selectedTaskIds.includes(task.id)}
-                                                                    onChange={(e) => { e.stopPropagation(); toggleTaskSelection(task.id); }}
-                                                                    onClick={(e) => e.stopPropagation()}
-                                                                    className="mr-2 cursor-pointer"
-                                                                />
-                                                                <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded border ${task.priority === 'urgent' ? 'bg-rose-50 text-rose-600 border-rose-100' :
-                                                                    task.priority === 'high' ? 'bg-orange-50 text-orange-600 border-orange-100' :
-                                                                        'bg-slate-50 text-slate-500 border-slate-100'
-                                                                    }`}>
-                                                                    {task.priority}
-                                                                </span>
-                                                                {task.hasUnansweredComment && (
-                                                                    <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded border bg-amber-500 text-white border-amber-600 animate-pulse">
-                                                                        Client Message
-                                                                    </span>
-                                                                )}
-                                                            </div>
-
-                                                            <button
-                                                                onClick={(e) => handleMenuToggle(e, task.id)}
-                                                                className={`p-1 rounded transition-all ${activeMenuId === task.id ? 'bg-slate-100 text-slate-900' : 'text-slate-300 opacity-0 group-hover:opacity-100 hover:text-slate-600'}`}
-                                                            >
-                                                                <MoreVertical size={14} />
-                                                            </button>
-                                                        </div>
-
-                                                        <h4 className="text-xs font-bold text-slate-800 mb-2 leading-relaxed">
-                                                            {task.title}
-                                                        </h4>
-
-                                                        <div className="flex items-center justify-between mt-4 border-t border-slate-50 pt-3">
-                                                            <div className="flex items-center gap-2">
-                                                                <div title={task.type}>
-                                                                    {task.type === 'bug' ? <Bug size={14} className="text-rose-500" /> :
-                                                                        task.type === 'story' ? <Bookmark size={14} className="text-emerald-500" /> :
-                                                                            task.type === 'epic' ? <Layout size={14} className="text-purple-600" /> :
-                                                                                <CheckSquare size={14} className="text-blue-500" />}
-                                                                </div>
-                                                                {task.storyPoints ? (
-                                                                    <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-[9px] font-black">{task.storyPoints}</span>
-                                                                ) : null}
-                                                            </div>
-
-                                                            <div className="flex items-center gap-3">
-                                                                {(task._count?.subtasks || 0) > 0 && (
-                                                                    <div className="flex items-center gap-1 text-[10px] text-slate-400" title="Subtasks">
-                                                                        <ListTree size={12} /> {task._count?.subtasks}
-                                                                    </div>
-                                                                )}
-                                                                {(task._count?.comments || 0) > 0 && (
-                                                                    <div className="flex items-center gap-1 text-[10px] text-slate-400">
-                                                                        <MessageSquare size={12} /> {task._count?.comments}
-                                                                    </div>
-                                                                )}
-
-                                                                <div className="flex -space-x-2">
-                                                                    {task.assignee ? (
-                                                                        <div title={`${task.assignee.firstName} ${task.assignee.lastName}`} className="w-6 h-6 rounded-md bg-indigo-600 text-white flex items-center justify-center text-[9px] font-black border-2 border-white uppercase shadow-sm">
-                                                                            {task.assignee.firstName[0]}
-                                                                        </div>
-                                                                    ) : (
-                                                                        <div className="w-6 h-6 rounded-md bg-slate-100 text-slate-300 flex items-center justify-center border-2 border-white shadow-sm">
-                                                                            <Users size={12} />
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-
-                                                                <button
-                                                                    onClick={(e) => { e.stopPropagation(); handleQuickLog(task); }}
-                                                                    className="w-6 h-6 rounded-md hover:bg-slate-100 text-slate-400 flex items-center justify-center transition-colors"
-                                                                >
-                                                                    <Clock size={12} />
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </Draggable>
+                                            <KanbanTaskCard
+                                                key={task.id}
+                                                task={task}
+                                                index={index}
+                                                isSelected={selectedTaskIds.includes(task.id)}
+                                                isMenuOpen={activeMenuId === task.id}
+                                                isDragDisabled={!canUpdateTasks}
+                                                showProjectTag={selectedProjectId === 'all'}
+                                                onSelect={toggleTaskSelection}
+                                                onOpen={openTask}
+                                                onMenuToggle={handleMenuToggle}
+                                                onQuickLog={handleQuickLog}
+                                            />
                                         ))}
+
+                                        {columns[colId]?.length === 0 && !colPagination[colId]?.loading && (
+                                            <KanbanColumnEmpty isDraggingOver={snapshot.isDraggingOver} />
+                                        )}
 
                                         {/* Skeleton while loading */}
                                         {colPagination[colId]?.loading && columns[colId]?.length === 0 && (
@@ -707,7 +672,7 @@ export default function GlobalTasksPage() {
                                         {provided.placeholder}
                                     </div>
                                 )}
-                            </Droppable>
+                            </StrictModeDroppable>
                         </div>
                     ))}
                 </div>

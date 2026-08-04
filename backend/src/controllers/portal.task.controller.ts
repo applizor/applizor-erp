@@ -119,7 +119,14 @@ export const updatePortalTask = async (req: ClientAuthRequest, res: Response) =>
     try {
         const { id: taskId } = req.params;
         const clientId = req.clientId!;
-        const { title, description } = req.body;
+        const { title, description, status, position } = req.body;
+
+        const PORTAL_TASK_STATUSES = ['todo', 'in-progress', 'done'] as const;
+        if (status !== undefined && status !== null && !(PORTAL_TASK_STATUSES as readonly string[]).includes(status)) {
+            return res.status(400).json({
+                error: `Invalid status. Allowed: ${PORTAL_TASK_STATUSES.join(', ')}`
+            });
+        }
 
         const task = await prisma.task.findUnique({
             where: { id: taskId },
@@ -130,15 +137,19 @@ export const updatePortalTask = async (req: ClientAuthRequest, res: Response) =>
             return res.status(403).json({ error: 'Access denied' });
         }
 
-        if (task.status !== 'todo') {
+        // Status/position moves are allowed from the portal board; title/description edits stay todo-only
+        const isBoardMove = status !== undefined || position !== undefined;
+        if (!isBoardMove && task.status !== 'todo') {
             return res.status(400).json({ error: 'Tasks can only be modified when in to do status' });
         }
 
         const updated = await prisma.task.update({
             where: { id: taskId },
             data: {
-                title: title !== undefined ? title : task.title,
-                description: description !== undefined ? description : task.description
+                title: title !== undefined ? title : undefined,
+                description: description !== undefined ? description : undefined,
+                status: status !== undefined ? status : undefined,
+                position: position !== undefined ? parseFloat(position) : undefined,
             }
         });
 

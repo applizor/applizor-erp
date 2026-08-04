@@ -27,6 +27,9 @@ export default function JobsPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingJob, setEditingJob] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [statusFilter, setStatusFilter] = useState('');
+    const [showFilters, setShowFilters] = useState(false);
     const toast = useToast();
 
     // Metadata for dropdowns
@@ -74,6 +77,16 @@ export default function JobsPage() {
             setLoading(false);
         }
     };
+
+    const filteredJobs = jobs.filter((job) => {
+        const q = searchQuery.trim().toLowerCase();
+        if (q) {
+            const hay = `${job.title || ''} ${job.department || ''}`.toLowerCase();
+            if (!hay.includes(q)) return false;
+        }
+        if (statusFilter && (job.status || '').toLowerCase() !== statusFilter.toLowerCase()) return false;
+        return true;
+    });
 
     const handleEdit = (job: JobOpening) => {
         setEditingJob(job.id);
@@ -149,26 +162,61 @@ export default function JobsPage() {
             </div>
 
             {/* Filter / Search Bar (Horizontal High Density) */}
-            <div className="flex items-center gap-4 bg-white p-2 rounded-md border border-slate-200 shadow-sm">
-                <div className="flex items-center gap-2 px-3 border-r border-slate-100">
-                    <Search size={14} className="text-slate-400" />
-                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Registry Search</span>
-                </div>
-                <input
-                    type="text"
-                    placeholder="IDENTIFY REQUISITION BY ROLE OR DEPARTMENT..."
-                    className="flex-1 bg-transparent border-none text-[10px] font-bold uppercase tracking-wider placeholder-slate-300 focus:ring-0"
-                />
-                <div className="flex items-center gap-2 pr-2">
-                    <button className="p-1.5 hover:bg-slate-50 text-slate-400 rounded-md transition-colors">
-                        <Filter size={14} />
-                    </button>
-                    <div className="h-4 w-px bg-slate-100 mx-1" />
-                    <div className="flex items-center gap-1.5 px-2 py-1 bg-primary-50 rounded-md">
-                        <span className="w-1.5 h-1.5 rounded-full bg-primary-600 animate-pulse" />
-                        <span className="text-[9px] font-black text-primary-700 uppercase tracking-widest">{jobs.length} Active</span>
+            <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-4 bg-white p-2 rounded-md border border-slate-200 shadow-sm">
+                    <div className="flex items-center gap-2 px-3 border-r border-slate-100">
+                        <Search size={14} className="text-slate-400" />
+                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Registry Search</span>
+                    </div>
+                    <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="IDENTIFY REQUISITION BY ROLE OR DEPARTMENT..."
+                        className="flex-1 bg-transparent border-none text-[10px] font-bold uppercase tracking-wider placeholder-slate-300 focus:ring-0"
+                    />
+                    <div className="flex items-center gap-2 pr-2">
+                        <button
+                            type="button"
+                            onClick={() => setShowFilters((v) => !v)}
+                            className={`p-1.5 rounded-md transition-colors ${showFilters || statusFilter ? 'bg-primary-50 text-primary-600' : 'hover:bg-slate-50 text-slate-400'}`}
+                        >
+                            <Filter size={14} />
+                        </button>
+                        <div className="h-4 w-px bg-slate-100 mx-1" />
+                        <div className="flex items-center gap-1.5 px-2 py-1 bg-primary-50 rounded-md">
+                            <span className="w-1.5 h-1.5 rounded-full bg-primary-600 animate-pulse" />
+                            <span className="text-[9px] font-black text-primary-700 uppercase tracking-widest">{filteredJobs.length} Shown</span>
+                        </div>
                     </div>
                 </div>
+                {showFilters && (
+                    <div className="bg-white p-3 rounded-md border border-slate-200 shadow-sm flex flex-wrap items-center gap-3">
+                        <div className="min-w-[180px]">
+                            <CustomSelect
+                                options={[
+                                    { value: '', label: 'All Statuses' },
+                                    { value: 'open', label: 'Open' },
+                                    { value: 'closed', label: 'Closed' },
+                                    { value: 'draft', label: 'Draft' },
+                                    { value: 'on_hold', label: 'On Hold' },
+                                ]}
+                                value={statusFilter}
+                                onChange={setStatusFilter}
+                                placeholder="Status"
+                            />
+                        </div>
+                        {(searchQuery || statusFilter) && (
+                            <button
+                                type="button"
+                                onClick={() => { setSearchQuery(''); setStatusFilter(''); }}
+                                className="text-[10px] font-black uppercase tracking-widest text-primary-600"
+                            >
+                                Clear
+                            </button>
+                        )}
+                    </div>
+                )}
             </div>
 
 
@@ -180,7 +228,12 @@ export default function JobsPage() {
                         <CardSkeleton />
                         <CardSkeleton />
                     </>
-                ) : jobs.map((job) => (
+                ) : filteredJobs.length === 0 ? (
+                    <div className="col-span-full py-16 text-center ent-card">
+                        <p className="text-sm font-bold text-slate-700">No jobs match your filters</p>
+                        <p className="text-xs text-slate-400 mt-1">Try another search or clear status filter</p>
+                    </div>
+                ) : filteredJobs.map((job) => (
                     <div key={job.id} className="ent-card group hover:border-primary-300 hover:shadow-lg transition-all duration-300 relative overflow-hidden">
                         <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
                             <Briefcase size={80} className="text-primary-900 transform rotate-12" />

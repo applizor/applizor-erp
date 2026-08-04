@@ -121,6 +121,8 @@ model Company {
   longitude          Float?
   radius             Int                 @default(100)
   isActive           Boolean             @default(true)
+  /** System company for Applizor platform SaaS books (subscription revenue). Not a tenant. */
+  isPlatform         Boolean             @default(false)
   enabledModules     Json?
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
@@ -202,6 +204,8 @@ model Company {
   exams                 Exam[]
   statutoryRules        StatutoryRule[]
   employeeTeams         EmployeeTeam[]
+
+  @@index([isPlatform])
 }
 
 model Branch {

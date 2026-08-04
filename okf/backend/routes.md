@@ -282,15 +282,18 @@ CRUD: `GET/POST` `/`, `GET/PUT/DELETE` `/:id`
 |--------|------|-------------|
 | GET | `/accounts` | Chart of accounts |
 | POST | `/accounts` | Create account |
+| PUT/PATCH | `/accounts/:id` | Update account |
+| DELETE | `/accounts/:id` | Delete account (dependency-guarded) |
 | POST | `/entries` | Create journal entry |
 | GET | `/journal` | List journal entries |
-| DELETE | `/journal/:id` | Delete journal entry |
+| PUT/PATCH | `/journal/:id` | Update journal entry |
+| DELETE | `/journal/:id` | Delete journal entry (dependency-guarded) |
 | GET | `/reports/general-ledger/:accountId` | General ledger |
 | GET | `/reports/balance-sheet` | Balance sheet |
 | GET | `/reports/profit-loss` | Profit & loss |
 | GET | `/reports/gst-summary` | GST summary |
 | GET | `/reports/aging` | AR/AP aging report |
-| GET | `/reports/export` | Export report |
+| GET | `/reports/export?type=&format=pdf\|csv&startDate=&endDate=` | Export report (PDF or CSV/Excel) |
 | GET | `/reconciliation` | Reconciliation report |
 | POST | `/reconciliation/mark` | Mark reconciled |
 | POST | `/reconcile` | Reconcile ledger |
@@ -559,11 +562,22 @@ CRUD: `GET/POST` `/`, `GET/PUT/DELETE` `/:id`, GET `/type/:type`
 | GET | `/timezones` | Auth | List timezones |
 | GET/POST | `/rules` | SuperAdmin | Statutory rules CRUD |
 | POST | `/rules/company` | Auth | Company rule override |
-| GET/POST | `/tenants` | SuperAdmin | Tenant management |
+| GET/POST | `/tenants` | SuperAdmin | Tenant management (POST creates company + Admin user + subscription) |
+| PUT | `/tenants/:id` | SuperAdmin | Update tenant profile |
+| PUT | `/tenants/:id/suspend` | SuperAdmin | Suspend tenant |
+| PUT | `/tenants/:id/activate` | SuperAdmin | Activate tenant |
+| POST | `/tenants/:id/provision-admin` | SuperAdmin | Create Admin for orphan tenant |
+| PUT | `/tenants/:id/subscription` | SuperAdmin | Assign/update SaaS plan |
+| GET | `/plans/all` | SuperAdmin | All plans incl. inactive |
 | POST | `/subscribe/checkout` | Auth | Subscription checkout |
 | POST | `/subscribe/verify` | Auth | Verify payment |
 | POST | `/subscribe/webhook` | Public | Webhook |
 | GET | `/stats` | SuperAdmin | Platform stats |
+| POST | `/accounting/ensure` | SuperAdmin | Ensure platform books company + COA |
+| GET | `/accounting/accounts` | SuperAdmin | Platform trial balance |
+| GET | `/accounting/journal` | SuperAdmin | Platform journal |
+| GET | `/accounting/profit-loss` | SuperAdmin | Platform P&L |
+| GET | `/accounting/payments` | SuperAdmin | SaaS payments vs SUB-* journals |
 
 ### COA Templates (`/api/platform/coa`)
 | Method | Path | Access | Description |

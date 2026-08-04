@@ -1,7 +1,92 @@
 import { Request, Response } from 'express';
+import crypto from 'crypto';
 import { AuthRequest } from '../middleware/auth';
 import prisma from '../prisma/client';
 import paymentService from '../services/payment.service';
+import { hashPassword } from '../utils/password';
+import { sendEmail } from '../services/email.service';
+import { runWithoutCompanyContext } from '../utils/context';
+import {
+    getOrCreatePlatformCompany,
+    getPlatformAccounts,
+    getPlatformJournal,
+    getPlatformProfitAndLoss,
+    getPlatformSubscriptionPayments,
+    postSubscriptionRevenueToPlatform,
+} from '../services/platform-accounting.service';
+
+// =====================
+// Helpers
+// =====================
+
+function billingIntervalDays(billingInterval?: string | null): number {
+    if (billingInterval === 'yearly') return 365;
+    if (billingInterval === 'quarterly') return 90;
+    return 30;
+}
+
+function periodEndFrom(start: Date, billingInterval?: string | null): Date {
+    return new Date(start.getTime() + billingIntervalDays(billingInterval) * 24 * 60 * 60 * 1000);
+}
+
+/** Normalize plan module flags so UI keys (clients) match route gates (crm). */
+function normalizeEnabledModules(modules: unknown): Record<string, boolean> | null {
+    if (!modules || typeof modules !== 'object' || Array.isArray(modules)) {
+        if (Array.isArray(modules)) {
+            const mapped: Record<string, boolean> = {};
+            for (const key of modules as string[]) {
+                mapped[String(key).toLowerCase()] = true;
+            }
+            return Object.keys(mapped).length ? mapped : null;
+        }
+        return null;
+    }
+    const src = modules as Record<string, boolean>;
+    const out: Record<string, boolean> = { ...src };
+    if (out.clients && !out.crm) out.crm = true;
+    if (out.crm && !out.clients) out.clients = true;
+    if (out.employees && !out.hrms) out.hrms = true;
+    if (out.hrms && !out.employees) out.employees = true;
+    return out;
+}
+
+async function findSystemAdminRole() {
+    // Prefer global system Admin; match case-insensitively (Admin / admin / ADMIN)
+    const systemAdmin =
+        (await prisma.role.findFirst({
+            where: { name: { equals: 'Admin', mode: 'insensitive' }, isSystem: true, companyId: null },
+        })) ||
+        (await prisma.role.findFirst({
+            where: { name: { equals: 'Admin', mode: 'insensitive' }, companyId: null },
+        })) ||
+        (await prisma.role.findFirst({
+            where: { name: { equals: 'Admin', mode: 'insensitive' }, isSystem: true },
+        })) ||
+        (await prisma.role.findFirst({
+            where: { name: { equals: 'Admin', mode: 'insensitive' } },
+        }));
+    return systemAdmin;
+}
+
+async function resolveOnboardPlan(planCode?: string | null) {
+    const code = planCode && String(planCode).trim() ? String(planCode).trim() : 'starter_monthly';
+    const plan = await prisma.tenantPlan.findUnique({ where: { code } });
+    return { plan, code, isTrial: !planCode || !String(planCode).trim() };
+}
+
+async function syncCompanyModulesFromPlan(companyId: string, planId: string) {
+    const plan = await prisma.tenantPlan.findUnique({ where: { id: planId } });
+    if (!plan) return;
+    const enabledModules = normalizeEnabledModules(plan.enabledModules);
+    await prisma.company.update({
+        where: { id: companyId },
+        data: { enabledModules: enabledModules ?? undefined },
+    });
+}
+
+function generateTempPassword(length = 12): string {
+    return crypto.randomBytes(Math.ceil(length / 2)).toString('hex').slice(0, length);
+}
 
 // =====================
 // Tenant (Company) Management
@@ -13,7 +98,8 @@ export const listTenants = async (req: AuthRequest, res: Response) => {
         const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
         const take = parseInt(limit as string);
 
-        const where: any = {};
+        // Platform books company is not a tenant
+        const where: any = { isPlatform: false };
         if (search) {
             where.OR = [
                 { name: { contains: search as string, mode: 'insensitive' } },
@@ -126,7 +212,7 @@ export async function initializeCompanyDefaults(companyId: string, countryId: st
                     'Maharashtra': [
                         { min: 0, max: 10000, amount: 0 },
                         { min: 10001, max: 25000, amount: 200 },
-                        { min: 25001, max: Infinity, amount: 300 }
+                        { min: 25001, max: null, amount: 300 }
                     ]
                 },
                 tdsEnabled: true,
@@ -328,74 +414,326 @@ export async function bootstrapAllEmailTemplates() {
 
 export const onboardTenant = async (req: AuthRequest, res: Response) => {
     try {
-        const { name, legalName, email, phone, address, city, countryId, stateId, timezone, locale, currency, planCode } = req.body;
+        const {
+            name,
+            legalName,
+            email,
+            phone,
+            address,
+            city,
+            countryId,
+            stateId,
+            timezone,
+            locale,
+            currency,
+            planCode,
+            adminEmail,
+            adminFirstName,
+            adminLastName,
+            adminPassword,
+            adminPhone,
+            sendWelcomeEmail = true,
+        } = req.body;
 
         if (!name || !email) {
             return res.status(400).json({ error: 'Company name and email are required' });
         }
 
-        const existing = await prisma.company.findFirst({ where: { email } });
-        if (existing) return res.status(409).json({ error: 'A company with this email already exists' });
+        const adminLoginEmail = String(adminEmail || email).trim().toLowerCase();
+        if (!adminLoginEmail) {
+            return res.status(400).json({ error: 'Admin email is required' });
+        }
 
-        const company = await prisma.company.create({
-            data: {
-                name,
-                legalName: legalName || name,
-                email,
-                phone,
-                address,
-                city,
-                countryId,
-                stateId,
-                timezone: timezone || 'Asia/Kolkata',
-                locale: locale || 'en-IN',
-                currency: currency || 'INR',
-                isActive: true,
-                offDays: 'Saturday, Sunday',
+        const existingCompany = await prisma.company.findFirst({ where: { email } });
+        if (existingCompany) return res.status(409).json({ error: 'A company with this email already exists' });
+
+        const existingUser = await prisma.user.findUnique({ where: { email: adminLoginEmail } });
+        if (existingUser) {
+            return res.status(409).json({ error: `A user with email ${adminLoginEmail} already exists` });
+        }
+
+        const adminRole = await findSystemAdminRole();
+        if (!adminRole) {
+            return res.status(500).json({
+                error: 'System Admin role is missing. Run database seed before onboarding tenants.',
+            });
+        }
+
+        const { plan: resolvedPlan, code: resolvedPlanCode, isTrial } = await resolveOnboardPlan(planCode);
+        if (!resolvedPlan) {
+            return res.status(400).json({
+                error: `Plan code "${resolvedPlanCode}" not found. Seed tenant plans before onboarding.`,
+                details: `Expected plan code: ${resolvedPlanCode}`,
+            });
+        }
+
+        const passwordPlain = adminPassword && String(adminPassword).trim().length >= 6
+            ? String(adminPassword).trim()
+            : generateTempPassword(12);
+        const passwordWasGenerated = !(adminPassword && String(adminPassword).trim().length >= 6);
+        const hashedPassword = await hashPassword(passwordPlain);
+
+        const now = new Date();
+        const periodEnd = periodEndFrom(now, resolvedPlan.billingInterval);
+        const enabledModules = normalizeEnabledModules(resolvedPlan.enabledModules);
+
+        // Bypass Super Admin ALS tenant context so creates keep the NEW company's companyId
+        const result = await runWithoutCompanyContext(() =>
+            prisma.$transaction(async (tx) => {
+            const company = await tx.company.create({
+                data: {
+                    name,
+                    legalName: legalName || name,
+                    email,
+                    phone: phone || null,
+                    address: address || null,
+                    city: city || null,
+                    countryId: countryId || null,
+                    stateId: stateId || null,
+                    timezone: timezone || 'Asia/Kolkata',
+                    locale: locale || 'en-IN',
+                    currency: currency || 'INR',
+                    isActive: true,
+                    offDays: 'Saturday, Sunday',
+                    enabledModules: enabledModules ?? undefined,
+                },
+            });
+
+            // Explicit companyId required — tenant middleware must not rewrite it to the caller's company
+            await tx.tenantSubscription.create({
+                data: {
+                    companyId: company.id,
+                    planId: resolvedPlan.id,
+                    status: isTrial ? 'trial' : 'active',
+                    autoRenew: true,
+                    paymentMethod: 'manual',
+                    trialEndsAt: isTrial ? new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000) : null,
+                    currentPeriodStart: now,
+                    currentPeriodEnd: periodEnd,
+                    notes: isTrial
+                        ? 'Auto-assigned starter trial on onboard'
+                        : `Assigned plan ${resolvedPlan.code} on onboard`,
+                },
+            });
+
+            const adminUser = await tx.user.create({
+                data: {
+                    email: adminLoginEmail,
+                    password: hashedPassword,
+                    firstName: (adminFirstName && String(adminFirstName).trim()) || name.split(' ')[0] || 'Admin',
+                    lastName: (adminLastName && String(adminLastName).trim()) || 'Admin',
+                    phone: adminPhone || phone || null,
+                    companyId: company.id,
+                    isActive: true,
+                    roles: {
+                        create: { roleId: adminRole.id },
+                    },
+                },
+                select: {
+                    id: true,
+                    email: true,
+                    firstName: true,
+                    lastName: true,
+                    isActive: true,
+                    companyId: true,
+                },
+            });
+
+            return { company, adminUser };
+        })
+        );
+
+        // Defaults / email are best-effort — never fail onboard after company+plan+user committed
+        let defaultsWarning: string | undefined;
+        if (countryId) {
+            try {
+                await initializeCompanyDefaults(result.company.id, countryId);
+            } catch (defaultsErr: any) {
+                defaultsWarning = defaultsErr?.message || 'Failed to initialize company defaults';
+                console.error('Onboard defaults failed:', defaultsErr);
+            }
+        }
+
+        let welcomeEmailSent = false;
+        let welcomeEmailError: string | undefined;
+        if (sendWelcomeEmail !== false) {
+            try {
+                const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+                await sendEmail(
+                    adminLoginEmail,
+                    `Welcome to Applizor ERP — ${result.company.name}`,
+                    `
+                      <h2>Welcome to Applizor ERP</h2>
+                      <p>Your company <strong>${result.company.name}</strong> has been onboarded.</p>
+                      <p><strong>Login URL:</strong> <a href="${frontendUrl}/login">${frontendUrl}/login</a></p>
+                      <p><strong>Email:</strong> ${adminLoginEmail}</p>
+                      <p><strong>Temporary Password:</strong> ${passwordPlain}</p>
+                      <p>Please sign in and change your password immediately.</p>
+                    `,
+                    [],
+                    undefined,
+                    undefined,
+                    undefined,
+                    true
+                );
+                welcomeEmailSent = true;
+            } catch (emailErr: any) {
+                welcomeEmailError = emailErr?.message || 'Welcome email failed';
+                console.error('Onboard welcome email failed:', emailErr);
+            }
+        }
+
+        const companyWithRelations = await prisma.company.findUnique({
+            where: { id: result.company.id },
+            include: {
+                tenantSubscription: { include: { plan: true } },
+                _count: { select: { users: true, employees: true } },
             },
         });
 
-        // Assign plan if specified, or default to Starter
-        if (planCode) {
-            const plan = await prisma.tenantPlan.findUnique({ where: { code: planCode } });
-            if (plan) {
-                await prisma.tenantSubscription.create({
-                    data: {
-                        companyId: company.id,
-                        planId: plan.id,
-                        status: 'active',
-                        autoRenew: true,
-                        currentPeriodStart: new Date(),
-                        currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-                    },
-                });
-            }
-        } else {
-            const starterPlan = await prisma.tenantPlan.findUnique({ where: { code: 'starter_monthly' } });
-            if (starterPlan) {
-                await prisma.tenantSubscription.create({
-                    data: {
-                        companyId: company.id,
-                        planId: starterPlan.id,
-                        status: 'trial',
-                        autoRenew: true,
-                        trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-                        currentPeriodStart: new Date(),
-                        currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-                    },
-                });
-            }
-        }
-
-        // Auto-bootstrap defaults if countryId is provided
-        if (countryId) {
-            await initializeCompanyDefaults(company.id, countryId);
-        }
-
-        res.status(201).json(company);
-    } catch (error) {
+        res.status(201).json({
+            ...companyWithRelations,
+            adminUser: result.adminUser,
+            credentials: {
+                email: adminLoginEmail,
+                temporaryPassword: passwordPlain,
+                passwordWasGenerated,
+                welcomeEmailSent,
+                welcomeEmailError,
+            },
+            warnings: defaultsWarning ? { defaults: defaultsWarning } : undefined,
+        });
+    } catch (error: any) {
         console.error('Onboard tenant error:', error);
-        res.status(500).json({ error: 'Failed to onboard tenant' });
+        const details = error?.message || String(error);
+        const target = error?.meta?.target;
+        if (error?.code === 'P2002') {
+            const fieldHint = Array.isArray(target) ? target.join(', ') : target;
+            return res.status(409).json({
+                error: fieldHint
+                    ? `Duplicate value for: ${fieldHint}`
+                    : 'Company, admin email, or subscription already exists',
+                details,
+                code: error.code,
+                meta: error.meta,
+            });
+        }
+        res.status(500).json({
+            error: 'Failed to onboard tenant',
+            details,
+            code: error?.code,
+            meta: error?.meta,
+        });
+    }
+};
+
+/** Provision an Admin login for tenants created without a user (orphans). */
+export const provisionTenantAdmin = async (req: AuthRequest, res: Response) => {
+    try {
+        const { id } = req.params;
+        const {
+            adminEmail,
+            adminFirstName,
+            adminLastName,
+            adminPassword,
+            adminPhone,
+            sendWelcomeEmail = true,
+        } = req.body;
+
+        const company = await prisma.company.findUnique({
+            where: { id },
+            include: { _count: { select: { users: true } } },
+        });
+        if (!company) return res.status(404).json({ error: 'Tenant not found' });
+
+        const loginEmail = String(adminEmail || company.email || '').trim().toLowerCase();
+        if (!loginEmail) {
+            return res.status(400).json({ error: 'adminEmail is required (company has no email)' });
+        }
+
+        const existingUser = await prisma.user.findUnique({ where: { email: loginEmail } });
+        if (existingUser) {
+            if (existingUser.companyId === company.id) {
+                return res.status(409).json({ error: 'An admin user with this email already belongs to this tenant' });
+            }
+            return res.status(409).json({ error: `Email ${loginEmail} is already registered to another account` });
+        }
+
+        const adminRole = await findSystemAdminRole();
+        if (!adminRole) {
+            return res.status(500).json({ error: 'System Admin role is missing. Run database seed.' });
+        }
+
+        const passwordPlain = adminPassword && String(adminPassword).trim().length >= 6
+            ? String(adminPassword).trim()
+            : generateTempPassword(12);
+        const passwordWasGenerated = !(adminPassword && String(adminPassword).trim().length >= 6);
+        const hashedPassword = await hashPassword(passwordPlain);
+
+        const adminUser = await prisma.user.create({
+            data: {
+                email: loginEmail,
+                password: hashedPassword,
+                firstName: (adminFirstName && String(adminFirstName).trim()) || company.name.split(' ')[0] || 'Admin',
+                lastName: (adminLastName && String(adminLastName).trim()) || 'Admin',
+                phone: adminPhone || company.phone || null,
+                companyId: company.id,
+                isActive: true,
+                roles: { create: { roleId: adminRole.id } },
+            },
+            select: {
+                id: true,
+                email: true,
+                firstName: true,
+                lastName: true,
+                isActive: true,
+                companyId: true,
+            },
+        });
+
+        let welcomeEmailSent = false;
+        if (sendWelcomeEmail !== false) {
+            try {
+                const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+                await sendEmail(
+                    loginEmail,
+                    `Welcome to Applizor ERP — ${company.name}`,
+                    `
+                      <h2>Your Applizor ERP account is ready</h2>
+                      <p>Company: <strong>${company.name}</strong></p>
+                      <p><strong>Login:</strong> <a href="${frontendUrl}/login">${frontendUrl}/login</a></p>
+                      <p><strong>Email:</strong> ${loginEmail}</p>
+                      <p><strong>Temporary Password:</strong> ${passwordPlain}</p>
+                    `,
+                    [],
+                    undefined,
+                    undefined,
+                    undefined,
+                    true
+                );
+                welcomeEmailSent = true;
+            } catch (emailErr) {
+                console.error('Provision admin welcome email failed:', emailErr);
+            }
+        }
+
+        res.status(201).json({
+            message: 'Tenant admin provisioned',
+            adminUser,
+            credentials: {
+                email: loginEmail,
+                temporaryPassword: passwordPlain,
+                passwordWasGenerated,
+                welcomeEmailSent,
+            },
+            previousUserCount: company._count.users,
+        });
+    } catch (error: any) {
+        console.error('Provision tenant admin error:', error);
+        if (error?.code === 'P2002') {
+            return res.status(409).json({ error: 'User email already exists' });
+        }
+        res.status(500).json({ error: 'Failed to provision tenant admin', details: error?.message });
     }
 };
 
@@ -447,6 +785,10 @@ export const suspendTenant = async (req: AuthRequest, res: Response) => {
             where: { id },
             data: { isActive: false },
         });
+        await prisma.tenantSubscription.updateMany({
+            where: { companyId: id, status: { in: ['active', 'trial'] } },
+            data: { status: 'paused', notes: `Paused on tenant suspend at ${new Date().toISOString()}` },
+        });
         res.json({ message: 'Tenant suspended', company });
     } catch (error) {
         console.error('Suspend tenant error:', error);
@@ -461,6 +803,19 @@ export const activateTenant = async (req: AuthRequest, res: Response) => {
             where: { id },
             data: { isActive: true },
         });
+        const sub = await prisma.tenantSubscription.findUnique({ where: { companyId: id }, include: { plan: true } });
+        if (sub && sub.status === 'paused') {
+            const now = new Date();
+            await prisma.tenantSubscription.update({
+                where: { companyId: id },
+                data: {
+                    status: 'active',
+                    currentPeriodStart: now,
+                    currentPeriodEnd: periodEndFrom(now, sub.plan?.billingInterval),
+                    notes: `Reactivated with tenant at ${now.toISOString()}`,
+                },
+            });
+        }
         res.json({ message: 'Tenant activated', company });
     } catch (error) {
         console.error('Activate tenant error:', error);
@@ -471,6 +826,11 @@ export const activateTenant = async (req: AuthRequest, res: Response) => {
 export const deleteTenant = async (req: AuthRequest, res: Response) => {
     try {
         const { id } = req.params;
+        const company = await prisma.company.findUnique({ where: { id }, select: { isPlatform: true } });
+        if (!company) return res.status(404).json({ error: 'Tenant not found' });
+        if (company.isPlatform) {
+            return res.status(400).json({ error: 'Cannot delete the platform books company' });
+        }
         await prisma.company.delete({ where: { id } });
         res.json({ message: 'Tenant deleted' });
     } catch (error) {
@@ -486,29 +846,99 @@ export const deleteTenant = async (req: AuthRequest, res: Response) => {
 export const updateTenantSubscription = async (req: AuthRequest, res: Response) => {
     try {
         const { id } = req.params;
-        const { planId, status, autoRenew, notes } = req.body;
+        const { planId, status, autoRenew, notes, paymentMethod, extendDays } = req.body;
 
-        const data: any = {};
-        if (planId) data.planId = planId;
-        if (status) data.status = status;
-        if (autoRenew !== undefined) data.autoRenew = autoRenew;
+        const company = await prisma.company.findUnique({ where: { id } });
+        if (!company) return res.status(404).json({ error: 'Tenant not found' });
+
+        const existing = await prisma.tenantSubscription.findUnique({
+            where: { companyId: id },
+            include: { plan: true },
+        });
+
+        let resolvedPlanId = (planId as string | undefined) || existing?.planId;
+        let plan = resolvedPlanId
+            ? await prisma.tenantPlan.findUnique({ where: { id: resolvedPlanId } })
+            : null;
+
+        if (planId && !plan) {
+            return res.status(400).json({ error: 'Invalid planId' });
+        }
+
+        if (!resolvedPlanId || !plan) {
+            const starter = await prisma.tenantPlan.findFirst({ where: { code: 'starter_monthly' } });
+            if (!starter) {
+                return res.status(500).json({ error: 'No starter plan found. Seed tenant plans first.' });
+            }
+            resolvedPlanId = starter.id;
+            plan = starter;
+        }
+
+        const now = new Date();
+        const nextStatus = status || existing?.status || 'active';
+        const data: any = {
+            planId: resolvedPlanId,
+            status: nextStatus,
+            autoRenew: autoRenew !== undefined ? autoRenew : (existing?.autoRenew ?? true),
+        };
+
         if (notes !== undefined) data.notes = notes;
+        if (paymentMethod !== undefined) data.paymentMethod = paymentMethod;
+
+        const planChanged = !existing || existing.planId !== resolvedPlanId;
+        const activating = ['active', 'trial'].includes(nextStatus) &&
+            (!existing || !['active', 'trial'].includes(existing.status) || planChanged);
+
+        if (activating || planChanged) {
+            data.currentPeriodStart = now;
+            data.currentPeriodEnd = periodEndFrom(now, plan?.billingInterval);
+            if (nextStatus === 'trial' && !existing?.trialEndsAt) {
+                data.trialEndsAt = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+            }
+            if (nextStatus === 'active') {
+                data.cancelledAt = null;
+            }
+            if (!data.paymentMethod) data.paymentMethod = existing?.paymentMethod || 'manual';
+        }
+
+        if (typeof extendDays === 'number' && extendDays > 0) {
+            const base = existing?.currentPeriodEnd && existing.currentPeriodEnd > now
+                ? existing.currentPeriodEnd
+                : now;
+            data.currentPeriodEnd = new Date(base.getTime() + extendDays * 24 * 60 * 60 * 1000);
+            if (nextStatus === 'cancelled' || nextStatus === 'expired') {
+                data.status = 'active';
+            }
+        }
+
+        if (nextStatus === 'cancelled') {
+            data.cancelledAt = now;
+            data.autoRenew = false;
+        }
 
         const subscription = await prisma.tenantSubscription.upsert({
             where: { companyId: id },
             update: data,
             create: {
                 companyId: id,
-                planId: planId || (await prisma.tenantPlan.findFirst({ where: { code: 'starter_monthly' } }))!.id,
-                status: status || 'active',
+                planId: resolvedPlanId!,
+                status: nextStatus,
                 autoRenew: autoRenew ?? true,
+                paymentMethod: paymentMethod || 'manual',
+                notes: notes || null,
+                currentPeriodStart: now,
+                currentPeriodEnd: periodEndFrom(now, plan?.billingInterval),
+                trialEndsAt: nextStatus === 'trial' ? new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000) : null,
             },
+            include: { plan: true },
         });
 
+        await syncCompanyModulesFromPlan(id, subscription.planId);
+
         res.json(subscription);
-    } catch (error) {
+    } catch (error: any) {
         console.error('Update subscription error:', error);
-        res.status(500).json({ error: 'Failed to update subscription' });
+        res.status(500).json({ error: 'Failed to update subscription', details: error?.message });
     }
 };
 
@@ -518,6 +948,7 @@ export const updateTenantSubscription = async (req: AuthRequest, res: Response) 
 
 export const listPlans = async (req: AuthRequest, res: Response) => {
     try {
+        // Public catalog: active plans only. Superadmin /plans/all uses listAllPlans.
         const plans = await prisma.tenantPlan.findMany({
             where: { isActive: true },
             orderBy: { sortOrder: 'asc' },
@@ -529,30 +960,55 @@ export const listPlans = async (req: AuthRequest, res: Response) => {
     }
 };
 
+export const listAllPlans = async (req: AuthRequest, res: Response) => {
+    try {
+        const plans = await prisma.tenantPlan.findMany({
+            orderBy: { sortOrder: 'asc' },
+        });
+        res.json(plans);
+    } catch (error) {
+        console.error('List all plans error:', error);
+        res.status(500).json({ error: 'Failed to list plans' });
+    }
+};
+
 export const createPlan = async (req: AuthRequest, res: Response) => {
     try {
-        const { name, code, description, price, currency, billingInterval, maxUsers, maxStorageGb, maxCompanies, enabledModules, features, sortOrder } = req.body;
+        const { name, code, description, price, currency, billingInterval, maxUsers, maxStorageGb, maxCompanies, enabledModules, features, sortOrder, isPublic } = req.body;
+
+        if (!name || !code) {
+            return res.status(400).json({ error: 'Plan name and code are required' });
+        }
+        if (price === undefined || price === null || Number.isNaN(Number(price))) {
+            return res.status(400).json({ error: 'Valid plan price is required' });
+        }
+
+        const existing = await prisma.tenantPlan.findUnique({ where: { code } });
+        if (existing) return res.status(409).json({ error: `Plan code "${code}" already exists` });
 
         const plan = await prisma.tenantPlan.create({
             data: {
                 name,
                 code,
-                description,
+                description: description || null,
                 price,
                 currency: currency || 'USD',
                 billingInterval: billingInterval || 'monthly',
-                maxUsers: maxUsers || 5,
-                maxStorageGb: maxStorageGb || 1,
-                maxCompanies: maxCompanies || 1,
-                enabledModules: enabledModules || null,
-                features: features || null,
+                maxUsers: maxUsers ?? 5,
+                maxStorageGb: maxStorageGb ?? 1,
+                maxCompanies: maxCompanies ?? 1,
+                enabledModules: normalizeEnabledModules(enabledModules) ?? undefined,
+                features: features || undefined,
                 sortOrder: sortOrder || 0,
+                isPublic: isPublic !== undefined ? !!isPublic : true,
+                isActive: true,
             },
         });
 
         res.status(201).json(plan);
-    } catch (error) {
+    } catch (error: any) {
         console.error('Create plan error:', error);
+        if (error?.code === 'P2002') return res.status(409).json({ error: 'Plan code already exists' });
         res.status(500).json({ error: 'Failed to create plan' });
     }
 };
@@ -560,9 +1016,13 @@ export const createPlan = async (req: AuthRequest, res: Response) => {
 export const updatePlan = async (req: AuthRequest, res: Response) => {
     try {
         const { id } = req.params;
-        const data = req.body;
+        const data = { ...req.body };
         delete data.id;
         delete data.code;
+
+        if (data.enabledModules !== undefined) {
+            data.enabledModules = normalizeEnabledModules(data.enabledModules) ?? undefined;
+        }
 
         const plan = await prisma.tenantPlan.update({
             where: { id },
@@ -959,13 +1419,15 @@ export const deactivateCompanyStatutoryRule = async (req: AuthRequest, res: Resp
 
 export const getPlatformStats = async (req: AuthRequest, res: Response) => {
     try {
+        const tenantWhere = { isPlatform: false };
         const [totalCompanies, activeCompanies, totalUsers, totalEmployees, totalInvoices, recentCompanies] = await Promise.all([
-            prisma.company.count(),
-            prisma.company.count({ where: { isActive: true } }),
+            prisma.company.count({ where: tenantWhere }),
+            prisma.company.count({ where: { ...tenantWhere, isActive: true } }),
             prisma.user.count(),
             prisma.employee.count(),
             prisma.invoice.count(),
             prisma.company.findMany({
+                where: tenantWhere,
                 take: 5,
                 orderBy: { createdAt: 'desc' },
                 include: { _count: { select: { users: true, employees: true } } },
@@ -1097,20 +1559,43 @@ export const verifySubscriptionPayment = async (req: AuthRequest, res: Response)
             const plan = await prisma.tenantPlan.findUnique({ where: { id: targetPlanId } });
             if (!plan) return res.status(404).json({ error: 'Associated plan not found' });
 
-            const intervalDays = plan.billingInterval === 'yearly' ? 365 : plan.billingInterval === 'quarterly' ? 90 : 30;
-
+            const now = new Date();
             await prisma.tenantSubscription.update({
                 where: { companyId },
                 data: {
                     planId: targetPlanId,
                     status: 'active',
-                    currentPeriodStart: new Date(),
-                    currentPeriodEnd: new Date(Date.now() + intervalDays * 24 * 60 * 60 * 1000),
+                    currentPeriodStart: now,
+                    currentPeriodEnd: periodEndFrom(now, plan.billingInterval),
                     paymentMethod: gateway,
                     paymentGatewayId: orderId,
-                    notes: `Paid successfully via ${gateway} at ${new Date().toISOString()}`,
+                    cancelledAt: null,
+                    notes: `Paid successfully via ${gateway} at ${now.toISOString()}`,
                 }
             });
+
+            await syncCompanyModulesFromPlan(companyId, targetPlanId);
+
+            // Post SaaS revenue into Applizor platform books (never tenant COA)
+            try {
+                const company = await prisma.company.findUnique({
+                    where: { id: companyId },
+                    select: { name: true },
+                });
+                await postSubscriptionRevenueToPlatform({
+                    tenantCompanyId: companyId,
+                    tenantName: company?.name,
+                    amount: Number(plan.price),
+                    currency: plan.currency || 'INR',
+                    gateway,
+                    orderId,
+                    planName: plan.name,
+                    planCode: plan.code,
+                    userId: req.userId,
+                });
+            } catch (ledgerErr) {
+                console.error('Platform subscription ledger post failed:', ledgerErr);
+            }
 
             return res.json({ status: 'success', message: 'Subscription activated' });
         }
@@ -1155,20 +1640,40 @@ export const handleSubscriptionWebhook = async (req: Request, res: Response) => 
 
                 const plan = await prisma.tenantPlan.findUnique({ where: { id: targetPlanId } });
                 if (plan) {
-                    const intervalDays = plan.billingInterval === 'yearly' ? 365 : plan.billingInterval === 'quarterly' ? 90 : 30;
-
+                    const now = new Date();
                     await prisma.tenantSubscription.update({
                         where: { id: subscription.id },
                         data: {
                             planId: targetPlanId,
                             status: 'active',
-                            currentPeriodStart: new Date(),
-                            currentPeriodEnd: new Date(Date.now() + intervalDays * 24 * 60 * 60 * 1000),
+                            currentPeriodStart: now,
+                            currentPeriodEnd: periodEndFrom(now, plan.billingInterval),
                             paymentMethod: gateway,
                             paymentGatewayId: gatewayOrderId,
-                            notes: `Paid successfully via webhook (${gateway}) at ${new Date().toISOString()}`,
+                            cancelledAt: null,
+                            notes: `Paid successfully via webhook (${gateway}) at ${now.toISOString()}`,
                         }
                     });
+                    await syncCompanyModulesFromPlan(subscription.companyId, targetPlanId);
+
+                    try {
+                        const company = await prisma.company.findUnique({
+                            where: { id: subscription.companyId },
+                            select: { name: true },
+                        });
+                        await postSubscriptionRevenueToPlatform({
+                            tenantCompanyId: subscription.companyId,
+                            tenantName: company?.name,
+                            amount: Number(plan.price),
+                            currency: plan.currency || 'INR',
+                            gateway,
+                            orderId: gatewayOrderId,
+                            planName: plan.name,
+                            planCode: plan.code,
+                        });
+                    } catch (ledgerErr) {
+                        console.error('Platform subscription ledger post (webhook) failed:', ledgerErr);
+                    }
                 }
             }
         }
@@ -1177,5 +1682,62 @@ export const handleSubscriptionWebhook = async (req: Request, res: Response) => 
     } catch (error: any) {
         console.error('Subscription webhook error:', error);
         res.status(500).json({ error: 'Webhook handling failed', details: error.message });
+    }
+};
+
+
+// =====================
+// Platform Accounting (Applizor SaaS books)
+// =====================
+
+export const ensurePlatformBooks = async (_req: AuthRequest, res: Response) => {
+    try {
+        const company = await getOrCreatePlatformCompany();
+        res.json({
+            platformCompany: { id: company.id, name: company.name, isPlatform: true },
+            message: 'Platform books ready',
+        });
+    } catch (error: any) {
+        console.error('Ensure platform books error:', error);
+        res.status(500).json({ error: 'Failed to ensure platform books', details: error?.message });
+    }
+};
+
+export const getPlatformAccountingAccounts = async (_req: AuthRequest, res: Response) => {
+    try {
+        res.json(await getPlatformAccounts());
+    } catch (error: any) {
+        console.error('Platform accounts error:', error);
+        res.status(500).json({ error: 'Failed to load platform accounts', details: error?.message });
+    }
+};
+
+export const getPlatformAccountingJournal = async (req: AuthRequest, res: Response) => {
+    try {
+        const limit = parseInt(String(req.query.limit || '100'), 10);
+        res.json(await getPlatformJournal(limit));
+    } catch (error: any) {
+        console.error('Platform journal error:', error);
+        res.status(500).json({ error: 'Failed to load platform journal', details: error?.message });
+    }
+};
+
+export const getPlatformAccountingProfitLoss = async (req: AuthRequest, res: Response) => {
+    try {
+        const startDate = req.query.startDate ? new Date(String(req.query.startDate)) : undefined;
+        const endDate = req.query.endDate ? new Date(String(req.query.endDate)) : undefined;
+        res.json(await getPlatformProfitAndLoss(startDate, endDate));
+    } catch (error: any) {
+        console.error('Platform P&L error:', error);
+        res.status(500).json({ error: 'Failed to load platform P&L', details: error?.message });
+    }
+};
+
+export const getPlatformAccountingPayments = async (_req: AuthRequest, res: Response) => {
+    try {
+        res.json(await getPlatformSubscriptionPayments());
+    } catch (error: any) {
+        console.error('Platform payments error:', error);
+        res.status(500).json({ error: 'Failed to load platform subscription payments', details: error?.message });
     }
 };
