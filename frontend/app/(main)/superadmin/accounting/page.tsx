@@ -1,295 +1,442 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import api from '@/lib/api';
 import { useToast } from '@/hooks/useToast';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Banknote, BookOpen, RefreshCw } from 'lucide-react';
+import {
+  BookOpen,
+  FileText,
+  LineChart,
+  CreditCard,
+  RefreshCw,
+  Building2,
+  AlertTriangle,
+} from 'lucide-react';
+import Link from 'next/link';
+import { format } from 'date-fns/format';
+import { startOfMonth } from 'date-fns/startOfMonth';
+import { endOfMonth } from 'date-fns/endOfMonth';
 
 type Tab = 'payments' | 'accounts' | 'journal' | 'pnl';
+
+interface PlatformCompany {
+  id: string;
+  name: string;
+  isPlatform: boolean;
+}
+
+interface LedgerAccount {
+  id: string;
+  code: string;
+  name: string;
+  type: string;
+  balance: number | string;
+}
+
+interface PaymentRow {
+  subscriptionId: string;
+  tenantCompanyId: string;
+  tenantName?: string;
+  planName?: string;
+  planCode?: string;
+  amount: number | null;
+  currency?: string;
+  status: string;
+  gateway?: string | null;
+  orderId?: string | null;
+  journalPosted: boolean;
+  journalReference?: string | null;
+  updatedAt: string;
+}
 
 export default function PlatformAccountingPage() {
   const toast = useToast();
   const [tab, setTab] = useState<Tab>('payments');
   const [loading, setLoading] = useState(true);
-  const [ensuring, setEnsuring] = useState(false);
-  const [platformCompany, setPlatformCompany] = useState<{ id: string; name: string } | null>(null);
-  const [payments, setPayments] = useState<any[]>([]);
-  const [accounts, setAccounts] = useState<any[]>([]);
-  const [journal, setJournal] = useState<any[]>([]);
-  const [pnl, setPnl] = useState<any>(null);
+  const [platformCompany, setPlatformCompany] = useState<PlatformCompany | null>(null);
+  const [accounts, setAccounts] = useState<LedgerAccount[]>([]);
+  const [entries, setEntries] = useState<any[]>([]);
+  const [payments, setPayments] = useState<PaymentRow[]>([]);
+  const [pnl, setPnl] = useState<{
+    revenue: LedgerAccount[];
+    costOfGoodsSold: LedgerAccount[];
+    otherIncome: LedgerAccount[];
+    operatingExpenses: LedgerAccount[];
+  } | null>(null);
+  const [dateRange, setDateRange] = useState({
+    startDate: format(startOfMonth(new Date()), 'yyyy-MM-dd'),
+    endDate: format(endOfMonth(new Date()), 'yyyy-MM-dd'),
+  });
 
-  const load = async (active: Tab = tab) => {
+  const load = async () => {
     try {
       setLoading(true);
-      if (active === 'payments') {
-        const res = await api.get('/platform/accounting/payments');
-        setPlatformCompany(res.data.platformCompany);
-        setPayments(res.data.payments || []);
-      } else if (active === 'accounts') {
+      await api.post('/platform/accounting/ensure');
+
+      if (tab === 'accounts') {
         const res = await api.get('/platform/accounting/accounts');
         setPlatformCompany(res.data.platformCompany);
         setAccounts(res.data.accounts || []);
-      } else if (active === 'journal') {
+      } else if (tab === 'journal') {
         const res = await api.get('/platform/accounting/journal');
         setPlatformCompany(res.data.platformCompany);
-        setJournal(res.data.entries || []);
-      } else {
-        const res = await api.get('/platform/accounting/profit-loss');
+        setEntries(res.data.entries || []);
+      } else if (tab === 'pnl') {
+        const res = await api.get('/platform/accounting/profit-loss', {
+          params: dateRange,
+        });
         setPlatformCompany(res.data.platformCompany);
-        setPnl(res.data);
+        setPnl({
+          revenue: res.data.revenue || [],
+          costOfGoodsSold: res.data.costOfGoodsSold || [],
+          otherIncome: res.data.otherIncome || [],
+          operatingExpenses: res.data.operatingExpenses || [],
+        });
+      } else {
+        const res = await api.get('/platform/accounting/payments');
+        setPlatformCompany(res.data.platformCompany);
+        setPayments(res.data.payments || []);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      toast.error('Failed to load platform accounting');
+      toast.error(error.response?.data?.error || 'Failed to load platform accounting');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    load(tab);
+    load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab]);
+  }, [tab, dateRange.startDate, dateRange.endDate]);
 
-  const ensureBooks = async () => {
-    try {
-      setEnsuring(true);
-      const res = await api.post('/platform/accounting/ensure');
-      setPlatformCompany(res.data.platformCompany);
-      toast.success('Platform books ready');
-      await load(tab);
-    } catch (error) {
-      console.error(error);
-      toast.error('Failed to ensure platform books');
-    } finally {
-      setEnsuring(false);
-    }
-  };
+  const sumBalances = (rows: LedgerAccount[]) =>
+    rows.reduce((s, a) => s + Number(a.balance || 0), 0);
 
-  const formatMoney = (n: any) => {
-    const v = Number(n || 0);
-    return v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  };
+  const tabs: { id: Tab; label: string; icon: any }[] = [
+    { id: 'payments', label: 'Subscription Payments', icon: CreditCard },
+    { id: 'accounts', label: 'Platform COA', icon: BookOpen },
+    { id: 'journal', label: 'Platform Journal', icon: FileText },
+    { id: 'pnl', label: 'Platform P&L', icon: LineChart },
+  ];
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4 bg-white p-5 rounded-md border border-gray-200 shadow-sm">
+      <div className="flex flex-col gap-4 bg-white p-5 rounded-md border border-gray-200 shadow-sm sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
-            <Banknote className="h-4 w-4" />
-            Platform Admin
-          </div>
-          <h1 className="mt-1 text-2xl font-bold text-gray-900">Platform Accounting</h1>
-          <p className="mt-1 text-sm text-gray-600 max-w-2xl">
-            Applizor SaaS books for subscription revenue. Separate from every tenant chart of accounts —
-            payments post here as <code className="text-xs bg-gray-100 px-1 rounded">SUB-&#123;orderId&#125;</code> journals.
+          <h1 className="text-lg font-black text-gray-900 uppercase tracking-tight">
+            Platform Accounting
+          </h1>
+          <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">
+            Applizor SaaS books — subscription revenue (separate from tenant company ledgers)
           </p>
           {platformCompany && (
-            <p className="mt-2 text-xs text-gray-500">
-              Books company: <span className="font-medium text-gray-800">{platformCompany.name}</span>
+            <p className="text-xs text-slate-600 mt-2 flex items-center gap-1.5">
+              <Building2 size={12} />
+              Books company: <span className="font-semibold">{platformCompany.name}</span>
+              <span className="ml-1 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-slate-600">
+                isPlatform
+              </span>
             </p>
           )}
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => load(tab)} disabled={loading}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
-          <Button onClick={ensureBooks} disabled={ensuring}>
-            <BookOpen className="h-4 w-4 mr-2" />
-            {ensuring ? 'Ensuring…' : 'Ensure Books'}
-          </Button>
+        <Button variant="outline" size="sm" onClick={load} className="gap-2">
+          <RefreshCw size={14} /> Refresh
+        </Button>
+      </div>
+
+      <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 flex gap-3">
+        <AlertTriangle size={18} className="shrink-0 mt-0.5" />
+        <div>
+          <p className="font-semibold">This is not tenant accounting</p>
+          <p className="text-amber-800/90 text-xs mt-1">
+            Tenant Chart of Accounts / Journal / P&amp;L live under each company&apos;s{' '}
+            <Link href="/accounting/chart-of-accounts" className="underline font-medium">
+              Accounting
+            </Link>{' '}
+            module. Country COA templates are managed at{' '}
+            <Link href="/superadmin/coa" className="underline font-medium">
+              COA Templates
+            </Link>
+            . Subscription payments post revenue here only.
+          </p>
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {([
-          ['payments', 'Subscription Payments'],
-          ['accounts', 'Trial Balance'],
-          ['journal', 'Journal'],
-          ['pnl', 'Profit & Loss'],
-        ] as [Tab, string][]).map(([key, label]) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => setTab(key)}
-            className={`px-3 py-1.5 text-sm rounded-md border ${
-              tab === key
-                ? 'bg-gray-900 text-white border-gray-900'
-                : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
+      <div className="flex flex-wrap gap-2 border-b border-gray-200 pb-2">
+        {tabs.map((t) => {
+          const Icon = t.icon;
+          const active = tab === t.id;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTab(t.id)}
+              className={`flex items-center gap-2 rounded-md px-3 py-2 text-xs font-bold uppercase tracking-wide transition-colors ${
+                active
+                  ? 'bg-slate-900 text-white'
+                  : 'bg-white text-slate-600 border border-gray-200 hover:bg-slate-50'
+              }`}
+            >
+              <Icon size={14} />
+              {t.label}
+            </button>
+          );
+        })}
       </div>
 
-      <div className="bg-white rounded-md border border-gray-200 shadow-sm overflow-hidden">
-        {loading ? (
-          <div className="flex justify-center items-center min-h-[280px]">
-            <LoadingSpinner />
-          </div>
-        ) : tab === 'payments' ? (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead className="bg-gray-50 text-left text-xs uppercase tracking-wider text-gray-500">
-                <tr>
-                  <th className="px-4 py-3">Tenant</th>
-                  <th className="px-4 py-3">Plan</th>
-                  <th className="px-4 py-3">Amount</th>
-                  <th className="px-4 py-3">Gateway</th>
-                  <th className="px-4 py-3">Order</th>
-                  <th className="px-4 py-3">Posted</th>
-                </tr>
-              </thead>
-              <tbody>
+      {loading ? (
+        <div className="flex justify-center items-center min-h-[280px]">
+          <LoadingSpinner />
+        </div>
+      ) : (
+        <>
+          {tab === 'payments' && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm uppercase tracking-wider">
+                  Tenant SaaS subscription payments
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="overflow-x-auto">
                 {payments.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-10 text-center text-gray-500">
-                      No paid SaaS subscriptions yet. Checkout verify/webhook posts revenue here.
-                    </td>
-                  </tr>
+                  <p className="text-sm text-gray-500 py-8 text-center">
+                    No gateway-paid subscriptions yet. When a tenant pays via billing checkout,
+                    revenue posts here with reference SUB-&#123;orderId&#125;.
+                  </p>
                 ) : (
-                  payments.map((p) => (
-                    <tr key={p.subscriptionId} className="border-t border-gray-100">
-                      <td className="px-4 py-3 font-medium text-gray-900">{p.tenantName || p.tenantCompanyId}</td>
-                      <td className="px-4 py-3 text-gray-700">{p.planName || p.planCode}</td>
-                      <td className="px-4 py-3">{p.currency || ''} {formatMoney(p.amount)}</td>
-                      <td className="px-4 py-3">{p.gateway || '—'}</td>
-                      <td className="px-4 py-3 font-mono text-xs">{p.orderId || '—'}</td>
-                      <td className="px-4 py-3">
-                        {p.journalPosted ? (
-                          <span className="text-emerald-700 font-medium">{p.journalReference}</span>
-                        ) : (
-                          <span className="text-amber-700">Pending</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b text-left text-[10px] uppercase tracking-wider text-gray-500">
+                        <th className="pb-2 pr-3">Tenant</th>
+                        <th className="pb-2 pr-3">Plan</th>
+                        <th className="pb-2 pr-3">Amount</th>
+                        <th className="pb-2 pr-3">Gateway</th>
+                        <th className="pb-2 pr-3">Journal</th>
+                        <th className="pb-2">Updated</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {payments.map((p) => (
+                        <tr key={p.subscriptionId} className="border-b border-gray-100">
+                          <td className="py-2.5 pr-3 font-medium">{p.tenantName || p.tenantCompanyId}</td>
+                          <td className="py-2.5 pr-3">{p.planName || p.planCode || '—'}</td>
+                          <td className="py-2.5 pr-3">
+                            {p.amount != null
+                              ? `${p.currency || ''} ${Number(p.amount).toFixed(2)}`
+                              : '—'}
+                          </td>
+                          <td className="py-2.5 pr-3">{p.gateway || '—'}</td>
+                          <td className="py-2.5 pr-3">
+                            {p.journalPosted ? (
+                              <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold uppercase text-emerald-700">
+                                {p.journalReference || 'Posted'}
+                              </span>
+                            ) : (
+                              <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-gray-500">
+                                Not posted
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-2.5 text-gray-500">
+                            {p.updatedAt ? format(new Date(p.updatedAt), 'dd MMM yyyy') : '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 )}
-              </tbody>
-            </table>
-          </div>
-        ) : tab === 'accounts' ? (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead className="bg-gray-50 text-left text-xs uppercase tracking-wider text-gray-500">
-                <tr>
-                  <th className="px-4 py-3">Code</th>
-                  <th className="px-4 py-3">Account</th>
-                  <th className="px-4 py-3">Type</th>
-                  <th className="px-4 py-3 text-right">Debit</th>
-                  <th className="px-4 py-3 text-right">Credit</th>
-                  <th className="px-4 py-3 text-right">Balance</th>
-                </tr>
-              </thead>
-              <tbody>
-                {accounts.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-10 text-center text-gray-500">
-                      No platform accounts yet. Click Ensure Books.
-                    </td>
-                  </tr>
+              </CardContent>
+            </Card>
+          )}
+
+          {tab === 'accounts' && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm uppercase tracking-wider">
+                  Platform chart of accounts
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-left text-[10px] uppercase tracking-wider text-gray-500">
+                      <th className="pb-2 pr-3">Code</th>
+                      <th className="pb-2 pr-3">Name</th>
+                      <th className="pb-2 pr-3">Type</th>
+                      <th className="pb-2 text-right">Balance</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {accounts.map((a) => (
+                      <tr key={a.id} className="border-b border-gray-100">
+                        <td className="py-2 pr-3 font-mono text-xs">{a.code}</td>
+                        <td className="py-2 pr-3">{a.name}</td>
+                        <td className="py-2 pr-3 capitalize text-gray-600">{a.type}</td>
+                        <td className="py-2 text-right font-medium">
+                          {Number(a.balance || 0).toFixed(2)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </CardContent>
+            </Card>
+          )}
+
+          {tab === 'journal' && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm uppercase tracking-wider">
+                  Platform journal entries
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {entries.length === 0 ? (
+                  <p className="text-sm text-gray-500 py-8 text-center">No platform journals yet.</p>
                 ) : (
-                  accounts.map((a: any) => (
-                    <tr key={a.id || a.code} className="border-t border-gray-100">
-                      <td className="px-4 py-3 font-mono text-xs">{a.code}</td>
-                      <td className="px-4 py-3">{a.name}</td>
-                      <td className="px-4 py-3 capitalize">{a.type}</td>
-                      <td className="px-4 py-3 text-right">{formatMoney(a.debit ?? a.totalDebit)}</td>
-                      <td className="px-4 py-3 text-right">{formatMoney(a.credit ?? a.totalCredit)}</td>
-                      <td className="px-4 py-3 text-right font-medium">{formatMoney(a.balance)}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        ) : tab === 'journal' ? (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead className="bg-gray-50 text-left text-xs uppercase tracking-wider text-gray-500">
-                <tr>
-                  <th className="px-4 py-3">Date</th>
-                  <th className="px-4 py-3">Reference</th>
-                  <th className="px-4 py-3">Description</th>
-                  <th className="px-4 py-3">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {journal.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="px-4 py-10 text-center text-gray-500">
-                      No platform journal entries yet.
-                    </td>
-                  </tr>
-                ) : (
-                  journal.map((e: any) => (
-                    <tr key={e.id} className="border-t border-gray-100">
-                      <td className="px-4 py-3">{e.date ? new Date(e.date).toLocaleDateString() : '—'}</td>
-                      <td className="px-4 py-3 font-mono text-xs">{e.reference || '—'}</td>
-                      <td className="px-4 py-3">{e.description}</td>
-                      <td className="px-4 py-3 capitalize">{e.status}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="p-5 space-y-4">
-            {!pnl ? (
-              <p className="text-gray-500 text-sm">No P&amp;L data.</p>
-            ) : (
-              <>
-                {(() => {
-                  const rev = (pnl.revenue || []).reduce((s: number, r: any) => s + Number(r.balance || 0), 0)
-                    + (pnl.otherIncome || []).reduce((s: number, r: any) => s + Number(r.balance || 0), 0);
-                  const exp = (pnl.operatingExpenses || []).reduce((s: number, r: any) => s + Number(r.balance || 0), 0)
-                    + (pnl.costOfGoodsSold || []).reduce((s: number, r: any) => s + Number(r.balance || 0), 0);
-                  return (
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      <div className="rounded-md border border-gray-200 p-4">
-                        <div className="text-xs uppercase tracking-wider text-gray-500">Revenue</div>
-                        <div className="mt-1 text-xl font-semibold">{formatMoney(rev)}</div>
+                  entries.map((e) => (
+                    <div key={e.id} className="rounded border border-gray-200 p-3">
+                      <div className="flex flex-wrap items-baseline justify-between gap-2 mb-2">
+                        <div>
+                          <span className="font-mono text-xs font-bold text-slate-700">
+                            {e.reference || '—'}
+                          </span>
+                          <span className="ml-2 text-xs text-gray-500">
+                            {e.date ? format(new Date(e.date), 'dd MMM yyyy') : ''}
+                          </span>
+                        </div>
+                        <span className="text-[10px] font-bold uppercase text-emerald-700">
+                          {e.status}
+                        </span>
                       </div>
-                      <div className="rounded-md border border-gray-200 p-4">
-                        <div className="text-xs uppercase tracking-wider text-gray-500">Expenses</div>
-                        <div className="mt-1 text-xl font-semibold">{formatMoney(exp)}</div>
-                      </div>
-                      <div className="rounded-md border border-gray-200 p-4">
-                        <div className="text-xs uppercase tracking-wider text-gray-500">Net</div>
-                        <div className="mt-1 text-xl font-semibold">{formatMoney(rev - exp)}</div>
-                      </div>
+                      <p className="text-sm text-gray-800 mb-2">{e.description}</p>
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="text-gray-500 text-left">
+                            <th className="pb-1">Account</th>
+                            <th className="pb-1 text-right">Debit</th>
+                            <th className="pb-1 text-right">Credit</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(e.lines || []).map((l: any) => (
+                            <tr key={l.id}>
+                              <td className="py-0.5">
+                                {l.account?.code} — {l.account?.name}
+                              </td>
+                              <td className="py-0.5 text-right">
+                                {Number(l.debit) > 0 ? Number(l.debit).toFixed(2) : ''}
+                              </td>
+                              <td className="py-0.5 text-right">
+                                {Number(l.credit) > 0 ? Number(l.credit).toFixed(2) : ''}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
-                  );
-                })()}
-                {[
-                  ['Revenue', pnl.revenue],
-                  ['Other Income', pnl.otherIncome],
-                  ['Operating Expenses', pnl.operatingExpenses],
-                ].map(([label, rows]) =>
-                  Array.isArray(rows) && rows.length > 0 ? (
-                    <div key={String(label)}>
-                      <h3 className="text-sm font-semibold text-gray-800 mb-2">{label as string}</h3>
-                      <ul className="text-sm space-y-1">
-                        {(rows as any[]).map((row: any) => (
-                          <li key={row.id || row.code} className="flex justify-between border-b border-gray-100 py-1">
-                            <span>{row.code} — {row.name}</span>
-                            <span>{formatMoney(row.balance)}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null
+                  ))
                 )}
-              </>
-            )}
-          </div>
-        )}
-      </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {tab === 'pnl' && pnl && (
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-3 items-end">
+                <label className="text-xs font-bold uppercase text-gray-500">
+                  From
+                  <input
+                    type="date"
+                    className="mt-1 block rounded border border-gray-200 px-2 py-1.5 text-sm"
+                    value={dateRange.startDate}
+                    onChange={(ev) =>
+                      setDateRange((d) => ({ ...d, startDate: ev.target.value }))
+                    }
+                  />
+                </label>
+                <label className="text-xs font-bold uppercase text-gray-500">
+                  To
+                  <input
+                    type="date"
+                    className="mt-1 block rounded border border-gray-200 px-2 py-1.5 text-sm"
+                    value={dateRange.endDate}
+                    onChange={(ev) =>
+                      setDateRange((d) => ({ ...d, endDate: ev.target.value }))
+                    }
+                  />
+                </label>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm uppercase">Revenue</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {(pnl.revenue || []).concat(pnl.otherIncome || []).map((a) => (
+                      <div key={a.id} className="flex justify-between text-sm py-1 border-b border-gray-50">
+                        <span>
+                          {a.code} {a.name}
+                        </span>
+                        <span className="font-medium">{Number(a.balance || 0).toFixed(2)}</span>
+                      </div>
+                    ))}
+                    <div className="flex justify-between text-sm font-bold pt-3">
+                      <span>Total income</span>
+                      <span>
+                        {(
+                          sumBalances(pnl.revenue || []) + sumBalances(pnl.otherIncome || [])
+                        ).toFixed(2)}
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm uppercase">Expenses</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {(pnl.costOfGoodsSold || []).concat(pnl.operatingExpenses || []).map((a) => (
+                      <div key={a.id} className="flex justify-between text-sm py-1 border-b border-gray-50">
+                        <span>
+                          {a.code} {a.name}
+                        </span>
+                        <span className="font-medium">{Number(a.balance || 0).toFixed(2)}</span>
+                      </div>
+                    ))}
+                    <div className="flex justify-between text-sm font-bold pt-3">
+                      <span>Total expenses</span>
+                      <span>
+                        {(
+                          sumBalances(pnl.costOfGoodsSold || []) +
+                          sumBalances(pnl.operatingExpenses || [])
+                        ).toFixed(2)}
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+              <Card>
+                <CardContent className="py-4 flex justify-between items-center">
+                  <span className="text-sm font-bold uppercase tracking-wider">Net (period)</span>
+                  <span className="text-lg font-black">
+                    {(
+                      sumBalances(pnl.revenue || []) +
+                      sumBalances(pnl.otherIncome || []) -
+                      sumBalances(pnl.costOfGoodsSold || []) -
+                      sumBalances(pnl.operatingExpenses || [])
+                    ).toFixed(2)}
+                  </span>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
