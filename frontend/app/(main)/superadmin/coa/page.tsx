@@ -219,7 +219,14 @@ export default function CoaPage() {
         <div>
           <h1 className="text-lg font-black text-gray-900 uppercase">COA Templates</h1>
           <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">
-            Manage global Chart of Accounts templates and initialize tenant ledgers
+            Country templates for tenant ledgers — not Applizor platform SaaS books
+          </p>
+          <p className="text-xs text-slate-600 mt-2">
+            Platform subscription revenue is under{' '}
+            <a href="/superadmin/accounting" className="underline font-semibold text-slate-800">
+              Platform Accounting
+            </a>
+            .
           </p>
         </div>
         <div className="flex gap-3">
