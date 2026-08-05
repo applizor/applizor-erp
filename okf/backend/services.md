@@ -87,7 +87,7 @@ timestamp: 2026-07-08T20:00:00Z
 ## Communication
 
 ### `email.service.ts`
-- **Exports:** `resolveEmailConfig`, `sendEmailDirect`, `sendEmail`, `processSingleQueuedEmail`, `sendQuotationReminder`, `sendInvoiceEmail`, `notifyTaskAssigned`, `notifyTaskUpdated`, `notifyNewTask`, `notifyMention`, `notifyTaskReminder`
+- **Exports:** `resolveEmailConfig`, `sendEmailDirect`, `sendEmail`, `processSingleQueuedEmail`, `sendQuotationReminder`, `sendInvoiceEmail`, `notifyTaskAssigned`, `notifyTaskUpdated`, `notifyNewTask`, `notifyMention`, `notifyTaskReminder`, `notifyStuckTaskReminder`
 - **Purpose:** Multi-provider email delivery. Supports Microsoft Graph, Google OAuth, AWS SES, SendGrid, Mailgun, and generic SMTP. Uses database-backed outbox queue with BullMQ (inline fallback). Performs OAuth token refresh, resolves per-company/department email configurations.
 
 ### `notification.service.ts`
@@ -127,8 +127,8 @@ timestamp: 2026-07-08T20:00:00Z
 - **Purpose:** Background job queue using BullMQ with Redis. Provides `enqueueOrExecute` pattern: enqueues via BullMQ if Redis available, runs synchronously as fallback.
 
 ### `scheduler.service.ts`
-- **Exports:** `SchedulerService.init`
-- **Purpose:** Cron-based scheduled task orchestrator. Six recurring jobs: hourly quotation reminders, monthly leave accrual (1st of month), daily probation checks, daily recurring invoice generation, daily task reminders (09:30 AM), daily CRM lead alerts + quotation expiration (00:05 AM). All jobs use `CronLockService` for distributed safety.
+- **Exports:** `SchedulerService.init`, `processStuckTaskReminders`
+- **Purpose:** Cron-based scheduled task orchestrator. Jobs: hourly quotation reminders, monthly leave accrual (1st of month), daily probation checks, daily recurring invoice generation, daily stuck-task reminders (09:00 AM — tasks in `todo`/`in-progress` with `updatedAt` older than `TASK_STUCK_REMINDER_DAYS` default 2; deduped via `Task.lastReminderAt` max once/day; in-app + email), daily due-date task reminders via automation rules (09:30 AM), daily CRM lead alerts + quotation expiration (00:05 AM), invoice/contract reminders. All jobs use `CronLockService` for distributed safety.
 
 ### `locale.service.ts`
 - **Exports:** `LOCALE_MAP`, locale configs for `en-IN`, `en-US`, `en-GB`, `en-AE`, `en-SG`, etc.

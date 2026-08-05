@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import TaskDetailModal from '@/components/tasks/TaskDetailModal';
 import { TaskFilterBar, DEFAULT_TASK_FILTERS, buildTaskDateQueryParams, TaskBoardFilters } from '@/components/tasks/TaskFilterBar';
+import { TaskExportButton } from '@/components/tasks/TaskExportButton';
 import { KanbanTaskCard, KanbanColumnEmpty, columnDroppableClass, createKanbanTaskCloneRenderer, KanbanCountBadge } from '@/components/tasks/KanbanTaskCard';
 import BulkTimeLogModal from '@/components/hrms/timesheets/BulkTimeLogModal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -563,14 +564,25 @@ export default function GlobalTasksPage() {
                     )}
                 </div>
 
-                {canCreateTasks && (
-                    <button
-                        onClick={() => openTask('new')}
-                        className="btn-primary flex items-center gap-2 text-[10px] whitespace-nowrap"
-                    >
-                        <Plus size={14} /> New Task
-                    </button>
-                )}
+                <div className="flex items-center gap-2 w-full md:w-auto justify-end">
+                    <TaskExportButton
+                        context={{
+                            projectId: selectedProjectId,
+                            sprintId: selectedSprintId,
+                            filters,
+                            members: projectMembers,
+                            includeProjectColumn: true,
+                        }}
+                    />
+                    {canCreateTasks && (
+                        <button
+                            onClick={() => openTask('new')}
+                            className="btn-primary flex items-center gap-2 text-[10px] whitespace-nowrap"
+                        >
+                            <Plus size={14} /> New Task
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* Filters */}

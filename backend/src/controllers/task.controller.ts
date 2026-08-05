@@ -528,7 +528,8 @@ export const getTasks = async (req: AuthRequest, res: Response) => {
         const companyId = req.user!.companyId;
 
         const effectivePage = parseInt(page as string) || 1;
-        const effectiveLimit = parseInt(limit as string) || 50;
+        // Cap at 1000 so board export / bulk fetches stay bounded
+        const effectiveLimit = Math.min(parseInt(limit as string) || 50, 1000);
         const skip = (effectivePage - 1) * effectiveLimit;
 
         let where: any = {
@@ -560,9 +561,14 @@ export const getTasks = async (req: AuthRequest, res: Response) => {
         const dueDateRange = buildDateRangeFilter(dueFrom, dueTo);
         if (dueDateRange) where.dueDate = dueDateRange;
 
-        // Apply status filter if provided
+        // Apply status filter if provided (supports comma-separated for export: todo,in-progress,review)
         if (status && status !== 'all') {
-            where.status = String(status);
+            const statuses = String(status).split(',').map(s => s.trim()).filter(Boolean);
+            if (statuses.length === 1) {
+                where.status = statuses[0];
+            } else if (statuses.length > 1) {
+                where.status = { in: statuses };
+            }
         }
 
         // --- Permission-based project filtering ---
@@ -640,6 +646,7 @@ export const getTasks = async (req: AuthRequest, res: Response) => {
             take: effectiveLimit,
             include: {
                 project: { select: { id: true, name: true } },
+                sprint: { select: { id: true, name: true } },
                 assignee: { select: { id: true, firstName: true, lastName: true } },
                 assignees: { include: { user: { select: { id: true, firstName: true, lastName: true } } } },
                 epic: { select: { id: true, title: true } },

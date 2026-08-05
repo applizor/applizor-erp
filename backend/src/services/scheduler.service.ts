@@ -1,11 +1,12 @@
 import cron from 'node-cron';
 import prisma from '../prisma/client';
-import { sendQuotationReminder, sendInvoiceEmail, sendEmail, sendContractReminder } from './email.service';
+import { sendQuotationReminder, sendInvoiceEmail, sendEmail, sendContractReminder, notifyStuckTaskReminder } from './email.service';
 import { leaveAccrualService } from './leave-accrual.service';
 import { InvoiceService } from './invoice.service';
 import { AutomationService } from './automation.service';
 import { generatePublicLink } from '../controllers/quotation-public.controller'; // Careful: this might be a controller function
 import { CronLockService } from './cron-lock.service';
+import { NotificationService } from './notification.service';
 
 export class SchedulerService {
     static init() {
@@ -43,11 +44,20 @@ export class SchedulerService {
             });
         });
 
-        // Task Reminders: Run daily at 09:30 AM
+        // Task Reminders (due-date automation rules): Run daily at 09:30 AM
         cron.schedule('30 9 * * *', async () => {
             await CronLockService.withCronLock('daily_task_reminders', async () => {
                 console.log('⏰ Running daily task reminder check...');
                 await this.processTaskReminders();
+            });
+        });
+
+        // Stuck Task Reminders: Run daily at 09:00 AM
+        // Tasks in todo/in-progress with no updates for TASK_STUCK_REMINDER_DAYS (default 2)
+        cron.schedule('0 9 * * *', async () => {
+            await CronLockService.withCronLock('daily_stuck_task_reminders', async () => {
+                console.log('⏰ Running daily stuck-task reminder check...');
+                await this.processStuckTaskReminders();
             });
         });
 
@@ -410,6 +420,115 @@ export class SchedulerService {
             }
         } catch (error) {
             console.error('[Scheduler] Error processing task reminders:', error);
+        }
+    }
+
+    /**
+     * Automatic reminders for tasks stuck in todo / in-progress with no updates.
+     * Env: TASK_STUCK_REMINDER_DAYS (default 2). At most once per task per day via lastReminderAt.
+     * Uses raw SQL to set lastReminderAt without bumping updatedAt.
+     */
+    static async processStuckTaskReminders() {
+        try {
+            const days = Math.max(1, parseInt(process.env.TASK_STUCK_REMINDER_DAYS || '2', 10) || 2);
+            const now = new Date();
+            const stuckBefore = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+            const remindedBefore = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+            console.log(`[Scheduler] Looking for stuck tasks (status todo|in-progress, updatedAt < ${stuckBefore.toISOString()}, days=${days})...`);
+
+            const tasks = await prisma.task.findMany({
+                where: {
+                    status: { in: ['todo', 'in-progress'] },
+                    updatedAt: { lt: stuckBefore },
+                    OR: [
+                        { lastReminderAt: null },
+                        { lastReminderAt: { lt: remindedBefore } }
+                    ],
+                    AND: [
+                        {
+                            OR: [
+                                { assignedToId: { not: null } },
+                                { assignees: { some: {} } }
+                            ]
+                        }
+                    ]
+                },
+                take: 200,
+                include: {
+                    assignee: { select: { id: true, firstName: true, lastName: true, email: true } },
+                    assignees: {
+                        include: {
+                            user: { select: { id: true, firstName: true, lastName: true, email: true } }
+                        }
+                    },
+                    project: { select: { id: true, name: true, companyId: true } },
+                    creator: { select: { companyId: true } }
+                }
+            });
+
+            console.log(`[Scheduler] Found ${tasks.length} stuck tasks to remind.`);
+            let notified = 0;
+
+            for (const task of tasks) {
+                const companyId = task.project?.companyId || task.creator?.companyId;
+                if (!companyId) continue;
+
+                const project = task.project || { id: null, name: 'No project', companyId };
+                const daysStuck = Math.max(
+                    days,
+                    Math.floor((now.getTime() - new Date(task.updatedAt).getTime()) / (1000 * 60 * 60 * 24))
+                );
+
+                const allAssignees = [
+                    ...(task.assignee ? [task.assignee] : []),
+                    ...(task.assignees?.map((a: any) => a.user).filter(Boolean) || [])
+                ];
+                const uniqueAssignees = allAssignees.filter((a: any, i: number, arr: any[]) =>
+                    a?.id && arr.findIndex((x: any) => x.id === a.id) === i
+                );
+
+                if (uniqueAssignees.length === 0) continue;
+
+                const link = task.projectId
+                    ? `/projects/${task.projectId}/tasks?taskId=${task.id}`
+                    : `/tasks?taskId=${task.id}`;
+
+                for (const assignee of uniqueAssignees) {
+                    await NotificationService.createNotification({
+                        companyId,
+                        userId: assignee.id,
+                        title: 'Stuck task reminder',
+                        message: `Reminder: task "${task.title}" is still ${task.status} for ${daysStuck} days`,
+                        type: 'task_reminder',
+                        link
+                    });
+
+                    if (assignee.email) {
+                        try {
+                            await notifyStuckTaskReminder(
+                                assignee.email,
+                                task,
+                                project,
+                                daysStuck,
+                                assignee.firstName
+                            );
+                        } catch (e) {
+                            console.error(`[Scheduler] Failed stuck-task email for task ${task.id} → ${assignee.email}`, e);
+                        }
+                    }
+                    notified++;
+                }
+
+                // Update lastReminderAt without bumping updatedAt (preserve stuck detection)
+                await prisma.$executeRaw`
+                    UPDATE "Task" SET "lastReminderAt" = ${now} WHERE id = ${task.id}
+                `;
+            }
+
+            console.log(`[Scheduler] Sent ${notified} stuck-task reminders across ${tasks.length} tasks.`);
+        } catch (error) {
+            console.error('[Scheduler] Error processing stuck task reminders:', error);
         }
     }
 

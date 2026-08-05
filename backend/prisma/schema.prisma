@@ -641,6 +641,7 @@ model Task {
   externalProvider  String?
   externalThreadId  String?
   externalChannelId String?
+  lastReminderAt    DateTime?
   documents       Document[]
   assignee        User?         @relation("TaskAssignee", fields: [assignedToId], references: [id])
   creator         User?         @relation("TaskCreator", fields: [createdById], references: [id])

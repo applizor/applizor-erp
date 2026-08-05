@@ -1343,6 +1343,44 @@ export const notifyTaskReminder = async (to: string, task: any, project: any, da
     return sendEmail(to, subject, html, [], undefined, undefined, undefined, true, project.companyId, 'projects');
 };
 
+/** Reminder when a task has been stuck in todo/in-progress without updates. */
+export const notifyStuckTaskReminder = async (
+    to: string,
+    task: any,
+    project: any,
+    daysStuck: number,
+    assigneeFirstName?: string
+) => {
+    const companyName = await getCompanyName(project.companyId);
+    const subject = `Reminder: "${task.title}" is still ${task.status} for ${daysStuck} day${daysStuck === 1 ? '' : 's'} — ${companyName}`;
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const taskUrl = project?.id
+        ? `${frontendUrl}/projects/${project.id}/tasks?taskId=${task.id}`
+        : `${frontendUrl}/tasks?taskId=${task.id}`;
+
+    const content = `
+        <div style="padding-top: 24px;">
+          <p class="greeting">${assigneeFirstName ? `Hello <strong>${assigneeFirstName}</strong>, ` : ''}this task has had no updates for <strong>${daysStuck} day${daysStuck === 1 ? '' : 's'}</strong> and is still in <strong>${task.status}</strong>. Please update progress or move it forward.</p>
+        </div>
+        <div class="data-card">
+          <div class="data-card-header" style="background: #FFF7ED; color: #9A3412;">Stuck Task Reminder</div>
+          <div class="data-row"><span class="data-key">Task</span><span class="data-val">${task.title}</span></div>
+          <div class="data-row"><span class="data-key">Project</span><span class="data-val">${project?.name || 'No project'}</span></div>
+          <div class="data-row"><span class="data-key">Status</span><span class="data-val"><span class="badge badge-pending">${task.status}</span></span></div>
+          <div class="data-row"><span class="data-key">Priority</span><span class="data-val"><span class="badge badge-${(task.priority || 'medium').toLowerCase()}">${task.priority || 'medium'}</span></span></div>
+          <div class="data-row"><span class="data-key">Last Updated</span><span class="data-val">${new Date(task.updatedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span></div>
+          ${task.dueDate ? `<div class="data-row"><span class="data-key">Due Date</span><span class="data-val" style="color: #DC2626; font-weight: 700;">${new Date(task.dueDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span></div>` : ''}
+        </div>
+    `;
+
+    const html = getBaseTemplate('Stuck Task Reminder', content, companyName, 'View Task', taskUrl, {
+        themeKey: 'reminder',
+        heroLabel: 'Needs Attention',
+        heroSub: task.title
+    });
+    return sendEmail(to, subject, html, [], undefined, undefined, undefined, true, project.companyId, 'projects');
+};
+
 export const sendInterviewInvite = async (
     to: string,
     details: {

@@ -10,7 +10,7 @@ export class NotificationService {
         userId: string;
         title: string;
         message: string;
-        type?: 'info' | 'success' | 'warning' | 'error' | 'task_update' | 'task_assigned';
+        type?: 'info' | 'success' | 'warning' | 'error' | 'task_update' | 'task_assigned' | 'task_reminder';
         link?: string;
     }) {
         try {

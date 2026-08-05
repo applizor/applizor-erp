@@ -321,7 +321,7 @@ CRUD: `GET/POST` `/`, `GET/PUT/DELETE` `/:id`
 ### Tasks (`/api/tasks`)
 | Method | Path | Description |
 |--------|------|-------------|
-| GET/POST | `/` | List / Create tasks. List ordered by `updatedAt DESC`. Query: `projectId`, `sprintId`, `status`, `assigneeId`, `type`, `priority`, `search`, `updatedFrom`, `updatedTo`, `dueFrom`, `dueTo`, `page`, `limit` |
+| GET/POST | `/` | List / Create tasks. List ordered by `updatedAt DESC`. Query: `projectId`, `sprintId`, `status` (comma-separated ok e.g. `todo,in-progress,review`), `assigneeId`, `type`, `priority`, `search`, `updatedFrom`, `updatedTo`, `dueFrom`, `dueTo`, `page`, `limit` (max 1000). Includes `sprint` for export. |
 | GET | `/counts` | Per-status counts (same filters as list, including date ranges) |
 | GET/PUT/DELETE | `/:id` | Get / Update / Delete |
 | PUT | `/bulk-update` | Bulk update |
