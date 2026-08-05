@@ -92,7 +92,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
                     position: 'absolute',
                     top: rect.bottom + window.scrollY + 4,
                     left: align === 'right' ? (rect.right + window.scrollX) : (rect.left + window.scrollX),
-                    width: Math.max(rect.width, 240), // Standard min-width
+                    width: Math.max(rect.width, 280), // Prefer readable labels in dropdown
                     transform: align === 'right' ? 'translateX(-100%)' : 'none',
                     zIndex: 9999,
                 });
@@ -127,9 +127,12 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
                     text-slate-900
                 `}
             >
-                <div className="flex items-center gap-2 truncate">
+                <div className="flex items-center gap-2 min-w-0 flex-1 text-left">
                     {leftIcon && leftIcon}
-                    <span className={!selectedOption ? 'text-slate-400 font-medium' : ''}>
+                    <span
+                        className={`block truncate ${!selectedOption ? 'text-slate-400 font-medium' : ''}`}
+                        title={selectedOption?.label || undefined}
+                    >
                         {selectedOption ? selectedOption.label : placeholder}
                     </span>
                 </div>
@@ -177,15 +180,18 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
                                         ${value === option.value ? 'bg-primary-50 text-primary-900' : 'text-slate-700 hover:bg-slate-50'}
                                     `}
                                 >
-                                    <div className="flex flex-col gap-0.5 overflow-hidden">
-                                        <div className="flex items-center gap-2">
+                                    <div className="flex flex-col gap-0.5 overflow-hidden min-w-0 pr-1">
+                                        <div className="flex items-start gap-2 min-w-0">
                                             {option.icon && option.icon}
-                                            <span className="text-[11px] font-black uppercase tracking-tight truncate">
+                                            <span
+                                                className="text-[12px] font-semibold tracking-tight text-slate-800 break-words whitespace-normal leading-snug"
+                                                title={option.label}
+                                            >
                                                 {option.label}
                                             </span>
                                         </div>
                                         {option.description && (
-                                            <span className="text-[9px] text-slate-400 font-medium truncate">
+                                            <span className="text-[9px] text-slate-400 font-medium break-words whitespace-normal">
                                                 {option.description}
                                             </span>
                                         )}

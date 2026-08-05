@@ -9,7 +9,7 @@ import {
     Plus, LayoutGrid, Copy, Edit2, Trash2, Link as LinkIcon
 } from 'lucide-react';
 import TaskDetailModal from '@/components/tasks/TaskDetailModal';
-import { TaskFilterBar } from '@/components/tasks/TaskFilterBar';
+import { TaskFilterBar, DEFAULT_TASK_FILTERS, buildTaskDateQueryParams, TaskBoardFilters } from '@/components/tasks/TaskFilterBar';
 import { KanbanTaskCard, KanbanColumnEmpty, columnDroppableClass, createKanbanTaskCloneRenderer, KanbanCountBadge } from '@/components/tasks/KanbanTaskCard';
 import BulkTimeLogModal from '@/components/hrms/timesheets/BulkTimeLogModal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -28,11 +28,22 @@ interface Task {
     priority: string;
     position: number;
     storyPoints?: number;
+    updatedAt?: string;
+    dueDate?: string | null;
+    createdAt?: string;
     assignee?: { id: string, firstName: string, lastName: string };
     assignees?: { user: { id: string, firstName: string, lastName: string } }[];
     epic?: { id: string, title: string };
     hasUnansweredComment?: boolean;
     _count?: { comments: number, documents: number, subtasks: number };
+}
+
+function sortByUpdatedAtDesc(tasks: Task[]): Task[] {
+    return [...tasks].sort((a, b) => {
+        const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+        const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+        return bTime - aTime;
+    });
 }
 
 // Load More Trigger with IntersectionObserver for infinite scroll
@@ -99,7 +110,7 @@ export default function KanbanBoard() {
     const { id: projectId } = useParams();
     const [sprints, setSprints] = useState<any[]>([]);
     const [selectedSprintId, setSelectedSprintId] = useState<string>('all');
-    const [filters, setFilters] = useState({ assigneeId: 'all', type: 'all', priority: 'all', search: '' });
+    const [filters, setFilters] = useState<TaskBoardFilters>({ ...DEFAULT_TASK_FILTERS });
     const [columns, setColumns] = useState<Record<string, Task[]>>({ todo: [], 'in-progress': [], review: [], done: [] });
     const toast = useToast();
     const { socket } = useSocket();
@@ -165,25 +176,47 @@ export default function KanbanBoard() {
 
     const fetchTaskCounts = useCallback(async () => {
         try {
-            const sprintQuery = selectedSprintId !== 'all' ? `&sprintId=${selectedSprintId}` : '';
-            const res = await api.get(`/tasks/counts?projectId=${projectId}${sprintQuery}`);
+            const params: string[] = [`projectId=${projectId}`];
+            if (selectedSprintId !== 'all') params.push(`sprintId=${selectedSprintId}`);
+            if (filters.assigneeId !== 'all') params.push(`assigneeId=${filters.assigneeId}`);
+            if (filters.type !== 'all') params.push(`type=${filters.type}`);
+            if (filters.priority !== 'all') params.push(`priority=${filters.priority}`);
+            if (filters.search) params.push(`search=${encodeURIComponent(filters.search)}`);
+            const dateParams = buildTaskDateQueryParams(filters);
+            Object.entries(dateParams).forEach(([k, v]) => params.push(`${k}=${encodeURIComponent(v)}`));
+            const res = await api.get(`/tasks/counts?${params.join('&')}`);
             setTaskCounts(res.data);
         } catch (error) {
             console.error('Failed to load task counts');
         }
-    }, [projectId, selectedSprintId]);
+    }, [projectId, selectedSprintId, filters]);
 
     const fetchColumnTasks = useCallback(async (status: string, page: number = 1, append: boolean = false) => {
         setColPagination(prev => ({ ...prev, [status]: { ...prev[status], loading: true } }));
         try {
-            const sprintQuery = selectedSprintId !== 'all' ? `&sprintId=${selectedSprintId}` : '';
-            const res = await api.get(`/tasks?projectId=${projectId}${sprintQuery}&status=${status}&page=${page}&limit=${PAGE_SIZE}`);
+            const params: string[] = [
+                `projectId=${projectId}`,
+                `status=${status}`,
+                `page=${page}`,
+                `limit=${PAGE_SIZE}`,
+            ];
+            if (selectedSprintId !== 'all') params.push(`sprintId=${selectedSprintId}`);
+            if (filters.assigneeId !== 'all') params.push(`assigneeId=${filters.assigneeId}`);
+            if (filters.type !== 'all') params.push(`type=${filters.type}`);
+            if (filters.priority !== 'all') params.push(`priority=${filters.priority}`);
+            if (filters.search) params.push(`search=${encodeURIComponent(filters.search)}`);
+            const dateParams = buildTaskDateQueryParams(filters);
+            Object.entries(dateParams).forEach(([k, v]) => params.push(`${k}=${encodeURIComponent(v)}`));
+
+            const res = await api.get(`/tasks?${params.join('&')}`);
             const newTasks = res.data.tasks || [];
             const totalPages = res.data.pagination?.totalPages || 1;
 
             setColumns(prev => ({
                 ...prev,
-                [status]: append ? [...prev[status], ...newTasks] : newTasks
+                [status]: append
+                    ? sortByUpdatedAtDesc([...prev[status], ...newTasks])
+                    : sortByUpdatedAtDesc(newTasks)
             }));
 
             setColPagination(prev => ({
@@ -197,7 +230,7 @@ export default function KanbanBoard() {
                 [status]: { ...prev[status], loading: false, hasMore: false }
             }));
         }
-    }, [projectId, selectedSprintId, toast]);
+    }, [projectId, selectedSprintId, filters, toast]);
 
     const fetchAllColumns = useCallback(async () => {
         const statuses = ['todo', 'in-progress', 'review', 'done'];
@@ -240,7 +273,11 @@ export default function KanbanBoard() {
 
         if (type === 'TASK_CREATED') {
             if (validStatus(data.status)) {
-                setColumns(prev => ({ ...prev, [data.status]: [data, ...prev[data.status]] }));
+                const created = { ...data, updatedAt: data.updatedAt || new Date().toISOString() };
+                setColumns(prev => ({
+                    ...prev,
+                    [data.status]: sortByUpdatedAtDesc([created, ...prev[data.status]])
+                }));
                 setTaskCounts(prev => ({ ...prev, [data.status]: (prev[data.status] ?? 0) + 1 }));
             } else {
                 fetchAllColumns();
@@ -252,6 +289,7 @@ export default function KanbanBoard() {
             if (!data.id) { fetchAllColumns(); return; }
             const current = columnsRef.current;
             const srcStatus = Object.keys(COLUMNS).find(col => current[col]?.some(t => t.id === data.id));
+            const patched = { ...data, updatedAt: data.updatedAt || new Date().toISOString() };
 
             if (srcStatus && validStatus(data.status) && data.status !== srcStatus && COLUMNS[data.status as keyof typeof COLUMNS]) {
                 // Task moved columns
@@ -261,7 +299,7 @@ export default function KanbanBoard() {
                     return {
                         ...prev,
                         [srcStatus]: prev[srcStatus].filter(t => t.id !== data.id),
-                        [data.status]: [{ ...task, ...data }, ...prev[data.status as keyof typeof COLUMNS]],
+                        [data.status]: sortByUpdatedAtDesc([{ ...task, ...patched }, ...prev[data.status as keyof typeof COLUMNS]]),
                     };
                 });
                 setTaskCounts(prev => ({
@@ -271,10 +309,18 @@ export default function KanbanBoard() {
                 }));
             } else if (srcStatus) {
                 // Update in place (covers partial timesheet payloads too)
-                setColumns(prev => ({ ...prev, [srcStatus]: prev[srcStatus].map(t => t.id === data.id ? { ...t, ...data } : t) }));
+                setColumns(prev => ({
+                    ...prev,
+                    [srcStatus]: sortByUpdatedAtDesc(
+                        prev[srcStatus].map(t => t.id === data.id ? { ...t, ...patched } : t)
+                    )
+                }));
             } else if (validStatus(data.status)) {
                 // Not loaded yet — prepend so it appears immediately
-                setColumns(prev => ({ ...prev, [data.status]: [data, ...prev[data.status]] }));
+                setColumns(prev => ({
+                    ...prev,
+                    [data.status]: sortByUpdatedAtDesc([patched, ...prev[data.status]])
+                }));
                 setTaskCounts(prev => ({ ...prev, [data.status]: (prev[data.status] ?? 0) + 1 }));
             }
             return;
@@ -345,12 +391,7 @@ export default function KanbanBoard() {
         }
     }, [deepLinkedTaskId]);
 
-    // Client-side filter application (for assignee/type/priority - status is server-filtered)
-    useEffect(() => {
-        if (filters.assigneeId === 'all' && filters.type === 'all' && filters.priority === 'all' && !filters.search) return;
-        // Re-fetch all columns when non-status filters change
-        fetchAllColumns();
-    }, [filters.assigneeId, filters.type, filters.priority, filters.search, fetchAllColumns]);
+    // Filters are applied server-side via fetchColumnTasks deps — no separate client filter pass needed.
 
     const calculatePosition = useCallback((items: Task[], index: number) => {
         if (items.length === 0) return 0;
@@ -557,7 +598,7 @@ export default function KanbanBoard() {
                 filters={filters}
                 members={project?.members || []}
                 onFilterChange={(key, val) => setFilters(prev => ({ ...prev, [key]: val }))}
-                onClearFilters={() => setFilters({ assigneeId: 'all', type: 'all', priority: 'all', search: '' })}
+                onClearFilters={() => setFilters({ ...DEFAULT_TASK_FILTERS })}
             />
 
             {/* Bulk Actions Bar */}
@@ -705,7 +746,8 @@ export default function KanbanBoard() {
                 }}
                 defaultEntry={{
                     projectId: projectId as string,
-                    taskId: quickLogTask?.id
+                    taskId: quickLogTask?.id,
+                    taskTitle: quickLogTask?.title
                 }}
             />
 

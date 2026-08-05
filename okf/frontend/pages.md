@@ -28,7 +28,7 @@ timestamp: 2026-07-08T20:00:00Z
 | `/notifications` | `app/(main)/notifications/page.tsx` | Notification center |
 | `/search` | `app/(main)/search/page.tsx` | Global search |
 | `/profile` | `app/(main)/profile/page.tsx` | User profile |
-| `/tasks` | `app/(main)/tasks/page.tsx` | Global task view |
+| `/tasks` | `app/(main)/tasks/page.tsx` | Global Kanban — updatedAt on cards, date filters, sorted by latest updated |
 
 ## Payroll Suite
 | Route | File | Description |
@@ -139,11 +139,11 @@ Enterprise double-entry ledger with COA edit/delete, journal edit, Sync Ledgers,
 | `/projects` | `app/(main)/projects/page.tsx` | Project list |
 | `/projects/new` | `app/(main)/projects/new/page.tsx` | Create project |
 | `/projects/[id]` | Detail + layout | Project detail |
-| `/projects/[id]/tasks` | Tasks | Project tasks |
+| `/projects/[id]/tasks` | Tasks | Project Kanban — updatedAt on cards, date filters, sorted by latest updated |
 | `/projects/[id]/backlog` | Backlog | Backlog view |
 | `/projects/[id]/milestones` | Milestones | Milestones |
 | `/projects/[id]/roadmap` | Roadmap | Roadmap |
-| `/projects/[id]/timesheets` | Timesheets | Time tracking |
+| `/projects/[id]/timesheets` | Timesheets | Time tracking — view/edit via TimesheetDetailModal (draft/rejected) |
 | `/projects/[id]/members` | Members | Team members |
 | `/projects/[id]/files` | Files | Project files |
 | `/projects/[id]/financials` | Financials | Budget/financials |
@@ -151,7 +151,7 @@ Enterprise double-entry ledger with COA edit/delete, journal edit, Sync Ledgers,
 | `/projects/[id]/automation` | Automation | Automation rules |
 | `/projects/[id]/settings` | Settings | Project settings |
 | `/operations/projects` | `app/(main)/operations/projects/page.tsx` | Operations |
-| `/operations/timesheets/approvals` | `app/(main)/operations/timesheets/approvals/page.tsx` | Timesheet approval |
+| `/operations/timesheets/approvals` | `app/(main)/operations/timesheets/approvals/page.tsx` | Timesheet approval — filters, bulk approve/reject with confirm, empty states |
 
 ## LMS
 | Route | File | Description |

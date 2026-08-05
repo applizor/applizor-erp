@@ -9,8 +9,9 @@ import {
 } from '@hello-pangea/dnd';
 import {
     MoreVertical, MessageSquare, Bug, Bookmark, Layout, CheckSquare,
-    Users, Clock, ListTree
+    Users, Clock, Timer, Calendar, ListTree
 } from 'lucide-react';
+import { format, isValid, parseISO } from 'date-fns';
 
 export interface KanbanTask {
     id: string;
@@ -19,10 +20,38 @@ export interface KanbanTask {
     type: string;
     priority: string;
     storyPoints?: number;
+    updatedAt?: string;
+    dueDate?: string | null;
+    createdAt?: string;
     project?: { id: string; name: string };
     assignee?: { id: string; firstName: string; lastName: string };
     hasUnansweredComment?: boolean;
     _count?: { comments: number; documents: number; subtasks: number };
+}
+
+function parseTaskDate(value?: string | null): Date | null {
+    if (!value) return null;
+    const d = typeof value === 'string' && value.includes('T') ? parseISO(value) : new Date(value);
+    return isValid(d) ? d : null;
+}
+
+/** Compact card datetime, e.g. `5 Aug, 2:30 PM` */
+export function formatTaskDateTime(value?: string | null): string {
+    const d = parseTaskDate(value);
+    if (!d) return '';
+    return format(d, 'd MMM, h:mm a');
+}
+
+export function formatTaskDateFull(value?: string | null): string {
+    const d = parseTaskDate(value);
+    if (!d) return '';
+    return format(d, 'PPpp');
+}
+
+export function formatTaskDueDate(value?: string | null): string {
+    const d = parseTaskDate(value);
+    if (!d) return '';
+    return format(d, 'd MMM');
 }
 
 export function priorityBadgeClass(priority: string): string {
@@ -139,9 +168,9 @@ export function KanbanTaskCardBody({
                 {task.title}
             </h4>
 
-            <div className="flex items-center justify-between mt-3 border-t border-slate-50 pt-2.5">
-                <div className="flex items-center gap-2">
-                    <div title={task.type}>
+            <div className="flex items-center justify-between mt-3 border-t border-slate-50 pt-2.5 gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                    <div title={task.type} className="shrink-0">
                         {task.type === 'bug' ? (
                             <Bug size={14} className="text-rose-500" />
                         ) : task.type === 'story' ? (
@@ -153,13 +182,31 @@ export function KanbanTaskCardBody({
                         )}
                     </div>
                     {task.storyPoints ? (
-                        <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-[9px] font-black">
+                        <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-[9px] font-black shrink-0">
                             {task.storyPoints}
                         </span>
                     ) : null}
+                    {task.updatedAt && (
+                        <div
+                            className="flex items-center gap-1 text-[9px] font-semibold text-slate-400 truncate"
+                            title={`Updated ${formatTaskDateFull(task.updatedAt)}`}
+                        >
+                            <Clock size={11} className="shrink-0" />
+                            <span className="truncate">{formatTaskDateTime(task.updatedAt)}</span>
+                        </div>
+                    )}
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2.5 shrink-0">
+                    {task.dueDate && (
+                        <div
+                            className="flex items-center gap-1 text-[9px] font-semibold text-slate-400"
+                            title={`Due ${formatTaskDateFull(task.dueDate)}`}
+                        >
+                            <Calendar size={11} />
+                            <span>{formatTaskDueDate(task.dueDate)}</span>
+                        </div>
+                    )}
                     {(task._count?.subtasks || 0) > 0 && (
                         <div className="flex items-center gap-1 text-[10px] text-slate-400" title="Subtasks">
                             <ListTree size={12} /> {task._count?.subtasks}
@@ -193,9 +240,10 @@ export function KanbanTaskCardBody({
                                 e.stopPropagation();
                                 onQuickLog?.(task);
                             }}
+                            title="Log time"
                             className="w-6 h-6 rounded-md hover:bg-slate-100 text-slate-400 flex items-center justify-center transition-colors"
                         >
-                            <Clock size={12} />
+                            <Timer size={12} />
                         </button>
                     )}
                 </div>

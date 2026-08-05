@@ -117,20 +117,22 @@ CRUD + `/assign` (bulk assign to employees)
 ### Timesheets (`/api/timesheets`)
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/` | Create time entry |
-| POST | `/bulk` | Bulk create entries |
+| POST | `/` | Create time entry (`isBillable` inherits `project.isBillable` unless Timesheet update scope is `all`) |
+| POST | `/bulk` | Bulk create entries (same billable rules; requires `projectId`) |
 | POST | `/timer/start` | Start timer |
 | POST | `/timer/stop/:id` | Stop timer |
 | POST | `/timer/pause/:id` | Pause timer |
 | POST | `/timer/resume/:id` | Resume timer |
 | GET | `/timer/active` | Get active timer |
 | GET | `/timer/task/:taskId` | Get task timers |
-| GET | `/` | List timesheets |
-| PATCH | `/:id` | Update entry |
+| GET | `/` | List timesheets — query: `projectId`, `taskId`, `employeeId`, `status`, `startDate`, `endDate`, `search`, `sort` (`date`\|`updatedAt`), `page`, `limit` (default 50, max 500). Includes `project`, `task`, `employee`. Scope: `all` sees company-wide; owned/added sees own entries **plus** timesheets on projects where the user is manager/admin. Ordered by date DESC then updatedAt DESC. |
+| PATCH | `/:id` | Update entry (billable override only if Timesheet update scope `all`) |
 | DELETE | `/:id` | Delete entry |
 | POST | `/submit` | Submit for approval |
-| POST | `/approve` | Approve timesheets |
-| POST | `/reject` | Reject timesheets |
+| POST | `/approve` | Approve timesheets (global Timesheet update **or** project manager/admin) |
+| POST | `/reject` | Reject timesheets (global Timesheet update **or** project manager/admin) |
+
+**Billable UX rule:** Employees never see/edit Billable in the UI. Default = `project.isBillable` (schema default `true`). Only users with Timesheet `updateLevel === 'all'` see the toggle. Timer stop inherits `project.isBillable` and builds description from task title + duration + time range.
 
 ---
 
@@ -319,7 +321,8 @@ CRUD: `GET/POST` `/`, `GET/PUT/DELETE` `/:id`
 ### Tasks (`/api/tasks`)
 | Method | Path | Description |
 |--------|------|-------------|
-| GET/POST | `/` | List / Create tasks |
+| GET/POST | `/` | List / Create tasks. List ordered by `updatedAt DESC`. Query: `projectId`, `sprintId`, `status`, `assigneeId`, `type`, `priority`, `search`, `updatedFrom`, `updatedTo`, `dueFrom`, `dueTo`, `page`, `limit` |
+| GET | `/counts` | Per-status counts (same filters as list, including date ranges) |
 | GET/PUT/DELETE | `/:id` | Get / Update / Delete |
 | PUT | `/bulk-update` | Bulk update |
 | POST | `/:id/documents` | Upload task files |

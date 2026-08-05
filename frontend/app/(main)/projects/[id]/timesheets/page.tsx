@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
 import { useToast } from '@/hooks/useToast';
-import { Clock, Filter, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
+import { Clock, Filter, CheckCircle, XCircle, Pencil, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { format } from 'date-fns';
@@ -11,20 +11,23 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { useSocket } from '@/contexts/SocketContext';
 import { CustomSelect } from '@/components/ui/CustomSelect';
 import { usePermission } from '@/hooks/usePermission';
+import TimesheetDetailModal from '@/components/hrms/timesheets/TimesheetDetailModal';
 
 export default function ProjectTimesheetPage({ params }: { params: { id: string } }) {
     const { error: showError, success: showSuccess } = useToast();
-    const { can, user } = usePermission();
+    const { can, getScope, user } = usePermission();
     const [timesheets, setTimesheets] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [processing, setProcessing] = useState<string | null>(null);
     const [isProjectManager, setIsProjectManager] = useState(false);
+    const [detailEntry, setDetailEntry] = useState<any | null>(null);
 
     // Filters
     const [showFilters, setShowFilters] = useState(false);
     const [filterEmployee, setFilterEmployee] = useState('');
     const [filterStartDate, setFilterStartDate] = useState('');
     const [filterEndDate, setFilterEndDate] = useState('');
+    const [filterStatus, setFilterStatus] = useState('');
     const [employees, setEmployees] = useState<any[]>([]);
 
     const { socket } = useSocket();
@@ -32,7 +35,7 @@ export default function ProjectTimesheetPage({ params }: { params: { id: string 
     useEffect(() => {
         fetchTimesheets();
         fetchEmployees();
-    }, [params.id, filterEmployee, filterStartDate, filterEndDate]);
+    }, [params.id, filterEmployee, filterStartDate, filterEndDate, filterStatus]);
 
     const fetchEmployees = async () => {
         try {
@@ -72,10 +75,11 @@ export default function ProjectTimesheetPage({ params }: { params: { id: string 
     const fetchTimesheets = async () => {
         try {
             setLoading(true);
-            let url = `/timesheets?projectId=${params.id}`;
+            let url = `/timesheets?projectId=${params.id}&limit=200&sort=date`;
             if (filterEmployee) url += `&employeeId=${filterEmployee}`;
             if (filterStartDate) url += `&startDate=${filterStartDate}`;
             if (filterEndDate) url += `&endDate=${filterEndDate}`;
+            if (filterStatus) url += `&status=${filterStatus}`;
 
             const res = await api.get(url);
             setTimesheets(res.data?.data || res.data || []);
@@ -126,6 +130,8 @@ export default function ProjectTimesheetPage({ params }: { params: { id: string 
                 return <Badge className="bg-emerald-50 text-emerald-700 border-emerald-100 hover:bg-emerald-50 capitalize">Approved</Badge>;
             case 'rejected':
                 return <Badge className="bg-rose-50 text-rose-700 border-rose-100 hover:bg-rose-50 capitalize">Rejected</Badge>;
+            case 'submitted':
+                return <Badge className="bg-amber-50 text-amber-700 border-amber-100 hover:bg-amber-50 capitalize">Submitted</Badge>;
             case 'pending':
                 return <Badge className="bg-amber-50 text-amber-700 border-amber-100 hover:bg-amber-50 capitalize">Pending</Badge>;
             default:
@@ -133,8 +139,13 @@ export default function ProjectTimesheetPage({ params }: { params: { id: string 
         }
     };
 
+    const canEditEntry = (entry: any) =>
+        can('Timesheet', 'update') &&
+        (entry.status === 'draft' || entry.status === 'rejected' || getScope('Timesheet', 'update') === 'all');
+
     return (
         <div className="space-y-6">
+            {/* Filters */}
             <div className="flex items-center justify-between">
                 <div>
                     <h2 className="text-lg font-bold text-slate-800 uppercase tracking-tight">Timesheets</h2>
@@ -156,7 +167,7 @@ export default function ProjectTimesheetPage({ params }: { params: { id: string 
             </div>
 
             {showFilters && (
-                <div className="bg-white p-5 rounded-md border border-slate-200 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-4 animate-in fade-in slide-in-from-top-2">
+                <div className="bg-white p-5 rounded-md border border-slate-200 shadow-sm grid grid-cols-1 md:grid-cols-4 gap-4 animate-in fade-in slide-in-from-top-2">
                     <div>
                         <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 block mb-1.5">Employee</label>
                         <CustomSelect
@@ -167,6 +178,21 @@ export default function ProjectTimesheetPage({ params }: { params: { id: string 
                             value={filterEmployee}
                             onChange={setFilterEmployee}
                             placeholder="Select Employee"
+                        />
+                    </div>
+                    <div>
+                        <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 block mb-1.5">Status</label>
+                        <CustomSelect
+                            options={[
+                                { value: '', label: 'All Status' },
+                                { value: 'draft', label: 'Draft' },
+                                { value: 'submitted', label: 'Submitted' },
+                                { value: 'approved', label: 'Approved' },
+                                { value: 'rejected', label: 'Rejected' },
+                            ]}
+                            value={filterStatus}
+                            onChange={setFilterStatus}
+                            placeholder="Filter Status"
                         />
                     </div>
                     <div>
@@ -247,8 +273,10 @@ export default function ProjectTimesheetPage({ params }: { params: { id: string 
                                             </div>
                                         </td>
                                         <td className="px-5 py-4">
-                                            <div className="flex flex-col">
-                                                <span className="font-bold text-slate-700">{entry.task?.title || '-'}</span>
+                                            <div className="flex flex-col max-w-[220px]">
+                                                <span className="font-bold text-slate-700 break-words whitespace-normal line-clamp-2" title={entry.task?.title || undefined}>
+                                                    {entry.task?.title || (entry.taskId ? '(Task unavailable)' : 'General work')}
+                                                </span>
                                             </div>
                                         </td>
                                         <td className="px-5 py-4">
@@ -268,28 +296,40 @@ export default function ProjectTimesheetPage({ params }: { params: { id: string 
                                             {entry.description || '-'}
                                         </td>
                                         <td className="px-5 py-4 text-right">
-                                            {entry.status === 'submitted' && (can('Timesheet', 'update') || isProjectManager) && (
-                                                <div className="flex items-center justify-end gap-2">
-                                                    <Button
-                                                        size="sm"
-                                                        onClick={() => handleApprove(entry.id)}
-                                                        disabled={!!processing}
-                                                        className="h-7 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white border-none rounded-md"
-                                                        title="Approve"
-                                                    >
-                                                        {processing === entry.id ? <LoadingSpinner size="sm" /> : <CheckCircle size={14} />}
-                                                    </Button>
-                                                    <Button
-                                                        size="sm"
-                                                        onClick={() => handleReject(entry.id)}
-                                                        disabled={!!processing}
-                                                        className="h-7 px-2.5 bg-rose-600 hover:bg-rose-700 text-white border-none rounded-md"
-                                                        title="Reject"
-                                                    >
-                                                        <XCircle size={14} />
-                                                    </Button>
-                                                </div>
-                                            )}
+                                            <div className="flex items-center justify-end gap-1.5">
+                                                {entry.status === 'submitted' && (can('Timesheet', 'update') || isProjectManager) && (
+                                                    <>
+                                                        <Button
+                                                            size="sm"
+                                                            onClick={() => handleApprove(entry.id)}
+                                                            disabled={!!processing}
+                                                            className="h-7 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white border-none rounded-md"
+                                                            title="Approve"
+                                                        >
+                                                            {processing === entry.id ? <LoadingSpinner size="sm" /> : <CheckCircle size={14} />}
+                                                        </Button>
+                                                        <Button
+                                                            size="sm"
+                                                            onClick={() => handleReject(entry.id)}
+                                                            disabled={!!processing}
+                                                            className="h-7 px-2.5 bg-rose-600 hover:bg-rose-700 text-white border-none rounded-md"
+                                                            title="Reject"
+                                                        >
+                                                            <XCircle size={14} />
+                                                        </Button>
+                                                    </>
+                                                )}
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    onClick={() => setDetailEntry(entry)}
+                                                    disabled={!!processing}
+                                                    className="h-7 px-2 text-slate-500 hover:text-primary-700"
+                                                    title={canEditEntry(entry) ? 'View / Edit' : 'View details'}
+                                                >
+                                                    {canEditEntry(entry) ? <Pencil size={14} /> : <Eye size={14} />}
+                                                </Button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))
@@ -298,6 +338,13 @@ export default function ProjectTimesheetPage({ params }: { params: { id: string 
                     </table>
                 </div>
             </div>
+
+            <TimesheetDetailModal
+                isOpen={!!detailEntry}
+                onClose={() => setDetailEntry(null)}
+                entry={detailEntry}
+                onUpdated={fetchTimesheets}
+            />
         </div>
     );
 }

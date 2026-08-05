@@ -8,15 +8,15 @@ import { useToast } from '@/hooks/useToast';
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import BulkTimeLogModal from './BulkTimeLogModal';
-
 import { useSocket } from '@/contexts/SocketContext';
 
 interface TaskTimesheetListProps {
     taskId: string;
     projectId?: string;
+    taskTitle?: string;
 }
 
-export default function TaskTimesheetList({ taskId, projectId }: TaskTimesheetListProps) {
+export default function TaskTimesheetList({ taskId, projectId, taskTitle }: TaskTimesheetListProps) {
     const { success, error } = useToast();
     const [loading, setLoading] = useState(true);
     const [timesheets, setTimesheets] = useState<any[]>([]);
@@ -29,21 +29,19 @@ export default function TaskTimesheetList({ taskId, projectId }: TaskTimesheetLi
 
     useEffect(() => {
         if (!socket) return;
-        socket.on('TASK_UPDATED', (data: any) => {
-            if (data.id === taskId) {
-                fetchTimesheets();
-            }
-        });
+        const onUpdate = (data: any) => {
+            if (data.id === taskId) fetchTimesheets();
+        };
+        socket.on('TASK_UPDATED', onUpdate);
         return () => {
-            socket.off('TASK_UPDATED');
+            socket.off('TASK_UPDATED', onUpdate);
         };
     }, [socket, taskId]);
 
     const fetchTimesheets = async () => {
         try {
             setLoading(true);
-            // Ideally backend supports finding by taskId, for now we filter locally if needed or rely on backend filter
-            const res = await api.get(`/timesheets?taskId=${taskId}`);
+            const res = await api.get(`/timesheets?taskId=${taskId}&limit=100&sort=date`);
             setTimesheets(res.data?.data || res.data || []);
         } catch (err) {
             console.error(err);
@@ -89,36 +87,50 @@ export default function TaskTimesheetList({ taskId, projectId }: TaskTimesheetLi
                     <p className="text-xs text-slate-400">No time logged for this task yet.</p>
                 </div>
             ) : (
-                <div className="space-y-2">
+                <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
                     {timesheets.map((entry) => (
-                        <div key={entry.id} className="group flex items-start justify-between p-3 bg-white border border-slate-100 rounded-lg hover:border-indigo-100 transition-all shadow-sm">
-                            <div className="flex gap-3">
+                        <div
+                            key={entry.id}
+                            className="group flex items-start justify-between p-3 bg-white border border-slate-100 rounded-lg hover:border-primary-200 transition-all shadow-sm"
+                        >
+                            <div className="flex gap-3 min-w-0">
                                 <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-500 shrink-0">
                                     {entry.employee?.firstName?.[0]}
                                 </div>
-                                <div>
-                                    <div className="flex items-center gap-2 mb-1">
+                                <div className="min-w-0">
+                                    <div className="flex flex-wrap items-center gap-2 mb-1">
                                         <span className="text-xs font-bold text-slate-700">
-                                            {format(new Date(entry.date), 'MMM d')}
+                                            {format(new Date(entry.date), 'MMM d, yyyy')}
                                         </span>
-                                        <span className="text-[10px] font-bold px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded">
+                                        <span className="text-[10px] font-bold px-1.5 py-0.5 bg-primary-50 text-primary-700 rounded">
                                             {Number(entry.hours).toFixed(2)}h
                                         </span>
+                                        {entry.status && entry.status !== 'draft' && (
+                                            <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                                                {entry.status}
+                                            </span>
+                                        )}
                                     </div>
-                                    <p className="text-xs text-slate-500 leading-snug">
+                                    <p className="text-xs text-slate-500 leading-snug break-words">
                                         {entry.description || <span className="italic opacity-50">No description</span>}
                                     </p>
                                     <p className="text-[10px] text-slate-400 mt-1">
                                         by {entry.employee?.firstName} {entry.employee?.lastName}
+                                        {entry.createdAt && (
+                                            <> · {format(new Date(entry.createdAt), 'h:mm a')}</>
+                                        )}
                                     </p>
                                 </div>
                             </div>
-                            <button
-                                onClick={() => handleDelete(entry.id)}
-                                className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded transition-all"
-                            >
-                                <Trash2 size={12} />
-                            </button>
+                            {(entry.status === 'draft' || entry.status === 'rejected') && (
+                                <button
+                                    onClick={() => handleDelete(entry.id)}
+                                    className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded transition-all shrink-0"
+                                    title="Delete entry"
+                                >
+                                    <Trash2 size={12} />
+                                </button>
+                            )}
                         </div>
                     ))}
                 </div>
@@ -130,7 +142,7 @@ export default function TaskTimesheetList({ taskId, projectId }: TaskTimesheetLi
                     setIsLogModalOpen(false);
                     fetchTimesheets();
                 }}
-                defaultEntry={{ projectId, taskId }}
+                defaultEntry={{ projectId, taskId, taskTitle }}
             />
         </div>
     );

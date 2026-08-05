@@ -974,7 +974,7 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                                     {/* WORK LOG TAB */}
                                     {activeTab === 'worklog' && (
                                         <div className="mb-8 py-4 px-1">
-                                             <TaskTimesheetList taskId={taskId!} projectId={activeProjectId} />
+                                             <TaskTimesheetList taskId={taskId!} projectId={activeProjectId} taskTitle={task?.title} />
                                         </div>
                                     )}
                                 </div>
@@ -1207,6 +1207,7 @@ export default function TaskDetailModal({ taskId, projectId, onClose, onUpdate }
                 defaultEntry={{
                     projectId: activeProjectId,
                     taskId: taskId ?? undefined,
+                    taskTitle: task?.title,
                     hours: timerActive ? undefined : (accumulatedSeconds > 0 ? (accumulatedSeconds / 3600).toFixed(2) : undefined)
                 }}
             />

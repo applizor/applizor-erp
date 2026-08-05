@@ -14,14 +14,33 @@ export const createTimeEntry = async (req: AuthRequest, res: Response) => {
             return res.status(403).json({ error: 'Access denied: No create rights for Timesheet' });
         }
 
-        const { projectId, taskId, date, startTime, endTime, hours, description } = req.body;
+        const { projectId, taskId, date, startTime, endTime, hours, description, isBillable, billable } = req.body;
 
         const employeeId = user.employee?.id;
         if (!employeeId) return res.status(400).json({ error: 'Employee profile not found' });
 
         // Validation
-        if (!date || !hours) {
+        if (!date || hours === undefined || hours === null || hours === '') {
             return res.status(400).json({ error: 'Date and Hours are required' });
+        }
+        const hoursNum = Number(hours);
+        if (!Number.isFinite(hoursNum) || hoursNum <= 0) {
+            return res.status(400).json({ error: 'Hours must be a positive number' });
+        }
+
+        const updateScope = PermissionService.getPermissionScope(user, 'Timesheet', 'update');
+        const canOverrideBillable = !!updateScope.all;
+        let resolvedBillable = true;
+        if (projectId) {
+            const project = await prisma.project.findFirst({
+                where: { id: projectId, companyId: user.companyId },
+                select: { isBillable: true }
+            });
+            if (project) resolvedBillable = project.isBillable !== false;
+        }
+        if (canOverrideBillable) {
+            if (typeof isBillable === 'boolean') resolvedBillable = isBillable;
+            else if (typeof billable === 'boolean') resolvedBillable = billable;
         }
 
         const timesheet = await prisma.timesheet.create({
@@ -33,9 +52,15 @@ export const createTimeEntry = async (req: AuthRequest, res: Response) => {
                 date: new Date(date),
                 startTime: startTime ? new Date(startTime) : null,
                 endTime: endTime ? new Date(endTime) : null,
-                hours: Number(hours), // Prisma Decimal needs number or string
-                description,
-                status: 'draft' // Reset to draft for approval workflow
+                hours: hoursNum,
+                description: description || null,
+                isBillable: resolvedBillable,
+                status: 'draft'
+            },
+            include: {
+                project: { select: { id: true, name: true } },
+                task: { select: { id: true, title: true } },
+                employee: { select: { id: true, firstName: true, lastName: true, email: true } }
             }
         });
 
@@ -70,28 +95,62 @@ export const bulkCreateTimeEntries = async (req: AuthRequest, res: Response) => 
         if (!date || !Array.isArray(entries) || entries.length === 0) {
             return res.status(400).json({ error: 'Date and at least one Entry are required' });
         }
+        if (!projectId) {
+            return res.status(400).json({ error: 'Project is required' });
+        }
+
+        for (const entry of entries) {
+            const hoursNum = Number(entry.hours);
+            if (!Number.isFinite(hoursNum) || hoursNum <= 0) {
+                return res.status(400).json({ error: 'Each entry must have positive hours' });
+            }
+        }
 
         const employeeId = user.employee?.id;
         if (!employeeId) {
             return res.status(400).json({ error: 'User must be associated with an employee record to log time' });
         }
 
+        const project = await prisma.project.findFirst({
+            where: { id: projectId, companyId: user.companyId },
+            select: { id: true, isBillable: true }
+        });
+        if (!project) {
+            return res.status(404).json({ error: 'Project not found' });
+        }
+
+        // Only company-wide Timesheet managers may override billable; everyone else inherits project.isBillable
+        const updateScope = PermissionService.getPermissionScope(user, 'Timesheet', 'update');
+        const canOverrideBillable = !!updateScope.all;
+        const projectBillableDefault = project.isBillable !== false;
+
         // Use transaction to ensure all or nothing
         const results = await prisma.$transaction(
-            entries.map((entry: any) =>
-                prisma.timesheet.create({
+            entries.map((entry: any) => {
+                let isBillable = projectBillableDefault;
+                if (canOverrideBillable) {
+                    if (typeof entry.isBillable === 'boolean') isBillable = entry.isBillable;
+                    else if (typeof entry.billable === 'boolean') isBillable = entry.billable;
+                }
+                return prisma.timesheet.create({
                     data: {
                         companyId: user.companyId,
                         employeeId,
-                        projectId: projectId || null,
+                        projectId,
                         taskId: entry.taskId || null,
                         date: new Date(date),
                         hours: Number(entry.hours),
-                        description: entry.description || '',
-                        status: 'draft' // Reset to draft for approval workflow
+                        description: entry.description || null,
+                        isBillable,
+                        status: 'draft'
+                    },
+                    include: {
+                        project: { select: { id: true, name: true } },
+                        task: { select: { id: true, title: true } },
+                        employee: { select: { id: true, firstName: true, lastName: true, email: true } }
                     }
-                })
-            )
+                });
+            })
         );
 
         // Real-time Update (Refresh Task spent hours)
@@ -122,34 +181,85 @@ export const getTimesheets = async (req: AuthRequest, res: Response) => {
 
         const scope = PermissionService.getPermissionScope(user, 'Timesheet', 'read');
         let where: any = { companyId: user.companyId };
+        let managedProjectIds: string[] = [];
 
         if (scope.all) {
             // view all
         } else if (scope.owned || scope.added) {
-            // For Timesheet, 'owned' means match employeeId
+            // Own entries + timesheets on projects where user is manager/admin (for approvals)
             if (!user.employee) return res.json([]);
-            where.employeeId = user.employee.id;
+            const memberships = await prisma.projectMember.findMany({
+                where: {
+                    employeeId: user.employee.id,
+                    role: { in: ['manager', 'admin'] }
+                },
+                select: { projectId: true }
+            });
+            managedProjectIds = memberships.map(m => m.projectId);
+            if (managedProjectIds.length > 0) {
+                where.OR = [
+                    { employeeId: user.employee.id },
+                    { projectId: { in: managedProjectIds } }
+                ];
+            } else {
+                where.employeeId = user.employee.id;
+            }
         } else {
             // none
             return res.json([]);
         }
 
-        const { projectId, taskId, startDate, endDate, employeeId, page, limit } = req.query;
+        const { projectId, taskId, startDate, endDate, employeeId, page, limit, search, sort } = req.query;
 
         if (projectId) where.projectId = String(projectId);
         if (taskId) where.taskId = String(taskId);
         if (req.query.status) where.status = String(req.query.status);
-        if (employeeId) where.employeeId = String(employeeId);
+        // Allow employee filter for global scope, or managers within their projects
+        if (employeeId) {
+            if (scope.all || managedProjectIds.length > 0) {
+                where.employeeId = String(employeeId);
+            }
+        }
 
         if (startDate || endDate) {
             where.date = {};
-            if (startDate) where.date.gte = new Date(String(startDate));
-            if (endDate) where.date.lte = new Date(String(endDate));
+            if (startDate) {
+                const start = new Date(String(startDate));
+                start.setHours(0, 0, 0, 0);
+                where.date.gte = start;
+            }
+            if (endDate) {
+                const end = new Date(String(endDate));
+                end.setHours(23, 59, 59, 999);
+                where.date.lte = end;
+            }
+        }
+
+        const searchTerm = typeof search === 'string' ? search.trim() : '';
+        if (searchTerm) {
+            where.AND = [
+                ...(where.AND || []),
+                {
+                    OR: [
+                        { description: { contains: searchTerm, mode: 'insensitive' } },
+                        { project: { name: { contains: searchTerm, mode: 'insensitive' } } },
+                        { task: { title: { contains: searchTerm, mode: 'insensitive' } } },
+                        { employee: { firstName: { contains: searchTerm, mode: 'insensitive' } } },
+                        { employee: { lastName: { contains: searchTerm, mode: 'insensitive' } } },
+                    ]
+                }
+            ];
         }
 
         const p = page ? parseInt(page as string) : 1;
-        const l = limit ? Math.min(100, parseInt(limit as string)) : 20;
+        const l = limit ? Math.min(500, parseInt(limit as string)) : 50;
         const skip = (p - 1) * l;
+
+        // Default: work date DESC, then most recently updated
+        const orderBy =
+            sort === 'updatedAt'
+                ? [{ updatedAt: 'desc' as const }, { date: 'desc' as const }]
+                : [{ date: 'desc' as const }, { updatedAt: 'desc' as const }];
 
         const [timesheets, totalCount] = await Promise.all([
             prisma.timesheet.findMany({
@@ -159,7 +269,7 @@ export const getTimesheets = async (req: AuthRequest, res: Response) => {
                     task: { select: { id: true, title: true } },
                     employee: { select: { id: true, firstName: true, lastName: true, email: true } }
                 },
-                orderBy: { date: 'desc' },
+                orderBy,
                 take: l,
                 skip
             }),
@@ -209,18 +319,43 @@ export const updateTimeEntry = async (req: AuthRequest, res: Response) => {
             }
         }
 
-        const { hours, description, date, startTime, endTime, taskId, projectId } = req.body;
+        const { hours, description, date, startTime, endTime, taskId, projectId, isBillable, billable, status } = req.body;
+
+        // Only allow editing draft/rejected entries unless user has global update scope
+        if (!scope.all && entry.status !== 'draft' && entry.status !== 'rejected') {
+            return res.status(403).json({ error: 'Only draft or rejected entries can be edited' });
+        }
+
+        const data: any = {};
+        if (hours !== undefined && hours !== null && hours !== '') {
+            const hoursNum = Number(hours);
+            if (!Number.isFinite(hoursNum) || hoursNum <= 0) {
+                return res.status(400).json({ error: 'Hours must be a positive number' });
+            }
+            data.hours = hoursNum;
+        }
+        if (description !== undefined) data.description = description;
+        if (date) data.date = new Date(date);
+        if (startTime !== undefined) data.startTime = startTime ? new Date(startTime) : null;
+        if (endTime !== undefined) data.endTime = endTime ? new Date(endTime) : null;
+        if (taskId !== undefined) data.taskId = taskId || null;
+        if (projectId !== undefined) data.projectId = projectId || null;
+        // Only company-wide managers may change billable on update
+        if (scope.all) {
+            if (typeof isBillable === 'boolean') data.isBillable = isBillable;
+            else if (typeof billable === 'boolean') data.isBillable = billable;
+        }
+        // Re-open rejected entries to draft when edited
+        if (entry.status === 'rejected') data.status = 'draft';
+        else if (status === 'draft' && entry.status === 'rejected') data.status = 'draft';
 
         const updated = await prisma.timesheet.update({
             where: { id },
-            data: {
-                hours: hours ? Number(hours) : undefined,
-                description,
-                date: date ? new Date(date) : undefined,
-                startTime: startTime ? new Date(startTime) : undefined,
-                endTime: endTime ? new Date(endTime) : undefined,
-                taskId,
-                projectId
+            data,
+            include: {
+                project: { select: { id: true, name: true } },
+                task: { select: { id: true, title: true } },
+                employee: { select: { id: true, firstName: true, lastName: true, email: true } }
             }
         });
 
@@ -468,7 +603,11 @@ export const stopTimer = async (req: AuthRequest, res: Response) => {
 
         const { id: timerId } = req.params;
         const activeTimer = await prisma.activeTimer.findFirst({
-            where: { id: timerId, companyId: user.companyId }
+            where: { id: timerId, companyId: user.companyId },
+            include: {
+                task: { select: { title: true } },
+                project: { select: { name: true, isBillable: true } }
+            }
         });
 
         if (!activeTimer) {
@@ -493,6 +632,26 @@ export const stopTimer = async (req: AuthRequest, res: Response) => {
             finalEndTime = new Date(activeTimer.startTime.getTime() + (12 * 3600 * 1000));
         }
 
+        const formatClock = (d: Date) =>
+            d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true });
+        const formatDurationLabel = (hours: number) => {
+            const totalMins = Math.round(hours * 60);
+            const h = Math.floor(totalMins / 60);
+            const m = totalMins % 60;
+            if (h > 0 && m > 0) return `${h}h ${m}m`;
+            if (h > 0) return `${h}h`;
+            return `${m}m`;
+        };
+        const taskLabel = activeTimer.task?.title?.trim();
+        const projectLabel = activeTimer.project?.name?.trim();
+        const workLabel = taskLabel
+            ? `Timer: ${taskLabel}`
+            : projectLabel
+              ? `Timer: ${projectLabel}`
+              : 'Timer session';
+        const description = `${workLabel} (${formatDurationLabel(durationHours)}, ${formatClock(activeTimer.startTime)} – ${formatClock(finalEndTime)})`;
+        const resolvedBillable = activeTimer.project?.isBillable !== false;
+
         // Create Timesheet entry automatically
         let timesheetEntry = null;
         if (durationHours > 0) {
@@ -506,7 +665,8 @@ export const stopTimer = async (req: AuthRequest, res: Response) => {
                     startTime: activeTimer.startTime, 
                     endTime: finalEndTime,
                     hours: durationHours,
-                    description: 'Timer Session',
+                    description,
+                    isBillable: resolvedBillable,
                     status: 'draft' // Default to draft
                 }
             });

@@ -1,12 +1,12 @@
 'use client';
 
-import { MessageSquare, CheckCircle2, Circle, PlayCircle } from 'lucide-react';
+import { MessageSquare, CheckCircle2, Circle, PlayCircle, Clock } from 'lucide-react';
 import { DragDropContext, Draggable, DropResult } from '@hello-pangea/dnd';
 import api from '@/lib/api';
 import { useToast } from '@/hooks/useToast';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { StrictModeDroppable } from '@/components/ui/StrictModeDroppable';
-import { priorityBadgeClass, columnDroppableClass } from '@/components/tasks/KanbanTaskCard';
+import { priorityBadgeClass, columnDroppableClass, formatTaskDateTime, formatTaskDateFull } from '@/components/tasks/KanbanTaskCard';
 
 const COLUMNS = [
     { id: 'todo', title: 'To Do', icon: Circle, color: 'text-slate-500', bg: 'bg-slate-50', border: 'border-slate-200' },
@@ -81,7 +81,11 @@ export default function PortalTaskBoard({ tasks: initialTasks, onTaskClick }: Po
             else if (['in-progress', 'review'].includes(task.status)) groups['in-progress'].push(task);
             else if (['done', 'cancelled'].includes(task.status)) groups.done.push(task);
         });
-        Object.values(groups).forEach(group => group.sort((a, b) => (a.position || 0) - (b.position || 0)));
+        Object.values(groups).forEach(group => group.sort((a, b) => {
+            const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+            const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+            return bTime - aTime;
+        }));
         return groups;
     }, [tasks]);
 
@@ -166,12 +170,23 @@ export default function PortalTaskBoard({ tasks: initialTasks, onTaskClick }: Po
                                                             {task.title}
                                                         </h4>
 
-                                                        <div className="flex items-center justify-between pt-2.5 border-t border-slate-50 mt-2">
-                                                            <span className="text-[9px] font-mono text-slate-400">
-                                                                #{String(task.id).split('-')[0].toUpperCase()}
-                                                            </span>
+                                                        <div className="flex items-center justify-between pt-2.5 border-t border-slate-50 mt-2 gap-2">
+                                                            <div className="flex items-center gap-2 min-w-0">
+                                                                <span className="text-[9px] font-mono text-slate-400 shrink-0">
+                                                                    #{String(task.id).split('-')[0].toUpperCase()}
+                                                                </span>
+                                                                {task.updatedAt && (
+                                                                    <div
+                                                                        className="flex items-center gap-1 text-[9px] font-semibold text-slate-400 truncate"
+                                                                        title={`Updated ${formatTaskDateFull(task.updatedAt)}`}
+                                                                    >
+                                                                        <Clock size={10} className="shrink-0" />
+                                                                        <span className="truncate">{formatTaskDateTime(task.updatedAt)}</span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
 
-                                                            <div className="flex items-center gap-2">
+                                                            <div className="flex items-center gap-2 shrink-0">
                                                                 {(task._count?.comments > 0 || task.comments?.length > 0) && (
                                                                     <div className="flex items-center gap-1 text-[9px] font-bold text-slate-400">
                                                                         <MessageSquare size={10} />

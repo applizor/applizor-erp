@@ -201,7 +201,7 @@ timestamp: 2026-07-08T20:00:00Z
 | **EmailLog** | `id`, `companyId`, `from`, `to`, `cc`, `bcc`, `subject`, `body`, `status` (sent/failed/queued), `provider`, `sentAt`, `errorMessage`, `metadata` (JSON) | M:1 → Company |
 | **EmailTemplate** | `id`, `companyId`, `name`, `type`, `subject`, `body` (HTML), `variables` (JSON) | M:1 → Company |
 | **Notification** | `id`, `userId`, `companyId`, `type`, `title`, `message`, `link`, `isRead`, `metadata` (JSON) | M:1 → User |
-| **Timesheet** | `id`, `employeeId`, `projectId`, `taskId`, `date`, `startTime`, `endTime`, `duration`, `description`, `status` (draft/submitted/approved/rejected), `approvedById`, `approvedAt` | M:1 → Employee, Project, Task |
+| **Timesheet** | `id`, `employeeId`, `projectId`, `taskId`, `date`, `startTime`, `endTime`, `hours`, `isBillable` (default true; inherits `Project.isBillable` for employees), `description`, `status` (draft/submitted/approved/rejected), `approvedBy`, `approvedAt`, `submittedAt`, `rejectionReason`, `createdAt`, `updatedAt` | M:1 → Employee, Project, Task |
 
 ## Key Indexes & Constraints
 - **119 total models**, all use `String` UUIDs with `@default(uuid())`

@@ -464,7 +464,7 @@ export const getTaskCounts = async (req: AuthRequest, res: Response) => {
         if (sprintId && sprintId !== 'all') where.sprintId = String(sprintId);
 
         // Apply same filters as getTasks for accurate counts
-        const { type, priority, assigneeId, search } = req.query;
+        const { type, priority, assigneeId, search, updatedFrom, updatedTo, dueFrom, dueTo } = req.query;
         if (type && type !== 'all') where.type = String(type);
         if (priority && priority !== 'all') where.priority = String(priority);
         if (search) where.title = { contains: String(search), mode: 'insensitive' };
@@ -474,6 +474,10 @@ export const getTaskCounts = async (req: AuthRequest, res: Response) => {
                 : { OR: [{ assignedToId: String(assigneeId) }, { assignees: { some: { userId: String(assigneeId) } } }] };
             where.AND = [where.AND || {}, assigneeFilter];
         }
+        const updatedAtRange = buildDateRangeFilter(updatedFrom, updatedTo);
+        if (updatedAtRange) where.updatedAt = updatedAtRange;
+        const dueDateRange = buildDateRangeFilter(dueFrom, dueTo);
+        if (dueDateRange) where.dueDate = dueDateRange;
 
         const counts = await prisma.task.groupBy({
             by: ['status'],
@@ -490,10 +494,34 @@ export const getTaskCounts = async (req: AuthRequest, res: Response) => {
     }
 };
 
+/** Parse yyyy-MM-dd or ISO into inclusive day bounds for Prisma date filters. */
+function buildDateRangeFilter(from?: unknown, to?: unknown): { gte?: Date; lte?: Date } | null {
+    if (!from && !to) return null;
+    const range: { gte?: Date; lte?: Date } = {};
+    if (from) {
+        const start = new Date(String(from));
+        if (!Number.isNaN(start.getTime())) {
+            if (String(from).length <= 10) start.setHours(0, 0, 0, 0);
+            range.gte = start;
+        }
+    }
+    if (to) {
+        const end = new Date(String(to));
+        if (!Number.isNaN(end.getTime())) {
+            if (String(to).length <= 10) end.setHours(23, 59, 59, 999);
+            range.lte = end;
+        }
+    }
+    return range.gte || range.lte ? range : null;
+}
+
 export const getTasks = async (req: AuthRequest, res: Response) => {
     try {
         console.log('GET /tasks query:', req.query);
-        const { projectId, sprintId, assigneeId, type, priority, status, page, limit, search } = req.query;
+        const {
+            projectId, sprintId, assigneeId, type, priority, status, page, limit, search,
+            updatedFrom, updatedTo, dueFrom, dueTo,
+        } = req.query;
 
         const scope = PermissionService.getPermissionScope(req.user, 'ProjectTask', 'read');
         const userId = req.user!.id;
@@ -526,6 +554,11 @@ export const getTasks = async (req: AuthRequest, res: Response) => {
         if (assigneeFilter) {
             where.AND = [where.AND || {}, assigneeFilter];
         }
+
+        const updatedAtRange = buildDateRangeFilter(updatedFrom, updatedTo);
+        if (updatedAtRange) where.updatedAt = updatedAtRange;
+        const dueDateRange = buildDateRangeFilter(dueFrom, dueTo);
+        if (dueDateRange) where.dueDate = dueDateRange;
 
         // Apply status filter if provided
         if (status && status !== 'all') {
@@ -601,7 +634,8 @@ export const getTasks = async (req: AuthRequest, res: Response) => {
 
         const tasks = await prisma.task.findMany({
             where,
-            orderBy: { position: 'asc' },
+            // Latest activity first so Kanban columns surface recent work; pagination stays consistent.
+            orderBy: [{ updatedAt: 'desc' }, { position: 'asc' }],
             skip,
             take: effectiveLimit,
             include: {

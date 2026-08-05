@@ -8,7 +8,7 @@ import {
     Plus, LayoutGrid, Copy, Edit2, Trash2, Link as LinkIcon, Briefcase
 } from 'lucide-react';
 import TaskDetailModal from '@/components/tasks/TaskDetailModal';
-import { TaskFilterBar } from '@/components/tasks/TaskFilterBar';
+import { TaskFilterBar, DEFAULT_TASK_FILTERS, buildTaskDateQueryParams, TaskBoardFilters } from '@/components/tasks/TaskFilterBar';
 import { KanbanTaskCard, KanbanColumnEmpty, columnDroppableClass, createKanbanTaskCloneRenderer, KanbanCountBadge } from '@/components/tasks/KanbanTaskCard';
 import BulkTimeLogModal from '@/components/hrms/timesheets/BulkTimeLogModal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -28,12 +28,23 @@ interface Task {
     priority: string;
     position: number;
     storyPoints?: number;
+    updatedAt?: string;
+    dueDate?: string | null;
+    createdAt?: string;
     project?: { id: string, name: string };
     assignee?: { id: string, firstName: string, lastName: string };
     assignees?: { user: { id: string, firstName: string, lastName: string } }[];
     epic?: { id: string, title: string };
     hasUnansweredComment?: boolean;
     _count?: { comments: number, documents: number, subtasks: number };
+}
+
+function sortByUpdatedAtDesc(tasks: Task[]): Task[] {
+    return [...tasks].sort((a, b) => {
+        const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+        const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+        return bTime - aTime;
+    });
 }
 
 // Load More Trigger with IntersectionObserver for infinite scroll
@@ -86,7 +97,7 @@ export default function GlobalTasksPage() {
     const [sprints, setSprints] = useState<any[]>([]);
     const [selectedSprintId, setSelectedSprintId] = useState<string>('all');
     const [projectMembers, setProjectMembers] = useState<any[]>([]);
-    const [filters, setFilters] = useState({ assigneeId: 'all', type: 'all', priority: 'all', search: '' });
+    const [filters, setFilters] = useState<TaskBoardFilters>({ ...DEFAULT_TASK_FILTERS });
     const [columns, setColumns] = useState<Record<string, Task[]>>({ todo: [], 'in-progress': [], review: [], done: [] });
     const [taskCounts, setTaskCounts] = useState<Record<string, number>>({});
     const [colPagination, setColPagination] = useState<Record<string, { page: number; hasMore: boolean; loading: boolean }>>({
@@ -172,6 +183,8 @@ export default function GlobalTasksPage() {
         if (filters.type !== 'all') url += `&type=${filters.type}`;
         if (filters.priority !== 'all') url += `&priority=${filters.priority}`;
         if (filters.search) url += `&search=${encodeURIComponent(filters.search)}`;
+        const dateParams = buildTaskDateQueryParams(filters);
+        Object.entries(dateParams).forEach(([k, v]) => { url += `&${k}=${encodeURIComponent(v)}`; });
         return url;
     }, [selectedProjectId, selectedSprintId, filters]);
 
@@ -186,7 +199,9 @@ export default function GlobalTasksPage() {
 
             setColumns(prev => ({
                 ...prev,
-                [status]: append ? [...prev[status], ...newTasks] : newTasks
+                [status]: append
+                    ? sortByUpdatedAtDesc([...prev[status], ...newTasks])
+                    : sortByUpdatedAtDesc(newTasks)
             }));
 
             setColPagination(prev => ({
@@ -213,6 +228,8 @@ export default function GlobalTasksPage() {
             if (filters.type !== 'all') params.push(`type=${filters.type}`);
             if (filters.priority !== 'all') params.push(`priority=${filters.priority}`);
             if (filters.search) params.push(`search=${encodeURIComponent(filters.search)}`);
+            const dateParams = buildTaskDateQueryParams(filters);
+            Object.entries(dateParams).forEach(([k, v]) => params.push(`${k}=${encodeURIComponent(v)}`));
             if (params.length) url += '?' + params.join('&');
             const res = await api.get(url);
             setTaskCounts(res.data);
@@ -255,7 +272,11 @@ export default function GlobalTasksPage() {
 
         if (type === 'TASK_CREATED') {
             if (validStatus(data.status)) {
-                setColumns(prev => ({ ...prev, [data.status]: [data, ...prev[data.status]] }));
+                const created = { ...data, updatedAt: data.updatedAt || new Date().toISOString() };
+                setColumns(prev => ({
+                    ...prev,
+                    [data.status]: sortByUpdatedAtDesc([created, ...prev[data.status]])
+                }));
                 setTaskCounts(prev => ({ ...prev, [data.status]: (prev[data.status] ?? 0) + 1 }));
             } else {
                 fetchAllColumns();
@@ -267,6 +288,7 @@ export default function GlobalTasksPage() {
             if (!data.id) { fetchAllColumns(); return; }
             const current = columnsRef.current;
             const srcStatus = Object.keys(COLUMNS).find(col => current[col]?.some(t => t.id === data.id));
+            const patched = { ...data, updatedAt: data.updatedAt || new Date().toISOString() };
 
             if (srcStatus && validStatus(data.status) && data.status !== srcStatus && COLUMNS[data.status as keyof typeof COLUMNS]) {
                 setColumns(prev => {
@@ -275,7 +297,7 @@ export default function GlobalTasksPage() {
                     return {
                         ...prev,
                         [srcStatus]: prev[srcStatus].filter(t => t.id !== data.id),
-                        [data.status]: [{ ...task, ...data }, ...prev[data.status]],
+                        [data.status]: sortByUpdatedAtDesc([{ ...task, ...patched }, ...prev[data.status]]),
                     };
                 });
                 setTaskCounts(prev => ({
@@ -284,9 +306,17 @@ export default function GlobalTasksPage() {
                     [data.status]: (prev[data.status] ?? 0) + 1,
                 }));
             } else if (srcStatus) {
-                setColumns(prev => ({ ...prev, [srcStatus]: prev[srcStatus].map(t => t.id === data.id ? { ...t, ...data } : t) }));
+                setColumns(prev => ({
+                    ...prev,
+                    [srcStatus]: sortByUpdatedAtDesc(
+                        prev[srcStatus].map(t => t.id === data.id ? { ...t, ...patched } : t)
+                    )
+                }));
             } else if (validStatus(data.status)) {
-                setColumns(prev => ({ ...prev, [data.status]: [data, ...prev[data.status]] }));
+                setColumns(prev => ({
+                    ...prev,
+                    [data.status]: sortByUpdatedAtDesc([patched, ...prev[data.status]])
+                }));
                 setTaskCounts(prev => ({ ...prev, [data.status]: (prev[data.status] ?? 0) + 1 }));
             }
             return;
@@ -548,7 +578,7 @@ export default function GlobalTasksPage() {
                 filters={filters}
                 members={projectMembers}
                 onFilterChange={(key, val) => setFilters(prev => ({ ...prev, [key]: val }))}
-                onClearFilters={() => setFilters({ assigneeId: 'all', type: 'all', priority: 'all', search: '' })}
+                onClearFilters={() => setFilters({ ...DEFAULT_TASK_FILTERS })}
             />
 
             {/* Bulk Actions Bar */}
@@ -696,7 +726,8 @@ export default function GlobalTasksPage() {
                 }}
                 defaultEntry={{
                     projectId: quickLogTask?.projectId,
-                    taskId: quickLogTask?.id
+                    taskId: quickLogTask?.id,
+                    taskTitle: quickLogTask?.title
                 }}
             />
 
