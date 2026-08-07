@@ -226,12 +226,21 @@ export default function BalanceSheetPage() {
                                 {equity.length === 0 && <span className="text-[10px] text-gray-400 italic">No equity recorded.</span>}
                                 {equity.map(acc => (
                                     <div key={acc.id} className="flex justify-between text-xs group py-1 border-b border-gray-50 last:border-0">
-                                        <a
-                                            href={`/accounting/reports/ledger/${acc.id}`}
-                                            className="text-gray-600 font-bold hover:text-sky-700 hover:underline transition-colors capitalize"
-                                        >
-                                            {acc.name}
-                                        </a>
+                                        {acc.id === 'virtual-net-profit' ? (
+                                            <a
+                                                href="/accounting/reports/profit-loss"
+                                                className="text-emerald-700 font-bold hover:underline transition-colors capitalize"
+                                            >
+                                                {acc.name}
+                                            </a>
+                                        ) : (
+                                            <a
+                                                href={`/accounting/reports/ledger/${acc.id}`}
+                                                className="text-gray-600 font-bold hover:text-sky-700 hover:underline transition-colors capitalize"
+                                            >
+                                                {acc.name}
+                                            </a>
+                                        )}
                                         <span className="font-mono font-black text-gray-900">
                                             {Number(acc.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                         </span>

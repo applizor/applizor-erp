@@ -221,9 +221,14 @@ export default function AdminEnterpriseDashboard() {
       return dt >= periodStart;
     };
 
-    const periodInvoices = invoices.filter((inv: any) => inPeriod(inv.issueDate || inv.createdAt));
-    const paid = invoices.filter((inv: any) => inv.status === 'paid');
-    const paidInPeriod = paid.filter((inv: any) => inPeriod(inv.paidAt || inv.updatedAt || inv.issueDate));
+    const periodInvoices = invoices.filter((inv: any) => inPeriod(inv.invoiceDate || inv.issueDate || inv.createdAt));
+    const paid = invoices.filter((inv: any) => inv.status === 'paid' || Number(inv.paidAmount) > 0);
+    const paidInPeriod = paid.filter((inv: any) => {
+      if (Array.isArray(inv.payments) && inv.payments.length > 0) {
+        return inv.payments.some((p: any) => inPeriod(p.paymentDate || p.createdAt));
+      }
+      return inPeriod(inv.paidAt || inv.invoiceDate || inv.createdAt);
+    });
 
     const totalRevenue = paid.reduce((s: number, inv: any) => s + (Number(inv.total) || 0), 0);
     const periodRevenue = paidInPeriod.reduce((s: number, inv: any) => s + (Number(inv.total) || 0), 0);
@@ -267,15 +272,31 @@ export default function AdminEnterpriseDashboard() {
 
     // Monthly revenue + collections
     const revenueTrend = months.map((key) => {
-      const billed = periodInvoices
-        .filter((inv: any) => monthKey(new Date(inv.issueDate || inv.createdAt)) === key && inv.status !== 'cancelled')
-        .reduce((s: number, inv: any) => s + (Number(inv.total) || 0), 0);
-      const collected = invoices
+      const billed = invoices
         .filter((inv: any) => {
-          const d = inv.paidAt || (inv.status === 'paid' ? inv.updatedAt : null);
-          return d && monthKey(new Date(d)) === key;
+          const invD = inv.invoiceDate || inv.issueDate || inv.createdAt;
+          return invD && monthKey(new Date(invD)) === key && inv.status !== 'cancelled';
         })
-        .reduce((s: number, inv: any) => s + (Number(inv.paidAmount) || Number(inv.total) || 0), 0);
+        .reduce((s: number, inv: any) => s + (Number(inv.total) || 0), 0);
+
+      let collected = 0;
+      invoices.forEach((inv: any) => {
+        if (inv.status === 'cancelled') return;
+        if (Array.isArray(inv.payments) && inv.payments.length > 0) {
+          inv.payments.forEach((p: any) => {
+            const pDate = p.paymentDate || p.createdAt;
+            if (pDate && monthKey(new Date(pDate)) === key) {
+              collected += Number(p.amount) || 0;
+            }
+          });
+        } else if (Number(inv.paidAmount) > 0 || inv.status === 'paid') {
+          const d = inv.paidAt || inv.invoiceDate || inv.createdAt;
+          if (d && monthKey(new Date(d)) === key) {
+            collected += Number(inv.paidAmount) || Number(inv.total) || 0;
+          }
+        }
+      });
+
       return { month: monthLabel(key), key, billed: Math.round(billed), collected: Math.round(collected) };
     });
 
@@ -535,7 +556,7 @@ export default function AdminEnterpriseDashboard() {
               <BarChart data={analytics.leadPipeline} layout="vertical" margin={{ left: 8, right: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
                 <XAxis type="number" tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 700 }} axisLine={false} tickLine={false} />
-                <YAxis type="category" dataKey="name" width={78} tick={{ fontSize: 10, fill: '#64748b', fontWeight: 800, textTransform: 'uppercase' as any }} axisLine={false} tickLine={false} />
+                <YAxis type="category" dataKey="name" width={78} tick={{ fontSize: 10, fill: '#64748b', fontWeight: 800 }} axisLine={false} tickLine={false} />
                 <Tooltip
                   contentStyle={tooltipStyle}
                   formatter={(value: any, _n: any, props: any) => [

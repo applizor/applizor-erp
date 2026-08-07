@@ -230,6 +230,28 @@ const isSystemLinkedReference = (reference?: string | null) => {
     return SYSTEM_REF_PREFIXES.some(prefix => ref.startsWith(prefix));
 };
 
+const isOrphanSystemEntry = async (tx: any, reference?: string | null) => {
+    if (!reference) return false;
+    const ref = reference.trim().toUpperCase();
+    if (ref.startsWith('INV-') || ref.startsWith('QTN-')) {
+        const inv = await tx.invoice.findFirst({ where: { invoiceNumber: ref } });
+        return !inv;
+    }
+    if (ref.startsWith('PAY-')) {
+        const last6 = ref.replace('PAY-', '');
+        const pay = await tx.payment.findFirst({
+            where: {
+                OR: [
+                    { id: { endsWith: last6, mode: 'insensitive' } },
+                    { transactionId: ref }
+                ]
+            }
+        });
+        return !pay;
+    }
+    return false;
+};
+
 const applyBalanceChange = async (
     tx: any,
     account: { id: string; type: string },
@@ -378,9 +400,12 @@ export const updateJournalEntry = async (
         if (!entry) throw new Error('Journal Entry not found');
 
         if (isSystemLinkedReference(entry.reference)) {
-            throw new Error(
-                `Cannot edit system-linked entry (${entry.reference}). Update the source invoice/payment/payroll instead so ledgers stay in sync.`
-            );
+            const isOrphan = await isOrphanSystemEntry(tx, entry.reference);
+            if (!isOrphan) {
+                throw new Error(
+                    `Cannot edit system-linked entry (${entry.reference}). Update the source invoice/payment/payroll instead so ledgers stay in sync.`
+                );
+            }
         }
 
         const reconciledCount = entry.lines.filter(l => l.reconciledAt).length;
@@ -738,11 +763,39 @@ export const getBalanceSheet = async (companyId: string) => {
     const accounts = await prisma.ledgerAccount.findMany({
         where: {
             companyId,
-            type: { in: ['asset', 'liability', 'equity'] }
+            type: { in: ['asset', 'liability', 'equity', 'income', 'expense'] }
         },
         orderBy: { code: 'asc' }
     });
-    return accounts;
+
+    const incomeTotal = accounts
+        .filter(a => a.type === 'income')
+        .reduce((sum, a) => sum + Number(a.balance), 0);
+
+    const expenseTotal = accounts
+        .filter(a => a.type === 'expense')
+        .reduce((sum, a) => sum + Number(a.balance), 0);
+
+    const netProfit = incomeTotal - expenseTotal;
+
+    const bsAccounts = accounts.filter(a => ['asset', 'liability', 'equity'].includes(a.type));
+
+    // Append Current Period Net Profit / (Loss) under Equity for tax/CA compliance identity
+    if (Math.abs(netProfit) > 0.001) {
+        bsAccounts.push({
+            id: 'virtual-net-profit',
+            companyId,
+            code: '3999',
+            name: 'Current Period Net Profit / (Loss)',
+            type: 'equity',
+            balance: new Decimal(netProfit),
+            isActive: true,
+            createdAt: new Date(),
+            updatedAt: new Date()
+        } as any);
+    }
+
+    return bsAccounts;
 };
 
 export const getProfitAndLoss = async (companyId: string, startDate?: Date, endDate?: Date) => {
@@ -891,9 +944,12 @@ export const deleteJournalEntry = async (id: string, userId?: string, companyId?
         if (!entry) throw new Error('Journal Entry not found');
 
         if (isSystemLinkedReference(entry.reference)) {
-            throw new Error(
-                `Cannot delete system-linked entry (${entry.reference}). Reverse or void the source invoice/payment/payroll so the ledger stays consistent.`
-            );
+            const isOrphan = await isOrphanSystemEntry(tx, entry.reference);
+            if (!isOrphan) {
+                throw new Error(
+                    `Cannot delete system-linked entry (${entry.reference}). Reverse or void the source invoice/payment/payroll so the ledger stays consistent.`
+                );
+            }
         }
 
         const reconciledCount = entry.lines.filter(l => l.reconciledAt).length;
