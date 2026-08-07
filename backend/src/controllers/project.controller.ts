@@ -123,20 +123,23 @@ export const getProjects = async (req: AuthRequest, res: Response) => {
 
         // 2. Apply Scope Filter
         if (!scope.all) {
-            // "Owned" and "Added" in Project context means "Is a Member"
-            // We need the Employee ID for this check
             const employee = await prisma.employee.findUnique({
                 where: { userId: req.user!.id }
             });
 
+            const userConditions: any[] = [{ createdBy: req.user!.id }];
+
             if (employee) {
-                where.members = {
-                    some: {
-                        employeeId: employee.id
-                    }
-                };
-            } else {
-                return res.json([]);
+                userConditions.push({ members: { some: { employeeId: employee.id } } });
+                userConditions.push({ tasks: { some: { OR: [{ assignedToId: req.user!.id }, { assignees: { some: { employeeId: employee.id } } }] } } });
+            }
+
+            const isAdmin = req.user!.roles?.some((r: any) =>
+                ['Admin', 'Super Admin', 'Administrator', 'Manager'].includes(r.role?.name)
+            );
+
+            if (!isAdmin && userConditions.length > 0) {
+                where.OR = userConditions;
             }
         }
 
@@ -145,10 +148,16 @@ export const getProjects = async (req: AuthRequest, res: Response) => {
 
         // Search Filter (if 'q' is provided)
         if (q) {
-            where.OR = [
+            const searchOR = [
                 { name: { contains: String(q), mode: 'insensitive' } },
                 { description: { contains: String(q), mode: 'insensitive' } }
             ];
+            if (where.OR) {
+                where.AND = [{ OR: where.OR }, { OR: searchOR }];
+                delete where.OR;
+            } else {
+                where.OR = searchOR;
+            }
         }
 
         const projects = await prisma.project.findMany({
@@ -164,6 +173,7 @@ export const getProjects = async (req: AuthRequest, res: Response) => {
 
         res.json(projects);
     } catch (error: any) {
+        console.error('getProjects Error:', error);
         res.status(500).json({ error: 'Failed to fetch projects' });
     }
 };

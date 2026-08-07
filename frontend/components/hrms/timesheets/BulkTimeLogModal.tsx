@@ -98,7 +98,7 @@ export default function BulkTimeLogModal({ open, onClose, defaultEntry }: BulkTi
 
     const fetchProjects = async () => {
         try {
-            const res = await api.get('/projects');
+            const res = await api.get('/projects?limit=500');
             const list = Array.isArray(res.data) ? res.data : (res.data?.data || res.data?.projects || []);
             setProjects(list);
         } catch (error) {
