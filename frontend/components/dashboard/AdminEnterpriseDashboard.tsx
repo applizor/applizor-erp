@@ -123,30 +123,37 @@ function KpiCard({
   delta?: number | null;
 }) {
   const tones = {
-    primary: 'border-t-primary-600 text-primary-600 bg-primary-50',
-    emerald: 'border-t-emerald-500 text-emerald-600 bg-emerald-50',
-    amber: 'border-t-amber-500 text-amber-600 bg-amber-50',
-    rose: 'border-t-rose-500 text-rose-600 bg-rose-50',
-    sky: 'border-t-sky-500 text-sky-600 bg-sky-50',
+    primary: 'border-t-primary-600 text-primary-600 bg-primary-50/80',
+    emerald: 'border-t-emerald-500 text-emerald-600 bg-emerald-50/80',
+    amber: 'border-t-amber-500 text-amber-600 bg-amber-50/80',
+    rose: 'border-t-rose-500 text-rose-600 bg-rose-50/80',
+    sky: 'border-t-sky-500 text-sky-600 bg-sky-50/80',
   };
+
+  const displayValue = typeof value === 'string' && value.endsWith('.00') ? value.slice(0, -3) : value;
+
   return (
-    <div className={`ent-card p-4 border-t-4 ${tones[tone].split(' ')[0]}`}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">{label}</p>
-          <h3 className="text-lg font-black text-slate-900 tracking-tight truncate">{value}</h3>
-          {hint && <p className="text-[9px] font-bold text-slate-400 uppercase mt-1 tracking-wide">{hint}</p>}
+    <div className={`ent-card p-3.5 border-t-[3px] ${tones[tone].split(' ')[0]} hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 flex flex-col justify-between`}>
+      <div>
+        <div className="flex items-center justify-between gap-2 mb-1.5">
+          <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 truncate">{label}</p>
+          <div className={`p-1.5 rounded-lg shrink-0 ${tones[tone].split(' ').slice(1).join(' ')}`}>
+            <Icon size={14} />
+          </div>
         </div>
-        <div className={`p-2 rounded-lg shrink-0 ${tones[tone].split(' ').slice(1).join(' ')}`}>
-          <Icon size={16} />
-        </div>
+        <h3 className="text-sm sm:text-base xl:text-[17px] font-black text-slate-900 tracking-tight whitespace-nowrap overflow-hidden text-ellipsis" title={String(value)}>
+          {displayValue}
+        </h3>
       </div>
-      {delta !== null && delta !== undefined && (
-        <div className={`mt-3 flex items-center gap-1 text-[10px] font-black ${delta >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-          {delta >= 0 ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
-          {Math.abs(delta).toFixed(1)}% vs prior period
-        </div>
-      )}
+      <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between gap-1">
+        {hint && <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide truncate">{hint}</p>}
+        {delta !== null && delta !== undefined && (
+          <span className={`inline-flex items-center gap-0.5 text-[9px] font-black shrink-0 ${delta >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+            {delta >= 0 ? <ArrowUpRight size={11} /> : <ArrowDownRight size={11} />}
+            {Math.abs(delta).toFixed(0)}%
+          </span>
+        )}
+      </div>
     </div>
   );
 }
@@ -447,12 +454,12 @@ export default function AdminEnterpriseDashboard() {
         <KpiCard label="Outstanding AR" value={formatCurrency(analytics.outstanding)} icon={Wallet} tone="amber" hint="Open invoices" />
         <KpiCard label="Overdue Exposure" value={formatCurrency(analytics.overdueAmount)} icon={AlertTriangle} tone="rose" hint={`${analytics.overdueCount} invoices`} />
         <KpiCard label="Net Income" value={formatCurrency(analytics.netIncome)} icon={TrendingUp} tone={analytics.netIncome >= 0 ? 'emerald' : 'rose'} hint="Ledger P&L" />
-        <KpiCard label="CRM Pipeline" value={formatCurrency(analytics.pipelineValue)} icon={Briefcase} tone="sky" hint={`${analytics.leads} leads`} />
+        <KpiCard label="CRM Pipeline" value={formatCurrency(analytics.pipelineValue)} icon={Briefcase} tone="sky" hint={`${analytics.leads} ${analytics.leads === 1 ? 'lead' : 'leads'}`} />
       </div>
 
       {/* Primary charts */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-        <div className="xl:col-span-2 ent-card p-5">
+        <div className="xl:col-span-2 ent-card p-5 hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-xs font-black uppercase tracking-widest text-slate-900 flex items-center gap-2">
@@ -469,24 +476,28 @@ export default function AdminEnterpriseDashboard() {
               </div>
             ) : (
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={analytics.revenueTrend} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+              <ComposedChart data={analytics.revenueTrend} margin={{ top: 12, right: 12, left: -10, bottom: 0 }}>
                 <defs>
                   <linearGradient id="billedFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={CHART.primary} stopOpacity={0.25} />
-                    <stop offset="100%" stopColor={CHART.primary} stopOpacity={0} />
+                    <stop offset="0%" stopColor="#0284c7" stopOpacity={0.2} />
+                    <stop offset="100%" stopColor="#0284c7" stopOpacity={0.0} />
+                  </linearGradient>
+                  <linearGradient id="collectedBarFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#10b981" stopOpacity={0.95} />
+                    <stop offset="100%" stopColor="#047857" stopOpacity={0.9} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                <XAxis dataKey="month" tick={{ fontSize: 10, fontWeight: 700, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fontWeight: 700, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={48} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                <XAxis dataKey="month" tick={{ fontSize: 10, fontWeight: 700, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fontWeight: 700, fill: '#64748b' }} axisLine={false} tickLine={false} width={48} />
                 <Tooltip
                   contentStyle={tooltipStyle}
                   labelStyle={{ color: '#94a3b8', marginBottom: 4 }}
                   formatter={(value: any, name: any) => [formatCurrency(Number(value) || 0), name === 'billed' ? 'Billed' : 'Collected']}
                 />
-                <Legend wrapperStyle={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase' }} />
-                <Area type="monotone" dataKey="billed" name="billed" stroke={CHART.primary} fill="url(#billedFill)" strokeWidth={2} />
-                <Bar dataKey="collected" name="collected" fill={CHART.emerald} radius={[4, 4, 0, 0]} maxBarSize={28} />
+                <Legend wrapperStyle={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', paddingTop: 8 }} />
+                <Area type="monotone" dataKey="billed" name="billed" stroke="#0284c7" fill="url(#billedFill)" strokeWidth={2.5} />
+                <Bar dataKey="collected" name="collected" fill="url(#collectedBarFill)" radius={[6, 6, 0, 0]} maxBarSize={22} />
               </ComposedChart>
             </ResponsiveContainer>
             )}
