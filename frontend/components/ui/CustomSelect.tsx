@@ -89,12 +89,12 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
             if (!isOpen && containerRef.current) {
                 const rect = containerRef.current.getBoundingClientRect();
                 setDropdownStyle({
-                    position: 'absolute',
-                    top: rect.bottom + window.scrollY + 4,
-                    left: align === 'right' ? (rect.right + window.scrollX) : (rect.left + window.scrollX),
-                    width: Math.max(rect.width, 280), // Prefer readable labels in dropdown
+                    position: 'fixed',
+                    top: rect.bottom + 4,
+                    left: align === 'right' ? rect.right : rect.left,
+                    width: Math.max(rect.width, rect.width > 200 ? rect.width : 240),
                     transform: align === 'right' ? 'translateX(-100%)' : 'none',
-                    zIndex: 9999,
+                    zIndex: 99999,
                 });
             }
             setIsOpen(!isOpen);
