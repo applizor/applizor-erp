@@ -58,12 +58,16 @@ export class PayrollService {
             config = await prisma.statutoryConfig.create({
                 data: {
                     companyId,
+                    pfEnabled: false,
                     pfEmployeeRate: 12,
                     pfEmployerRate: 12,
                     pfBasicLimit: 15000,
+                    esiEnabled: false,
                     esiEmployeeRate: 0.75,
                     esiEmployerRate: 3.25,
                     esiGrossLimit: 21000,
+                    professionalTaxEnabled: true,
+                    tdsEnabled: true
                 }
             });
         }
@@ -84,9 +88,11 @@ export class PayrollService {
             return await prisma.statutoryConfig.upsert({
                 where: { companyId },
                 update: {
+                    pfEnabled: data.pfEnabled === true,
                     pfEmployeeRate: clean(data.pfEmployeeRate, 12),
                     pfEmployerRate: clean(data.pfEmployerRate, 12),
                     pfBasicLimit: clean(data.pfBasicLimit, 15000),
+                    esiEnabled: data.esiEnabled === true,
                     esiEmployeeRate: clean(data.esiEmployeeRate, 0.75),
                     esiEmployerRate: clean(data.esiEmployerRate, 3.25),
                     esiGrossLimit: clean(data.esiGrossLimit, 21000),
@@ -100,9 +106,11 @@ export class PayrollService {
                 },
                 create: {
                     companyId: companyId,
+                    pfEnabled: data.pfEnabled === true,
                     pfEmployeeRate: clean(data.pfEmployeeRate, 12),
                     pfEmployerRate: clean(data.pfEmployerRate, 12),
                     pfBasicLimit: clean(data.pfBasicLimit, 15000),
+                    esiEnabled: data.esiEnabled === true,
                     esiEmployeeRate: clean(data.esiEmployeeRate, 0.75),
                     esiEmployerRate: clean(data.esiEmployerRate, 3.25),
                     esiGrossLimit: clean(data.esiGrossLimit, 21000),
@@ -123,10 +131,11 @@ export class PayrollService {
 
     /**
      * Calculate statutory deductions based on basic and gross salary
-     * Uses the Statutory Rule Engine for countries with configured rules,
-     * falls back to legacy India-specific logic when no country is set.
+     * Enforces Company Admin statutory toggles (pfEnabled, esiEnabled, professionalTaxEnabled).
      */
     static async calculateStatutoryDeductions(companyId: string, basic: number, gross: number, ptState: string = 'Maharashtra', month?: number, year?: number) {
+        const config = await this.getStatutoryConfig(companyId);
+
         const result = await StatutoryRuleService.calculateAllDeductions(
             companyId,
             { basicSalary: basic, grossSalary: gross, ptState },
@@ -140,18 +149,54 @@ export class PayrollService {
             return entry ? entry[1] : 0;
         };
 
+        const breakdown: Record<string, number> = { ...result.deductions };
+        const employerContribs: Record<string, number> = { ...result.employerContributions };
+
+        // Enforce Admin Toggles
+        const isPFEnabled = config?.pfEnabled === true;
+        const isESIEnabled = config?.esiEnabled === true;
+        const isPTEnabled = config?.professionalTaxEnabled !== false;
+
+        if (!isPFEnabled) {
+            for (const key of Object.keys(breakdown)) {
+                if (key.toLowerCase().includes('pf') || key.toLowerCase().includes('provident')) delete breakdown[key];
+            }
+            for (const key of Object.keys(employerContribs)) {
+                if (key.toLowerCase().includes('pf') || key.toLowerCase().includes('provident')) delete employerContribs[key];
+            }
+        }
+
+        if (!isESIEnabled) {
+            for (const key of Object.keys(breakdown)) {
+                if (key.toLowerCase().includes('esi') || key.toLowerCase().includes('state insurance')) delete breakdown[key];
+            }
+            for (const key of Object.keys(employerContribs)) {
+                if (key.toLowerCase().includes('esi') || key.toLowerCase().includes('state insurance')) delete employerContribs[key];
+            }
+        }
+
+        if (!isPTEnabled) {
+            for (const key of Object.keys(breakdown)) {
+                if (key.toLowerCase() === 'pt' || key.toLowerCase().includes('professional')) delete breakdown[key];
+            }
+        }
+
+        const pfVal = isPFEnabled ? (findVal(breakdown, 'pf') || findVal(breakdown, 'provident')) : 0;
+        const esiVal = isESIEnabled ? (findVal(breakdown, 'esi') || findVal(breakdown, 'state insurance')) : 0;
+        const ptVal = isPTEnabled ? (findVal(breakdown, 'pt') || findVal(breakdown, 'professional')) : 0;
+
         return {
             pf: { 
-                employee: findVal(result.deductions, 'pf') || findVal(result.deductions, 'provident'), 
-                employer: findVal(result.employerContributions, 'pf') || findVal(result.employerContributions, 'provident') 
+                employee: pfVal, 
+                employer: isPFEnabled ? (findVal(employerContribs, 'pf') || findVal(employerContribs, 'provident')) : 0
             },
             esi: { 
-                employee: findVal(result.deductions, 'esi') || findVal(result.deductions, 'state insurance'), 
-                employer: findVal(result.employerContributions, 'esi') || findVal(result.employerContributions, 'state insurance') 
+                employee: esiVal, 
+                employer: isESIEnabled ? (findVal(employerContribs, 'esi') || findVal(employerContribs, 'state insurance')) : 0
             },
-            pt: findVal(result.deductions, 'pt') || findVal(result.deductions, 'professional'),
-            breakdown: result.deductions,
-            employerContributions: result.employerContributions
+            pt: ptVal,
+            breakdown,
+            employerContributions: employerContribs
         };
     }
 
@@ -313,6 +358,8 @@ export class PayrollService {
      * Calculate monthly TDS based on annual projections and investment declarations
      */
     static async calculateTDS(employeeId: string, companyId: string, monthlyGross: number, month: number, year: number) {
+        const config = await this.getStatutoryConfig(companyId);
+        if (config && config.tdsEnabled === false) return 0;
         // 1. Get Approved Tax Declaration
         const declaration = await prisma.taxDeclaration.findFirst({
             where: { employeeId, status: 'approved' },

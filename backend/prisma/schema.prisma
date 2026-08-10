@@ -1299,9 +1299,11 @@ model SalaryTemplateComponent {
 model StatutoryConfig {
   id                     String   @id @default(uuid())
   companyId              String   @unique
+  pfEnabled              Boolean  @default(false)
   pfEmployeeRate         Decimal  @default(12.0) @db.Decimal(5, 2)
   pfEmployerRate         Decimal  @default(12.0) @db.Decimal(5, 2)
   pfBasicLimit           Decimal  @default(15000.0) @db.Decimal(12, 2)
+  esiEnabled             Boolean  @default(false)
   esiEmployeeRate        Decimal  @default(0.75) @db.Decimal(5, 3)
   esiEmployerRate        Decimal  @default(3.25) @db.Decimal(5, 3)
   esiGrossLimit          Decimal  @default(21000.0) @db.Decimal(12, 2)

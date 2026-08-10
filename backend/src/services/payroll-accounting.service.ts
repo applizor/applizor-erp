@@ -24,10 +24,11 @@ export class PayrollAccountingService {
         }
 
         // Check for existing posting to prevent duplicates
+        const reference = `PAYROLL-${year}-${month.toString().padStart(2, '0')}`;
         const existingEntry = await prisma.journalEntry.findFirst({
             where: {
                 companyId,
-                reference: `PAYROLL-${year}-${month.toString().padStart(2, '0')}`,
+                reference,
                 status: 'posted'
             }
         });
@@ -35,7 +36,7 @@ export class PayrollAccountingService {
             throw new Error(`Payroll for ${month}/${year} has already been posted to accounting (Journal: ${existingEntry.id}).`);
         }
 
-        // 2. Fetch Mappings (Salary Components & Statutory Config)
+        // 2. Fetch Mappings & Ensure Accounts (with robust fallback)
         const [components, statutoryConfig] = await Promise.all([
             prisma.salaryComponent.findMany({
                 where: { companyId, isActive: true },
@@ -46,14 +47,27 @@ export class PayrollAccountingService {
             })
         ]);
 
-        if (!statutoryConfig) {
-            throw new Error('Statutory configuration not found.');
-        }
+        const salaryPayableAcct = statutoryConfig?.salaryPayableAccountId
+            ? await prisma.ledgerAccount.findUnique({ where: { id: statutoryConfig.salaryPayableAccountId } })
+            || await ensureAccount(companyId, '2100', 'Salaries Payable', 'liability')
+            : await ensureAccount(companyId, '2100', 'Salaries Payable', 'liability');
 
-        // Validate mandatory account mappings
-        if (!(statutoryConfig as any).salaryPayableAccountId) {
-            throw new Error('Salary Payable account mapping is missing in Statutory Config.');
-        }
+        const pfPayableAcct = statutoryConfig?.pfPayableAccountId
+            ? await prisma.ledgerAccount.findUnique({ where: { id: statutoryConfig.pfPayableAccountId } })
+            || await ensureAccount(companyId, '2400', 'PF Payable', 'liability')
+            : await ensureAccount(companyId, '2400', 'PF Payable', 'liability');
+
+        const esiPayableAcct = await ensureAccount(companyId, '2410', 'ESI Payable', 'liability');
+
+        const ptPayableAcct = statutoryConfig?.ptPayableAccountId
+            ? await prisma.ledgerAccount.findUnique({ where: { id: statutoryConfig.ptPayableAccountId } })
+            || await ensureAccount(companyId, '2420', 'Professional Tax Payable', 'liability')
+            : await ensureAccount(companyId, '2420', 'Professional Tax Payable', 'liability');
+
+        const tdsPayableAcct = statutoryConfig?.tdsPayableAccountId
+            ? await prisma.ledgerAccount.findUnique({ where: { id: statutoryConfig.tdsPayableAccountId } })
+            || await ensureAccount(companyId, '2300', 'TDS Payable', 'liability')
+            : await ensureAccount(companyId, '2300', 'TDS Payable', 'liability');
 
         // 3. Aggregate Amounts
         const accountAmounts: Record<string, { debit: number; credit: number }> = {};
@@ -66,12 +80,12 @@ export class PayrollAccountingService {
             else accountAmounts[accountId].credit += amount;
         };
 
-        let totalGross = 0;
         let totalNet = 0;
         let totalPF = 0;
         let totalESI = 0;
         let totalPT = 0;
         let totalTDS = 0;
+        let totalOtherDeductions = 0;
 
         for (const p of payrolls) {
             const earnings = p.earningsBreakdown as Record<string, number> || {};
@@ -79,57 +93,45 @@ export class PayrollAccountingService {
 
             // Earnings -> Debit Expense
             for (const [name, amount] of Object.entries(earnings)) {
-                const comp = (components as any[]).find((c: any) => c.name === name);
+                if (amount <= 0) continue;
+                const comp = (components as any[]).find((c: any) => c.name === name || c.name.toUpperCase() === name.toUpperCase());
                 if (comp && (comp as any).ledgerAccountId) {
                     addAmount((comp as any).ledgerAccountId, amount, true);
                 } else {
-                    // Fallback to general Salary Expense if not mapped? 
-                    // Better to require mapping or use a default.
-                    // For now, let's find the default Salary Expense account (5000)
                     const salaryExpenseAcc = await ensureAccount(companyId, '5000', 'Salary Expense', 'expense');
                     addAmount(salaryExpenseAcc.id, amount, true);
                 }
             }
 
-            // Statutory Deductions -> Credit Liability
+            // Deductions -> Credit Liability accounts (Supports Global Statutory Rules & Custom Mappings)
             for (const [name, amount] of Object.entries(deductions)) {
-                // Determine if it's PF, PT, TDS, or ESI based on helpers (imported or inline)
-                const n = name.toUpperCase();
-                if (n.includes('PF') || n.includes('PROVIDENT FUND')) {
-                    totalPF += amount;
-                } else if (n.includes('ESI') || n.includes('ESIC')) {
-                    totalESI += amount;
-                } else if (n.includes('PT') || n.includes('PROFESSIONAL TAX')) {
-                    totalPT += amount;
-                } else if (n === 'TDS' || n.includes('INCOME TAX')) {
-                    totalTDS += amount;
+                if (amount <= 0) continue;
+                const comp = (components as any[]).find((c: any) => c.name === name || c.name.toUpperCase() === name.toUpperCase());
+                if (comp && (comp as any).ledgerAccountId) {
+                    addAmount((comp as any).ledgerAccountId, amount, false);
                 } else {
-                    // Other deductions (e.g. advance recovery)
-                    // We might need a general "Other Deductions" mapping later
+                    const n = name.toUpperCase();
+                    if (n.includes('PF') || n.includes('PROVIDENT') || n.includes('PENSION') || n.includes('401K') || n.includes('CPF') || n.includes('SUPERANNUATION')) {
+                        addAmount(pfPayableAcct.id, amount, false);
+                    } else if (n.includes('ESI') || n.includes('ESIC') || n.includes('MEDICARE') || n.includes('HEALTH') || n.includes('EI')) {
+                        addAmount(esiPayableAcct.id, amount, false);
+                    } else if (n.includes('PT') || n.includes('PROFESSIONAL TAX') || n.includes('LOCAL TAX') || n.includes('STATE TAX')) {
+                        addAmount(ptPayableAcct.id, amount, false);
+                    } else if (n === 'TDS' || n.includes('INCOME TAX') || n.includes('PAYE') || n.includes('WITHHOLDING') || n.includes('PAYG')) {
+                        addAmount(tdsPayableAcct.id, amount, false);
+                    } else {
+                        addAmount(salaryPayableAcct.id, amount, false);
+                    }
                 }
             }
 
             totalNet += Number(p.netSalary);
         }
 
-        // Add Statutory Credits if mapped
-        if (totalPF > 0 && (statutoryConfig as any).pfPayableAccountId) {
-            addAmount((statutoryConfig as any).pfPayableAccountId, totalPF, false);
-        }
-        if (totalESI > 0 && (statutoryConfig as any).esiPayableAccountId) {
-            addAmount((statutoryConfig as any).esiPayableAccountId, totalESI, false);
-        }
-        if (totalPT > 0 && (statutoryConfig as any).ptPayableAccountId) {
-            addAmount((statutoryConfig as any).ptPayableAccountId, totalPT, false);
-        }
-        if (totalTDS > 0 && (statutoryConfig as any).tdsPayableAccountId) {
-            addAmount((statutoryConfig as any).tdsPayableAccountId, totalTDS, false);
-        }
-
         // Net Pay -> Credit Salary Payable
-        addAmount((statutoryConfig as any).salaryPayableAccountId, totalNet, false);
+        addAmount(salaryPayableAcct.id, totalNet, false);
 
-        // 4. Create Journal Entry
+        // 4. Create Journal Entry (Posted on month-end date for accurate P&L and Balance Sheet)
         const lines = Object.entries(accountAmounts).map(([accountId, amounts]) => ({
             accountId,
             debit: amounts.debit > 0 ? Math.round(amounts.debit * 100) / 100 : 0,
@@ -137,17 +139,26 @@ export class PayrollAccountingService {
         })).filter(l => l.debit > 0 || l.credit > 0);
 
         const monthName = new Date(year, month - 1).toLocaleString('default', { month: 'long' });
-        const reference = `PAYROLL-${year}-${month.toString().padStart(2, '0')}`;
+        const postingDate = new Date(year, month, 0); // Last day of payroll month
         const description = `Salary Posting for ${monthName} ${year}`;
 
-        return await createJournalEntry(
+        const entry = await createJournalEntry(
             companyId,
-            new Date(), // Posting date
+            postingDate,
             description,
             reference,
             lines,
             true, // Auto Post
             userId
         );
+
+        // Update status of all processed payrolls to 'paid' (approved/posted)
+        await prisma.payroll.updateMany({
+            where: { id: { in: payrolls.map(p => p.id) } },
+            data: { status: 'paid', processedAt: new Date() }
+        });
+
+        return entry;
     }
 }
+

@@ -23,7 +23,8 @@ import {
     exportCompliance,
     emailPayslip,
     bulkEmailPayslips,
-    postPayrollToAccounting as handlePayrollPosting
+    postPayrollToAccounting as handlePayrollPosting,
+    disbursePayroll
 } from '../controllers/payroll.controller';
 import {
     getTaxDeclarations,
@@ -68,6 +69,7 @@ router.get('/declarations/pending', getPendingReviews);
 router.get('/compliance/export', exportCompliance);
 
 router.post('/run/post-to-accounting', handlePayrollPosting);
+router.post('/run/disburse', disbursePayroll);
 
 // Employee Salary Structure
 router.get('/structure/:employeeId', getEmployeeSalaryStructure);

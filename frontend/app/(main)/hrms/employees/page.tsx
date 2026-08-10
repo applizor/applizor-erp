@@ -38,9 +38,12 @@ export default function EmployeesPage() {
 
     useEffect(() => {
         if (!redirecting) {
-            loadData();
+            const timer = setTimeout(() => {
+                loadData();
+            }, 300);
+            return () => clearTimeout(timer);
         }
-    }, [filters, redirecting]);
+    }, [filters, searchQuery, redirecting]);
 
     const checkAccessAndRedirect = async () => {
         if (!user) return;
@@ -79,8 +82,13 @@ export default function EmployeesPage() {
     const loadData = async () => {
         try {
             setLoading(true);
+            const queryParams: any = {};
+            if (filters.departmentId) queryParams.departmentId = filters.departmentId;
+            if (filters.status) queryParams.status = filters.status;
+            if (searchQuery.trim()) queryParams.search = searchQuery.trim();
+
             const [empData, deptData] = await Promise.all([
-                employeesApi.getAll(filters.departmentId || filters.status ? filters : undefined),
+                employeesApi.getAll(Object.keys(queryParams).length > 0 ? queryParams : undefined),
                 departmentsApi.getAll()
             ]);
             setEmployees(empData);
@@ -106,112 +114,16 @@ export default function EmployeesPage() {
         }
     };
 
-    const filteredEmployees = employees.filter((emp) => {
-        const query = searchQuery.toLowerCase();
-        const fullName = `${emp.firstName || ''} ${emp.lastName || ''}`.toLowerCase();
-        const code = (emp.employeeId || '').toLowerCase();
-        const dept = (emp.department?.name || '').toLowerCase();
-        const pos = (emp.position?.title || '').toLowerCase();
-        return fullName.includes(query) || code.includes(query) || dept.includes(query) || pos.includes(query);
-    });
-
-    if (redirecting) {
-        return (
-            <div className="flex items-center justify-center p-24">
-                <div className="text-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-4"></div>
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Accessing Node Profile...</p>
-                </div>
-            </div>
-        );
-    }
-
-    return (
-        <div className="flex flex-col gap-6">
-            {/* Contextual Header */}
-            <PageHeader
-                title="Resource Directory"
-                subtitle="Global Human Capital Intelligence Matrix"
-                icon={Users}
-                actions={
-                    <div className="flex items-center gap-2 w-full lg:w-auto">
-                        <div className="flex-1 lg:w-64 relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-                            <input
-                                type="text"
-                                placeholder="QUERY RESOURCE..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="ent-input w-full pl-9 py-1.5 text-[10px] font-black tracking-widest"
-                            />
-                        </div>
-                        <PermissionGuard module="Employee" action="create">
-                            <div className="flex items-center gap-2">
-                                <button
-                                    type="button"
-                                    onClick={() => setShowBulkImport(true)}
-                                    className="px-4 py-2 border border-gray-200 hover:border-primary-300 rounded-md text-[10px] font-black uppercase tracking-widest text-primary-600 hover:text-primary-700 bg-white shadow-sm flex items-center gap-1.5 transition-all"
-                                >
-                                    <Upload size={14} /> Bulk Import
-                                </button>
-                                <Link
-                                    href="/hrms/employees/new"
-                                    className="btn-primary flex items-center gap-2"
-                                >
-                                    <Plus size={14} /> Register Resource
-                                </Link>
-                            </div>
-                        </PermissionGuard>
-                    </div>
-                }
-            />
-
-            {/* Logical Filtration Schema */}
-            <div className="flex items-center gap-3 bg-gray-50/50 p-2 rounded-md border border-gray-100">
-                <div className="flex items-center gap-2 px-2 text-gray-400">
-                    <Filter size={12} />
-                    <span className="text-[9px] font-black uppercase tracking-widest">Refinement:</span>
-                </div>
-                <CustomSelect
-                    options={[
-                        { label: 'Division Schema', value: '' },
-                        ...departments.map(dept => ({ label: dept.name, value: dept.id }))
-                    ]}
-                    value={filters.departmentId}
-                    onChange={(val) => setFilters({ ...filters, departmentId: val })}
-                    className="min-w-[160px]"
-                />
-
-                <CustomSelect
-                    options={[
-                        { label: 'Engagement Status', value: '' },
-                        { label: 'Active Duty', value: 'active' },
-                        { label: 'On Sabbatical', value: 'on-leave' },
-                        { label: 'Inactive Cache', value: 'inactive' },
-                        { label: 'Terminated', value: 'terminated' }
-                    ]}
-                    value={filters.status}
-                    onChange={(val) => setFilters({ ...filters, status: val })}
-                    className="min-w-[160px]"
-                />
-
-                <div className="ml-auto flex items-center gap-2 px-3 py-1 bg-white border border-gray-100 rounded-md shadow-sm">
-                    <Zap className="w-3 h-3 text-amber-500" />
-                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Active Nodes:</span>
-                    <span className="text-[10px] font-black text-primary-600">{employees.filter(e => e.status === 'active').length}</span>
-                </div>
-            </div>
-
             {loading ? (
                 <EmployeeListSkeleton />
-            ) : filteredEmployees.length === 0 ? (
+            ) : employees.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-24 bg-gray-50/30 rounded-md border border-dashed border-gray-200">
                     <Users className="w-8 h-8 text-gray-300 mb-3" />
                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Zero Resources Detected in Lifecycle</p>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {filteredEmployees.map((emp) => (
+                    {employees.map((emp) => (
                         <div key={emp.id} className="ent-card group relative p-4 bg-white hover:border-primary-200 hover:shadow-lg transition-all">
                             {/* Identifier Protocol */}
                             <div className="absolute top-2 right-2 flex flex-col items-end gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">

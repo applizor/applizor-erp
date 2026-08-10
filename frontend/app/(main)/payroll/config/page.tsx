@@ -9,9 +9,11 @@ import { CustomSelect } from '@/components/ui/CustomSelect';
 import PTSlabsConfig, { PTSlab } from './PTSlabsConfig';
 
 interface StatutoryConfigState {
+    pfEnabled: boolean;
     pfEmployeeRate: number;
     pfEmployerRate: number;
     pfBasicLimit: number;
+    esiEnabled: boolean;
     esiEmployeeRate: number;
     esiEmployerRate: number;
     esiGrossLimit: number;
@@ -35,9 +37,11 @@ export default function StatutoryConfigPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [config, setConfig] = useState<StatutoryConfigState>({
+        pfEnabled: false,
         pfEmployeeRate: 12,
         pfEmployerRate: 12,
         pfBasicLimit: 15000,
+        esiEnabled: false,
         esiEmployeeRate: 0.75,
         esiEmployerRate: 3.25,
         esiGrossLimit: 21000,
@@ -177,14 +181,26 @@ export default function StatutoryConfigPage() {
                         <Info size={100} className="text-primary-900" />
                     </div>
 
-                    <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-                        <div className="h-8 w-8 rounded bg-primary-50 flex items-center justify-center">
-                            <Percent size={14} className="text-primary-600" />
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                        <div className="flex items-center gap-3">
+                            <div className="h-8 w-8 rounded bg-primary-50 flex items-center justify-center">
+                                <Percent size={14} className="text-primary-600" />
+                            </div>
+                            <div>
+                                <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">Provident Fund (EPF)</h3>
+                                <p className="text-[9px] text-slate-400 font-bold uppercase">{config.pfEnabled ? 'Status: Active (Calculated)' : 'Status: Disabled (No Deduction)'}</p>
+                            </div>
                         </div>
-                        <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">Provident Fund (EPF)</h3>
+                        <button
+                            type="button"
+                            onClick={() => setConfig({ ...config, pfEnabled: !config.pfEnabled })}
+                            className={`w-12 h-6 rounded-full transition-all relative ${config.pfEnabled ? 'bg-primary-900' : 'bg-slate-300'}`}
+                        >
+                            <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${config.pfEnabled ? 'right-1' : 'left-1'}`} />
+                        </button>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-6">
+                    <div className={`grid grid-cols-2 gap-6 transition-all ${!config.pfEnabled ? 'opacity-40 pointer-events-none' : ''}`}>
                         <div className="ent-form-group">
                             <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1.5 block">Employee Contribution %</label>
                             <input
@@ -205,7 +221,7 @@ export default function StatutoryConfigPage() {
                         </div>
                     </div>
 
-                    <div className="ent-form-group">
+                    <div className={`ent-form-group transition-all ${!config.pfEnabled ? 'opacity-40 pointer-events-none' : ''}`}>
                         <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1.5 block">Statutory Basic Cap (INR)</label>
                         <div className="relative">
                             <IndianRupee size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" />
@@ -222,14 +238,26 @@ export default function StatutoryConfigPage() {
 
                 {/* ESI Configuration */}
                 <div className="bg-white p-8 rounded-md border border-slate-200 shadow-sm space-y-6">
-                    <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-                        <div className="h-8 w-8 rounded bg-emerald-50 flex items-center justify-center">
-                            <Activity size={14} className="text-emerald-600" />
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                        <div className="flex items-center gap-3">
+                            <div className="h-8 w-8 rounded bg-emerald-50 flex items-center justify-center">
+                                <Activity size={14} className="text-emerald-600" />
+                            </div>
+                            <div>
+                                <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">ESIC Parameters</h3>
+                                <p className="text-[9px] text-slate-400 font-bold uppercase">{config.esiEnabled ? 'Status: Active (Calculated)' : 'Status: Disabled (No Deduction)'}</p>
+                            </div>
                         </div>
-                        <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">ESIC Parameters</h3>
+                        <button
+                            type="button"
+                            onClick={() => setConfig({ ...config, esiEnabled: !config.esiEnabled })}
+                            className={`w-12 h-6 rounded-full transition-all relative ${config.esiEnabled ? 'bg-emerald-600' : 'bg-slate-300'}`}
+                        >
+                            <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${config.esiEnabled ? 'right-1' : 'left-1'}`} />
+                        </button>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-6">
+                    <div className={`grid grid-cols-2 gap-6 transition-all ${!config.esiEnabled ? 'opacity-40 pointer-events-none' : ''}`}>
                         <div className="ent-form-group">
                             <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1.5 block">Employee Rate %</label>
                             <input
@@ -252,7 +280,7 @@ export default function StatutoryConfigPage() {
                         </div>
                     </div>
 
-                    <div className="ent-form-group">
+                    <div className={`ent-form-group transition-all ${!config.esiEnabled ? 'opacity-40 pointer-events-none' : ''}`}>
                         <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1.5 block">Gross Salary Threshold (INR)</label>
                         <div className="relative">
                             <IndianRupee size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" />
@@ -276,13 +304,42 @@ export default function StatutoryConfigPage() {
                         <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">Global Governance Toggles</h3>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="flex items-center justify-between p-4 bg-slate-50 rounded-md">
+                            <div>
+                                <p className="text-[11px] font-black text-slate-900 uppercase tracking-tight">Provident Fund (PF)</p>
+                                <p className="text-[9px] text-slate-500 uppercase tracking-widest mt-0.5">Toggle PF deduction for company</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setConfig({ ...config, pfEnabled: !config.pfEnabled })}
+                                className={`w-12 h-6 rounded-full transition-all relative ${config.pfEnabled ? 'bg-primary-900' : 'bg-slate-300'}`}
+                            >
+                                <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${config.pfEnabled ? 'right-1' : 'left-1'}`} />
+                            </button>
+                        </div>
+
+                        <div className="flex items-center justify-between p-4 bg-slate-50 rounded-md">
+                            <div>
+                                <p className="text-[11px] font-black text-slate-900 uppercase tracking-tight">ESIC Parameters</p>
+                                <p className="text-[9px] text-slate-500 uppercase tracking-widest mt-0.5">Toggle ESI deduction for company</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setConfig({ ...config, esiEnabled: !config.esiEnabled })}
+                                className={`w-12 h-6 rounded-full transition-all relative ${config.esiEnabled ? 'bg-emerald-600' : 'bg-slate-300'}`}
+                            >
+                                <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${config.esiEnabled ? 'right-1' : 'left-1'}`} />
+                            </button>
+                        </div>
+
                         <div className="flex items-center justify-between p-4 bg-slate-50 rounded-md">
                             <div>
                                 <p className="text-[11px] font-black text-slate-900 uppercase tracking-tight">Professional Tax (PT) Logic</p>
                                 <p className="text-[9px] text-slate-500 uppercase tracking-widest mt-0.5">Automate state-specific PT deductions</p>
                             </div>
                             <button
+                                type="button"
                                 onClick={() => setConfig({ ...config, professionalTaxEnabled: !config.professionalTaxEnabled })}
                                 className={`w-12 h-6 rounded-full transition-all relative ${config.professionalTaxEnabled ? 'bg-primary-900' : 'bg-slate-300'}`}
                             >
@@ -296,6 +353,7 @@ export default function StatutoryConfigPage() {
                                 <p className="text-[9px] text-slate-500 uppercase tracking-widest mt-0.5">Enable automated TDS slab calculations</p>
                             </div>
                             <button
+                                type="button"
                                 onClick={() => setConfig({ ...config, tdsEnabled: !config.tdsEnabled })}
                                 className={`w-12 h-6 rounded-full transition-all relative ${config.tdsEnabled ? 'bg-primary-900' : 'bg-slate-300'}`}
                             >

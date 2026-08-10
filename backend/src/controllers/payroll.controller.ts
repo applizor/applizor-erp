@@ -489,6 +489,11 @@ export const processPayroll = async (req: AuthRequest, res: Response) => {
                         netSalary,
                         status: 'processed',
                         processedAt: new Date()
+                    },
+                    include: {
+                        employee: {
+                            select: { firstName: true, lastName: true, employeeId: true }
+                        }
                     }
                 });
             } else {
@@ -506,6 +511,11 @@ export const processPayroll = async (req: AuthRequest, res: Response) => {
                         netSalary,
                         status: 'processed',
                         processedAt: new Date()
+                    },
+                    include: {
+                        employee: {
+                            select: { firstName: true, lastName: true, employeeId: true }
+                        }
                     }
                 });
             }
@@ -515,7 +525,22 @@ export const processPayroll = async (req: AuthRequest, res: Response) => {
             return results;
         });
 
-        res.json({ message: `Processed payroll for ${payrolls.length} employees`, payrolls });
+        const reference = `PAYROLL-${year}-${month.toString().padStart(2, '0')}`;
+        const existingEntry = await prisma.journalEntry.findFirst({
+            where: {
+                companyId: req.user!.companyId,
+                reference,
+                status: 'posted'
+            }
+        });
+        const isPosted = !!existingEntry || (payrolls.length > 0 && payrolls.every((p: any) => p.status === 'paid'));
+
+        res.json({ 
+            message: `Processed payroll for ${payrolls.length} employees`, 
+            payrolls, 
+            isPosted,
+            journalId: existingEntry?.id 
+        });
 
     } catch (error: any) {
         console.error('Process payroll error:', error);
@@ -543,6 +568,78 @@ export const postPayrollToAccounting = async (req: AuthRequest, res: Response) =
     } catch (error: any) {
         console.error('Post to accounting error:', error);
         res.status(500).json({ error: error.message || 'Failed to post payroll to accounting' });
+    }
+};
+
+export const disbursePayroll = async (req: AuthRequest, res: Response) => {
+    try {
+        if (!PermissionService.hasBasicPermission(req.user, 'Accounting', 'update')) {
+            return res.status(403).json({ error: 'Access denied: Accounting update permission required' });
+        }
+
+        const { month, year, paymentDate, bankAccountId } = req.body;
+        const companyId = req.user!.companyId;
+
+        const date = paymentDate ? new Date(paymentDate) : new Date();
+        const reference = `PAYMENT-SALARY-${year}-${month.toString().padStart(2, '0')}`;
+
+        // Check if payment entry already exists
+        const existing = await prisma.journalEntry.findFirst({
+            where: { companyId, reference, status: 'posted' }
+        });
+
+        if (existing) {
+            return res.status(400).json({ error: `Bank disbursement for ${month}/${year} has already been recorded (Ref: ${existing.reference}).` });
+        }
+
+        // Get total net salary for this month
+        const payrolls = await prisma.payroll.findMany({
+            where: { month: Number(month), year: Number(year), employee: { companyId } }
+        });
+
+        if (payrolls.length === 0) {
+            return res.status(404).json({ error: 'No payroll records found for this period' });
+        }
+
+        const totalNetSalary = payrolls.reduce((sum, p) => sum + Number(p.netSalary), 0);
+
+        // Fetch Accounts
+        const statutoryConfig = await prisma.statutoryConfig.findUnique({ where: { companyId } });
+        const { ensureAccount, createJournalEntry } = await import('../services/accounting.service');
+        
+        const salaryPayableAcct = statutoryConfig?.salaryPayableAccountId
+            ? await prisma.ledgerAccount.findUnique({ where: { id: statutoryConfig.salaryPayableAccountId } })
+            || await ensureAccount(companyId, '2100', 'Salaries Payable', 'liability')
+            : await ensureAccount(companyId, '2100', 'Salaries Payable', 'liability');
+
+        const bankAcc = bankAccountId 
+            ? await prisma.ledgerAccount.findUnique({ where: { id: bankAccountId } })
+            : await ensureAccount(companyId, '1001', 'Bank Account', 'asset');
+
+        // Create Disbursement Journal Entry
+        const entry = await createJournalEntry(
+            companyId,
+            date,
+            `Salary Bank Payout for ${month}/${year}`,
+            reference,
+            [
+                { accountId: salaryPayableAcct.id, debit: totalNetSalary, credit: 0 },
+                { accountId: bankAcc!.id, debit: 0, credit: totalNetSalary }
+            ],
+            true,
+            req.userId
+        );
+
+        // Mark payroll records as paid
+        await prisma.payroll.updateMany({
+            where: { month: Number(month), year: Number(year), employee: { companyId } },
+            data: { status: 'paid' }
+        });
+
+        res.json({ message: 'Payroll disbursement recorded successfully', entry });
+    } catch (error: any) {
+        console.error('Disburse payroll error:', error);
+        res.status(500).json({ error: error.message || 'Failed to disburse payroll' });
     }
 };
 
@@ -751,7 +848,7 @@ export const downloadPayslip = async (req: AuthRequest, res: Response) => {
         if (!payroll) return res.status(404).json({ error: 'Payroll record not found' });
 
         // Verify Scope
-        const currentUserEmployee = await prisma.employee.findUnique({ where: { userId: req.user.id } });
+        const currentUserEmployee = await prisma.employee.findUnique({ where: { userId } });
         const currentEmpId = currentUserEmployee?.id;
 
         const scope = PermissionService.getPermissionScope(req.user, 'Payroll', 'read');

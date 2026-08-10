@@ -44,6 +44,7 @@ export default function RunPayrollPage() {
         try {
             setPosting(true);
             await payrollApi.postToAccounting({ month, year });
+            setResult((prev: any) => (prev ? { ...prev, isPosted: true } : prev));
             toast.success('Governance synchronized: Journal entries posted to Ledger');
         } catch (error: any) {
             console.error(error);
@@ -148,14 +149,21 @@ export default function RunPayrollPage() {
                             </h3>
                             <div className="flex items-center gap-3">
                                 <PermissionGuard module="Payroll" action="create">
-                                    <button
-                                        onClick={handlePostToAccounting}
-                                        disabled={posting || result.payrolls.length === 0}
-                                        className="btn-primary py-1 px-3 bg-emerald-600 hover:bg-emerald-700 shadow-emerald-900/10 text-[9px]"
-                                    >
-                                        {posting ? <LoadingSpinner size="sm" /> : <LayoutGrid size={12} className="mr-2 inline" />}
-                                        Post to Accounts
-                                    </button>
+                                    {result.isPosted ? (
+                                        <span className="px-3 py-1 bg-emerald-100 text-emerald-800 text-[9px] font-black uppercase tracking-widest rounded-md border border-emerald-200 flex items-center gap-1.5 shadow-sm">
+                                            <CheckCircle size={14} />
+                                            Posted to Accounts
+                                        </span>
+                                    ) : (
+                                        <button
+                                            onClick={handlePostToAccounting}
+                                            disabled={posting || result.payrolls.length === 0}
+                                            className="btn-primary py-1 px-3 bg-emerald-600 hover:bg-emerald-700 shadow-emerald-900/10 text-[9px]"
+                                        >
+                                            {posting ? <LoadingSpinner size="sm" /> : <LayoutGrid size={12} className="mr-2 inline" />}
+                                            Post to Accounts
+                                        </button>
+                                    )}
                                 </PermissionGuard>
                                 <span className="text-[9px] font-black text-emerald-700 bg-emerald-50 px-3 py-1 rounded-md border border-emerald-100 flex items-center gap-2 uppercase tracking-widest">
                                     <CheckCircle size={14} />
@@ -179,14 +187,16 @@ export default function RunPayrollPage() {
                                     {result.payrolls.map((payroll: any) => (
                                         <tr key={payroll.id}>
                                             <td className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-md bg-gray-100 flex items-center justify-center font-black text-[10px] text-gray-400 border border-gray-200 uppercase">
-                                                    ID
+                                                <div className="w-8 h-8 rounded-md bg-gray-100 flex items-center justify-center font-black text-[10px] text-gray-500 border border-gray-200 uppercase">
+                                                    {payroll.employee?.firstName ? payroll.employee.firstName[0] : 'EMP'}
                                                 </div>
                                                 <div>
                                                     <div className="text-[11px] font-black text-gray-900 uppercase">
-                                                        EMP-{payroll.employeeId.slice(0, 8).toUpperCase()}
+                                                        {payroll.employee ? `${payroll.employee.firstName} ${payroll.employee.lastName}` : `EMP-${payroll.employeeId.slice(0, 8).toUpperCase()}`}
                                                     </div>
-                                                    <div className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter">System ID: {payroll.id.slice(-6).toUpperCase()}</div>
+                                                    <div className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter">
+                                                        {payroll.employee?.employeeId || `System ID: ${payroll.id.slice(-6).toUpperCase()}`}
+                                                    </div>
                                                 </div>
                                             </td>
                                             <td className="text-center">

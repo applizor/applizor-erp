@@ -17,15 +17,20 @@ export default function SalaryStructureListPage() {
     const [employees, setEmployees] = useState<any[]>([]);
     const [structures, setStructures] = useState<any[]>([]);
 
-    useEffect(() => {
-        loadData();
-    }, []);
+    const [searchQuery, setSearchQuery] = useState('');
 
-    const loadData = async () => {
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            loadData(searchQuery);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
+
+    const loadData = async (query?: string) => {
         try {
             setLoading(true);
             const [emps, structs] = await Promise.all([
-                employeesApi.getAll(),
+                employeesApi.getAll(query ? { search: query } : undefined),
                 api.get('/payroll/structures').then(res => res.data).catch(() => [])
             ]);
             setEmployees(emps);
@@ -58,7 +63,9 @@ export default function SalaryStructureListPage() {
 
                 <div className="flex items-center gap-3">
                     <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-md">
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">{employees.length} Personnel</span>
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">
+                            {employees.length} Personnel Found
+                        </span>
                     </div>
                 </div>
             </div>
@@ -71,9 +78,19 @@ export default function SalaryStructureListPage() {
                 </div>
                 <input
                     type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="LOCATE EMPLOYEE BY NAME, ID OR DEPARTMENT..."
                     className="flex-1 bg-transparent border-none text-[10px] font-bold uppercase tracking-wider placeholder-slate-300 focus:ring-0"
                 />
+                {searchQuery && (
+                    <button
+                        onClick={() => setSearchQuery('')}
+                        className="text-[9px] font-black text-slate-400 hover:text-slate-600 px-2 uppercase tracking-wider"
+                    >
+                        Clear
+                    </button>
+                )}
             </div>
 
             {/* Data Grid */}
@@ -89,8 +106,14 @@ export default function SalaryStructureListPage() {
                         </tr>
                     </thead>
                     <tbody>
-                        {loading && employees.length === 0 ? (
+                        {loading ? (
                             <TableRowSkeleton columns={5} rows={5} />
+                        ) : employees.length === 0 ? (
+                            <tr>
+                                <td colSpan={5} className="text-center py-8 text-xs font-bold text-slate-400 uppercase">
+                                    {searchQuery ? `No personnel found matching "${searchQuery}"` : 'No personnel registered'}
+                                </td>
+                            </tr>
                         ) : employees.map((emp) => {
                             const struct = getStructureForEmployee(emp.id);
                             return (
