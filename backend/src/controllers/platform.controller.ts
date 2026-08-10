@@ -1155,6 +1155,26 @@ export const listStatutoryRules = async (req: AuthRequest, res: Response) => {
             orderBy: [{ code: 'asc' }, { effectiveFrom: 'desc' }],
             include: { country: { select: { name: true, code: true } } },
         });
+
+        if (companyId) {
+            const config = await prisma.statutoryConfig.findUnique({ where: { companyId } });
+            const mappedRules = rules.map(r => {
+                const upper = r.code.toUpperCase();
+                let isCompanyEnabled = true;
+                if (upper === 'PF') isCompanyEnabled = config ? !!config.pfEnabled : false;
+                else if (upper === 'ESI') isCompanyEnabled = config ? !!config.esiEnabled : false;
+                else if (upper === 'PT') isCompanyEnabled = config ? !!config.professionalTaxEnabled : false;
+                else if (upper === 'TDS') isCompanyEnabled = config ? !!config.tdsEnabled : false;
+
+                return {
+                    ...r,
+                    isActive: r.isActive && isCompanyEnabled,
+                    isCompanyEnabled
+                };
+            });
+            return res.json(mappedRules);
+        }
+
         res.json(rules);
     } catch (error) {
         console.error('List statutory rules error:', error);

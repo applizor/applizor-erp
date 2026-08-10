@@ -253,6 +253,27 @@ export default function CompanyRulesPage() {
           </div>
         </div>
 
+        {/* Info Banner for Statutory Config */}
+        <div className="mb-6 bg-blue-50/60 border border-blue-100 rounded-lg p-4 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-100/60 text-blue-700 rounded-md">
+              <Info size={16} />
+            </div>
+            <div>
+              <p className="text-xs font-black text-slate-800 uppercase tracking-tight">Statutory Deduction Toggles</p>
+              <p className="text-[10px] font-bold text-slate-500 mt-0.5">
+                Enable or disable PF, ESI, Professional Tax, and TDS for your company under <a href="/payroll/config" className="text-blue-600 underline font-black">Statutory Config</a>. Rules disabled in Statutory Config will be bypassed during payroll calculation.
+              </p>
+            </div>
+          </div>
+          <a
+            href="/payroll/config"
+            className="px-3 py-1.5 bg-blue-600 text-white rounded-md text-[9px] font-black uppercase tracking-widest hover:bg-blue-700 transition-colors whitespace-nowrap shadow-sm"
+          >
+            Manage Config
+          </a>
+        </div>
+
         <div className="grid grid-cols-1 gap-6">
           {/* Rules Table */}
           <div className="ent-card overflow-hidden">
@@ -351,7 +372,7 @@ export default function CompanyRulesPage() {
                                 ? 'bg-emerald-50 text-emerald-700 border-emerald-100' 
                                 : 'bg-slate-100 text-slate-400 border-slate-200'
                             }`}>
-                              {rule.isActive ? 'Active' : 'Inactive'}
+                              {rule.isActive ? 'Active' : 'Disabled (Config OFF)'}
                             </span>
                           </td>
                           <td className="px-4 py-3.5 text-right whitespace-nowrap">
