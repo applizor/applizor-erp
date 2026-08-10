@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { payrollApi, SalaryComponent, EmployeeSalaryStructure } from '@/lib/api/payroll';
 import { employeesApi } from '@/lib/api/hrms';
-import { DollarSign, Activity, ChevronRight, Briefcase, Calculator, Save, ArrowLeft } from 'lucide-react';
+import { DollarSign, Activity, ChevronRight, Briefcase, Calculator, Save, ArrowLeft, Calendar, Sparkles } from 'lucide-react';
 
 import Link from 'next/link';
 
@@ -20,11 +20,42 @@ export default function SalaryStructurePage({ params }: { params: { employeeId: 
     const [components, setComponents] = useState<SalaryComponent[]>([]);
 
     const [ctc, setCtc] = useState<number>(0);
+    const [monthlySalary, setMonthlySalary] = useState<number>(0);
     const [breakdown, setBreakdown] = useState<Record<string, number>>({});
 
     useEffect(() => {
         loadData();
     }, []);
+
+    const autoCalculateComponents = (monthlyVal: number, compList: SalaryComponent[] = components) => {
+        if (!monthlyVal || monthlyVal <= 0) return;
+
+        const basic = Math.round(monthlyVal * 0.50);
+        const hra = Math.round(basic * 0.50);
+
+        const basicComp = compList.find(c => c.name.toUpperCase().includes('BASIC'));
+        const hraComp = compList.find(c => c.name.toUpperCase().includes('HRA'));
+        const specialComp = compList.find(c => c.name.toUpperCase().includes('SPECIAL'));
+
+        const newBreakdown: Record<string, number> = {};
+        compList.forEach(c => newBreakdown[c.id] = 0);
+
+        let allocated = 0;
+        if (basicComp) {
+            newBreakdown[basicComp.id] = basic;
+            allocated += basic;
+        }
+        if (hraComp) {
+            newBreakdown[hraComp.id] = hra;
+            allocated += hra;
+        }
+        if (specialComp) {
+            const balance = monthlyVal - allocated;
+            newBreakdown[specialComp.id] = balance > 0 ? balance : 0;
+        }
+
+        setBreakdown(newBreakdown);
+    };
 
     const loadData = async () => {
         try {
@@ -37,8 +68,10 @@ export default function SalaryStructurePage({ params }: { params: { employeeId: 
             setEmployee(emp);
             setComponents(comps);
 
-            if (struct) {
-                setCtc(Number(struct.ctc));
+            if (struct && Number(struct.ctc) > 0) {
+                const ctcVal = Number(struct.ctc);
+                setCtc(ctcVal);
+                setMonthlySalary(Math.round(ctcVal / 12));
                 const mapping: any = {};
                 struct.components.forEach((c: any) => mapping[c.componentId] = Number(c.monthlyAmount));
                 setBreakdown(mapping);
@@ -51,38 +84,27 @@ export default function SalaryStructurePage({ params }: { params: { employeeId: 
         }
     };
 
-    const handleAutoCalculate = () => {
-        if (!ctc) return;
-        const monthlyCtc = Math.round(ctc / 12);
+    const handleMonthlyChange = (val: number) => {
+        setMonthlySalary(val);
+        const newCtc = val * 12;
+        setCtc(newCtc);
+        autoCalculateComponents(val);
+    };
 
-        // Indian Standard: Basic @ 50% of Gross CTC, HRA @ 50% of Basic
-        const basic = Math.round(monthlyCtc * 0.50);
-        const hra = Math.round(basic * 0.50);
+    const handleCtcChange = (val: number) => {
+        setCtc(val);
+        const newMonthly = Math.round(val / 12);
+        setMonthlySalary(newMonthly);
+        autoCalculateComponents(newMonthly);
+    };
 
-        const basicComp = components.find(c => c.name.toUpperCase().includes('BASIC'));
-        const hraComp = components.find(c => c.name.toUpperCase().includes('HRA'));
-        const specialComp = components.find(c => c.name.toUpperCase().includes('SPECIAL'));
-
-        const newBreakdown: any = {};
-        components.forEach(c => newBreakdown[c.id] = 0);
-
-        let allocated = 0;
-
-        if (basicComp) {
-            newBreakdown[basicComp.id] = basic;
-            allocated += basic;
+    const handleManualAutoAllocate = () => {
+        const val = monthlySalary || (ctc ? Math.round(ctc / 12) : 0);
+        if (!val) {
+            toast.error('Please enter a valid Monthly Salary or CTC amount first');
+            return;
         }
-        if (hraComp) {
-            newBreakdown[hraComp.id] = hra;
-            allocated += hra;
-        }
-
-        if (specialComp) {
-            const balance = monthlyCtc - allocated;
-            newBreakdown[specialComp.id] = balance > 0 ? balance : 0;
-        }
-
-        setBreakdown(newBreakdown);
+        autoCalculateComponents(val);
         toast.success('Strategy auto-calculated (Basic 50%, HRA 50% of Basic, Special Allowance balance)');
     };
 
@@ -102,7 +124,7 @@ export default function SalaryStructurePage({ params }: { params: { employeeId: 
             });
 
             await payrollApi.saveStructure(params.employeeId, {
-                ctc,
+                ctc: ctc || monthlySalary * 12,
                 netSalary: gross - deductions,
                 components: componentList
             });
@@ -151,27 +173,63 @@ export default function SalaryStructurePage({ params }: { params: { employeeId: 
             </div>
 
             <div className="ent-card p-8 bg-gradient-to-br from-white to-gray-50/30">
-                <div className="mb-10 space-y-2">
-                    <label className="text-[10px] font-black text-primary-600 uppercase tracking-widest flex items-center gap-2">
-                        <DollarSign size={12} /> Annualized Cost to Company (CTC) <span className="text-rose-500">*</span>
-                    </label>
-                    <div className="flex gap-4">
-                        <div className="relative flex-1 group">
-                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-black text-[10px] tracking-wider uppercase">VALUATION</span>
-                            <input
-                                type="number"
-                                value={ctc}
-                                onChange={(e) => setCtc(Number(e.target.value))}
-                                className="ent-input w-full pl-24 h-14 text-2xl font-black tracking-tighter border-2 border-gray-200 focus:border-primary-500 transition-all rounded-md shadow-inner bg-white/50"
-                                placeholder="0.00"
-                            />
+                {/* Dual Input Section: Monthly Salary & Annual CTC */}
+                <div className="mb-10 p-6 bg-slate-50/70 border border-slate-200/80 rounded-xl space-y-4 shadow-sm">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-[10px] font-black text-primary-900 uppercase tracking-widest">
+                            <Sparkles size={14} className="text-amber-500" />
+                            Valuation Calculator & Auto-Allocation Engine
                         </div>
-                        <button
-                            onClick={handleAutoCalculate}
-                            className="px-8 bg-white border border-gray-200 rounded-md font-black text-[10px] uppercase tracking-widest hover:border-primary-500 hover:text-primary-600 text-gray-500 shadow-sm transition-all flex items-center gap-3 active:scale-95"
-                        >
-                            <Calculator size={16} /> Intelligent Auto-Allocation
-                        </button>
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                          Enter Monthly Gross or Annual CTC
+                        </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                        {/* Monthly Salary Input */}
+                        <div className="md:col-span-5 space-y-1.5">
+                            <label className="text-[9px] font-black text-slate-600 uppercase tracking-widest flex items-center gap-1.5">
+                                <Calendar size={12} className="text-primary-600" /> Monthly Gross Salary (Per Month)
+                            </label>
+                            <div className="relative group">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-black text-[10px] tracking-wider uppercase">₹/MON</span>
+                                <input
+                                    type="number"
+                                    value={monthlySalary || ''}
+                                    onChange={(e) => handleMonthlyChange(Number(e.target.value))}
+                                    className="ent-input w-full pl-16 h-12 text-xl font-black tracking-tight border border-slate-300 focus:border-primary-600 transition-all rounded-md bg-white shadow-xs"
+                                    placeholder="e.g. 12000"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Annual CTC Input */}
+                        <div className="md:col-span-4 space-y-1.5">
+                            <label className="text-[9px] font-black text-slate-600 uppercase tracking-widest flex items-center gap-1.5">
+                                <DollarSign size={12} className="text-emerald-600" /> Annual CTC (Yearly)
+                            </label>
+                            <div className="relative group">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-black text-[10px] tracking-wider uppercase">₹/YR</span>
+                                <input
+                                    type="number"
+                                    value={ctc || ''}
+                                    onChange={(e) => handleCtcChange(Number(e.target.value))}
+                                    className="ent-input w-full pl-16 h-12 text-xl font-black tracking-tight border border-slate-300 focus:border-primary-600 transition-all rounded-md bg-white shadow-xs"
+                                    placeholder="e.g. 144000"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Auto Allocate Button */}
+                        <div className="md:col-span-3">
+                            <button
+                                type="button"
+                                onClick={handleManualAutoAllocate}
+                                className="w-full h-12 bg-primary-900 hover:bg-primary-800 text-white rounded-md font-black text-[9px] uppercase tracking-widest shadow-sm transition-all flex items-center justify-center gap-2 active:scale-95 whitespace-nowrap"
+                            >
+                                <Calculator size={14} /> Auto-Allocate
+                            </button>
+                        </div>
                     </div>
                 </div>
 
