@@ -17,6 +17,8 @@ const COLORS = ['#001C30', '#0ea5e9', '#f59e0b', '#ef4444', '#10b981'];
 
 export default function BalanceSheetPage() {
     const toast = useToast();
+    const [accounts, setAccounts] = useState<LedgerAccount[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     const [showZeroBalances, setShowZeroBalances] = useState(false);
 
     useEffect(() => {
