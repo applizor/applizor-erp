@@ -17,8 +17,7 @@ const COLORS = ['#001C30', '#0ea5e9', '#f59e0b', '#ef4444', '#10b981'];
 
 export default function BalanceSheetPage() {
     const toast = useToast();
-    const [accounts, setAccounts] = useState<LedgerAccount[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [showZeroBalances, setShowZeroBalances] = useState(false);
 
     useEffect(() => {
         fetchData();
@@ -64,10 +63,11 @@ export default function BalanceSheetPage() {
 
     const handleExportCsv = () => {
         try {
+            const filteredAccounts = showZeroBalances ? accounts : accounts.filter(a => Math.abs(Number(a.balance)) > 0.001);
             downloadCsv(
                 `Balance_Sheet_${new Date().toISOString().split('T')[0]}.csv`,
                 ['Code', 'Name', 'Type', 'Balance'],
-                accounts.map(a => [a.code, a.name, a.type, Number(a.balance)])
+                filteredAccounts.map(a => [a.code, a.name, a.type, Number(a.balance)])
             );
             toast.success('CSV exported successfully');
         } catch {
@@ -75,14 +75,18 @@ export default function BalanceSheetPage() {
         }
     };
 
-    const assets = accounts.filter(a => a.type === 'asset');
-    const liabilities = accounts.filter(a => a.type === 'liability');
-    const equity = accounts.filter(a => a.type === 'equity');
+    const allAssets = accounts.filter(a => a.type === 'asset');
+    const allLiabilities = accounts.filter(a => a.type === 'liability');
+    const allEquity = accounts.filter(a => a.type === 'equity');
 
-    const totalAssets = assets.reduce((sum, a) => sum + Number(a.balance), 0);
-    const totalLiabilities = liabilities.reduce((sum, a) => sum + Number(a.balance), 0);
-    const totalEquity = equity.reduce((sum, a) => sum + Number(a.balance), 0);
+    const totalAssets = allAssets.reduce((sum, a) => sum + Number(a.balance), 0);
+    const totalLiabilities = allLiabilities.reduce((sum, a) => sum + Number(a.balance), 0);
+    const totalEquity = allEquity.reduce((sum, a) => sum + Number(a.balance), 0);
     const totalLiabilitiesEquity = totalLiabilities + totalEquity;
+
+    const assets = showZeroBalances ? allAssets : allAssets.filter(a => Math.abs(Number(a.balance)) > 0.001);
+    const liabilities = showZeroBalances ? allLiabilities : allLiabilities.filter(a => Math.abs(Number(a.balance)) > 0.001);
+    const equity = showZeroBalances ? allEquity : allEquity.filter(a => Math.abs(Number(a.balance)) > 0.001);
 
     const chartData = [
         { name: 'Assets', value: Math.abs(totalAssets) },
@@ -108,6 +112,12 @@ export default function BalanceSheetPage() {
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => setShowZeroBalances(!showZeroBalances)}
+                        className={`px-3 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest border transition-all ${showZeroBalances ? 'bg-primary-900 text-white border-primary-900' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
+                    >
+                        {showZeroBalances ? 'Hide 0-Balances' : 'Show 0-Balances'}
+                    </button>
                     <button
                         onClick={handleSync}
                         className="ent-button-secondary flex items-center gap-2"
