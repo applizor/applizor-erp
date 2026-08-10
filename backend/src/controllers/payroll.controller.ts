@@ -55,9 +55,19 @@ export const getSalaryComponents = async (req: AuthRequest, res: Response) => {
 
         const companyId = req.user?.companyId;
         const components = await prisma.salaryComponent.findMany({
-            where: { companyId, isActive: true }
+            where: { companyId, isActive: true },
+            orderBy: { createdAt: 'asc' }
         });
-        res.json(components);
+
+        const seenNames = new Set<string>();
+        const uniqueComponents = components.filter(c => {
+            const normalized = c.name.trim().toLowerCase();
+            if (seenNames.has(normalized)) return false;
+            seenNames.add(normalized);
+            return true;
+        });
+
+        res.json(uniqueComponents);
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch salary components' });
     }

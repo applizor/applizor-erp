@@ -53,17 +53,19 @@ export default function SalaryStructurePage({ params }: { params: { employeeId: 
 
     const handleAutoCalculate = () => {
         if (!ctc) return;
-        const monthlyCtc = ctc / 12;
+        const monthlyCtc = Math.round(ctc / 12);
 
-        // Indian Payroll Standard: Basic @ 50% of Gross (CTC), HRA @ 40/50% of Basic
-        const basic = Math.floor(monthlyCtc * 0.45); // Using 45% for a safer net
-        const hra = Math.floor(basic * 0.40); // 40% for Non-Metro standard
+        // Indian Standard: Basic @ 50% of Gross CTC, HRA @ 50% of Basic
+        const basic = Math.round(monthlyCtc * 0.50);
+        const hra = Math.round(basic * 0.50);
 
         const basicComp = components.find(c => c.name.toUpperCase().includes('BASIC'));
         const hraComp = components.find(c => c.name.toUpperCase().includes('HRA'));
-        const specialComp = components.find(c => c.name.toUpperCase().includes('SPECIAL') || c.name.toUpperCase().includes('ALLOWANCE'));
+        const specialComp = components.find(c => c.name.toUpperCase().includes('SPECIAL'));
 
-        const newBreakdown: any = { ...breakdown };
+        const newBreakdown: any = {};
+        components.forEach(c => newBreakdown[c.id] = 0);
+
         let allocated = 0;
 
         if (basicComp) {
@@ -75,30 +77,13 @@ export default function SalaryStructurePage({ params }: { params: { employeeId: 
             allocated += hra;
         }
 
-        // PF Calculation: 12% of Basic capped at 15000
-        const pfComp = components.find(c => c.type === 'deduction' && c.name.toUpperCase().includes('PF'));
-        if (pfComp && basic) {
-            const pfWage = Math.min(basic, 15000);
-            const pf = Math.floor(pfWage * 0.12);
-            newBreakdown[pfComp.id] = pf;
-        }
-
-        // ESI Calculation: 0.75% of Gross if Gross < 21000
-        const esiComp = components.find(c => c.type === 'deduction' && c.name.toUpperCase().includes('ESI'));
-        if (esiComp && monthlyCtc <= 21000) {
-            const esi = Math.ceil(monthlyCtc * 0.0075);
-            newBreakdown[esiComp.id] = esi;
-        } else if (esiComp) {
-            newBreakdown[esiComp.id] = 0;
-        }
-
         if (specialComp) {
             const balance = monthlyCtc - allocated;
-            newBreakdown[specialComp.id] = balance > 0 ? Math.floor(balance) : 0;
+            newBreakdown[specialComp.id] = balance > 0 ? balance : 0;
         }
 
         setBreakdown(newBreakdown);
-        toast.success('Strategy auto-calculated (HRA 40/50% logic)');
+        toast.success('Strategy auto-calculated (Basic 50%, HRA 50% of Basic, Special Allowance balance)');
     };
 
     const handleSave = async () => {
