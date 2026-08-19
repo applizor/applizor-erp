@@ -40,6 +40,125 @@ export interface CreateInvoiceInput {
 
 export class InvoiceService {
     /**
+     * Centralized sequence number generator for Invoices and Quotations.
+     * Guarantees unique, strictly increasing, race-condition-safe numbers.
+     * Evaluates max(InvoiceSequence.lastSeq, highestNumberInDB) + 1.
+     */
+    static async generateNextNumber(
+        companyId: string,
+        prefix: 'INV' | 'QTN' | 'QUO' = 'INV',
+        year: number = new Date().getFullYear(),
+        tx?: any
+    ): Promise<string> {
+        const db = tx || prisma;
+
+        // 1. Fetch current InvoiceSequence record for company, prefix, year
+        const sequenceRecord = await db.invoiceSequence.findUnique({
+            where: {
+                companyId_prefix_year: {
+                    companyId,
+                    prefix,
+                    year
+                }
+            }
+        });
+
+        let currentSeq = sequenceRecord ? sequenceRecord.lastSeq : 0;
+
+        // 2. Query highest numeric suffix in DB for this prefix and year
+        const prefixYearPattern = `${prefix}-${year}-`;
+        
+        let highestDbSeq = 0;
+        if (prefix === 'QUO') {
+            const maxQuotation = await db.quotation.findFirst({
+                where: {
+                    companyId,
+                    quotationNumber: { startsWith: prefixYearPattern }
+                },
+                orderBy: { quotationNumber: 'desc' },
+                select: { quotationNumber: true }
+            });
+            if (maxQuotation?.quotationNumber) {
+                const parts = maxQuotation.quotationNumber.split('-');
+                if (parts.length >= 3) {
+                    const parsed = parseInt(parts[parts.length - 1], 10);
+                    if (!isNaN(parsed)) highestDbSeq = parsed;
+                }
+            }
+        } else {
+            const maxInvoice = await db.invoice.findFirst({
+                where: {
+                    companyId,
+                    invoiceNumber: { startsWith: prefixYearPattern }
+                },
+                orderBy: { invoiceNumber: 'desc' },
+                select: { invoiceNumber: true }
+            });
+            if (maxInvoice?.invoiceNumber) {
+                const parts = maxInvoice.invoiceNumber.split('-');
+                if (parts.length >= 3) {
+                    const parsed = parseInt(parts[parts.length - 1], 10);
+                    if (!isNaN(parsed)) highestDbSeq = parsed;
+                }
+            }
+        }
+
+        // 3. Start candidate from max(currentSeq, highestDbSeq) + 1
+        let candidateSeq = Math.max(currentSeq, highestDbSeq) + 1;
+        const padLen = prefix === 'QUO' ? 4 : 5;
+        let candidateNumber = `${prefix}-${year}-${String(candidateSeq).padStart(padLen, '0')}`;
+
+        // 4. Verification loop to prevent unique constraint collisions
+        let attempts = 0;
+        while (attempts < 1000) {
+            let exists = false;
+            if (prefix === 'QUO') {
+                const existing = await db.quotation.findFirst({
+                    where: { companyId, quotationNumber: candidateNumber },
+                    select: { id: true }
+                });
+                exists = !!existing;
+            } else {
+                const existing = await db.invoice.findFirst({
+                    where: { companyId, invoiceNumber: candidateNumber },
+                    select: { id: true }
+                });
+                exists = !!existing;
+            }
+
+            if (!exists) {
+                break;
+            }
+
+            candidateSeq++;
+            candidateNumber = `${prefix}-${year}-${String(candidateSeq).padStart(padLen, '0')}`;
+            attempts++;
+        }
+
+        // 5. Atomic upsert to save the updated lastSeq
+        await db.invoiceSequence.upsert({
+            where: {
+                companyId_prefix_year: {
+                    companyId,
+                    prefix,
+                    year
+                }
+            },
+            update: {
+                lastSeq: candidateSeq
+            },
+            create: {
+                companyId,
+                prefix,
+                year,
+                lastSeq: candidateSeq
+            }
+        });
+
+        return candidateNumber;
+    }
+
+    /**
      * Create a new invoice with its items
      */
     static async createInvoice(data: CreateInvoiceInput) {
@@ -122,31 +241,10 @@ export class InvoiceService {
         const overallDiscount = Number(invoiceData.discount || 0);
         const total = subtotal + totalTax - totalItemDiscount - overallDiscount;
 
-        // Generate Invoice Number using atomic sequence
+        // Generate Invoice Number using centralized sequence generator
         const prefix = invoiceData.type === 'quotation' ? 'QTN' : 'INV';
         const currentYear = new Date().getFullYear();
-
-        // Use upsert on InvoiceSequence for atomic, race-condition-safe increment
-        const sequence = await prisma.invoiceSequence.upsert({
-            where: {
-                companyId_prefix_year: {
-                    companyId: invoiceData.companyId,
-                    prefix,
-                    year: currentYear
-                }
-            },
-            update: {
-                lastSeq: { increment: 1 }
-            },
-            create: {
-                companyId: invoiceData.companyId,
-                prefix,
-                year: currentYear,
-                lastSeq: 1
-            }
-        });
-
-        const invoiceNumber = `${prefix}-${currentYear}-${String(sequence.lastSeq).padStart(5, '0')}`;
+        const invoiceNumber = await InvoiceService.generateNextNumber(invoiceData.companyId, prefix as any, currentYear);
 
         // Check currency and calculate conversion
         let exchangeRate: Decimal | null = null;

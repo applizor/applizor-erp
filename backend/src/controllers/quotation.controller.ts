@@ -41,51 +41,7 @@ export const createQuotation = async (req: AuthRequest, res: Response) => {
 
         // Generate quotation number
         const currentYear = new Date().getFullYear();
-        const prefix = `QUO-${currentYear}-`;
-
-        const lastQuotation = await prisma.quotation.findFirst({
-            where: {
-                companyId: user.companyId,
-                quotationNumber: {
-                    startsWith: prefix
-                }
-            },
-            orderBy: {
-                quotationNumber: 'desc'
-            }
-        });
-
-        let nextNumber = 1;
-        if (lastQuotation && lastQuotation.quotationNumber) {
-            const parts = lastQuotation.quotationNumber.split('-');
-            if (parts.length === 3) {
-                const lastSeq = parseInt(parts[2], 10);
-                if (!isNaN(lastSeq)) {
-                    nextNumber = lastSeq + 1;
-                }
-            }
-        }
-
-        let quotationNumber = `${prefix}${String(nextNumber).padStart(4, '0')}`;
-
-        // Safety verification loop to prevent unique constraint conflicts
-        let isUnique = false;
-        let attempts = 0;
-        while (!isUnique && attempts < 100) {
-            const existingCount = await prisma.quotation.count({
-                where: {
-                    companyId: user.companyId,
-                    quotationNumber
-                }
-            });
-            if (existingCount === 0) {
-                isUnique = true;
-            } else {
-                nextNumber++;
-                quotationNumber = `${prefix}${String(nextNumber).padStart(4, '0')}`;
-                attempts++;
-            }
-        }
+        const quotationNumber = await InvoiceService.generateNextNumber(user.companyId, 'QUO', currentYear);
 
         const taxRates = await prisma.taxRate.findMany({
             where: {
@@ -1246,17 +1202,7 @@ export const duplicateQuotation = async (req: AuthRequest, res: Response) => {
         }
 
         const year = new Date().getFullYear();
-        const count = await prisma.quotation.count({
-            where: {
-                companyId: user.companyId,
-                createdAt: {
-                    gte: new Date(year, 0, 1),
-                    lt: new Date(year + 1, 0, 1)
-                }
-            }
-        });
-        const suffix = String(count + 1).padStart(5, '0');
-        const quotationNumber = `QUO-${year}-${suffix}`;
+        const quotationNumber = await InvoiceService.generateNextNumber(user.companyId, 'QUO', year);
 
         const cloned = await prisma.$transaction(async (tx) => {
             return await tx.quotation.create({

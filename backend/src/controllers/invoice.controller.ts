@@ -1395,20 +1395,9 @@ export const duplicateInvoice = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'Invoice not found' });
     }
 
-    const prefix = original.type === 'quotation' ? 'QTN' : 'INV';
+    const prefix = (original.type === 'quotation' ? 'QTN' : 'INV') as 'QTN' | 'INV';
     const year = new Date().getFullYear();
-    const count = await prisma.invoice.count({
-      where: {
-        companyId: user.companyId,
-        type: original.type,
-        createdAt: {
-          gte: new Date(year, 0, 1),
-          lt: new Date(year + 1, 0, 1)
-        }
-      }
-    });
-    const suffix = String(count + 1).padStart(5, '0');
-    const invoiceNumber = `${prefix}-${year}-${suffix}`;
+    const invoiceNumber = await InvoiceService.generateNextNumber(user.companyId, prefix, year);
 
     const cloned = await prisma.$transaction(async (tx) => {
       return await tx.invoice.create({
