@@ -53,13 +53,11 @@ export class InvoiceService {
         const db = tx || prisma;
 
         // 1. Fetch current InvoiceSequence record for company, prefix, year
-        const sequenceRecord = await db.invoiceSequence.findUnique({
+        const sequenceRecord = await db.invoiceSequence.findFirst({
             where: {
-                companyId_prefix_year: {
-                    companyId,
-                    prefix,
-                    year
-                }
+                companyId,
+                prefix,
+                year
             }
         });
 

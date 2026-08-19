@@ -80,6 +80,15 @@ const prisma = basePrisma.$extends({
                 args.where.companyId = store.companyId;
               }
             }
+            // Unpack compound unique key objects (e.g. companyId_prefix_year: { companyId, prefix, year }) for findFirst compatibility
+            if (args.where) {
+              for (const key of Object.keys(args.where)) {
+                if (typeof args.where[key] === 'object' && args.where[key] !== null && !Array.isArray(args.where[key]) && key.includes('_')) {
+                  Object.assign(args.where, args.where[key]);
+                  delete args.where[key];
+                }
+              }
+            }
             const result = await (basePrisma[model as any] as any).findFirst(args);
             return result;
           }
