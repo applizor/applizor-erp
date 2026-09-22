@@ -15,7 +15,7 @@ import { configurePassport } from './config/passport';
 import { bootstrapAllEmailTemplates } from './controllers/platform.controller';
 
 // Routes  
-import authRoutes from './routes/auth.routes ;
+import authRoutes from './routes/auth.routes';
 import companyRoutes from './routes/company.routes';
 import invoiceRoutes from './routes/invoice.routes';
 import clientRoutes from './routes/client.routes';
