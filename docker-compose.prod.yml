@@ -1,25 +1,4 @@
 services:
-  # PostgreSQL Database
-  postgres:
-    image: postgres:15-alpine
-    container_name: applizor-postgres
-    restart: always
-    environment:
-      POSTGRES_USER: applizor
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-applizor123}
-      POSTGRES_DB: applizor_erp
-    ports:
-      - "5433:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U applizor -d applizor_erp" ]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    networks:
-      - applizor-network
-
   # Backend API
   backend:
     build:
@@ -33,7 +12,7 @@ services:
       - ./backend/.env.production
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://applizor:${DB_PASSWORD:-applizor123}@postgres:5432/applizor_erp?schema=public
+      DATABASE_URL: ${DATABASE_URL:-postgresql://applizor:${DB_PASSWORD:-applizor123}@${DB_HOST:-13.200.108.178}:${DB_PORT:-5432}/applizor_erp?schema=public}
       PORT: 5000
       GOTENBERG_URL: http://gotenberg:3000
     ports:
@@ -41,8 +20,6 @@ services:
     volumes:
       - uploads:/app/uploads
     depends_on:
-      postgres:
-        condition: service_healthy
       gotenberg:
         condition: service_started
     networks:
@@ -95,7 +72,6 @@ services:
       - applizor-network
 
 volumes:
-  postgres_data:
   uploads:
 
 networks:

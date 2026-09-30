@@ -60,7 +60,7 @@ jobs:
           
           echo "🧹 Safely cleaning up old dangling images and conflicting containers..."
           sudo docker image prune -f || true
-          sudo docker rm -f applizor-backend-prod applizor-frontend-prod applizor-gotenberg || true
+          sudo docker rm -f applizor-backend-prod applizor-frontend-prod applizor-gotenberg applizor-postgres || true
 
           # 3. Docker Orchestration
           echo "📦 Starting Docker build..."
@@ -74,18 +74,8 @@ jobs:
           sudo docker cp applizor-frontend-prod:/app/public $TARGET_DIR/ || echo "Retrying public sync..."
           sudo cp -r $TARGET_DIR/.next/static $TARGET_DIR/_next/ || true
 
-          echo "⏳ Waiting for database and services to stabilize..."
+          echo "⏳ Waiting for services to stabilize..."
           sleep 10
-          for i in {1..30}; do
-            if sudo docker compose -f docker-compose.prod.yml exec -T postgres pg_isready -U applizor -d applizor_erp > /dev/null 2>&1; then
-              echo "✅ Database is ready!"
-              break
-            fi
-            sleep 2
-          done
-          
-          echo "🧹 Cleaning up any failed custom payment link migration if exists..."
-          sudo docker compose -f docker-compose.prod.yml exec -T postgres psql -U applizor -d applizor_erp -c "DELETE FROM _prisma_migrations WHERE migration_name = '20260714132856_add_custom_payment_url' AND finished_at IS NULL;" || true
 
           # 4. Database Migrations
           echo "🔄 Running migrations..."
