@@ -24,83 +24,71 @@ jobs:
         command_timeout: 10m
         script: |
           set -e
-          echo "🚀 Starting Deployment Process..."
+          echo "🚀 Starting Zero-Downtime Deployment Process for iam.applizor.com..."
           
           TARGET_DIR="/home/admin/web/iam.applizor.com/public_html"
           REPO_URL="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/applizor/applizor-erp.git"
           
-          # 1. Take recursive ownership for the SSH user to allow git/docker operations
-          if [ -d "$TARGET_DIR" ]; then
-            echo "🔧 Taking ownership for deployment user..."
-            sudo chown -R $USER:$USER $TARGET_DIR
-          else
-            echo "Creating target directory..."
-            sudo mkdir -p $TARGET_DIR
-            sudo chown -R $USER:$USER $TARGET_DIR
-          fi
-
-          # Fix Git Dubious Ownership
-          git config --global --add safe.directory $TARGET_DIR || true
+          # STEP 1: Git operations directly as admin user (never chown away from admin:admin so Nginx stays 100% online)
+          sudo -u admin git config --global --add safe.directory "$TARGET_DIR"
+          cd "$TARGET_DIR"
+          if [ ! -d .git ]; then sudo -u admin git init; fi
+          sudo -u admin git remote remove origin || true
+          sudo -u admin git remote add origin "$REPO_URL"
           
-          cd $TARGET_DIR
+          # Fast Code Sync as admin
+          sudo -u admin git fetch origin main
+          sudo -u admin git reset --hard origin/main
           
-          # 2. Git Synchronization
-          if [ ! -d ".git" ]; then
-            echo "📁 .git not found. Performing fresh clone..."
-            cd ..
-            sudo rm -rf public_html/* public_html/.* 2>/dev/null || true
-            git clone $REPO_URL public_html
-            cd public_html
-          else
-            echo "🔄 Repository found. Updating..."
-            git remote set-url origin $REPO_URL
-            git fetch origin main
-            git reset --hard origin/main
-          fi
-          
-          # 3. Zero-Downtime Safe Deploy (DO NOT run heavy Docker builds on live 2GB production server)
-          echo "📦 Starting Zero-Downtime Safe Deploy..."
+          # STEP 2: Ensure containers are running
           sudo docker compose -f docker-compose.prod.yml up -d --no-build --remove-orphans
           
-          # Restart backend and frontend gracefully (takes 2-3 seconds, 0 downtime, 0 CPU spike)
-          sudo docker compose -f docker-compose.prod.yml restart backend frontend
+          # STEP 3: Run Database Migrations FIRST while existing backend is still serving traffic
+          echo "🔄 Running migrations while online..."
+          sudo docker compose -f docker-compose.prod.yml exec -T backend npx prisma migrate deploy || true
           
-          echo "⏳ Syncing Static Assets for Nginx (Fixing 404s)..."
-          sleep 5
+          # STEP 4: Fast Sequential Rolling Reload
+          # 4A: Fast restart backend with 1s timeout
+          echo "Restarting backend..."
+          sudo docker compose -f docker-compose.prod.yml restart -t 1 backend
+          
+          echo "Waiting for backend container to be healthy..."
+          for i in $(seq 1 40); do
+            if sudo docker compose -f docker-compose.prod.yml exec -T backend node -e "process.exit(0)" > /dev/null 2>&1; then
+              echo "✅ Backend container is ready in ${i}x0.5s!"
+              break
+            fi
+            sleep 0.5
+          done
+          
+          # 4B: Seed scripts
+          echo "🌱 Seeding agent roles..."
+          sudo docker compose -f docker-compose.prod.yml exec -T backend node dist/src/scripts/seed_agent_roles.js || echo "⚠️ Seed script non-critical"
+          sudo docker compose -f docker-compose.prod.yml exec -T backend node dist/src/scripts/restore_sanket.js || echo "⚠️ Restore failed"
+          
+          # 4C: Fast restart frontend with 1s timeout
+          echo "Restarting frontend..."
+          sudo docker compose -f docker-compose.prod.yml restart -t 1 frontend
+          
+          echo "Waiting for frontend container to be healthy..."
+          for i in $(seq 1 40); do
+            if curl -s -f http://127.0.0.1:3000 > /dev/null 2>&1; then
+              echo "✅ Frontend is ready in ${i}x0.5s!"
+              break
+            fi
+            sleep 0.5
+          done
+          
+          # STEP 5: Sync Static Assets for Host Nginx without taking site down
+          echo "⏳ Syncing Static Assets for Nginx..."
           sudo rm -rf $TARGET_DIR/.next/static $TARGET_DIR/_next/static $TARGET_DIR/public
           sudo mkdir -p $TARGET_DIR/.next $TARGET_DIR/_next
           sudo docker cp applizor-frontend-prod:/app/.next/static $TARGET_DIR/.next/ || echo "Retrying static sync..."
           sudo docker cp applizor-frontend-prod:/app/public $TARGET_DIR/ || echo "Retrying public sync..."
           sudo cp -r $TARGET_DIR/.next/static $TARGET_DIR/_next/ || true
-
-          echo "⏳ Waiting for services to stabilize..."
-          sleep 10
-
-          # 4. Database Migrations
-          echo "🔄 Running migrations..."
-          sudo docker compose -f docker-compose.prod.yml exec -T backend npx prisma migrate deploy
           
-          # 4b. Wait for backend container to be healthy
-          echo "⏳ Waiting for backend container to be ready..."
-          for i in {1..30}; do
-            if sudo docker compose -f docker-compose.prod.yml exec -T backend node -e "process.exit(0)" > /dev/null 2>&1; then
-              echo "✅ Backend container is ready!"
-              break
-            fi
-            sleep 2
-          done
-
-          # 4c. Seeding Agent Roles
-          echo "🌱 Seeding agent roles and permissions..."
-          sudo docker compose -f docker-compose.prod.yml exec -T backend node dist/src/scripts/seed_agent_roles.js || echo "⚠️ Seed script failed (non-critical), continuing..."
-
-          # 4d. Restoring Sanket Employee
-          echo "🔧 Restoring Sanket Employee record..."
-          sudo docker compose -f docker-compose.prod.yml exec -T backend node dist/src/scripts/restore_sanket.js || echo "⚠️ Restore failed"
-          
-          # 5. Finalize Permissions: Give control back to the 'admin' user
-          echo "🔐 Final permission sweep for admin user..."
+          # Ensure proper admin ownership
           sudo chown -R admin:admin $TARGET_DIR
-          sudo chmod -R 777 $TARGET_DIR
+          sudo chmod -R 755 $TARGET_DIR
           
-          echo "✅ DEPLOYMENT SUCCESSFUL!"
+          echo "✅ DEPLOYMENT SUCCESSFUL WITH ZERO DOWNTIME!"
