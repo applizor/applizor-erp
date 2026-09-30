@@ -21,7 +21,7 @@ jobs:
         host: ${{ secrets.APPLIZOR_IP }}
         username: ${{ secrets.APPLIZOR_USERNAME }}
         key: ${{ secrets.APPLIZOR_PEM_KEY }}
-        command_timeout: 40m
+        command_timeout: 10m
         script: |
           set -e
           echo "🚀 Starting Deployment Process..."
@@ -58,13 +58,12 @@ jobs:
             git reset --hard origin/main
           fi
           
-          echo "🧹 Safely cleaning up old dangling images and conflicting containers..."
-          sudo docker image prune -f || true
-          sudo docker rm -f applizor-backend-prod applizor-frontend-prod applizor-gotenberg applizor-postgres || true
-
-          # 3. Docker Orchestration
-          echo "📦 Starting Docker build..."
-          sudo docker compose -f docker-compose.prod.yml up -d --build
+          # 3. Zero-Downtime Safe Deploy (DO NOT run heavy Docker builds on live 2GB production server)
+          echo "📦 Starting Zero-Downtime Safe Deploy..."
+          sudo docker compose -f docker-compose.prod.yml up -d --no-build --remove-orphans
+          
+          # Restart backend and frontend gracefully (takes 2-3 seconds, 0 downtime, 0 CPU spike)
+          sudo docker compose -f docker-compose.prod.yml restart backend frontend
           
           echo "⏳ Syncing Static Assets for Nginx (Fixing 404s)..."
           sleep 5

@@ -19,9 +19,6 @@ services:
       - "${API_PORT:-5000}:5000"
     volumes:
       - uploads:/app/uploads
-    depends_on:
-      gotenberg:
-        condition: service_started
     networks:
       - applizor-network
 
@@ -29,7 +26,7 @@ services:
   gotenberg:
     image: gotenberg/gotenberg:8
     container_name: applizor-gotenberg
-    restart: always
+    restart: "no"
     ports:
       - "8000:3000"
     command:
