@@ -40,7 +40,10 @@ interface PDFData {
         bankAccountNumber?: string;
         bankIfscCode?: string;
         bankBranch?: string;
+        pan?: string;
+        invoiceSettings?: any;
     };
+    invoiceSettings?: any;
     useLetterhead?: boolean;
     includeBankDetails?: boolean;
     client?: {
@@ -223,6 +226,26 @@ export class PDFService {
         const subDateLabel = type === 'QUOTATION' ? 'Valid Till' : 'Due Date';
         const recipient = data.client || data.lead;
 
+        const invoiceSettings = data.invoiceSettings || (data.company as any)?.invoiceSettings || {};
+        const showLogo = invoiceSettings.showLogo !== false;
+        const showHeader = invoiceSettings.showHeader !== false;
+        const showGstin = invoiceSettings.showGstin !== false;
+        const showPan = invoiceSettings.showPan !== false;
+        const showClientGstin = invoiceSettings.showClientGstin !== false;
+        const showClientPan = invoiceSettings.showClientPan !== false;
+        const showClientContact = invoiceSettings.showClientContact !== false;
+        const showHsnSac = invoiceSettings.showHsnSac !== false;
+        const showUnit = invoiceSettings.showUnit !== false;
+        const showDiscount = invoiceSettings.showDiscount !== false;
+        const showTaxBreakdown = invoiceSettings.showTaxBreakdown !== false;
+        const showBankDetails = invoiceSettings.showBankDetails !== false;
+        const showNotes = invoiceSettings.showNotes !== false;
+        const showTerms = invoiceSettings.showTerms !== false;
+        const showSignature = invoiceSettings.showSignature !== false;
+
+        const hasCustomLetterhead = !!(data.company?.letterhead || data.company?.continuationSheet);
+        const showHtmlHeader = !!data.useLetterhead && !hasCustomLetterhead && showHeader;
+
         const backgroundCSS = await this.getBackgroundCSS(data.company, !!data.useLetterhead);
         const logoBase64 = await this.getImageBase64(data.company.logo);
         const digitalSignatureBase64 = await this.getImageBase64(data.company.digitalSignature);
@@ -303,8 +326,8 @@ export class PDFService {
             margin-bottom: 20px;
             padding-bottom: 20px;
             border-bottom: 2px solid ${type === 'QUOTATION' ? '#2563eb' : '#059669'};
-            /* Hide if letterhead is used */
-            display: ${data.useLetterhead ? 'none' : 'block'};
+            /* Hide if letterhead is disabled or if custom letterhead template is used */
+            display: ${showHtmlHeader ? 'block' : 'none'};
         }
         
         .company-info {
@@ -494,17 +517,20 @@ export class PDFService {
 </head>
 <body>
     <!-- HEADER (Company Info) -->
+    ${showHtmlHeader ? `
     <div class="header">
         <div class="company-info">
-            ${logoBase64 ? `<img src="${logoBase64}" class="company-logo" alt="${data.company.name}">` : `<h2 style="margin-bottom:10px;">${data.company.name}</h2>`}
+            ${(logoBase64 && showLogo) ? `<img src="${logoBase64}" class="company-logo" alt="${data.company.name}">` : `<h2 style="margin-bottom:10px;">${data.company.name}</h2>`}
             <div class="company-details">
                 ${data.company.address ? `${data.company.address}<br>` : ''}
                 ${data.company.city && data.company.state ? `${data.company.city}, ${data.company.state} - ${data.company.pincode || ''}<br>` : ''}
-                ${data.company.email ? `E: ${data.company.email}` : ''} ${data.company.phone ? `| P: ${data.company.phone}` : ''}<br>
-                ${data.company.gstin ? `GSTIN: ${data.company.gstin}` : ''}
+                ${(data.company.email || data.company.phone) ? `${data.company.email ? `E: ${data.company.email}` : ''} ${data.company.phone ? `| P: ${data.company.phone}` : ''}<br>` : ''}
+                ${(data.company.gstin && showGstin) ? `GSTIN: ${data.company.gstin}<br>` : ''}
+                ${(data.company.pan && showPan) ? `PAN: ${data.company.pan}<br>` : ''}
             </div>
         </div>
     </div>
+    ` : ''}
 
     <!-- INFO ROW: Billed To (Left) | Invoice Details (Right) -->
     <div class="info-row">
@@ -520,13 +546,13 @@ export class PDFService {
                 ${recipient.country ? `${recipient.country}<br>` : ''}
                 
                 <div style="margin-top: 8px;"></div>
-                ${recipient.gstin ? `<strong>GSTIN:</strong> ${recipient.gstin}<br>` : ''}
-                ${recipient.pan ? `<strong>PAN:</strong> ${recipient.pan}<br>` : ''}
-                ${recipient.tan ? `<strong>TAN:</strong> ${recipient.tan}<br>` : ''}
+                ${(recipient.gstin && showClientGstin) ? `<strong>GSTIN:</strong> ${recipient.gstin}<br>` : ''}
+                ${(recipient.pan && showClientPan) ? `<strong>PAN:</strong> ${recipient.pan}<br>` : ''}
+                ${(recipient.tan && showClientPan) ? `<strong>TAN:</strong> ${recipient.tan}<br>` : ''}
                 
                 <div style="margin-top: 8px;"></div>
-                ${recipient.email ? `E: ${recipient.email}<br>` : ''}
-                ${recipient.phone || recipient.mobile ? `P: ${recipient.phone || recipient.mobile}` : ''}
+                ${(recipient.email && showClientContact) ? `E: ${recipient.email}<br>` : ''}
+                ${((recipient.phone || recipient.mobile) && showClientContact) ? `P: ${recipient.phone || recipient.mobile}` : ''}
             </div>
             ` : ''}
         </div>
@@ -572,11 +598,11 @@ export class PDFService {
         <thead>
             <tr>
                 <th class="col-desc">Specification</th>
-                <th class="col-hsn">HSN/SAC</th>
+                ${showHsnSac ? `<th class="col-hsn">HSN/SAC</th>` : ''}
                 <th class="col-qty">Qty</th>
-                <th class="col-uom">UoM</th>
+                ${showUnit ? `<th class="col-uom">UoM</th>` : ''}
                 <th class="col-rate">Rate</th>
-                <th class="col-disc">Disc %</th>
+                ${showDiscount ? `<th class="col-disc">Disc %</th>` : ''}
                 <th class="col-amt">Amount</th>
             </tr>
         </thead>
@@ -592,11 +618,11 @@ export class PDFService {
                     <td>
                         <div style="font-weight: bold; color: #111;">${item.description}</div>
                     </td>
-                    <td style="color: #64748b;">${item.hsnSacCode || '-'}</td>
+                    ${showHsnSac ? `<td style="color: #64748b;">${item.hsnSacCode || '-'}</td>` : ''}
                     <td style="text-align: center;">${quantity}</td>
-                    <td style="text-align: center;">${item.unit || '-'}</td>
+                    ${showUnit ? `<td style="text-align: center;">${item.unit || '-'}</td>` : ''}
                     <td style="text-align: right;">${formatCurrency(rate)}</td>
-                    <td style="text-align: right; color: #ef4444;">${discount > 0 ? `${discount}%` : '-'}</td>
+                    ${showDiscount ? `<td style="text-align: right; color: #ef4444;">${discount > 0 ? `${discount}%` : '-'}</td>` : ''}
                     <td style="text-align: right; font-weight: 500;">${formatCurrency(netAmount)}</td>
                 </tr>
                 `;
@@ -626,7 +652,7 @@ export class PDFService {
                 <span>Total Tax</span>
                 <span>${formatCurrency(Number(data.tax))}</span>
             </div>
-            ${data.taxBreakdown ? data.taxBreakdown.map(t => `
+            ${(showTaxBreakdown && data.taxBreakdown) ? data.taxBreakdown.map(t => `
             <div class="totals-row" style="padding: 2px 0; font-size: 11px;">
                 <span style="color: #64748b; padding-left: 10px;">${t.name} (${t.percentage}%)</span>
                 <span style="color: #64748b;">${formatCurrency(t.amount)}</span>
@@ -648,34 +674,35 @@ export class PDFService {
         </div>
     </div>
 
-    ${data.notes ? `
+    ${(data.notes && showNotes) ? `
     <div class="notes">
         <h3>Remarks / Notes</h3>
         <p>${data.notes}</p>
     </div>
     ` : ''}
 
-    ${data.paymentTerms ? `
+    ${(data.paymentTerms && showTerms) ? `
     <div class="notes" style="margin-top: 15px;">
         <h3 style="color: #4b5563;">Payment Terms</h3>
         <p style="font-size: 11px;">${data.paymentTerms}</p>
     </div>
     ` : ''}
 
-    ${data.deliveryTerms ? `
+    ${(data.deliveryTerms && showTerms) ? `
     <div class="notes" style="margin-top: 15px;">
         <h3 style="color: #4b5563;">Delivery / Fulfillment Terms</h3>
         <p style="font-size: 11px;">${data.deliveryTerms}</p>
     </div>
     ` : ''}
 
-    ${data.terms ? `
+    ${(data.terms && showTerms) ? `
     <div class="notes" style="margin-top: 15px;">
         <h3 style="color: #4b5563;">Contractual Terms</h3>
         <p style="font-size: 11px;">${data.terms}</p>
     </div>
     ` : ''}
 
+    ${showSignature ? `
     ${data.clientSignature ? `
     <div style="margin-top: 60px; page-break-inside: avoid;">
         <table style="width: 100%; border-collapse: collapse;">
@@ -724,8 +751,9 @@ export class PDFService {
     </div>
     ` : ''}
     `}
+    ` : ''}
 
-    ${(type === 'INVOICE' && data.includeBankDetails !== false && data.company.bankName && data.company.bankAccountNumber) ? `
+    ${(type === 'INVOICE' && showBankDetails && data.includeBankDetails !== false && data.company.bankName && data.company.bankAccountNumber) ? `
     <div style="margin-top: 40px; page-break-inside: avoid; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 15px;">
         <h3 style="font-size: 11px; text-transform: uppercase; color: #475569; margin-bottom: 8px; letter-spacing: 0.5px; font-weight: bold;">Bank Details for Payment</h3>
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 0;">
@@ -1023,6 +1051,8 @@ export class PDFService {
                 .replace(/\[PROJECT_END_DATE\]/gi, data.project.endDate ? formatDate(data.project.endDate) : '');
         }
 
+        const hasCustomLetterhead = !!(data.company?.letterhead || data.company?.continuationSheet);
+        const showHtmlHeader = !!data.useLetterhead && !hasCustomLetterhead;
 
         return `
 <!DOCTYPE html>
@@ -1039,7 +1069,7 @@ export class PDFService {
     }
     ${backgroundCSS}
     .header {
-        display: ${data.useLetterhead ? 'none' : 'block'};
+        display: ${showHtmlHeader ? 'block' : 'none'};
         text-align: center;
         margin-bottom: 50px;
         border-bottom: 2px solid #000;
@@ -1105,11 +1135,13 @@ export class PDFService {
 </style>
 </head>
 <body>
+${showHtmlHeader ? `
 <div class="header">
     ${logoBase64 ? `<img src="${logoBase64}" class="company-logo">` : ''}
     <div class="title">${data.title}</div>
     <div class="meta">Agreement Date: ${formatDate(data.date)}</div>
 </div>
+` : ''}
 
 <div class="content">
     ${processedContent}
@@ -1183,6 +1215,8 @@ ${(!hasEmbeddedCompanySig || !hasEmbeddedClientSig) ? `
         };
 
         const css = await this.getBackgroundCSS(company, useLetterhead);
+        const hasCustomLetterhead = !!(company?.letterhead || company?.continuationSheet);
+        const showHtmlHeader = !!useLetterhead && !hasCustomLetterhead;
 
         const earnings = Object.entries(data.earningsBreakdown || {}).map(([key, val]) => ({ name: key, amount: Number(val) }));
         const deductions = Object.entries(data.deductionsBreakdown || {}).map(([key, val]) => ({ name: key, amount: Number(val) }));
@@ -1205,7 +1239,7 @@ ${(!hasEmbeddedCompanySig || !hasEmbeddedClientSig) ? `
                 body { font-family: 'Inter', -apple-system, sans-serif; }
                 .payslip-container { max-width: 800px; margin: 0 auto; color: #0f172a; }
                 
-                .header-section { display: ${useLetterhead ? 'none' : 'flex'}; justify-content: space-between; align-items: flex-end; margin-bottom: 30px; border-bottom: 2px solid #0f172a; padding-bottom: 20px; }
+                .header-section { display: ${showHtmlHeader ? 'flex' : 'none'}; justify-content: space-between; align-items: flex-end; margin-bottom: 30px; border-bottom: 2px solid #0f172a; padding-bottom: 20px; }
                 .header-title { font-size: 24px; font-weight: 900; text-transform: uppercase; letter-spacing: -0.025em; line-height: 1; }
                 .sub-title { font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase; tracking: 0.1em; margin-top: 5px; }
                 
@@ -1233,6 +1267,7 @@ ${(!hasEmbeddedCompanySig || !hasEmbeddedClientSig) ? `
         </head>
         <body>
             <div class="payslip-container">
+            ${showHtmlHeader ? `
             <div class="header-section">
                 <div>
                     <div class="header-title">REMUNERATION MANIFEST</div>
@@ -1243,6 +1278,7 @@ ${(!hasEmbeddedCompanySig || !hasEmbeddedClientSig) ? `
                     <div class="sub-title">${company.city || ''} | REGISTRY: ${company.gstin || '-'}</div>
                 </div>
             </div>
+            ` : ''}
 
             <div class="emp-details-grid" style="grid-template-columns: 1fr 1fr 1fr;">
                 <div class="emp-item">

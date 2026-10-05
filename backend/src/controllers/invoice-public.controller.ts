@@ -238,6 +238,7 @@ export const downloadPDFPublic = async (req: Request, res: Response) => {
                 pdfMarginRight: (invoice.company as any).pdfMarginRight || undefined,
                 pdfContinuationTop: (invoice.company as any).pdfContinuationTop || undefined
             },
+            invoiceSettings: (invoice.company as any).invoiceSettings || undefined,
             useLetterhead: true
         });
 

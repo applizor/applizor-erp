@@ -147,6 +147,7 @@ model Company {
   paymentConfig      Json?
   storageConfig      Json?
   ssoConfig          Json?
+  invoiceSettings    Json?
   samlConfig         SamlConfig?
   assets             Asset[]
   auditLogs          AuditLog[]

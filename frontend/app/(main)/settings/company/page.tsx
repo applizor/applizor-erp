@@ -8,6 +8,7 @@ import PageHeader from '@/components/ui/PageHeader';
 import { CustomSelect } from '@/components/ui/CustomSelect';
 import TaxConfiguration from '@/components/settings/TaxConfiguration';
 import UnitConfiguration from '@/components/settings/UnitConfiguration';
+import InvoiceDisplaySettings from '@/components/settings/InvoiceDisplaySettings';
 import { MultiSelect } from '@/components/ui/MultiSelect';
 import api from '@/lib/api';
 import { getBaseUrl, resolveUrl } from '@/lib/utils/url';
@@ -15,7 +16,7 @@ import { getBaseUrl, resolveUrl } from '@/lib/utils/url';
 export default function CompanySettingsPage() {
     const toast = useToast();
     const [company, setCompany] = useState<any>(null);
-    const [activeTab, setActiveTab] = useState<'general' | 'taxation' | 'units'>('general');
+    const [activeTab, setActiveTab] = useState<'general' | 'invoiceSettings' | 'taxation' | 'units'>('general');
     const [loading, setLoading] = useState(true);
     const [logoFile, setLogoFile] = useState<File | null>(null);
     const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -213,7 +214,7 @@ export default function CompanySettingsPage() {
                 subtitle="System Configuration & Branding"
                 icon={Building}
                 actions={
-                    activeTab === 'general' ? (
+                    (activeTab === 'general' || activeTab === 'invoiceSettings') ? (
                         <button
                             onClick={handleUpdateProfile}
                             disabled={saving}
@@ -227,10 +228,10 @@ export default function CompanySettingsPage() {
             />
 
             {/* Tabs */}
-            <div className="flex border-b border-gray-200 mb-6">
+            <div className="flex border-b border-gray-200 mb-6 overflow-x-auto">
                 <button
                     onClick={() => setActiveTab('general')}
-                    className={`px-6 py-3 text-xs font-bold uppercase tracking-widest border-b-2 transition-colors ${activeTab === 'general'
+                    className={`px-6 py-3 text-xs font-bold uppercase tracking-widest border-b-2 whitespace-nowrap transition-colors ${activeTab === 'general'
                         ? 'border-primary-600 text-primary-700'
                         : 'border-transparent text-gray-500 hover:text-gray-900 hover:border-gray-200'
                         }`}
@@ -238,8 +239,17 @@ export default function CompanySettingsPage() {
                     Organization & Branding
                 </button>
                 <button
+                    onClick={() => setActiveTab('invoiceSettings')}
+                    className={`px-6 py-3 text-xs font-bold uppercase tracking-widest border-b-2 whitespace-nowrap transition-colors ${activeTab === 'invoiceSettings'
+                        ? 'border-primary-600 text-primary-700'
+                        : 'border-transparent text-gray-500 hover:text-gray-900 hover:border-gray-200'
+                        }`}
+                >
+                    Invoice Display Settings
+                </button>
+                <button
                     onClick={() => setActiveTab('taxation')}
-                    className={`px-6 py-3 text-xs font-bold uppercase tracking-widest border-b-2 transition-colors ${activeTab === 'taxation'
+                    className={`px-6 py-3 text-xs font-bold uppercase tracking-widest border-b-2 whitespace-nowrap transition-colors ${activeTab === 'taxation'
                         ? 'border-primary-600 text-primary-700'
                         : 'border-transparent text-gray-500 hover:text-gray-900 hover:border-gray-200'
                         }`}
@@ -248,7 +258,7 @@ export default function CompanySettingsPage() {
                 </button>
                 <button
                     onClick={() => setActiveTab('units')}
-                    className={`px-6 py-3 text-xs font-bold uppercase tracking-widest border-b-2 transition-colors ${activeTab === 'units'
+                    className={`px-6 py-3 text-xs font-bold uppercase tracking-widest border-b-2 whitespace-nowrap transition-colors ${activeTab === 'units'
                         ? 'border-primary-600 text-primary-700'
                         : 'border-transparent text-gray-500 hover:text-gray-900 hover:border-gray-200'
                         }`}
@@ -700,6 +710,13 @@ export default function CompanySettingsPage() {
                         </form>
                     </div>
                 </div>
+            )}
+
+            {activeTab === 'invoiceSettings' && (
+                <InvoiceDisplaySettings
+                    settings={company.invoiceSettings || {}}
+                    onChange={(newSettings) => setCompany({ ...company, invoiceSettings: newSettings })}
+                />
             )}
 
             {activeTab === 'taxation' && (

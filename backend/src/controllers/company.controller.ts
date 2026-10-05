@@ -76,7 +76,8 @@ export const updateCompany = async (req: AuthRequest, res: Response) => {
       pdfMarginRight,
       pdfContinuationTop,
       accountingLockDate, // Added for Ledger Lock
-      offDays // Added
+      offDays, // Added
+      invoiceSettings
     } = req.body;
 
     let resolvedCountryId = req.body.countryId;
@@ -131,7 +132,8 @@ export const updateCompany = async (req: AuthRequest, res: Response) => {
         pdfMarginRight: pdfMarginRight ? parseInt(pdfMarginRight) : undefined,
         pdfContinuationTop: pdfContinuationTop ? parseInt(pdfContinuationTop) : undefined,
         accountingLockDate: accountingLockDate ? new Date(accountingLockDate) : undefined,
-        offDays // Added
+        offDays, // Added
+        invoiceSettings: invoiceSettings !== undefined ? invoiceSettings : undefined
       } as any
     });
 

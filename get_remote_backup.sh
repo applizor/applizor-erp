@@ -1,10 +1,17 @@
 #!/bin/bash
 # Fetch database dump from remote docker container over SSH and restore it locally
 
-echo "⏳ Step 1: Downloading pg_dump from remote server (65.1.30.126)..."
-ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i backend/applizor.pem ubuntu@65.1.30.126 "sudo docker exec -i applizor-postgres pg_dump -U applizor -d applizor_erp" > backend/backups/remote_db_backup.sql
+mkdir -p backend/backups
 
-if [ $? -ne 0 ]; then
+KEY_PATH="/Users/arun/Documents/applizor/applizor.pem"
+if [ ! -f "$KEY_PATH" ]; then
+    KEY_PATH="backend/applizor.pem"
+fi
+
+echo "⏳ Step 1: Downloading pg_dump from remote database (172.31.8.14 via 65.1.30.126)..."
+ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i "$KEY_PATH" ubuntu@65.1.30.126 "PGPASSWORD=applizor123 pg_dump -h 172.31.8.14 -U applizor -d applizor_erp" > backend/backups/remote_db_backup.sql
+
+if [ $? -ne 0 ] || [ ! -s backend/backups/remote_db_backup.sql ]; then
     echo "❌ Error: Failed to fetch remote database dump! Please check if your IP is unblocked or keys are correct."
     exit 1
 fi

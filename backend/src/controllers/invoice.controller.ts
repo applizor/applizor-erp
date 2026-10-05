@@ -338,6 +338,7 @@ export const generateInvoicePDF = async (req: AuthRequest, res: Response) => {
         bankIfscCode: (invoice.company as any).bankIfscCode || undefined,
         bankBranch: (invoice.company as any).bankBranch || undefined
       },
+      invoiceSettings: (invoice.company as any).invoiceSettings || undefined,
       useLetterhead: req.body.useLetterhead === true || req.query.useLetterhead === 'true',
       includeBankDetails: invoice.includeBankDetails
     });
@@ -566,6 +567,7 @@ export const sendInvoice = async (req: AuthRequest, res: Response) => {
         bankIfscCode: (invoice.company as any).bankIfscCode || undefined,
         bankBranch: (invoice.company as any).bankBranch || undefined
       },
+      invoiceSettings: (invoice.company as any).invoiceSettings || undefined,
       useLetterhead: req.body.useLetterhead === true,
       includeBankDetails: invoice.includeBankDetails
     });
@@ -846,6 +848,7 @@ export const batchSendInvoices = async (req: AuthRequest, res: Response) => {
             bankIfscCode: (invoice.company as any).bankIfscCode || undefined,
             bankBranch: (invoice.company as any).bankBranch || undefined
           },
+          invoiceSettings: (invoice.company as any).invoiceSettings || undefined,
           useLetterhead: true,
           includeBankDetails: invoice.includeBankDetails
         });
@@ -1192,6 +1195,7 @@ export const getPublicInvoicePdf = async (req: AuthRequest, res: Response) => {
         pdfMarginRight: (invoice.company as any).pdfMarginRight || undefined,
         pdfContinuationTop: (invoice.company as any).pdfContinuationTop || undefined
       },
+      invoiceSettings: (invoice.company as any).invoiceSettings || undefined,
       useLetterhead: true
     });
 
