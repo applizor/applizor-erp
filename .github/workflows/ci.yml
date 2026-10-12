@@ -21,7 +21,7 @@ jobs:
         host: ${{ secrets.APPLIZOR_IP }}
         username: ${{ secrets.APPLIZOR_USERNAME }}
         key: ${{ secrets.APPLIZOR_PEM_KEY }}
-        command_timeout: 10m
+        command_timeout: 25m
         script: |
           set -e
           echo "🚀 Starting Zero-Downtime Deployment Process for iam.applizor.com..."
@@ -29,7 +29,7 @@ jobs:
           TARGET_DIR="/home/admin/web/iam.applizor.com/public_html"
           REPO_URL="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/applizor/applizor-erp.git"
           
-          # STEP 1: Git operations directly as admin user (never chown away from admin:admin so Nginx stays 100% online)
+          # STEP 1: Git operations directly as admin user
           sudo -u admin git config --global --add safe.directory "$TARGET_DIR"
           cd "$TARGET_DIR"
           if [ ! -d .git ]; then sudo -u admin git init; fi
@@ -40,17 +40,24 @@ jobs:
           sudo -u admin git fetch origin main
           sudo -u admin git reset --hard origin/main
           
-          # STEP 2: Ensure containers are running
-          sudo docker compose -f docker-compose.prod.yml up -d --no-build --remove-orphans
+          # STEP 2: Ensure swap space exists to prevent OOM during builds
+          if ! swapon --show | grep -q "swap"; then
+            if [ ! -f /swapfile ]; then
+              echo "Creating 2GB swapfile..."
+              sudo fallocate -l 2G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=2048
+              sudo chmod 600 /swapfile
+              sudo mkswap /swapfile
+            fi
+            sudo swapon /swapfile || true
+          fi
           
-          # STEP 3: Run Database Migrations FIRST while existing backend is still serving traffic
-          echo "🔄 Running migrations while online..."
-          sudo docker compose -f docker-compose.prod.yml exec -T backend npx prisma migrate deploy || true
+          # STEP 3: Sequential Rolling Build & Update
+          # 3A: Build Backend Image
+          echo "🔨 Building Backend image..."
+          sudo docker compose -f docker-compose.prod.yml build backend
           
-          # STEP 4: Fast Sequential Rolling Reload
-          # 4A: Fast restart backend with 1s timeout
-          echo "Restarting backend..."
-          sudo docker compose -f docker-compose.prod.yml restart -t 1 backend
+          echo "🚀 Recreating Backend container with zero downtime..."
+          sudo docker compose -f docker-compose.prod.yml up -d --no-deps backend
           
           echo "Waiting for backend container to be healthy..."
           for i in $(seq 1 40); do
@@ -61,14 +68,19 @@ jobs:
             sleep 0.5
           done
           
-          # 4B: Seed scripts
+          # 3B: Migrations and Seeds
+          echo "🔄 Running migrations..."
+          sudo docker compose -f docker-compose.prod.yml exec -T backend npx prisma migrate deploy || true
           echo "🌱 Seeding agent roles..."
           sudo docker compose -f docker-compose.prod.yml exec -T backend node dist/src/scripts/seed_agent_roles.js || echo "⚠️ Seed script non-critical"
           sudo docker compose -f docker-compose.prod.yml exec -T backend node dist/src/scripts/restore_sanket.js || echo "⚠️ Restore failed"
           
-          # 4C: Fast restart frontend with 1s timeout
-          echo "Restarting frontend..."
-          sudo docker compose -f docker-compose.prod.yml restart -t 1 frontend
+          # 3C: Build Frontend Image
+          echo "🔨 Building Frontend image..."
+          sudo docker compose -f docker-compose.prod.yml build frontend
+          
+          echo "🚀 Recreating Frontend container with zero downtime..."
+          sudo docker compose -f docker-compose.prod.yml up -d --no-deps frontend
           
           echo "Waiting for frontend container to be healthy..."
           for i in $(seq 1 40); do
@@ -79,7 +91,7 @@ jobs:
             sleep 0.5
           done
           
-          # STEP 5: Sync Static Assets for Host Nginx without taking site down
+          # STEP 4: Sync Static Assets for Host Nginx
           echo "⏳ Syncing Static Assets for Nginx..."
           sudo rm -rf $TARGET_DIR/.next/static $TARGET_DIR/_next/static $TARGET_DIR/public
           sudo mkdir -p $TARGET_DIR/.next $TARGET_DIR/_next
@@ -87,8 +99,11 @@ jobs:
           sudo docker cp applizor-frontend-prod:/app/public $TARGET_DIR/ || echo "Retrying public sync..."
           sudo cp -r $TARGET_DIR/.next/static $TARGET_DIR/_next/ || true
           
+          # Clean dangling build cache/images
+          sudo docker image prune -f || true
+
           # Ensure proper admin ownership
           sudo chown -R admin:admin $TARGET_DIR
           sudo chmod -R 755 $TARGET_DIR
           
-          echo "✅ DEPLOYMENT SUCCESSFUL WITH ZERO DOWNTIME!"
+          echo "✅ DEPLOYMENT SUCCESSFUL WITH UPDATED CODE!"
