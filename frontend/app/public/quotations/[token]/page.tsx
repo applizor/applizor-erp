@@ -25,7 +25,9 @@ import {
     ExternalLink,
     X,
     FileCheck,
-    Globe
+    Globe,
+    Upload,
+    Trash2
 } from 'lucide-react';
 import { getBaseUrl, resolveUrl } from '@/lib/utils/url';
 import SignaturePad from '@/components/SignaturePad';
@@ -49,6 +51,7 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
     const [name, setName] = useState('');
     const [comments, setComments] = useState('');
     const [termsAccepted, setTermsAccepted] = useState(false);
+    const [signMode, setSignMode] = useState<'draw' | 'upload'>('draw');
 
     // Alert dialog state
     const [alertDialog, setAlertDialog] = useState<{
@@ -182,6 +185,38 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
         }
     };
 
+    const handleSignatureFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+            setAlertDialog({
+                isOpen: true,
+                type: 'warning',
+                title: 'Invalid File',
+                message: 'Please upload a valid image file (PNG, JPG, JPEG, WebP).'
+            });
+            return;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+            setAlertDialog({
+                isOpen: true,
+                type: 'warning',
+                title: 'File Too Large',
+                message: 'Signature image must be under 5MB.'
+            });
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const result = event.target?.result as string;
+            setSignature(result);
+        };
+        reader.readAsDataURL(file);
+    };
+
     const handleAccept = async (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -190,7 +225,7 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
                 isOpen: true,
                 type: 'warning',
                 title: 'Signature Required',
-                message: 'Please draw and save your digital signature before submitting.'
+                message: 'Please draw or upload your digital signature before submitting.'
             });
             return;
         }
@@ -1001,12 +1036,82 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
                             </div>
 
                             <div>
-                                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                                    Digital Signature <span className="text-rose-500">*</span>
-                                </label>
-                                <div className="border border-slate-200 rounded-lg p-2 bg-slate-50">
-                                    <SignaturePad onSave={setSignature} disabled={submitting} />
+                                <div className="flex items-center justify-between mb-1.5">
+                                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                                        Digital Signature <span className="text-rose-500">*</span>
+                                    </label>
+                                    <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-md border border-slate-200">
+                                        <button
+                                            type="button"
+                                            onClick={() => setSignMode('draw')}
+                                            className={`px-2.5 py-1 text-[11px] font-bold rounded transition flex items-center gap-1 ${
+                                                signMode === 'draw'
+                                                    ? 'bg-white text-emerald-700 shadow-xs'
+                                                    : 'text-slate-500 hover:text-slate-800'
+                                            }`}
+                                        >
+                                            <PenTool size={11} />
+                                            <span>Draw</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setSignMode('upload')}
+                                            className={`px-2.5 py-1 text-[11px] font-bold rounded transition flex items-center gap-1 ${
+                                                signMode === 'upload'
+                                                    ? 'bg-white text-emerald-700 shadow-xs'
+                                                    : 'text-slate-500 hover:text-slate-800'
+                                            }`}
+                                        >
+                                            <Upload size={11} />
+                                            <span>Upload Image</span>
+                                        </button>
+                                    </div>
                                 </div>
+
+                                {signMode === 'draw' ? (
+                                    <div className="border border-slate-200 rounded-lg p-2 bg-slate-50">
+                                        <SignaturePad onSave={setSignature} disabled={submitting} />
+                                    </div>
+                                ) : (
+                                    <div className="border border-slate-200 rounded-lg p-3 bg-slate-50">
+                                        {signature ? (
+                                            <div className="flex flex-col items-center justify-center p-3 bg-white rounded-md border border-slate-200">
+                                                <img
+                                                    src={signature}
+                                                    alt="Signature preview"
+                                                    className="max-h-24 sm:max-h-28 w-auto object-contain my-1"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setSignature('')}
+                                                    className="mt-2 text-xs font-bold text-rose-600 hover:text-rose-700 flex items-center gap-1 px-2.5 py-1 rounded bg-rose-50 hover:bg-rose-100 transition"
+                                                >
+                                                    <Trash2 size={12} />
+                                                    <span>Remove & Upload Another</span>
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <label className="border-2 border-dashed border-slate-300 hover:border-emerald-500 rounded-md p-6 bg-white hover:bg-emerald-50/30 flex flex-col items-center justify-center cursor-pointer transition text-center group">
+                                                <div className="p-2.5 bg-slate-100 group-hover:bg-emerald-100 text-slate-500 group-hover:text-emerald-700 rounded-full mb-2 transition">
+                                                    <Upload size={18} />
+                                                </div>
+                                                <p className="text-xs font-bold text-slate-800">
+                                                    Click to upload signature image
+                                                </p>
+                                                <p className="text-[10px] text-slate-400 mt-0.5">
+                                                    Supports PNG, JPG, JPEG, WebP (Max 5MB)
+                                                </p>
+                                                <input
+                                                    type="file"
+                                                    accept="image/png, image/jpeg, image/jpg, image/webp"
+                                                    onChange={handleSignatureFileUpload}
+                                                    className="hidden"
+                                                    disabled={submitting}
+                                                />
+                                            </label>
+                                        )}
+                                    </div>
+                                )}
                             </div>
 
                             <div>
