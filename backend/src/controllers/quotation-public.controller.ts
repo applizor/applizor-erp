@@ -129,6 +129,7 @@ export const getQuotationByToken = async (req: Request, res: Response) => {
                     }
                 },
                 lead: true,
+                client: true,
                 company: {
                     select: {
                         id: true,
@@ -142,6 +143,9 @@ export const getQuotationByToken = async (req: Request, res: Response) => {
                         country: true,
                         pincode: true,
                         gstin: true,
+                        pan: true,
+                        tan: true,
+                        invoiceSettings: true,
                         logo: true,
                         digitalSignature: true,
                         letterhead: true,
@@ -543,6 +547,9 @@ export const downloadSignedQuotationPDFPublic = async (req: Request, res: Respon
                 email: quotation.company.email || undefined,
                 phone: quotation.company.phone || undefined,
                 gstin: quotation.company.gstin || undefined,
+                pan: quotation.company.pan || undefined,
+                tan: quotation.company.tan || undefined,
+                invoiceSettings: quotation.company.invoiceSettings || undefined,
                 digitalSignature: quotation.company.digitalSignature || undefined,
                 letterhead: quotation.company.letterhead || undefined,
                 continuationSheet: quotation.company.continuationSheet || undefined,
@@ -700,6 +707,9 @@ export const downloadPDFPublic = async (req: Request, res: Response) => {
                 email: quotation.company.email || undefined,
                 phone: quotation.company.phone || undefined,
                 gstin: quotation.company.gstin || undefined,
+                pan: quotation.company.pan || undefined,
+                tan: quotation.company.tan || undefined,
+                invoiceSettings: quotation.company.invoiceSettings || undefined,
                 digitalSignature: quotation.company.digitalSignature || undefined,
                 letterhead: quotation.company.letterhead || undefined,
                 continuationSheet: quotation.company.continuationSheet || undefined,

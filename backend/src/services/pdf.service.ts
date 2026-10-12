@@ -41,6 +41,7 @@ interface PDFData {
         bankIfscCode?: string;
         bankBranch?: string;
         pan?: string;
+        tan?: string;
         invoiceSettings?: any;
     };
     invoiceSettings?: any;
@@ -525,8 +526,11 @@ export class PDFService {
                 ${data.company.address ? `${data.company.address}<br>` : ''}
                 ${data.company.city && data.company.state ? `${data.company.city}, ${data.company.state} - ${data.company.pincode || ''}<br>` : ''}
                 ${(data.company.email || data.company.phone) ? `${data.company.email ? `E: ${data.company.email}` : ''} ${data.company.phone ? `| P: ${data.company.phone}` : ''}<br>` : ''}
-                ${(data.company.gstin && showGstin) ? `GSTIN: ${data.company.gstin}<br>` : ''}
-                ${(data.company.pan && showPan) ? `PAN: ${data.company.pan}<br>` : ''}
+                ${(data.company.gstin && showGstin && data.company.gstin.trim() !== '') ? `GSTIN: ${data.company.gstin.trim()}<br>` : ''}
+                ${(data.company.pan && showPan && data.company.pan.trim() !== '') ? `PAN: ${data.company.pan.trim()}<br>` : ''}
+                ${(data.company.tan && data.company.tan.trim() !== '') ? `TAN: ${data.company.tan.trim()}<br>` : ''}
+                ${(data.company.invoiceSettings?.llpin && data.company.invoiceSettings.llpin.trim() !== '') ? `LLPIN: ${data.company.invoiceSettings.llpin.trim()}<br>` : ''}
+                ${(data.company.invoiceSettings?.website && data.company.invoiceSettings.website.trim() !== '') ? `W: ${data.company.invoiceSettings.website.trim()}<br>` : ''}
             </div>
         </div>
     </div>
@@ -726,8 +730,8 @@ export class PDFService {
                         <div style="font-size: 11px; font-weight: bold; color: #374151; margin-bottom: 5px;">For ${data.company.name}</div>
                         <img src="${digitalSignatureBase64}" style="max-height: 50px; margin-bottom: 8px;">
                         <div style="font-size: 10px; font-weight: bold; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 5px; width: 180px; text-align: center; line-height: 1.4;">
-                            Arun Kumar Vishwakarma<br/>
-                            <span style="font-size: 8px; font-weight: normal; color: #6b7280; text-transform: none;">Founder & Managing Partner</span><br/>
+                            ${data.company.invoiceSettings?.signatoryName || 'Arun Kumar Vishwakarma'}<br/>
+                            <span style="font-size: 8px; font-weight: normal; color: #6b7280; text-transform: none;">${data.company.invoiceSettings?.signatoryDesignation || 'Founder & Managing Partner'}</span><br/>
                             <span style="font-size: 8px; text-transform: uppercase;">Authorized Signatory</span>
                         </div>
                     </div>
@@ -743,8 +747,8 @@ export class PDFService {
             <div style="font-size: 11px; font-weight: bold; color: #374151; margin-bottom: 5px; text-align: right;">For ${data.company.name}</div>
             <img src="${digitalSignatureBase64}" style="max-height: 60px; display: block; margin-bottom: 5px;">
             <div style="font-size: 10px; font-weight: bold; color: #666; border-top: 1px solid #eee; padding-top: 5px; line-height: 1.4;">
-                Arun Kumar Vishwakarma<br/>
-                <span style="font-size: 8px; font-weight: normal; color: #666; text-transform: none;">Founder & Managing Partner</span><br/>
+                ${data.company.invoiceSettings?.signatoryName || 'Arun Kumar Vishwakarma'}<br/>
+                <span style="font-size: 8px; font-weight: normal; color: #666; text-transform: none;">${data.company.invoiceSettings?.signatoryDesignation || 'Founder & Managing Partner'}</span><br/>
                 <span style="font-size: 8px; text-transform: uppercase;">Authorized Signatory</span>
             </div>
         </div>
@@ -1156,8 +1160,8 @@ ${(!hasEmbeddedCompanySig || !hasEmbeddedClientSig) ? `
         </div>
         <div class="sign-label">For ${data.company.name}</div>
         <div style="font-size: 11px; color: #666; margin-top: 5px; line-height: 1.4;">
-            <div style="font-weight: bold; color: #333; font-size: 11px;">Arun Kumar Vishwakarma</div>
-            <div style="font-size: 9px; color: #666;">Founder & Managing Partner</div>
+            <div style="font-weight: bold; color: #333; font-size: 11px;">${data.company.invoiceSettings?.signatoryName || 'Arun Kumar Vishwakarma'}</div>
+            <div style="font-size: 9px; color: #666;">${data.company.invoiceSettings?.signatoryDesignation || 'Founder & Managing Partner'}</div>
             ${data.companySignedAt ? `
                 <div style="font-size: 9px; text-transform: uppercase; font-weight: bold; margin-top: 2px;">Digitally Signed by Authorized Signatory</div>
                 <div style="font-size: 9px; color: #888;">Date: ${new Date(data.companySignedAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>

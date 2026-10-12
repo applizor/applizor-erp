@@ -503,10 +503,26 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
                             {/* Totals & Notes */}
                             <div className="px-8 py-8 bg-gray-50/30 border-t border-gray-100">
                                 <div className="flex flex-col md:flex-row gap-12">
-                                    <div className="md:w-3/5">
+                                    <div className="md:w-3/5 space-y-4">
+                                        {quotation.paymentTerms && (
+                                            <div>
+                                                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5">Payment Terms</h3>
+                                                <p className="text-xs text-gray-700 font-medium whitespace-pre-wrap leading-relaxed border-l-2 border-primary-500 pl-3">
+                                                    {quotation.paymentTerms}
+                                                </p>
+                                            </div>
+                                        )}
+                                        {quotation.deliveryTerms && (
+                                            <div>
+                                                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5">Delivery / Fulfillment Terms</h3>
+                                                <p className="text-xs text-gray-700 font-medium whitespace-pre-wrap leading-relaxed border-l-2 border-primary-500 pl-3">
+                                                    {quotation.deliveryTerms}
+                                                </p>
+                                            </div>
+                                        )}
                                         {quotation.notes && (
                                             <div>
-                                                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Terms & Notes</h3>
+                                                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5">Remarks & Notes</h3>
                                                 <p className="text-xs text-gray-500 font-medium whitespace-pre-wrap leading-relaxed border-l-2 border-gray-200 pl-3">
                                                     {quotation.notes}
                                                 </p>

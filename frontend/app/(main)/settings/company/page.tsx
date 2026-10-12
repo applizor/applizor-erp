@@ -2,7 +2,7 @@
 
 import { useToast } from '@/hooks/useToast';
 import { useState, useEffect } from 'react';
-import { Building, MapPin, Globe, CreditCard, Save, Upload, Loader2, Link as LinkIcon, Phone, Mail } from 'lucide-react';
+import { Building, MapPin, Globe, CreditCard, Save, Upload, Loader2, Link as LinkIcon, Phone, Mail, FileText, Shield, Hash } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import PageHeader from '@/components/ui/PageHeader';
 import { CustomSelect } from '@/components/ui/CustomSelect';
@@ -43,22 +43,34 @@ export default function CompanySettingsPage() {
     const fetchCompany = async () => {
         try {
             const res = await api.get('/company');
-            const data = res.data;
-            setCompany(data.company);
-            if (data.company.logo) {
-                setLogoPreview(resolveUrl(data.company.logo));
+            const raw = res.data?.company || {};
+            setCompany({
+                ...raw,
+                gstin: raw.gstin || '',
+                pan: raw.pan || '',
+                tan: raw.tan || '',
+                invoiceSettings: {
+                    llpin: '',
+                    website: '',
+                    signatoryName: '',
+                    signatoryDesignation: '',
+                    ...(raw.invoiceSettings || {})
+                }
+            });
+            if (raw.logo) {
+                setLogoPreview(resolveUrl(raw.logo));
             }
-            if (data.company.digitalSignature) {
-                setSignaturePreview(resolveUrl(data.company.digitalSignature));
+            if (raw.digitalSignature) {
+                setSignaturePreview(resolveUrl(raw.digitalSignature));
             }
-            if (data.company.letterhead) {
-                setLetterheadPreview(resolveUrl(data.company.letterhead));
+            if (raw.letterhead) {
+                setLetterheadPreview(resolveUrl(raw.letterhead));
             }
-            if (data.company.continuationSheet) {
-                setContinuationPreview(resolveUrl(data.company.continuationSheet));
+            if (raw.continuationSheet) {
+                setContinuationPreview(resolveUrl(raw.continuationSheet));
             }
         } catch (error) {
-            console.error('Failed to fetch company details');
+            console.error('Failed to fetch company details', error);
             toast.error('Failed to load company details');
         } finally {
             setLoading(false);
@@ -487,6 +499,143 @@ export default function CompanySettingsPage() {
                                             onChange={e => setCompany({ ...company, phone: e.target.value })}
                                             className="ent-input w-full"
                                         />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Section: Tax, Statutory & Legal Identifiers */}
+                            <div className="ent-card p-6">
+                                <h2 className="text-sm font-black text-gray-900 mb-2 flex items-center gap-2 uppercase tracking-tight border-b border-gray-100 pb-2">
+                                    <FileText className="w-4 h-4 text-primary-600" />
+                                    Tax & Statutory Identification
+                                </h2>
+                                <p className="text-[10px] text-gray-500 mb-6 uppercase font-bold tracking-tight">
+                                    Official identification numbers displayed on proposals, quotations, invoices & compliance documents.
+                                </p>
+                                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                                    <div className="ent-form-group">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">
+                                            GSTIN / GST Number
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={company.gstin || ''}
+                                            onChange={e => setCompany({ ...company, gstin: e.target.value.toUpperCase() })}
+                                            className="ent-input w-full font-mono font-bold uppercase"
+                                            placeholder="e.g. 23ACMFA4913C1ZU"
+                                            maxLength={15}
+                                        />
+                                        <span className="text-[9px] text-gray-400 mt-1 block">15-digit GST Identification Number</span>
+                                    </div>
+
+                                    <div className="ent-form-group">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">
+                                            PAN (Income Tax)
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={company.pan || ''}
+                                            onChange={e => setCompany({ ...company, pan: e.target.value.toUpperCase() })}
+                                            className="ent-input w-full font-mono font-bold uppercase"
+                                            placeholder="e.g. ACMFA4913C"
+                                            maxLength={10}
+                                        />
+                                        <span className="text-[9px] text-gray-400 mt-1 block">10-digit Income Tax PAN</span>
+                                    </div>
+
+                                    <div className="ent-form-group">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">
+                                            TAN (Tax Deduction No)
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={company.tan || ''}
+                                            onChange={e => setCompany({ ...company, tan: e.target.value.toUpperCase() })}
+                                            className="ent-input w-full font-mono font-bold uppercase"
+                                            placeholder="e.g. BPLA19893G"
+                                            maxLength={10}
+                                        />
+                                        <span className="text-[9px] text-gray-400 mt-1 block">10-digit Tax Deduction Account Number</span>
+                                    </div>
+
+                                    <div className="ent-form-group">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">
+                                            LLPIN / CIN / Reg. No
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={company.invoiceSettings?.llpin || ''}
+                                            onChange={e => setCompany({
+                                                ...company,
+                                                invoiceSettings: {
+                                                    ...(company.invoiceSettings || {}),
+                                                    llpin: e.target.value.toUpperCase()
+                                                }
+                                            })}
+                                            className="ent-input w-full font-mono font-bold uppercase"
+                                            placeholder="e.g. ACT-4938"
+                                        />
+                                        <span className="text-[9px] text-gray-400 mt-1 block">LLP / Corporate Registration Number</span>
+                                    </div>
+
+                                    <div className="ent-form-group">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block flex items-center gap-1">
+                                            <Globe size={10} /> Official Website
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={company.invoiceSettings?.website || ''}
+                                            onChange={e => setCompany({
+                                                ...company,
+                                                invoiceSettings: {
+                                                    ...(company.invoiceSettings || {}),
+                                                    website: e.target.value
+                                                }
+                                            })}
+                                            className="ent-input w-full"
+                                            placeholder="e.g. https://www.applizor.com"
+                                        />
+                                        <span className="text-[9px] text-gray-400 mt-1 block">Company website URL</span>
+                                    </div>
+
+                                    <div className="ent-form-group">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">
+                                            Authorized Signatory Name
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={company.invoiceSettings?.signatoryName || ''}
+                                            onChange={e => setCompany({
+                                                ...company,
+                                                invoiceSettings: {
+                                                    ...(company.invoiceSettings || {}),
+                                                    signatoryName: e.target.value
+                                                }
+                                            })}
+                                            className="ent-input w-full font-bold"
+                                            placeholder="e.g. Arun Kumar Vishwakarma"
+                                        />
+                                        <span className="text-[9px] text-gray-400 mt-1 block">Name printed below digital signature</span>
+                                    </div>
+
+                                    <div className="ent-form-group sm:col-span-2 lg:col-span-3">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2 block">
+                                            Signatory Designation / Role
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={company.invoiceSettings?.signatoryDesignation || ''}
+                                            onChange={e => setCompany({
+                                                ...company,
+                                                invoiceSettings: {
+                                                    ...(company.invoiceSettings || {}),
+                                                    signatoryDesignation: e.target.value
+                                                }
+                                            })}
+                                            className="ent-input w-full"
+                                            placeholder="e.g. Founder & Managing Partner"
+                                        />
+                                        <span className="text-[9px] text-gray-400 mt-1 block">Official title (e.g., Director, Partner, CEO)</span>
                                     </div>
                                 </div>
                             </div>
