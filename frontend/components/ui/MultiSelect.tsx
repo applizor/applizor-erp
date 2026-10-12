@@ -22,6 +22,16 @@ interface MultiSelectProps {
     align?: 'left' | 'right';
 }
 
+const isTouchDevice = () => {
+    if (typeof window === 'undefined') return false;
+    return (
+        window.matchMedia('(pointer: coarse)').matches ||
+        'ontouchstart' in window ||
+        navigator.maxTouchPoints > 0 ||
+        window.innerWidth < 768
+    );
+};
+
 export const MultiSelect: React.FC<MultiSelectProps> = ({
     options,
     value = [],
@@ -48,8 +58,76 @@ export const MultiSelect: React.FC<MultiSelectProps> = ({
         (opt.description && opt.description.toLowerCase().includes(searchTerm.toLowerCase()))
     );
 
+    const updatePosition = () => {
+        if (!containerRef.current) return;
+        const rect = containerRef.current.getBoundingClientRect();
+
+        // If trigger is scrolled completely out of viewport, close dropdown
+        if (rect.bottom < -50 || rect.top > window.innerHeight + 50) {
+            setIsOpen(false);
+            return;
+        }
+
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+
+        const measuredHeight = dropdownRef.current ? dropdownRef.current.offsetHeight : 0;
+        const dropdownHeight = measuredHeight > 0 ? measuredHeight : 240;
+
+        const targetWidth = Math.max(rect.width, 240);
+        const finalWidth = Math.min(targetWidth, viewportWidth - 16);
+
+        // Vertical collision: flip above if not enough room below and more room above
+        const spaceBelow = viewportHeight - rect.bottom;
+        const spaceAbove = rect.top;
+        const showAbove = spaceBelow < Math.min(dropdownHeight + 8, 260) && spaceAbove > spaceBelow;
+
+        const top = showAbove
+            ? Math.max(8, rect.top - dropdownHeight - 4)
+            : rect.bottom + 4;
+
+        const maxHeight = showAbove
+            ? Math.min(260, Math.max(120, spaceAbove - 16))
+            : Math.min(260, Math.max(120, spaceBelow - 16));
+
+        let left = align === 'right' ? rect.right - finalWidth : rect.left;
+
+        if (left + finalWidth > viewportWidth - 8) {
+            left = viewportWidth - finalWidth - 8;
+        }
+        if (left < 8) {
+            left = 8;
+        }
+
+        setDropdownStyle({
+            position: 'fixed',
+            top: `${top}px`,
+            left: `${left}px`,
+            width: `${finalWidth}px`,
+            maxHeight: `${maxHeight}px`,
+            zIndex: 99999,
+        });
+    };
+
     useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
+        if (!isOpen) return;
+
+        updatePosition();
+        const animId = requestAnimationFrame(updatePosition);
+
+        const handleScroll = (event: Event) => {
+            // Do not close or reposition if user is scrolling inside the dropdown options list
+            if (dropdownRef.current && dropdownRef.current.contains(event.target as Node)) {
+                return;
+            }
+            updatePosition();
+        };
+
+        const handleResize = () => {
+            updatePosition();
+        };
+
+        const handleOutsideAction = (event: MouseEvent | TouchEvent) => {
             const target = event.target as Node;
             if (
                 containerRef.current &&
@@ -61,45 +139,38 @@ export const MultiSelect: React.FC<MultiSelectProps> = ({
             }
         };
 
-        const handleScroll = () => {
-            if (isOpen) setIsOpen(false);
-        };
-
-        const handleResize = () => {
-            if (isOpen) setIsOpen(false);
-        };
-
-        document.addEventListener('mousedown', handleClickOutside);
         window.addEventListener('scroll', handleScroll, true);
         window.addEventListener('resize', handleResize);
+        document.addEventListener('mousedown', handleOutsideAction);
+        document.addEventListener('touchstart', handleOutsideAction, { passive: true });
 
         return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
+            cancelAnimationFrame(animId);
             window.removeEventListener('scroll', handleScroll, true);
             window.removeEventListener('resize', handleResize);
-        }
-    }, [isOpen]);
+            document.removeEventListener('mousedown', handleOutsideAction);
+            document.removeEventListener('touchstart', handleOutsideAction);
+        };
+    }, [isOpen, align]);
 
     useEffect(() => {
         if (isOpen && searchInputRef.current) {
-            searchInputRef.current.focus();
+            // Only auto-focus on non-touch devices to avoid virtual keyboard flash on mobile
+            if (!isTouchDevice()) {
+                searchInputRef.current.focus();
+            }
+        }
+        if (!isOpen) {
+            setSearchTerm('');
         }
     }, [isOpen]);
 
     const handleToggle = () => {
         if (!disabled) {
-            if (!isOpen && containerRef.current) {
-                const rect = containerRef.current.getBoundingClientRect();
-                setDropdownStyle({
-                    position: 'absolute',
-                    top: rect.bottom + window.scrollY + 4,
-                    left: align === 'right' ? (rect.right + window.scrollX) : (rect.left + window.scrollX),
-                    width: Math.max(rect.width, 240),
-                    transform: align === 'right' ? 'translateX(-100%)' : 'none',
-                    zIndex: 9999,
-                });
+            if (!isOpen) {
+                updatePosition();
             }
-            setIsOpen(!isOpen);
+            setIsOpen(prev => !prev);
         }
     };
 
@@ -142,6 +213,7 @@ export const MultiSelect: React.FC<MultiSelectProps> = ({
                             >
                                 {option.label}
                                 <button
+                                    type="button"
                                     onClick={(e) => handleRemove(e, option.value)}
                                     className="p-0.5 hover:bg-slate-300 rounded-full transition-colors"
                                 >
@@ -162,10 +234,10 @@ export const MultiSelect: React.FC<MultiSelectProps> = ({
                 <div
                     ref={dropdownRef}
                     style={dropdownStyle}
-                    className="bg-white border border-slate-200 rounded-md shadow-xl animate-in fade-in zoom-in duration-150 origin-top overflow-hidden"
+                    className="bg-white border border-slate-200 rounded-md shadow-xl animate-in fade-in zoom-in duration-150 origin-top overflow-hidden flex flex-col"
                 >
-                    <div className="p-2 border-b border-slate-100 flex items-center gap-2 sticky top-0 bg-white">
-                        <Search className="w-3.5 h-3.5 text-slate-400 ml-1" />
+                    <div className="p-2 border-b border-slate-100 flex items-center gap-2 sticky top-0 bg-white shrink-0">
+                        <Search className="w-3.5 h-3.5 text-slate-400 ml-1 shrink-0" />
                         <input
                             ref={searchInputRef}
                             type="text"
@@ -174,10 +246,20 @@ export const MultiSelect: React.FC<MultiSelectProps> = ({
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             onClick={(e) => e.stopPropagation()}
+                            onTouchStart={(e) => e.stopPropagation()}
                         />
+                        {searchTerm && (
+                            <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); setSearchTerm(''); }}
+                                className="p-1 hover:bg-slate-100 rounded-full shrink-0"
+                            >
+                                <X className="w-3 h-3 text-slate-400" />
+                            </button>
+                        )}
                     </div>
 
-                    <div className="max-h-60 overflow-y-auto py-1 scrollbar-thin scrollbar-thumb-slate-200">
+                    <div className="overflow-y-auto py-1 scrollbar-thin scrollbar-thumb-slate-200 flex-1 overscroll-contain">
                         {filteredOptions.length > 0 ? (
                             filteredOptions.map((option) => (
                                 <button
@@ -185,11 +267,11 @@ export const MultiSelect: React.FC<MultiSelectProps> = ({
                                     type="button"
                                     onClick={() => handleOptionToggle(option.value)}
                                     className={`
-                                        flex items-center justify-between w-full px-3 py-2 text-left transition-colors
+                                        flex items-center justify-between w-full px-3 py-2 text-left transition-colors cursor-pointer
                                         ${value.includes(option.value) ? 'bg-primary-50' : 'hover:bg-slate-50'}
                                     `}
                                 >
-                                    <div className="flex flex-col gap-0.5 pointer-events-none">
+                                    <div className="flex flex-col gap-0.5 pointer-events-none text-left">
                                         <span className={`text-[11px] font-black uppercase tracking-tight ${value.includes(option.value) ? 'text-primary-900' : 'text-slate-700'}`}>
                                             {option.label}
                                         </span>
@@ -200,7 +282,7 @@ export const MultiSelect: React.FC<MultiSelectProps> = ({
                                         )}
                                     </div>
                                     <div className={`
-                                        w-4 h-4 rounded border flex items-center justify-center transition-all
+                                        w-4 h-4 rounded border flex items-center justify-center transition-all shrink-0 ml-2
                                         ${value.includes(option.value) ? 'bg-primary-600 border-primary-600' : 'bg-white border-slate-300'}
                                     `}>
                                         {value.includes(option.value) && <Check className="w-2.5 h-2.5 text-white" />}

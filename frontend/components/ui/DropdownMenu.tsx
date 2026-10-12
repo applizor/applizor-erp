@@ -56,16 +56,18 @@ export const DropdownMenuContent = ({
     const ref = React.useRef<HTMLDivElement>(null);
 
     React.useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
+        const handleClickOutside = (event: MouseEvent | TouchEvent) => {
             if (ref.current && !ref.current.contains(event.target as Node)) {
                 setOpen(false);
             }
         };
         if (open) {
             document.addEventListener('mousedown', handleClickOutside);
+            document.addEventListener('touchstart', handleClickOutside, { passive: true });
         }
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('touchstart', handleClickOutside);
         };
     }, [open, setOpen]);
 

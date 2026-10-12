@@ -78,13 +78,17 @@ export default function NotificationCenter() {
 
     // Close dropdown when clicking outside
     useEffect(() => {
-        function handleClickOutside(event: MouseEvent) {
+        function handleClickOutside(event: MouseEvent | TouchEvent) {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
                 setIsOpen(false);
             }
         }
         document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
+        document.addEventListener('touchstart', handleClickOutside, { passive: true });
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('touchstart', handleClickOutside);
+        };
     }, []);
 
     const markAsRead = async (id: string) => {
