@@ -377,16 +377,6 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
                             <span>{copiedLink ? 'Copied' : 'Share'}</span>
                         </button>
 
-                        {/* Print Button */}
-                        <button
-                            onClick={handlePrint}
-                            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 transition-colors"
-                            title="Print Proposal"
-                        >
-                            <Printer size={14} />
-                            <span>Print</span>
-                        </button>
-
                         {/* Download Official PDF */}
                         <button
                             onClick={isAccepted ? handleDownloadSignedPdf : handleDownloadPdf}
