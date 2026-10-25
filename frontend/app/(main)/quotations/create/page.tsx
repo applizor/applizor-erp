@@ -68,15 +68,16 @@ export default function CreateQuotationPage() {
     // Strict Type Interfaces
     interface QuotationItem {
         description: string;
-        quantity: number;
+        quantity: number | string;
         unit: string;
-        unitPrice: number;
+        unitPrice: number | string;
         hsnSacCode?: string;
         taxRateIds: string[];
-        discount: number;
+        discount: number | string;
         total?: number;
     }
 
+    const [isTaxInclusive, setIsTaxInclusive] = useState(false);
     const [items, setItems] = useState<QuotationItem[]>([
         { description: '', quantity: 1, unit: '', unitPrice: 0, hsnSacCode: '', taxRateIds: [], discount: 0 }
     ]);
@@ -246,34 +247,70 @@ export default function CreateQuotationPage() {
         const taxBreakdown: Record<string, number> = {};
 
         items.forEach(item => {
-            const itemSubtotal = item.quantity * item.unitPrice;
-            const itemDiscount = (itemSubtotal * (item.discount || 0)) / 100;
-            const taxableAmount = itemSubtotal - itemDiscount;
+            const quantity = Number(item.quantity) || 0;
+            const unitPrice = Number(item.unitPrice) || 0;
+            const grossAmount = quantity * unitPrice;
+            const discountPercentage = Number(item.discount) || 0;
+            const itemDiscount = grossAmount * (discountPercentage / 100);
+            const netInclusive = grossAmount - itemDiscount;
 
-            let itemTax = 0;
+            let totalTaxPercent = 0;
             (item.taxRateIds || []).forEach(taxId => {
                 const taxConfig = taxRates.find(t => t.id === taxId);
-                if (taxConfig) {
-                    const taxAmount = taxableAmount * (Number(taxConfig.percentage) / 100);
-                    itemTax += taxAmount;
-
-                    // Aggregate for breakdown
-                    const key = `${taxConfig.name} @${Number(taxConfig.percentage)}%`;
-                    taxBreakdown[key] = (taxBreakdown[key] || 0) + taxAmount;
-                }
+                if (taxConfig) totalTaxPercent += Number(taxConfig.percentage || 0);
             });
 
-            subtotal += itemSubtotal;
+            let taxableAmount = 0;
+            let itemTax = 0;
+            let baseGross = 0;
+            let baseDiscount = 0;
+
+            if (isTaxInclusive && totalTaxPercent > 0) {
+                taxableAmount = netInclusive / (1 + totalTaxPercent / 100);
+                itemTax = netInclusive - taxableAmount;
+                baseGross = grossAmount / (1 + totalTaxPercent / 100);
+                baseDiscount = baseGross * (discountPercentage / 100);
+
+                (item.taxRateIds || []).forEach(taxId => {
+                    const taxConfig = taxRates.find(t => t.id === taxId);
+                    if (taxConfig) {
+                        const taxAmount = taxableAmount * (Number(taxConfig.percentage) / 100);
+                        const key = `${taxConfig.name} @${Number(taxConfig.percentage)}%`;
+                        taxBreakdown[key] = (taxBreakdown[key] || 0) + taxAmount;
+                    }
+                });
+            } else {
+                taxableAmount = grossAmount - itemDiscount;
+                baseGross = grossAmount;
+                baseDiscount = itemDiscount;
+
+                (item.taxRateIds || []).forEach(taxId => {
+                    const taxConfig = taxRates.find(t => t.id === taxId);
+                    if (taxConfig) {
+                        const taxAmount = taxableAmount * (Number(taxConfig.percentage) / 100);
+                        itemTax += taxAmount;
+                        const key = `${taxConfig.name} @${Number(taxConfig.percentage)}%`;
+                        taxBreakdown[key] = (taxBreakdown[key] || 0) + taxAmount;
+                    }
+                });
+            }
+
+            subtotal += baseGross;
             totalTax += itemTax;
-            totalDiscount += itemDiscount;
+            totalDiscount += baseDiscount;
         });
+
+        const overallDiscount = Number(formData.discount || 0);
+        const total = isTaxInclusive
+            ? (subtotal - totalDiscount + totalTax - overallDiscount)
+            : (subtotal + totalTax - totalDiscount - overallDiscount);
 
         return {
             subtotal,
             tax: totalTax,
             itemDiscount: totalDiscount,
-            overallDiscount: Number(formData.discount || 0),
-            total: subtotal + totalTax - totalDiscount - Number(formData.discount || 0),
+            overallDiscount,
+            total,
             taxBreakdown
         };
     };
@@ -282,7 +319,7 @@ export default function CreateQuotationPage() {
         e.preventDefault();
 
         // Filter out empty items
-        const validItems = items.filter(item => item.description.trim() !== '' && item.quantity > 0);
+        const validItems = items.filter(item => item.description.trim() !== '' && (Number(item.quantity) || 0) > 0);
 
         if (((targetType === 'lead' && !formData.leadId) || (targetType === 'client' && !formData.clientId)) || !formData.title) {
             toast.error('Please select a Target (Lead/Client) and enter Title');
@@ -305,11 +342,22 @@ export default function CreateQuotationPage() {
             setSaving(true);
             await quotationsApi.create({
                 ...cleanFormData,
+                isTaxInclusive,
                 discount: Number(formData.discount || 0) + totals.itemDiscount, // Store total aggregated discount
-                items: validItems.map(item => ({
-                    ...item,
-                    total: item.quantity * item.unitPrice
-                }))
+                items: validItems.map(item => {
+                    const qty = Number(item.quantity) || 0;
+                    const price = Number(item.unitPrice) || 0;
+                    const disc = Number(item.discount) || 0;
+                    return {
+                        ...item,
+                        quantity: qty,
+                        unitPrice: price,
+                        discount: disc,
+                        total: isTaxInclusive
+                            ? (qty * price * (1 - disc / 100))
+                            : (qty * price)
+                    };
+                })
             } as any);
             toast.success('Quotation created successfully');
             router.push('/quotations');
@@ -564,6 +612,15 @@ export default function CreateQuotationPage() {
                             </h2>
                         </div>
                         <div className="flex items-center space-x-3">
+                            <label className="flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer select-none px-3 py-1.5 bg-white hover:bg-gray-100 rounded-md border border-gray-200 transition-colors">
+                                <input
+                                    type="checkbox"
+                                    checked={isTaxInclusive}
+                                    onChange={(e) => setIsTaxInclusive(e.target.checked)}
+                                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500 w-4 h-4 cursor-pointer"
+                                />
+                                <span className="uppercase text-[10px] font-black tracking-wider text-gray-600">Tax Inclusive</span>
+                            </label>
                             <ProductSelector onSelect={handleProductSelect} />
                             <Button
                                 type="button"
@@ -584,7 +641,9 @@ export default function CreateQuotationPage() {
                                     <th className="px-6 py-3 text-left text-xs font-black text-gray-500 uppercase tracking-wider w-3/12">Description</th>
                                     <th className="px-4 py-3 text-center text-xs font-black text-gray-500 uppercase tracking-wider w-1/12">Qty</th>
                                     <th className="px-4 py-3 text-center text-xs font-black text-gray-500 uppercase tracking-wider w-1/12">UoM</th>
-                                    <th className="px-4 py-3 text-right text-xs font-black text-gray-500 uppercase tracking-wider w-1/12">Unit Price</th>
+                                    <th className="px-4 py-3 text-right text-xs font-black text-gray-500 uppercase tracking-wider w-1/12">
+                                        Unit Price {isTaxInclusive && <span className="text-primary-600 font-bold lowercase tracking-normal">(incl. tax)</span>}
+                                    </th>
                                     <th className="px-4 py-3 text-center text-xs font-black text-gray-500 uppercase tracking-wider w-1/12">HSN/SAC</th>
                                     <th className="px-4 py-3 text-center text-xs font-black text-gray-500 uppercase tracking-wider w-1/12">Disc %</th>
                                     <th className="px-4 py-3 text-right text-xs font-black text-gray-500 uppercase tracking-wider w-2/12">Tax Rule</th>
@@ -607,10 +666,11 @@ export default function CreateQuotationPage() {
                                         <td className="px-4 py-2">
                                             <input
                                                 type="number"
+                                                step="any"
                                                 value={item.quantity}
-                                                onChange={(e) => updateItem(index, 'quantity', parseFloat(e.target.value))}
+                                                onChange={(e) => updateItem(index, 'quantity', e.target.value)}
                                                 className="block w-full border-0 border-b border-transparent bg-transparent focus:border-primary-500 focus:ring-0 text-sm text-center"
-                                                min="1"
+                                                min="0"
                                             />
                                         </td>
                                         <td className="px-4 py-2">
@@ -626,8 +686,9 @@ export default function CreateQuotationPage() {
                                         <td className="px-4 py-2">
                                             <input
                                                 type="number"
+                                                step="any"
                                                 value={item.unitPrice}
-                                                onChange={(e) => updateItem(index, 'unitPrice', parseFloat(e.target.value))}
+                                                onChange={(e) => updateItem(index, 'unitPrice', e.target.value)}
                                                 className="block w-full border-0 border-b border-transparent bg-transparent focus:border-primary-500 focus:ring-0 text-sm text-right font-mono"
                                                 min="0"
                                             />
@@ -644,8 +705,9 @@ export default function CreateQuotationPage() {
                                         <td className="px-4 py-2">
                                             <input
                                                 type="number"
+                                                step="any"
                                                 value={item.discount}
-                                                onChange={(e) => updateItem(index, 'discount', parseFloat(e.target.value))}
+                                                onChange={(e) => updateItem(index, 'discount', e.target.value)}
                                                 className="block w-full border-0 border-b border-transparent bg-transparent focus:border-rose-500 focus:ring-0 text-sm text-center text-rose-500 font-bold"
                                                 min="0"
                                                 max="100"
@@ -666,7 +728,7 @@ export default function CreateQuotationPage() {
                                             />
                                         </td>
                                         <td className="px-4 py-2 text-right text-sm font-bold text-gray-900 tracking-tight">
-                                            {formatCurrency((item.quantity * item.unitPrice) * (1 - (item.discount || 0) / 100))}
+                                            {formatCurrency(((Number(item.quantity) || 0) * (Number(item.unitPrice) || 0)) * (1 - (Number(item.discount) || 0) / 100))}
                                         </td>
                                         <td className="px-4 py-2 text-center">
                                             {items.length > 1 && (
@@ -689,7 +751,7 @@ export default function CreateQuotationPage() {
                         <div className="flex justify-end">
                             <div className="w-full md:w-1/3 space-y-3">
                                 <div className="flex justify-between text-xs font-bold text-gray-500 uppercase tracking-wide">
-                                    <span>Subtotal</span>
+                                    <span>{isTaxInclusive ? 'Subtotal (Taxable)' : 'Subtotal'}</span>
                                     <span>{formatCurrency(totals.subtotal)}</span>
                                 </div>
                                 <div className="flex justify-between text-xs font-bold text-gray-500 uppercase tracking-wide">

@@ -29,7 +29,7 @@
     "@aws-sdk/lib-storage": "^3.1002.0",
     "@aws-sdk/s3-request-presigner": "^3.1079.0",
     "@paypal/checkout-server-sdk": "^1.0.3",
-    "@prisma/client": "^5.7.1",
+    "@prisma/client": "^5.22.0",
     "@types/bcrypt": "^6.0.0",
     "@types/nodemailer": "^7.0.5",
     "axios": "^1.13.2",

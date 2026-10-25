@@ -34,6 +34,7 @@ export interface Quotation {
     tax: number;
     discount: number;
     total: number;
+    isTaxInclusive?: boolean;
     status: 'draft' | 'sent' | 'accepted' | 'rejected' | 'expired';
     items: QuotationHiearchyItem[];
     paymentTerms?: string;

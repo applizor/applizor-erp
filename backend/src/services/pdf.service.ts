@@ -96,6 +96,7 @@ interface PDFData {
     discount: number;
     total: number;
     currency: string;
+    isTaxInclusive?: boolean;
     notes?: string;
     clientSignature?: string;
     clientName?: string;
@@ -605,7 +606,7 @@ export class PDFService {
                 ${showHsnSac ? `<th class="col-hsn">HSN/SAC</th>` : ''}
                 <th class="col-qty">Qty</th>
                 ${showUnit ? `<th class="col-uom">UoM</th>` : ''}
-                <th class="col-rate">Rate</th>
+                <th class="col-rate">Rate${data.isTaxInclusive ? ' <span style="font-size:9px;color:#e2e8f0;font-weight:normal;">(Incl. Tax)</span>' : ''}</th>
                 ${showDiscount ? `<th class="col-disc">Disc %</th>` : ''}
                 <th class="col-amt">Amount</th>
             </tr>

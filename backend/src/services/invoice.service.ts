@@ -36,6 +36,7 @@ export interface CreateInvoiceInput {
         name: string;
     };
     customPaymentUrl?: string;
+    isTaxInclusive?: boolean;
 }
 
 export class InvoiceService {
@@ -184,15 +185,43 @@ export class InvoiceService {
             }
         });
 
+        const isTaxInclusive = Boolean((invoiceData as any).isTaxInclusive);
+
         const processedItems = items.map(item => {
             const quantity = Number(item.quantity || 0);
             const rate = Number(item.rate || 0);
             const grossAmount = quantity * rate;
             const discountPercentage = Number(item.discount || 0);
             const itemDiscount = grossAmount * (discountPercentage / 100);
-            const taxableAmount = grossAmount - itemDiscount;
+            const netInclusive = grossAmount - itemDiscount;
 
+            // Calculate total tax percentage for inclusive calculations
+            let totalTaxPercent = 0;
+            if (item.explicitAppliedTaxes) {
+                totalTaxPercent = item.explicitAppliedTaxes.reduce((sum, t) => sum + Number(t.percentage || 0), 0);
+            } else {
+                (item.taxRateIds || []).forEach(taxId => {
+                    const taxConfig = taxRates.find(t => t.id === taxId);
+                    if (taxConfig) totalTaxPercent += Number(taxConfig.percentage || 0);
+                });
+            }
+
+            let taxableAmount = 0;
             let itemTotalTax = 0;
+            let baseGross = 0;
+            let baseDiscount = 0;
+
+            if (isTaxInclusive && totalTaxPercent > 0) {
+                taxableAmount = netInclusive / (1 + totalTaxPercent / 100);
+                itemTotalTax = netInclusive - taxableAmount;
+                baseGross = grossAmount / (1 + totalTaxPercent / 100);
+                baseDiscount = baseGross * (discountPercentage / 100);
+            } else {
+                taxableAmount = grossAmount - itemDiscount;
+                baseGross = grossAmount;
+                baseDiscount = itemDiscount;
+            }
+
             let appliedTaxes = [];
 
             if (item.explicitAppliedTaxes) {
@@ -200,7 +229,9 @@ export class InvoiceService {
                 appliedTaxes = item.explicitAppliedTaxes.map(t => {
                     const percentage = new Decimal(t.percentage);
                     const amountValue = taxableAmount * (Number(percentage) / 100);
-                    itemTotalTax += amountValue;
+                    if (!isTaxInclusive) {
+                        itemTotalTax += amountValue;
+                    }
                     return {
                         taxRateId: t.taxRateId,
                         name: t.name,
@@ -214,7 +245,9 @@ export class InvoiceService {
                     const taxConfig = taxRates.find(t => t.id === taxId);
                     const taxPercentage = taxConfig ? Number(taxConfig.percentage) : 0;
                     const taxAmount = taxableAmount * (taxPercentage / 100);
-                    itemTotalTax += taxAmount;
+                    if (!isTaxInclusive) {
+                        itemTotalTax += taxAmount;
+                    }
                     return {
                         taxRateId: taxId,
                         name: taxConfig?.name || 'Tax',
@@ -224,9 +257,9 @@ export class InvoiceService {
                 });
             }
 
-            subtotal += grossAmount;
+            subtotal += baseGross;
             totalTax += itemTotalTax;
-            totalItemDiscount += itemDiscount;
+            totalItemDiscount += baseDiscount;
 
             return {
                 ...item,
@@ -798,19 +831,46 @@ export class InvoiceService {
             }
         });
 
+        const isTaxInclusive = invoiceData.isTaxInclusive !== undefined
+            ? Boolean(invoiceData.isTaxInclusive)
+            : Boolean((await prisma.invoice.findUnique({ where: { id }, select: { isTaxInclusive: true } }))?.isTaxInclusive);
+
         const processedItems = items.map(item => {
             const grossAmount = Number(item.quantity) * Number(item.rate);
             const discountPercentage = Number((item as any).discount || 0);
             const itemDiscount = grossAmount * (discountPercentage / 100);
-            const taxableAmount = grossAmount - itemDiscount;
+            const netInclusive = grossAmount - itemDiscount;
 
+            // Calculate total tax percentage for inclusive calculations
+            let totalTaxPercent = 0;
+            (item.taxRateIds || []).forEach(taxId => {
+                const taxConfig = taxRates.find(t => t.id === taxId);
+                if (taxConfig) totalTaxPercent += Number(taxConfig.percentage || 0);
+            });
+
+            let taxableAmount = 0;
             let itemTotalTax = 0;
+            let baseGross = 0;
+            let baseDiscount = 0;
+
+            if (isTaxInclusive && totalTaxPercent > 0) {
+                taxableAmount = netInclusive / (1 + totalTaxPercent / 100);
+                itemTotalTax = netInclusive - taxableAmount;
+                baseGross = grossAmount / (1 + totalTaxPercent / 100);
+                baseDiscount = baseGross * (discountPercentage / 100);
+            } else {
+                taxableAmount = grossAmount - itemDiscount;
+                baseGross = grossAmount;
+                baseDiscount = itemDiscount;
+            }
 
             const appliedTaxes = (item.taxRateIds || []).map(taxId => {
                 const taxConfig = taxRates.find(t => t.id === taxId);
                 const taxPercentage = taxConfig ? Number(taxConfig.percentage) : 0;
                 const taxAmount = taxableAmount * (taxPercentage / 100);
-                itemTotalTax += taxAmount;
+                if (!isTaxInclusive) {
+                    itemTotalTax += taxAmount;
+                }
                 return {
                     taxRateId: taxId,
                     name: taxConfig?.name || 'Tax',
@@ -819,9 +879,9 @@ export class InvoiceService {
                 };
             });
 
-            subtotal += grossAmount;
+            subtotal += baseGross;
             totalTax += itemTotalTax;
-            totalItemDiscount += itemDiscount;
+            totalItemDiscount += baseDiscount;
 
             return {
                 ...item,
@@ -871,6 +931,7 @@ export class InvoiceService {
                 where: { id },
                 data: {
                     ...cleanUpdateData,
+                    isTaxInclusive,
                     invoiceDate,
                     dueDate,
                     subtotal: new Decimal(subtotal),

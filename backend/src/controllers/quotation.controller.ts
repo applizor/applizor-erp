@@ -49,22 +49,50 @@ export const createQuotation = async (req: AuthRequest, res: Response) => {
             }
         });
 
+        const isTaxInclusive = req.body.isTaxInclusive === true || req.body.isTaxInclusive === 'true';
+
         // Calculate totals
         let subtotal = 0;
         let totalTax = 0;
         let totalDiscount = 0;
 
         const processedItems = items.map((item: any) => {
-            const itemSubtotal = item.quantity * item.unitPrice;
-            const itemDiscount = (itemSubtotal * (item.discount || 0)) / 100;
-            const taxableAmount = itemSubtotal - itemDiscount;
+            const quantity = Number(item.quantity || 0);
+            const unitPrice = Number(item.unitPrice || 0);
+            const grossAmount = quantity * unitPrice;
+            const discountPercentage = Number(item.discount || 0);
+            const itemDiscount = grossAmount * (discountPercentage / 100);
+            const netInclusive = grossAmount - itemDiscount;
 
+            let totalTaxPercent = 0;
+            (item.taxRateIds || []).forEach((taxId: string) => {
+                const taxConfig = taxRates.find(t => t.id === taxId);
+                if (taxConfig) totalTaxPercent += Number(taxConfig.percentage || 0);
+            });
+
+            let taxableAmount = 0;
             let itemTotalTax = 0;
+            let baseGross = 0;
+            let baseDiscount = 0;
+
+            if (isTaxInclusive && totalTaxPercent > 0) {
+                taxableAmount = netInclusive / (1 + totalTaxPercent / 100);
+                itemTotalTax = netInclusive - taxableAmount;
+                baseGross = grossAmount / (1 + totalTaxPercent / 100);
+                baseDiscount = baseGross * (discountPercentage / 100);
+            } else {
+                taxableAmount = grossAmount - itemDiscount;
+                baseGross = grossAmount;
+                baseDiscount = itemDiscount;
+            }
+
             const appliedTaxes = (item.taxRateIds || []).map((taxId: string) => {
                 const taxConfig = taxRates.find(t => t.id === taxId);
                 const taxPercentage = taxConfig ? Number(taxConfig.percentage) : 0;
                 const taxAmount = taxableAmount * (taxPercentage / 100);
-                itemTotalTax += taxAmount;
+                if (!isTaxInclusive) {
+                    itemTotalTax += taxAmount;
+                }
                 return {
                     taxRateId: taxId,
                     name: taxConfig?.name || 'Tax',
@@ -73,14 +101,14 @@ export const createQuotation = async (req: AuthRequest, res: Response) => {
                 };
             });
 
-            subtotal += itemSubtotal;
+            subtotal += baseGross;
             totalTax += itemTotalTax;
-            totalDiscount += itemDiscount;
+            totalDiscount += baseDiscount;
 
             return {
                 ...item,
                 appliedTaxes,
-                total: itemSubtotal - itemDiscount + itemTotalTax
+                total: isTaxInclusive ? netInclusive : (taxableAmount + itemTotalTax)
             };
         });
 
@@ -151,6 +179,7 @@ export const createQuotation = async (req: AuthRequest, res: Response) => {
                 validUntil: new Date(validUntil),
                 exchangeRate,
                 baseCurrencyAmount,
+                isTaxInclusive,
                 subtotal,
                 tax: totalTax,
                 discount: overallDiscount,
@@ -428,6 +457,19 @@ export const updateQuotation = async (req: AuthRequest, res: Response) => {
 
         // If items are provided, recalculate totals and update items
         if (items && Array.isArray(items)) {
+            const existingQuotation = await prisma.quotation.findFirst({
+                where: { id, companyId: user.companyId },
+                select: { currency: true, isTaxInclusive: true }
+            });
+
+            const currentIsTaxInclusive = req.body.isTaxInclusive !== undefined
+                ? (req.body.isTaxInclusive === true || req.body.isTaxInclusive === 'true')
+                : Boolean(existingQuotation?.isTaxInclusive);
+
+            if (req.body.isTaxInclusive !== undefined) {
+                updateData.isTaxInclusive = currentIsTaxInclusive;
+            }
+
             const taxRates = await prisma.taxRate.findMany({
                 where: {
                     id: { in: items.flatMap((item: any) => item.taxRateIds || []) }
@@ -440,16 +482,42 @@ export const updateQuotation = async (req: AuthRequest, res: Response) => {
             let totalDiscount = 0;
 
             const processedItems = items.map((item: any) => {
-                const itemSubtotal = item.quantity * item.unitPrice;
-                const itemDiscount = (itemSubtotal * (item.discount || 0)) / 100;
-                const taxableAmount = itemSubtotal - itemDiscount;
+                const quantity = Number(item.quantity || 0);
+                const unitPrice = Number(item.unitPrice || 0);
+                const grossAmount = quantity * unitPrice;
+                const discountPercentage = Number(item.discount || 0);
+                const itemDiscount = grossAmount * (discountPercentage / 100);
+                const netInclusive = grossAmount - itemDiscount;
 
+                let totalTaxPercent = 0;
+                (item.taxRateIds || []).forEach((taxId: string) => {
+                    const taxConfig = taxRates.find(t => t.id === taxId);
+                    if (taxConfig) totalTaxPercent += Number(taxConfig.percentage || 0);
+                });
+
+                let taxableAmount = 0;
                 let itemTotalTax = 0;
+                let baseGross = 0;
+                let baseDiscount = 0;
+
+                if (currentIsTaxInclusive && totalTaxPercent > 0) {
+                    taxableAmount = netInclusive / (1 + totalTaxPercent / 100);
+                    itemTotalTax = netInclusive - taxableAmount;
+                    baseGross = grossAmount / (1 + totalTaxPercent / 100);
+                    baseDiscount = baseGross * (discountPercentage / 100);
+                } else {
+                    taxableAmount = grossAmount - itemDiscount;
+                    baseGross = grossAmount;
+                    baseDiscount = itemDiscount;
+                }
+
                 const appliedTaxes = (item.taxRateIds || []).map((taxId: string) => {
                     const taxConfig = taxRates.find(t => t.id === taxId);
                     const taxPercentage = taxConfig ? Number(taxConfig.percentage) : 0;
                     const taxAmount = taxableAmount * (taxPercentage / 100);
-                    itemTotalTax += taxAmount;
+                    if (!currentIsTaxInclusive) {
+                        itemTotalTax += taxAmount;
+                    }
                     return {
                         taxRateId: taxId,
                         name: taxConfig?.name || 'Tax',
@@ -458,14 +526,14 @@ export const updateQuotation = async (req: AuthRequest, res: Response) => {
                     };
                 });
 
-                subtotal += itemSubtotal;
+                subtotal += baseGross;
                 totalTax += itemTotalTax;
-                totalDiscount += itemDiscount;
+                totalDiscount += baseDiscount;
 
                 return {
                     ...item,
                     appliedTaxes,
-                    total: itemSubtotal - itemDiscount + itemTotalTax
+                    total: currentIsTaxInclusive ? netInclusive : (taxableAmount + itemTotalTax)
                 };
             });
 
@@ -473,10 +541,6 @@ export const updateQuotation = async (req: AuthRequest, res: Response) => {
             const total = subtotal + totalTax - totalDiscount - overallDiscount;
 
             // Recalculate exchange rate and base currency amount
-            const existingQuotation = await prisma.quotation.findFirst({
-                where: { id, companyId: user.companyId },
-                select: { currency: true }
-            });
             const quoCurrency = existingQuotation?.currency || 'INR';
 
             const company = await prisma.company.findUnique({
@@ -628,15 +692,19 @@ export const convertQuotationToInvoice = async (req: AuthRequest, res: Response)
             }
         }
 
-        // Calculate true additional discount to handle potentially "tainted" source data (legacy quotes)
-        const totalItemDiscount = (quotation.items as any[]).reduce((acc, item) => {
-            const gross = Number(item.quantity) * Number(item.unitPrice);
-            return acc + (gross * (Number(item.discount || 0) / 100));
-        }, 0);
-
-        // Formula: Total = Subtotal + Tax - ItemDiscounts - AdditionalDiscount
-        // Therefore: AdditionalDiscount = Subtotal + Tax - ItemDiscounts - Total
-        const overallDiscount = (Number(quotation.subtotal) + Number(quotation.tax) - totalItemDiscount) - Number(quotation.total);
+        // Calculate overall discount
+        let overallDiscount = Number(quotation.discount || 0);
+        if (!quotation.isTaxInclusive) {
+            // For legacy/tax-exclusive quotes, ensure formula consistency
+            const totalItemDiscount = (quotation.items as any[]).reduce((acc, item) => {
+                const gross = Number(item.quantity) * Number(item.unitPrice);
+                return acc + (gross * (Number(item.discount || 0) / 100));
+            }, 0);
+            const legacyCalcDiscount = (Number(quotation.subtotal) + Number(quotation.tax) - totalItemDiscount) - Number(quotation.total);
+            if (legacyCalcDiscount >= 0 && Math.abs(legacyCalcDiscount - overallDiscount) > 0.01) {
+                overallDiscount = legacyCalcDiscount;
+            }
+        }
 
         // Create invoice using InvoiceService to centralized business logic and numbering
         const invoice = await InvoiceService.createInvoice({
@@ -645,6 +713,7 @@ export const convertQuotationToInvoice = async (req: AuthRequest, res: Response)
             invoiceDate: new Date(),
             dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
             currency: quotation.currency,
+            isTaxInclusive: (quotation as any).isTaxInclusive || false,
             discount: Math.max(0, overallDiscount), // Use cleansed overall discount
             notes: quotation.notes || undefined,
             type: 'invoice',

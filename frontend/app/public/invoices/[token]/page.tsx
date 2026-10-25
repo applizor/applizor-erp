@@ -261,7 +261,9 @@ export default function PublicInvoiceDetails({ params }: { params: { token: stri
                                     <th className="px-8 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">HSN/SAC</th>
                                     <th className="px-8 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Qty</th>
                                     <th className="px-8 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">UoM</th>
-                                    <th className="px-8 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Rate</th>
+                                    <th className="px-8 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">
+                                        Rate {invoice.isTaxInclusive && <span className="text-[9px] text-emerald-600 font-bold lowercase tracking-normal">(incl. tax)</span>}
+                                    </th>
                                     <th className="px-8 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Disc %</th>
                                     <th className="px-8 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">Amount</th>
                                 </tr>
@@ -285,13 +287,20 @@ export default function PublicInvoiceDetails({ params }: { params: { token: stri
                             </tbody>
                             <tfoot className="bg-slate-50/50">
                                 <tr>
-                                    <td colSpan={6} className="px-8 py-3 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Gross Subtotal:</td>
+                                    <td colSpan={6} className="px-8 py-3 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">{invoice.isTaxInclusive ? 'Subtotal (Taxable):' : 'Gross Subtotal:'}</td>
                                     <td className="px-8 py-3 text-right text-sm font-bold text-slate-900">{formatCurrency(invoice.subtotal)}</td>
                                 </tr>
                                 {(() => {
                                     const itemDiscounts = (invoice.items || []).reduce((acc: number, item: any) => {
                                         const gross = Number(item.quantity) * Number(item.rate);
-                                        return acc + (gross * (Number(item.discount || 0) / 100));
+                                        let totalTaxPercent = 0;
+                                        (item.appliedTaxes || []).forEach((t: any) => {
+                                            totalTaxPercent += Number(t.percentage || 0);
+                                        });
+                                        const baseGross = invoice.isTaxInclusive && totalTaxPercent > 0
+                                            ? gross / (1 + totalTaxPercent / 100)
+                                            : gross;
+                                        return acc + (baseGross * (Number(item.discount || 0) / 100));
                                     }, 0);
 
                                     if (itemDiscounts > 0) {

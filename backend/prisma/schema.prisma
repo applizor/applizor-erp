@@ -398,6 +398,7 @@ model Quotation {
   discount             Decimal             @default(0) @db.Decimal(12, 2)
   total                Decimal             @db.Decimal(12, 2)
   currency             String              @default("INR")
+  isTaxInclusive       Boolean             @default(false)
   exchangeRate         Decimal?            @db.Decimal(18, 8)
   baseCurrencyAmount   Decimal?            @db.Decimal(12, 2)
   paymentTerms         String?
@@ -1419,6 +1420,7 @@ model Invoice {
   status             String            @default("draft")
   type               String            @default("invoice")
   currency           String            @default("INR")
+  isTaxInclusive     Boolean           @default(false)
   exchangeRate       Decimal?          @db.Decimal(18, 8)
   baseCurrencyAmount Decimal?          @db.Decimal(12, 2)
   terms              String?

@@ -460,7 +460,9 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
                                             <th className="px-2 py-3 text-center text-xs font-black text-gray-400 uppercase tracking-wider">HSN/SAC</th>
                                             <th className="px-2 py-3 text-center text-xs font-black text-gray-400 uppercase tracking-wider">Qty</th>
                                             <th className="px-2 py-3 text-center text-xs font-black text-gray-400 uppercase tracking-wider">UoM</th>
-                                            <th className="px-2 py-3 text-right text-xs font-black text-gray-400 uppercase tracking-wider">Rate</th>
+                                            <th className="px-2 py-3 text-right text-xs font-black text-gray-400 uppercase tracking-wider">
+                                                Rate {quotation.isTaxInclusive && <span className="text-[10px] text-emerald-600 font-bold lowercase tracking-normal">(incl. tax)</span>}
+                                            </th>
                                             <th className="px-2 py-3 text-right text-xs font-black text-gray-400 uppercase tracking-wider">Disc %</th>
                                             <th className="px-2 py-3 text-right text-xs font-black text-gray-400 uppercase tracking-wider">Tax</th>
                                             <th className="px-2 py-3 text-right text-xs font-black text-gray-400 uppercase tracking-wider">Amount</th>
@@ -531,14 +533,21 @@ export default function QuotationDetailPage({ params }: { params: { id: string }
                                     </div>
                                     <div className="md:w-2/5 space-y-3">
                                         <div className="flex justify-between text-sm text-gray-600">
-                                            <span className="font-medium">Subtotal:</span>
+                                            <span className="font-medium">{quotation.isTaxInclusive ? 'Subtotal (Taxable):' : 'Subtotal:'}</span>
                                             <span className="font-bold">{formatCurrency(quotation.subtotal)}</span>
                                         </div>
 
                                         {(() => {
                                             const itemDiscounts = quotation.items.reduce((acc: number, item: any) => {
                                                 const gross = Number(item.quantity) * Number(item.unitPrice);
-                                                return acc + (gross * (Number(item.discount || 0) / 100));
+                                                let totalTaxPercent = 0;
+                                                (item.appliedTaxes || []).forEach((t: any) => {
+                                                    totalTaxPercent += Number(t.percentage || 0);
+                                                });
+                                                const baseGross = quotation.isTaxInclusive && totalTaxPercent > 0
+                                                    ? gross / (1 + totalTaxPercent / 100)
+                                                    : gross;
+                                                return acc + (baseGross * (Number(item.discount || 0) / 100));
                                             }, 0);
 
                                             if (itemDiscounts > 0) {

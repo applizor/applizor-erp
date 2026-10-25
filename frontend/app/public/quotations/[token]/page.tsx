@@ -349,7 +349,14 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
     // Calculate item discounts
     const totalItemDiscounts = (quotation.items || []).reduce((acc: number, item: any) => {
         const gross = Number(item.quantity) * Number(item.unitPrice || 0);
-        return acc + (gross * (Number(item.discount || 0) / 100));
+        let totalTaxPercent = 0;
+        (item.appliedTaxes || []).forEach((t: any) => {
+            totalTaxPercent += Number(t.percentage || 0);
+        });
+        const baseGross = quotation.isTaxInclusive && totalTaxPercent > 0
+            ? gross / (1 + totalTaxPercent / 100)
+            : gross;
+        return acc + (baseGross * (Number(item.discount || 0) / 100));
     }, 0);
 
     // Calculate Tax Breakdown
@@ -735,7 +742,9 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
                                             <th className="px-3 py-3 text-[10px] font-black uppercase tracking-wider text-center">HSN/SAC</th>
                                             <th className="px-3 py-3 text-[10px] font-black uppercase tracking-wider text-center">Qty</th>
                                             <th className="px-3 py-3 text-[10px] font-black uppercase tracking-wider text-center">UoM</th>
-                                            <th className="px-4 py-3 text-[10px] font-black uppercase tracking-wider text-right min-w-[100px]">Rate</th>
+                                            <th className="px-4 py-3 text-[10px] font-black uppercase tracking-wider text-right min-w-[100px]">
+                                                Rate {quotation.isTaxInclusive && <span className="text-[9px] text-emerald-400 font-bold lowercase tracking-normal">(incl. tax)</span>}
+                                            </th>
                                             <th className="px-3 py-3 text-[10px] font-black uppercase tracking-wider text-right">Disc %</th>
                                             <th className="px-4 py-3 text-[10px] font-black uppercase tracking-wider text-right min-w-[120px]">Amount</th>
                                         </tr>
@@ -782,7 +791,7 @@ export default function PublicQuotationPage({ params }: { params: { token: strin
                             <div className="bg-slate-50/90 border-t border-slate-200 p-4 sm:p-6 flex flex-col sm:flex-row justify-end">
                                 <div className="w-full sm:w-80 space-y-2 text-xs">
                                     <div className="flex justify-between items-center text-slate-600">
-                                        <span className="font-semibold uppercase text-[10px] tracking-wider text-slate-400">Subtotal:</span>
+                                        <span className="font-semibold uppercase text-[10px] tracking-wider text-slate-400">{quotation.isTaxInclusive ? 'Subtotal (Taxable):' : 'Subtotal:'}</span>
                                         <span className="font-bold text-slate-900">{formatCurrency(quotation.subtotal)}</span>
                                     </div>
 

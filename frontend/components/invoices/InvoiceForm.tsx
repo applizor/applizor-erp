@@ -40,6 +40,7 @@ const invoiceSchema = z.object({
     recurringEndDate: z.string().optional(),
     includeBankDetails: z.boolean().default(true),
     customPaymentUrl: z.string().optional(),
+    isTaxInclusive: z.boolean().default(false),
 });
 
 type InvoiceFormValues = z.infer<typeof invoiceSchema>;
@@ -71,6 +72,7 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
         defaultValues: initialData ? {
             ...initialData,
             customPaymentUrl: initialData.customPaymentUrl || '',
+            isTaxInclusive: initialData.isTaxInclusive || false,
         } : {
             type: 'invoice',
             clientId: '',
@@ -82,6 +84,7 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
             discount: 0,
             includeBankDetails: true,
             customPaymentUrl: '',
+            isTaxInclusive: false,
         },
     });
 
@@ -190,6 +193,7 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
     const watchItems = watch('items');
     const watchDiscount = watch('discount');
     const watchType = watch('type');
+    const watchIsTaxInclusive = watch('isTaxInclusive') || false;
 
     const calculateTotals = () => {
         let subtotal = 0;
@@ -197,29 +201,63 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
         let totalItemDiscount = 0;
         const taxBreakdown: Record<string, number> = {};
 
-        watchItems.forEach((item) => {
-            const grossAmount = (item.quantity || 0) * (item.rate || 0);
-            const discountAmount = grossAmount * ((item.discount || 0) / 100);
-            const taxableAmount = grossAmount - discountAmount;
+        watchItems.forEach((item: any) => {
+            const quantity = Number(item.quantity || 0);
+            const rate = Number(item.rate || 0);
+            const grossAmount = quantity * rate;
+            const discountPercentage = Number(item.discount || 0);
+            const discountAmount = grossAmount * (discountPercentage / 100);
+            const netInclusive = grossAmount - discountAmount;
 
-            let itemTax = 0;
+            let totalTaxPercent = 0;
             (item.taxRateIds || []).forEach((taxId: string) => {
                 const taxConfig = taxRates.find(t => t.id === taxId);
-                if (taxConfig) {
-                    const taxAmount = taxableAmount * (Number(taxConfig.percentage) / 100);
-                    itemTax += taxAmount;
-
-                    const key = `${taxConfig.name} @${Number(taxConfig.percentage)}%`;
-                    taxBreakdown[key] = (taxBreakdown[key] || 0) + taxAmount;
-                }
+                if (taxConfig) totalTaxPercent += Number(taxConfig.percentage || 0);
             });
 
-            subtotal += grossAmount;
+            let taxableAmount = 0;
+            let itemTax = 0;
+            let baseGross = 0;
+            let baseDiscount = 0;
+
+            if (watchIsTaxInclusive && totalTaxPercent > 0) {
+                taxableAmount = netInclusive / (1 + totalTaxPercent / 100);
+                itemTax = netInclusive - taxableAmount;
+                baseGross = grossAmount / (1 + totalTaxPercent / 100);
+                baseDiscount = baseGross * (discountPercentage / 100);
+
+                (item.taxRateIds || []).forEach((taxId: string) => {
+                    const taxConfig = taxRates.find(t => t.id === taxId);
+                    if (taxConfig) {
+                        const taxAmount = taxableAmount * (Number(taxConfig.percentage) / 100);
+                        const key = `${taxConfig.name} @${Number(taxConfig.percentage)}%`;
+                        taxBreakdown[key] = (taxBreakdown[key] || 0) + taxAmount;
+                    }
+                });
+            } else {
+                taxableAmount = grossAmount - discountAmount;
+                baseGross = grossAmount;
+                baseDiscount = discountAmount;
+
+                (item.taxRateIds || []).forEach((taxId: string) => {
+                    const taxConfig = taxRates.find(t => t.id === taxId);
+                    if (taxConfig) {
+                        const taxAmount = taxableAmount * (Number(taxConfig.percentage) / 100);
+                        itemTax += taxAmount;
+                        const key = `${taxConfig.name} @${Number(taxConfig.percentage)}%`;
+                        taxBreakdown[key] = (taxBreakdown[key] || 0) + taxAmount;
+                    }
+                });
+            }
+
+            subtotal += baseGross;
             totalTax += itemTax;
-            totalItemDiscount += discountAmount;
+            totalItemDiscount += baseDiscount;
         });
 
-        const total = subtotal + totalTax - totalItemDiscount - (watchDiscount || 0);
+        const total = watchIsTaxInclusive
+            ? (subtotal - totalItemDiscount + totalTax - (watchDiscount || 0))
+            : (subtotal + totalTax - totalItemDiscount - (watchDiscount || 0));
         return { subtotal, totalTax, totalItemDiscount, total, taxBreakdown };
     };
 
@@ -437,13 +475,23 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
                         <Calculator className="w-3.5 h-3.5 text-primary-600" />
                         Line Item Breakdown
                     </h3>
-                    <button
-                        type="button"
-                        onClick={() => append({ description: '', quantity: 1, rate: 0, taxRateIds: [], discount: 0, hsnSacCode: '' })}
-                        className="text-[10px] font-black text-primary-600 hover:text-primary-700 uppercase tracking-widest flex items-center gap-1 transition-all"
-                    >
-                        <Plus size={14} /> Append Component
-                    </button>
+                    <div className="flex items-center gap-3">
+                        <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-gray-600 cursor-pointer select-none px-2.5 py-1 bg-white hover:bg-gray-100 rounded border border-gray-200 transition-colors">
+                            <input
+                                type="checkbox"
+                                {...register('isTaxInclusive')}
+                                className="rounded border-gray-300 text-primary-600 focus:ring-primary-500 w-3.5 h-3.5 cursor-pointer"
+                            />
+                            <span>Tax Inclusive</span>
+                        </label>
+                        <button
+                            type="button"
+                            onClick={() => append({ description: '', quantity: 1, rate: 0, taxRateIds: [], discount: 0, hsnSacCode: '' })}
+                            className="text-[10px] font-black text-primary-600 hover:text-primary-700 uppercase tracking-widest flex items-center gap-1 transition-all"
+                        >
+                            <Plus size={14} /> Append Component
+                        </button>
+                    </div>
                 </div>
 
                 <div className="ent-table-container">
@@ -453,7 +501,9 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
                                 <th className="px-4 py-2 text-[9px] font-black text-gray-400 uppercase tracking-[0.1em]">Resource Description</th>
                                 <th className="px-4 py-2 text-[9px] font-black text-gray-400 uppercase tracking-[0.1em] w-20">UoM</th>
                                 <th className="px-4 py-2 text-[9px] font-black text-gray-400 uppercase tracking-[0.1em] w-24">Units</th>
-                                <th className="px-4 py-2 text-[9px] font-black text-gray-400 uppercase tracking-[0.1em] w-28">Unit Rate</th>
+                                <th className="px-4 py-2 text-[9px] font-black text-gray-400 uppercase tracking-[0.1em] w-28">
+                                    Unit Rate {watchIsTaxInclusive && <span className="text-primary-600 font-bold lowercase tracking-normal">(incl. tax)</span>}
+                                </th>
                                 <th className="px-4 py-2 text-[9px] font-black text-gray-400 uppercase tracking-[0.1em] w-24">Disc %</th>
                                 <th className="px-4 py-2 text-[9px] font-black text-gray-400 uppercase tracking-[0.1em] w-24">HSN/SAC</th>
                                 <th className="px-4 py-2 text-[9px] font-black text-gray-400 uppercase tracking-[0.1em] w-24">Tax Factor %</th>
@@ -615,7 +665,9 @@ export function InvoiceForm({ initialData, clients, onSubmit, loading }: Invoice
                     <div className="absolute top-0 right-0 w-32 h-32 bg-primary-600/10 rounded-full blur-3xl -translate-y-12 translate-x-12 group-hover:bg-primary-600/20 transition-all duration-700" />
                     <div className="space-y-3 relative z-10 border-b border-white/5 pb-6">
                         <div className="flex justify-between items-center text-gray-400">
-                            <span className="text-[10px] font-black uppercase tracking-widest leading-none">Gross Subtotal</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest leading-none">
+                                {watchIsTaxInclusive ? 'Subtotal (Taxable)' : 'Gross Subtotal'}
+                            </span>
                             <span className="text-xs font-black text-white">{formatInvoiceCurrency(totals.subtotal)}</span>
                         </div>
                         <div className="flex justify-between items-center text-gray-400">

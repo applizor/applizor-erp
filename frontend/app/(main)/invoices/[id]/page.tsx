@@ -270,8 +270,8 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
         const totalTaxCalc = Object.values(breakdown).reduce((a, b) => a + b, 0);
         return {
             taxBreakdown: breakdown,
-            subtotal: calculatedSubtotal,
-            totalTax: totalTaxCalc,
+            subtotal: invoice.subtotal !== undefined ? Number(invoice.subtotal) : calculatedSubtotal,
+            totalTax: invoice.tax !== undefined && Number(invoice.tax) > 0 ? Number(invoice.tax) : totalTaxCalc,
             totalItemDiscount: calculatedItemDiscount
         };
     })();
@@ -490,7 +490,9 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
                                                     <th className="text-[10px] uppercase tracking-widest">HSN/SAC</th>
                                                     <th className="text-center text-[10px] uppercase tracking-widest">Qty</th>
                                                     <th className="text-center text-[10px] uppercase tracking-widest">UoM</th>
-                                                    <th className="text-right text-[10px] uppercase tracking-widest">Unit Rate</th>
+                                                    <th className="text-right text-[10px] uppercase tracking-widest">
+                                                        Unit Rate {invoice.isTaxInclusive && <span className="text-[9px] text-emerald-600 font-bold lowercase tracking-normal">(incl. tax)</span>}
+                                                    </th>
                                                     <th className="text-right text-[10px] uppercase tracking-widest">Disc %</th>
                                                     <th className="text-right text-[10px] uppercase tracking-widest">Net Value</th>
                                                 </tr>
@@ -522,14 +524,21 @@ export default function InvoiceDetailPage({ params }: { params: { id: string } }
                                 <div className="flex justify-end mb-10 pt-6 border-t border-gray-100">
                                     <div className="w-full md:w-1/2 lg:w-1/3 space-y-3">
                                         <div className="flex justify-between text-sm text-gray-600">
-                                            <span className="font-medium text-xs uppercase tracking-wider text-gray-500">Subtotal:</span>
+                                            <span className="font-medium text-xs uppercase tracking-wider text-gray-500">{invoice.isTaxInclusive ? 'Subtotal (Taxable):' : 'Subtotal:'}</span>
                                             <span className="font-bold text-gray-900">{formatCurrency(subtotal)}</span>
                                         </div>
 
                                         {(() => {
                                             const itemDiscounts = invoice.items.reduce((acc: number, item: any) => {
                                                 const gross = Number(item.quantity) * Number(item.rate);
-                                                return acc + (gross * (Number(item.discount || 0) / 100));
+                                                let totalTaxPercent = 0;
+                                                (item.appliedTaxes || []).forEach((t: any) => {
+                                                    totalTaxPercent += Number(t.percentage || 0);
+                                                });
+                                                const baseGross = invoice.isTaxInclusive && totalTaxPercent > 0
+                                                    ? gross / (1 + totalTaxPercent / 100)
+                                                    : gross;
+                                                return acc + (baseGross * (Number(item.discount || 0) / 100));
                                             }, 0);
 
                                             if (itemDiscounts > 0) {

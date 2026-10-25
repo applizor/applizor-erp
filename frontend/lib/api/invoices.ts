@@ -11,6 +11,7 @@ export interface Invoice {
   discount: number;
   total: number;
   paidAmount: number;
+  isTaxInclusive?: boolean;
   cancelledAt?: string;
   cancelledReason?: string;
   client?: any;
@@ -58,6 +59,7 @@ export const invoicesApi = {
     discount?: number;
     notes?: string;
     customPaymentUrl?: string;
+    isTaxInclusive?: boolean;
   }) => {
     const response = await api.post('/invoices', data);
     return response.data;

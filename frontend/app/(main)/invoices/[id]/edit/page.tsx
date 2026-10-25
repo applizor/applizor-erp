@@ -52,6 +52,7 @@ export default function EditInvoicePage({ params }: { params: { id: string } }) 
                 currency: invoice.currency || 'USD',
                 notes: invoice.notes || '',
                 terms: invoice.terms || '',
+                isTaxInclusive: Boolean(invoice.isTaxInclusive),
                 isRecurring: Boolean(invoice.isRecurring),
                 recurringInterval: invoice.recurringInterval || 'monthly',
                 recurringStartDate: invoice.recurringStartDate ? new Date(invoice.recurringStartDate).toISOString().split('T')[0] : '',

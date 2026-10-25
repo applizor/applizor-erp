@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "Quotation" ADD COLUMN IF NOT EXISTS "isTaxInclusive" BOOLEAN NOT NULL DEFAULT false;
+
+-- AlterTable
+ALTER TABLE "Invoice" ADD COLUMN IF NOT EXISTS "isTaxInclusive" BOOLEAN NOT NULL DEFAULT false;
